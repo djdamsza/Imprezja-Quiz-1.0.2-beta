@@ -1,0 +1,2061 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>Admin Panel - Imprezja Quiz</title>
+    <link rel="icon" href="data:,">
+    <link rel="manifest" href="/manifest.json">
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        :root {
+            --bg-dark: radial-gradient(circle at center, #1a1a2e, #000);
+            --glass-bg: rgba(255, 255, 255, 0.08);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --accent-gold: #f1c40f;
+            --accent-orange: #e67e22;
+            --text-white: #ffffff;
+            --text-muted: rgba(255, 255, 255, 0.75);
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: var(--bg-dark);
+            min-height: 100vh;
+            color: var(--text-white);
+            padding-bottom: 180px; /* Miejsce na przyciski Reset i END GAME na dole */
+        }
+
+        .container {
+            width: 100%;
+            background: transparent;
+            min-height: 100vh;
+            padding-bottom: 250px;
+            padding-top: 60px;
+        }
+
+        /* NAGŁÓWEK */
+        header {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            color: var(--text-white);
+            padding: 15px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            border-bottom: 1px solid var(--glass-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: transform 0.3s ease-in-out;
+        }
+        header.hidden {
+            transform: translateY(-100%);
+        }
+
+        .font-size-toggle {
+            background: var(--glass-bg);
+            border: 2px solid var(--glass-border);
+            color: var(--text-white);
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 700;
+            margin-left: 10px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .font-size-toggle:hover {
+            background: rgba(255,255,255,0.15);
+            border-color: var(--accent-gold);
+        }
+        .font-size-toggle.active {
+            background: rgba(241, 196, 15, 0.2);
+            border-color: var(--accent-gold);
+        }
+
+        /* DOMYŚLNE - DUŻE CZCIONKI (obecne rozmiary) */
+        body.font-large h1 { font-size: 1.3rem; margin: 0; font-weight: 800; letter-spacing: 0.5px; }
+        body.font-large .status { font-size: 0.85rem; }
+        body.font-large h2 { font-size: 1.2rem; }
+        body.font-large .btn { font-size: 1rem; padding: 12px 15px; }
+        body.font-large .wifi-input { font-size: 1rem; padding: 12px; }
+        body.font-large select#quiz-select { font-size: 1rem; padding: 12px; }
+        body.font-large .btn-question { font-size: 1rem; padding: 12px; }
+        body.font-large .active-q-info { font-size: 1.4rem; }
+        body.font-large .admin-answer-item { font-size: 1.1rem; padding: 12px 15px; }
+        body.font-large .admin-answer-badge { font-size: 1.1rem; width: 30px; height: 30px; }
+        body.font-large .qc-nav-buttons .btn-nav-next { font-size: 1.1rem; padding: 18px; }
+        
+        /* STANDARDOWE - MNIEJSZE CZCIONKI */
+        body.font-standard h1 { font-size: 1.1rem; margin: 0; font-weight: 800; letter-spacing: 0.5px; }
+        body.font-standard .status { font-size: 0.75rem; }
+        body.font-standard h2 { font-size: 1rem; }
+        body.font-standard .btn { font-size: 0.875rem; padding: 10px 12px; }
+        body.font-standard .wifi-input { font-size: 0.875rem; padding: 10px; }
+        body.font-standard select#quiz-select { font-size: 0.875rem; padding: 10px; }
+        body.font-standard .btn-question { font-size: 0.875rem; padding: 10px; }
+        body.font-standard .active-q-info { font-size: 1.1rem; }
+        body.font-standard .admin-answer-item { font-size: 0.95rem; padding: 10px 12px; }
+        body.font-standard .admin-answer-badge { font-size: 0.95rem; width: 26px; height: 26px; }
+        body.font-standard .qc-nav-buttons .btn-nav-next { font-size: 0.95rem; padding: 15px; }
+        
+        /* Domyślnie duże czcionki */
+        body { font-size: 1rem; }
+        h1 { font-size: 1.3rem; margin: 0; font-weight: 800; letter-spacing: 0.5px; }
+        
+        .status { 
+            font-size: 0.85rem; 
+            text-align: right; 
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            line-height: 1.2;
+        }
+        
+        #connection-status { display: block; font-weight: bold; margin-bottom: 2px; }
+        #users-count { font-weight: 600; opacity: 0.9; }
+
+        h2 { color: var(--accent-gold); margin: 0 0 10px 0; font-size: 1.2rem; }
+
+        /* GENERATOR WIFI */
+        .wifi-generator {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            padding: 20px 15px;
+            border-bottom: 1px solid var(--glass-border);
+            color: var(--text-white);
+        }
+        .wifi-generator h2 { color: var(--text-white); margin-bottom: 15px; }
+        .wifi-input-group { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; }
+        .wifi-input-group .wifi-input {
+            width: 100%;
+        }
+        .wifi-input {
+            flex: 1;
+            min-width: 200px;
+            padding: 12px;
+            font-size: 1rem;
+            border: 2px solid var(--glass-border);
+            border-radius: 8px;
+            background: rgba(0,0,0,0.3);
+            color: var(--text-white);
+        }
+        .wifi-input-group .btn-wifi {
+            width: 100%;
+            margin-top: 0;
+        }
+        .wifi-input::placeholder { color: var(--text-muted); }
+        #wifi-qr-container { text-align: center; background: rgba(0,0,0,0.4); padding: 15px; border-radius: 8px; margin-top: 15px; display: none; border: 1px solid var(--glass-border); }
+        #wifi-qr-container img { max-width: 100%; height: auto; }
+
+        /* WYBIERZ QUIZ */
+        .quiz-selector {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            padding: 20px 15px;
+            border-bottom: 1px solid var(--glass-border);
+        }
+        
+        .quiz-controls-wrapper {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap; /* Kluczowe dla mobilnych */
+            align-items: center;
+        }
+        
+        select#quiz-select {
+            flex: 1;
+            min-width: 200px;
+            padding: 12px;
+            font-size: 1rem;
+            border: 2px solid var(--glass-border);
+            border-radius: 8px;
+            background: rgba(0,0,0,0.3);
+            color: var(--text-white);
+            height: 48px;
+        }
+        
+        .btn-load {
+            width: auto;
+            min-width: 100px;
+            height: 48px;
+            padding: 0 20px;
+            margin: 0 !important; /* Reset marginesu */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn { padding: 12px 15px; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s; margin: 5px; width: calc(100% - 10px); }
+        .btn:active { transform: scale(0.98); }
+        .btn-primary { background: linear-gradient(135deg, var(--accent-gold), var(--accent-orange)); color: #000; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .btn-secondary { background: var(--glass-bg); color: var(--text-white); border: 2px solid var(--glass-border); }
+        .btn-success { background: #2ecc71; color: #000; }
+        .btn-warning { background: #f1c40f; color: #000; }
+        .btn-danger { background: #e74c3c; color: white; }
+        .btn-gold { background: linear-gradient(135deg, var(--accent-gold), var(--accent-orange)); color: #000; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .btn-wifi { background: var(--glass-bg); color: var(--accent-gold); border: 2px solid var(--accent-gold); width: auto; font-weight: 700; }
+        .btn-close { width: 50px !important; flex: 0 0 50px; font-size: 1.2rem; padding: 0; display: flex; align-items: center; justify-content: center; background: #e74c3c; color: white; }
+
+        /* KONFIGURACJA TEAM BATTLE */
+        .team-battle-config {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            padding: 20px 15px;
+            border-bottom: 1px solid var(--glass-border);
+        }
+        .team-battle-config h2 {
+            color: var(--accent-gold);
+            margin-bottom: 15px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .question-item { margin: 0; padding: 0; position: relative; }
+        .btn-question { text-align: left; background: var(--glass-bg); border: 2px solid var(--glass-border); color: var(--text-white); margin: 6px 2px; padding: 10px 6px 10px 35px; font-size: 1rem; display: block; width: 100%; max-width: 100%; box-sizing: border-box; cursor: pointer; }
+        .btn-question.active { background: rgba(241, 196, 15, 0.2); border-color: var(--accent-gold); border-left-width: 5px; }
+        .btn-question.used { background: rgba(0,0,0,0.3); color: var(--text-muted); border-color: var(--glass-border); border-left: 2px solid var(--glass-border); }
+
+        .controls { padding: 10px 0; }
+        #questions-list { padding-bottom: 80px; }
+        .sticky-controls { background: var(--glass-bg); padding: 10px 0; border-bottom: 1px solid var(--glass-border); color: var(--text-muted); }
+        .nav-buttons { display: flex; gap: 10px; padding: 0 10px; }
+        .nav-buttons .btn { margin: 0; flex: 1; }
+
+        /* Panel kontroli pod pytaniem */
+        .question-control {
+            background: rgba(241, 196, 15, 0.12);
+            border: 2px solid var(--accent-gold);
+            border-radius: 8px;
+            padding: 12px 6px;
+            margin: 0 2px 15px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+        }
+        .question-control.question-control-inline {
+            position: static;
+            left: auto;
+            transform: none;
+            border-top: 4px solid var(--accent-gold);
+        }
+        .qc-header { margin-bottom: 12px; }
+        .active-q-info { font-weight: 800; font-size: 1.4rem; color: var(--text-white); line-height: 1.4; display: block; }
+        .qc-nav-buttons {
+            display: flex;
+            justify-content: stretch;
+            margin-top: 15px;
+            margin-bottom: 0;
+        }
+        .qc-nav-buttons .btn-nav-next {
+            width: 100%;
+            padding: 14px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, var(--accent-gold), var(--accent-orange));
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .qc-nav-buttons .btn-nav-next.btn-gold {
+            background: linear-gradient(135deg, var(--accent-gold), var(--accent-orange)) !important;
+        }
+        .qc-nav-buttons .btn-nav-next.btn-primary {
+            background: linear-gradient(135deg, var(--accent-gold), var(--accent-orange)) !important;
+            color: #000;
+        }
+        .qc-nav-buttons .btn-nav-next:active {
+            transform: scale(0.98);
+        }
+        .admin-answers-list { list-style: none; padding: 0; margin: 0 0 20px 0; display: flex; flex-direction: column; gap: 10px; }
+        .admin-answer-item { background: var(--glass-bg); padding: 12px 15px; border-radius: 8px; border: 2px solid var(--glass-border); font-size: 1.1rem; font-weight: bold; color: var(--text-white); display: flex; align-items: center; }
+        .admin-answer-badge { font-weight: 900; font-size: 1.1rem; color: #fff; margin-right: 15px; background: var(--accent-orange); width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 50%; flex-shrink: 0; }
+        .control-group { display: flex; flex-wrap: wrap; gap: 8px; }
+        .control-group .btn { flex: 1; margin: 0; padding: 15px; font-size: 1rem; font-weight: bold; min-width: 100px; }
+        .podium-popup { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(26, 26, 46, 0.98); backdrop-filter: blur(10px); border-top: 3px solid var(--accent-gold); padding: 15px 10px; z-index: 200; display: none; color: var(--text-white); }
+        .ranking-popup { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(26, 26, 46, 0.98); backdrop-filter: blur(10px); border: 3px solid var(--accent-gold); border-radius: 12px; padding: 20px; z-index: 300; display: none; color: var(--text-white); max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; }
+        .ranking-popup h3 { margin: 0 0 15px 0; color: var(--accent-gold); text-align: center; }
+        .ranking-popup-close { position: absolute; top: 10px; right: 10px; background: transparent; border: none; color: var(--text-white); font-size: 1.5rem; cursor: pointer; padding: 5px 10px; }
+        .ranking-popup-close:hover { color: var(--accent-gold); }
+        .bottom-reset-container { padding: 20px 10px 40px 10px; text-align: center; background: rgba(231, 76, 60, 0.2); margin-top: 0; border-top: 2px solid #e74c3c; color: var(--text-muted); }
+        .main-reset-section { margin-top: 30px; }
+        
+        /* Reset button na dole strony - fixed position */
+        .reset-button-fixed {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            padding: 20px 10px;
+            text-align: center;
+            background: rgba(241, 196, 15, 0.95); /* Żółte tło */
+            backdrop-filter: blur(10px);
+            border-top: 3px solid #f1c40f;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
+            transition: transform 0.3s ease-in-out;
+        }
+        
+        .reset-button-fixed.hidden {
+            transform: translateY(100%);
+        }
+        
+        .reset-button-fixed p {
+            background: rgba(241, 196, 15, 0.3); /* Żółte tło dla opisu */
+            padding: 8px 15px;
+            border-radius: 6px;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+        
+        .reset-button-fixed .btn-danger {
+            background: #e74c3c; /* Czerwony przycisk */
+            border-color: #c0392b;
+        }
+        
+        .reset-button-fixed .btn-danger:hover {
+            background: #c0392b;
+            border-color: #a93226;
+        }
+        .reset-button-fixed .btn-end-game {
+            background: #2c3e50;
+            border: 2px solid #1a252f;
+            color: #fff;
+        }
+        .reset-button-fixed .btn-end-game:hover {
+            background: #1a252f;
+            border-color: #000;
+        }
+        .reset-button-fixed .btn-bug-report:hover {
+            background: #2980b9;
+        }
+        
+        /* Znaczek odchaczenia z lewej strony pytania */
+        .question-checkmark {
+            position: absolute;
+            left: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #2ecc71;
+            font-size: 1.2rem;
+            font-weight: bold;
+            z-index: 10;
+        }
+
+        /* Odznaki typów pytań (kwadrat z literą przed treścią) */
+        .type-badges { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; flex-shrink: 0; }
+        .type-badge { display: inline-flex; align-items: center; justify-content: center; padding: 4px 10px; min-height: 28px; font-weight: 700; font-size: 0.8rem; border-radius: 6px; color: #fff; white-space: nowrap; }
+        .type-badge-S { background: #e67e22; }
+        .type-badge-E { background: #c62828; }
+        .type-badge-H { background: #e91e63; }
+        .type-badge-Q { background: #2196f3; }
+        .type-badge-M { background: #9c27b0; }
+        .type-badge-V { background: #ff9800; }
+        .type-badge-F { background: #00bcd4; }
+        .type-badge-Z { background: #5c6bc0; }
+        .type-badge-O { background: #2e7d32; }
+        .type-badge-B { background: #0066cc; }
+        .type-badge-L { background: #9c27b0; }
+        .question-type-line { margin-bottom: 6px; }
+        .question-text-line { display: block; text-align: left; }
+        .question-with-badges { display: block; }
+        .admin-word-cloud { display: flex; flex-wrap: wrap; gap: 10px 18px; padding: 15px 0; justify-content: center; align-items: center; }
+        .admin-word-cloud .word-tag { display: inline-block; padding: 10px 18px; border-radius: 24px; background: rgba(46, 204, 113, 0.2); border: 2px solid #2ecc71; font-weight: 700; cursor: pointer; transition: all 0.2s; user-select: none; color: var(--text-white); }
+        .admin-word-cloud .word-tag:hover { background: #2ecc71; color: #000; transform: scale(1.08); box-shadow: 0 4px 12px rgba(46,204,113,0.4); }
+        .admin-word-cloud-hint { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px; }
+        .admin-playoff-bar { margin-top: 15px; padding: 12px; background: rgba(241, 196, 15, 0.15); border-radius: 8px; border: 1px solid var(--accent-gold); color: var(--text-white); }
+        .legend-section { background: var(--glass-bg); padding: 15px 20px; margin-top: 20px; border-radius: 8px; border: 1px solid var(--glass-border); }
+        .legend-section h3 { margin: 0 0 10px 0; font-size: 1rem; color: var(--accent-gold); }
+        .legend-grid { display: flex; flex-wrap: wrap; gap: 10px 20px; font-size: 0.9rem; color: var(--text-muted); }
+        .legend-item { display: flex; align-items: center; gap: 6px; }
+
+        /* Ranking i Podium na adminie (jak na TV) */
+        .admin-ranking-podium { background: var(--glass-bg); padding: 12px 15px; margin-top: 10px; border-radius: 8px; border: 1px solid var(--glass-border); }
+        .admin-ranking-podium h3 { margin: 0 0 8px 0; font-size: 0.95rem; color: var(--accent-gold); }
+        .admin-ranking-list { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto; }
+        .admin-ranking-list li { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 0.9rem; }
+        .admin-ranking-list li:nth-child(1) { background: rgba(241,196,15,0.12); }
+        .admin-ranking-list li:nth-child(2) { background: rgba(192,192,192,0.1); }
+        .admin-ranking-list li:nth-child(3) { background: rgba(205,127,50,0.12); }
+        .admin-podium-box { margin-top: 12px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 6px; border: 1px solid var(--glass-border); }
+        .admin-podium-box h4 { margin: 0 0 8px 0; font-size: 0.9rem; color: var(--accent-gold); }
+        .admin-podium-place { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; margin-bottom: 6px; border-radius: 4px; font-size: 0.9rem; }
+        .admin-podium-place.place-1 { background: rgba(241,196,15,0.2); border: 1px solid rgba(241,196,15,0.4); }
+        .admin-podium-place.place-2 { background: rgba(192,192,192,0.15); border: 1px solid rgba(255,255,255,0.2); }
+        .admin-podium-place.place-3 { background: rgba(205,127,50,0.2); border: 1px solid rgba(205,127,50,0.4); }
+        .admin-podium-place .podium-name { font-weight: 600; }
+        .admin-podium-place .podium-points { color: var(--accent-gold); font-weight: 700; }
+
+        @media (min-width: 768px) {
+            .container { max-width: 1200px; margin: 0 auto; }
+            .podium-popup { max-width: 1200px; left: 50%; transform: translateX(-50%); }
+        }
+        @media (max-width: 767px) {
+            .container { width: 100%; max-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header id="admin-header">
+            <h1>🎮 PANEL ADMINA</h1>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <button class="font-size-toggle" id="font-size-toggle" onclick="toggleFontSize()" title="Zmiana wielkości czcionek">
+                    <span id="font-size-icon">🔤</span>
+                    <span id="font-size-label">Duża</span>
+                </button>
+                <div class="status">
+                    <span id="connection-status">🔴 Rozłączony</span>
+                    <span id="users-count">👥 0</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- SEKCJA LICENCJI -->
+        <section class="wifi-generator" id="license-section" style="background: var(--glass-bg); border: 2px solid var(--glass-border); border-radius: 12px; padding: 20px; margin-top: 20px;">
+            <h2>🔐 Licencja</h2>
+            <div id="license-status" style="margin-bottom: 15px; padding: 12px; border-radius: 6px; font-size: 0.95rem;">
+                <span id="license-status-text">Sprawdzanie...</span>
+            </div>
+            <div id="license-activation" style="display: none;">
+                <div class="wifi-input-group">
+                    <input type="text" id="license-key-input" class="wifi-input" placeholder="IMPREZJA-RSA-... lub IMPREZJA-XXXX-XXXX-XXXX-XXXX" autocomplete="off" style="font-family: monospace; letter-spacing: 1px;">
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
+                        <button onclick="activateLicense()" class="btn btn-primary">Aktywuj licencję</button>
+                    </div>
+                </div>
+                <div id="license-error" style="margin-top: 10px; color: #e74c3c; display: none; font-size: 0.9rem;"></div>
+            </div>
+            <div id="license-info" style="margin-top: 15px; font-size: 0.85rem; color: var(--text-muted); display: none;">
+                <div><strong>ID komputera:</strong> <code id="machine-id-display" style="font-family: monospace; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px;"></code></div>
+            </div>
+            <div style="margin-top: 15px;">
+                <a href="https://nowajakoscrozrywki.pl/produkt/imprezja-quiz/" target="_blank" rel="noopener noreferrer" class="btn btn-success" style="text-decoration: none; display: inline-flex; align-items: center;">🛒 Kup licencję</a>
+            </div>
+        </section>
+
+        <!-- SEKCJA AKTUALIZACJI -->
+        <section class="wifi-generator" id="updates-section" style="background: var(--glass-bg); border: 2px solid var(--glass-border); border-radius: 12px; padding: 20px; margin-top: 20px;">
+            <h2>🔄 Aktualizacje</h2>
+            <div style="margin-bottom: 12px; padding: 10px 14px; background: rgba(241, 196, 15, 0.12); border-radius: 8px; border-left: 4px solid var(--accent-gold); font-size: 0.85rem; color: var(--text-muted);">
+                <strong>⚠️ Uwaga:</strong> Nie zalecam aktualizacji w trakcie imprezy – lepiej zrobić to na spokojnie i przetestować.
+            </div>
+            <div id="update-status" style="margin-bottom: 12px; padding: 12px; border-radius: 6px; font-size: 0.95rem; min-height: 24px;">
+                <span id="update-status-text"></span>
+            </div>
+            <button type="button" onclick="checkForUpdates()" class="btn btn-primary" id="check-updates-btn">🔍 Sprawdź aktualizacje</button>
+        </section>
+
+        <!-- GENERATOR QR WIFI -->
+        <section class="wifi-generator">
+            <h2>📶 Generator QR WiFi</h2>
+            <div class="wifi-input-group">
+                <input type="text" id="wifi-ssid" class="wifi-input" placeholder="Nazwa sieci WiFi..." autocomplete="off">
+                <input type="password" id="wifi-password" class="wifi-input" placeholder="Hasło WiFi (opcjonalne)..." autocomplete="off" style="margin-top: 10px;">
+                <select id="wifi-type" class="wifi-input" style="margin-top: 10px;">
+                    <option value="WPA2">WPA2-Personal (domyślne)</option>
+                    <option value="WPA">WPA/WPA2/WPA3 (ogólne)</option>
+                    <option value="WEP">WEP (stare)</option>
+                </select>
+                <button onclick="generateWiFiQR()" class="btn btn-wifi">Generuj</button>
+            </div>
+            <div id="wifi-qr-container"></div>
+            <div style="margin-top: 15px; padding: 10px; background: rgba(241, 196, 15, 0.15); border-radius: 6px; border: 1px solid rgba(241, 196, 15, 0.3); font-size: 0.85rem; color: var(--text-muted);">
+                <strong>ℹ️ Uwaga:</strong> Niektóre routery (np. Xiaomi) mogą mieć problemy z łączeniem przez QR kod WiFi. Jeśli QR kod nie działa, spróbuj połączyć się ręcznie lub użyj innego routera.
+            </div>
+        </section>
+
+        <!-- QR DO GRY W SIECI LOKALNEJ (Wi‑Fi) -->
+        <section class="wifi-generator">
+            <h2>📶 QR do gry w sieci lokalnej</h2>
+            <p style="margin-bottom: 12px; color: var(--text-muted); font-size: 0.9rem;">Pokaż na ekranie TV kod QR do gry przez Wi‑Fi (ten sam adres co w sieci lokalnej). Może być włączony razem z tunelem – wtedy wyświetlają się oba kody. Gdy włączysz „Pokaż QR na telefonach”, ten sam kod pojawi się też u zalogowanych graczy.</p>
+            <button type="button" id="local-qr-btn" onclick="toggleLocalQR()" class="btn btn-primary">Pokaż QR sieci lokalnej na ekranie</button>
+            <div id="local-qr-status" style="margin-top: 10px; font-size: 0.9rem; color: var(--text-muted);"></div>
+        </section>
+
+        <!-- TUNEL (sieć komórkowa) – Pinggy, jeden klik na Mac/Linux -->
+        <section class="wifi-generator">
+            <h2>🌐 Tunel (gra przez sieć komórkową)</h2>
+            <p style="margin-bottom: 14px; color: var(--text-muted); font-size: 0.9rem;">Gracze mogą dołączyć przez internet (np. LTE) bez Wi‑Fi. <strong>Na Macu</strong> jednym kliknięciem uruchom tunel (Pinggy) – bez wpisywania haseł, od razu działa.</p>
+            <div style="margin-bottom: 14px; padding: 10px 14px; background: rgba(241, 196, 15, 0.12); border-radius: 8px; border-left: 4px solid var(--accent-gold); font-size: 0.85rem; color: var(--text-muted);">
+                <strong>⚠️ Wymagania:</strong> Tunel wymaga <strong>dostępu do internetu</strong> na komputerze prowadzącym grę – sieć lokalna (Wi‑Fi bez internetu) nie wystarczy.<br>
+                <strong>⏱️ Limit czasu:</strong> Wersja darmowa Pinggy ma limit ok. <strong>60 minut</strong> na jedno połączenie – po tym czasie tunel się rozłączy i trzeba go uruchomić ponownie (adres URL się zmieni).
+            </div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                <button type="button" id="tunnel-start-btn" onclick="startTunnelOneClick()" class="btn btn-primary">🌐 Uruchom tunel i generuj QR</button>
+                <button type="button" id="tunnel-stop-btn" onclick="stopTunnelOneClick()" class="btn btn-danger" style="display: none;">Zatrzymaj tunel</button>
+            </div>
+            <div id="pinggy-status" style="margin-top: 12px; font-size: 0.9rem; color: var(--text-muted);"></div>
+            <div id="pinggy-url-display" style="margin-top: 8px; word-break: break-all; font-weight: 600; color: var(--accent-gold); display: none;"></div>
+            <details style="margin-top: 14px; font-size: 0.85rem; color: var(--text-muted);">
+                <summary>Na Windows lub gdy „Uruchom tunel” nie działa – wklej adres ręcznie</summary>
+                <p style="margin-top: 10px;">Uruchom w PowerShell (Windows) lub terminalu (Mac): <code>ssh -p 443 -R0:localhost:3000 a.pinggy.io</code>. Przy pierwszym połączeniu wpisz <strong>yes</strong>. Skopiuj wyświetlony adres (np. https://xxx.a.pinggy.io) i wklej poniżej.</p>
+                <div class="wifi-input-group" style="margin-top: 10px;">
+                    <input type="url" id="pinggy-url" class="wifi-input" placeholder="https://xxx.a.pinggy.io" autocomplete="off">
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button type="button" onclick="setPinggyUrl()" class="btn btn-wifi">Ustaw URL</button>
+                        <button type="button" onclick="clearPinggyUrl()" class="btn btn-secondary">Wyczyść</button>
+                    </div>
+                </div>
+            </details>
+        </section>
+
+        <!-- WYBÓR QUIZU - ZMODYFIKOWANA STRUKTURA -->
+        <section class="quiz-selector">
+            <h2>📂 Wybierz Quiz</h2>
+            <div class="quiz-controls-wrapper">
+                <select id="quiz-select">
+                    <option value="">-- Ładowanie --</option>
+                </select>
+                <button onclick="loadQuiz()" class="btn btn-primary btn-load">Załaduj</button>
+            </div>
+        </section>
+
+        <!-- KONFIGURACJA TEAM BATTLE -->
+        <section class="team-battle-config">
+            <h2>⚔️ Konfiguracja Team Battle</h2>
+            <div class="form-group">
+                <label for="team-a-name">Nazwa Drużyny A:</label>
+                <input type="text" id="team-a-name" value="Team Panny Młodej" placeholder="Drużyna A" class="wifi-input">
+            </div>
+            <div class="form-group">
+                <label for="team-b-name">Nazwa Drużyny B:</label>
+                <input type="text" id="team-b-name" value="Team Pana Młodego" placeholder="Drużyna B" class="wifi-input">
+            </div>
+            <button id="activate-team-mode-btn" onclick="activateTeamMode()" class="btn btn-primary">AKTYWUJ TRYB DRUŻYNOWY</button>
+            <!-- Wyświetlanie liczby graczy w drużynach (tylko gdy tryb drużynowy aktywny) -->
+            <div id="admin-team-counts" style="margin-top: 15px; padding: 12px; background: rgba(0,102,204,0.15); border-radius: 8px; border: 1px solid rgba(0,102,204,0.3); display: none;">
+                <h4 style="margin: 0 0 8px 0; font-size: 0.95rem; color: var(--accent-gold);">👥 Liczba graczy w drużynach</h4>
+                <div id="admin-team-counts-content" style="font-size: 0.9rem; color: var(--text-white);"></div>
+            </div>
+        </section>
+
+        <!-- Pokaż QR na telefonach (u graczy po dołączeniu) -->
+        <section class="team-battle-config" style="border-bottom: 2px solid var(--glass-border);">
+            <h2>📱 Pokaż QR code na telefonach</h2>
+            <p style="margin-bottom: 15px; color: var(--text-muted); font-size: 0.95rem;">Po włączeniu na ekranach zalogowanych graczy (ekran oczekiwania) pojawią się te same kody QR co na ekranie TV (WiFi, gra w sieci lokalnej, tunel). Gracze mogą w ten sposób przekazać dalej link do gry innym osobom.</p>
+            <button onclick="toggleShowQROnPhones()" class="btn btn-primary" id="show-qr-phones-btn" style="width: auto;">📱 Pokaż QR code na telefonach</button>
+        </section>
+        
+        <!-- Link do otwarcia admina na komputerze (jak przy edytorze na Screen) -->
+        <section class="team-battle-config" style="border-bottom: 2px solid var(--glass-border); padding: 12px 0;">
+            <p style="margin-bottom: 10px; color: var(--text-muted); font-size: 0.95rem;">Możesz sterować grą także z komputera – kod QR do panelu admina pozostanie wtedy widoczny (sterowanie z telefonu i komputera jednocześnie).</p>
+            <a href="/admin.html?computer=1" target="_blank" rel="noopener" class="btn btn-secondary" style="display: inline-block; text-decoration: none; color: inherit;">🖥️ Otwórz panel admina na tym komputerze</a>
+        </section>
+
+        <!-- PANEL KONTROLNY -->
+        <section class="controls" id="controls" style="display:none;">
+            <div class="control-group" style="padding: 0 5px 10px 5px; border-bottom: 1px solid var(--glass-border);">
+                <div id="start-game-wrap" style="display: none; margin-bottom: 10px;">
+                    <button type="button" onclick="startGame()" class="btn btn-primary" style="width: 100%;">▶️ Rozpocznij rozgrywkę</button>
+                </div>
+                <button onclick="sendCommand('admin_intro')" class="btn btn-secondary">🎬 Ekran Start</button>
+                <button onclick="sendCommand('admin_idle')" class="btn btn-secondary">⏸️ Pauza</button>
+                <button onclick="showPodium()" class="btn btn-gold">🏆 Podium</button>
+            </div>
+
+            <!-- Ranking graczy (jak na TV) + Podium – kto na którym miejscu -->
+            <div class="admin-ranking-podium" id="admin-ranking-podium">
+                <h3>📊 Ranking (jak na TV)</h3>
+                <ul class="admin-ranking-list" id="admin-ranking-list" aria-label="Lista graczy z punktami">
+                    <li style="color: var(--text-muted);">Kliknij „🏆 Ranking”, aby zobaczyć listę.</li>
+                </ul>
+                <div class="admin-podium-box" id="admin-podium-box" style="display: none;">
+                    <h4>🏆 Podium – kto na którym miejscu</h4>
+                    <div id="admin-podium-places"></div>
+                </div>
+            </div>
+            
+            <div class="sticky-controls">
+                <div style="padding: 5px 10px; font-weight: bold; color: var(--text-muted);">
+                    Pytania (<span id="questions-count">0</span>) - <span id="loaded-quiz-name"></span>
+                </div>
+            </div>
+
+            <div id="questions-list"></div>
+
+            <!-- LEGENDA TYPÓW PYTAŃ -->
+            <div class="legend-section" id="legend-section">
+                <h3>📋 Legenda typów pytań</h3>
+                <div class="legend-grid">
+                    <span class="legend-item"><span class="type-badge type-badge-S">Speedrun</span> – punkty tylko dla 10 pierwszych (1000→100)</span>
+                    <span class="legend-item"><span class="type-badge type-badge-E">Eliminacja</span> – zła odp. = odpadasz, wynik zerowany</span>
+                    <span class="legend-item"><span class="type-badge type-badge-Z">Szacowanie</span> – gracze wpisują liczbę, wygrywa najbliższy</span>
+                    <span class="legend-item"><span class="type-badge type-badge-H">Hot or Not</span> – dwa obrazki, wybór A/B</span>
+                    <span class="legend-item"><span class="type-badge type-badge-Q">QUIZ</span> – pytanie z poprawną odpowiedzią</span>
+                    <span class="legend-item"><span class="type-badge type-badge-V">Głosowanie</span> – wybór A lub B</span>
+                    <span class="legend-item"><span class="type-badge type-badge-F">Foto Głos</span> – głosowanie z obrazkiem</span>
+                    <span class="legend-item"><span class="type-badge type-badge-O">Pytanie otwarte</span> – chmura słów, dogrywka TAK/NIE (bez punktów)</span>
+                    <span class="legend-item"><span class="type-badge type-badge-L">Pytanie z literą</span> – gracze wpisują wyraz na przypisaną literę, chmura słów, dogrywka TAK/NIE</span>
+                    <span class="legend-item"><span class="type-badge type-badge-M">Muzyka</span> – pytanie z dźwiękiem</span>
+                    <span class="legend-item"><span class="type-badge type-badge-B">Statki</span> – gra w statki, strzały po kolei, trafienie = 100 pkt</span>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- POPUP RANKINGU -->
+        <div class="ranking-popup" id="ranking-popup">
+            <button class="ranking-popup-close" onclick="hideRankingPopup()">×</button>
+            <h3 id="ranking-popup-title">🏆 Ranking graczy</h3>
+            <ul class="admin-ranking-list" id="ranking-popup-list"></ul>
+        </div>
+
+        <!-- POPUP KONTROLI PODIUM -->
+        <section class="podium-popup" id="podium-popup">
+            <h3 style="margin-bottom: 10px; color: var(--accent-gold); text-align: center;">🏆 PODIUM STEROWANIE</h3>
+            <!-- Wyniki podium (tylko dla admina) -->
+            <div class="admin-podium-box" id="podium-popup-results" style="display: none; margin-bottom: 15px;">
+                <h4 style="margin: 0 0 8px 0; font-size: 0.9rem; color: var(--accent-gold);">🏆 Wyniki podium (tylko admin widzi)</h4>
+                <div id="podium-popup-places"></div>
+            </div>
+            <!-- Przyciski dla trybu indywidualnego (3, 2, 1) -->
+            <div class="control-group" id="podium-controls-individual">
+                <button id="podium-step-3-btn" onclick="sendPodiumStep(3)" class="btn btn-secondary">🥉 3. Miejsce</button>
+                <button onclick="sendPodiumStep(2)" class="btn btn-secondary">🥈 2. Miejsce</button>
+                <button onclick="sendPodiumStep(1)" class="btn btn-gold">🥇 1. Miejsce</button>
+            </div>
+            <!-- Przyciski dla trybu drużynowego (tylko 2, 1) -->
+            <div class="control-group" id="podium-controls-team" style="display: none;">
+                <button onclick="sendPodiumStep(2)" class="btn btn-secondary">🥈 2. Miejsce</button>
+                <button onclick="sendPodiumStep(1)" class="btn btn-gold">🥇 1. Miejsce</button>
+            </div>
+            <button onclick="showThanksScreen()" class="btn btn-success" style="margin-top: 10px; width:100%;">🎉 Wyświetl podziękowania</button>
+            <button onclick="hidePodiumPopup()" class="btn btn-secondary" style="margin-top: 10px; width:100%;">Zamknij Panel Podium</button>
+        </section>
+
+        <!-- KONTROLA PYTANIA – harmonijka rozwijana pod pytaniem -->
+        <section class="question-control question-control-inline" id="question-control" style="display:none;">
+            <div class="qc-header">
+                <span class="active-q-info" id="active-q-info">Pytanie...</span>
+            </div>
+            
+            <ul class="admin-answers-list" id="active-q-answers"></ul>
+
+            <div class="control-group">
+                <button onclick="showStats()" class="btn btn-warning" id="stats-btn">📊 Statystyki</button>
+                <button onclick="showCorrect()" class="btn btn-success" id="correct-btn">✅ Odpowiedź</button>
+                <button onclick="shipsNextTurn()" class="btn btn-info" id="ships-next-turn-btn" style="display: none;">⏭️ Następna tura</button>
+                <button onclick="shipsEndGame()" class="btn btn-danger" id="ships-end-btn" style="display: none;">🏁 Koniec</button>
+                <button onclick="shipsShowAnswer()" class="btn btn-success" id="ships-show-answer-btn" style="display: none;">⚓ Pokaż statki</button>
+                <button onclick="startLetterGame(1)" class="btn btn-info" id="letter-btn-1" style="display: none;">🔤 Wyślij 1 literę</button>
+                <button onclick="startLetterGame(2)" class="btn btn-info" id="letter-btn-2" style="display: none;">🔤 Wyślij 2 litery</button>
+                <button onclick="showRankingPopup()" class="btn btn-primary">🏆 Ranking</button>
+            </div>
+            
+            <div class="qc-nav-buttons">
+                <button onclick="nextQuestion()" class="btn-nav-next btn-primary" id="qc-next-btn">Następne ▶</button>
+            </div>
+        </section>
+        
+        <!-- RESET GRY i END GAME - na dole strony -->
+        <div class="reset-button-fixed hidden">
+            <p style="margin-bottom: 10px; color: rgba(0,0,0,0.9); font-size: 0.9rem; font-weight: 600;">⚠️ Opcja niebezpieczna:</p>
+            <button onclick="resetGame()" class="btn btn-danger" style="font-size: 1rem; padding: 12px 20px;">🔴 RESET GRY (Pełny reset: punkty, nick, drużyna)</button>
+            <p style="margin: 16px 0 8px 0; color: rgba(0,0,0,0.9); font-size: 0.9rem; font-weight: 600;">⛔ Zakończenie serwera:</p>
+            <button onclick="endGame()" class="btn btn-end-game" style="font-size: 1rem; padding: 12px 20px;">⛔ END GAME (Wyłączenie serwera i wszystkich połączeń)</button>
+            <div class="bug-report-section" style="margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(0,0,0,0.15);">
+                <p style="margin-bottom: 8px; color: rgba(0,0,0,0.9); font-size: 0.9rem; font-weight: 600;">📋 Raport o błędach (różne komputery / tryby gry):</p>
+                <textarea id="bug-report-description" placeholder="Opis problemu (opcjonalnie): np. co się nie udało, na jakim urządzeniu, w jakim trybie..." style="width: 100%; max-width: 500px; min-height: 60px; padding: 8px; font-size: 0.85rem; border-radius: 6px; border: 1px solid rgba(0,0,0,0.2); margin-bottom: 8px; box-sizing: border-box;" rows="2"></textarea>
+                <button type="button" onclick="sendBugReport()" class="btn btn-bug-report" style="font-size: 0.9rem; padding: 10px 18px; background: #3498db; border: none; border-radius: 8px; color: #fff; cursor: pointer;">📤 Wyślij raport na biuro@imprezja.pl</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let questions = [];
+        let currentQuestionIndex = -1;
+        let activeQuestionIndex = -1;
+        let usedQuestions = new Set();
+        
+        // === OBSŁUGA LICENCJI ===
+        async function checkLicenseStatus() {
+            try {
+                const response = await fetch('/api/license/status');
+                const status = await response.json();
+                updateLicenseUI(status);
+                
+                // Pobierz machine ID
+                const machineIdResponse = await fetch('/api/license/machine-id');
+                const machineData = await machineIdResponse.json();
+                document.getElementById('machine-id-display').textContent = machineData.machineId;
+                document.getElementById('license-info').style.display = 'block';
+                
+                return status;
+            } catch (err) {
+                console.error('Błąd sprawdzania licencji:', err);
+                document.getElementById('license-status-text').textContent = '❌ Błąd sprawdzania licencji';
+                return null;
+            }
+        }
+        
+        function updateLicenseUI(status) {
+            const statusEl = document.getElementById('license-status');
+            const statusTextEl = document.getElementById('license-status-text');
+            const activationEl = document.getElementById('license-activation');
+            
+            if (status.valid) {
+                if (status.type === 'trial') {
+                    statusEl.style.background = 'rgba(241, 196, 15, 0.15)';
+                    statusEl.style.border = '1px solid rgba(241, 196, 15, 0.3)';
+                    statusTextEl.innerHTML = `✅ <strong>Okres testowy aktywny</strong><br>Pozostało dni: <strong>${status.daysLeft}</strong>`;
+                    activationEl.style.display = 'block';
+                } else if (status.type === 'test') {
+                    statusEl.style.background = 'rgba(155, 89, 182, 0.15)';
+                    statusEl.style.border = '1px solid rgba(155, 89, 182, 0.3)';
+                    statusTextEl.innerHTML = `✅ <strong>Licencja testowa</strong> (klucz deweloperski – tylko do sprawdzenia działania)`;
+                    activationEl.style.display = 'block';
+                } else {
+                    statusEl.style.background = 'rgba(46, 204, 113, 0.15)';
+                    statusEl.style.border = '1px solid rgba(46, 204, 113, 0.3)';
+                    const typeLabel = status.typeLabel || 'pełna';
+                    if (status.expires) {
+                        const expiresDate = new Date(status.expires);
+                        statusTextEl.innerHTML = `✅ <strong>Licencja aktywna</strong> (${typeLabel})<br>Wygasa: ${expiresDate.toLocaleDateString()}`;
+                    } else {
+                        statusTextEl.innerHTML = `✅ <strong>Licencja aktywna</strong> (${typeLabel})<br>${typeLabel === 'dożywotnia' ? 'Licencja bezterminowa' : ''}`;
+                    }
+                    activationEl.style.display = 'none';
+                }
+            } else {
+                statusEl.style.background = 'rgba(231, 76, 60, 0.15)';
+                statusEl.style.border = '1px solid rgba(231, 76, 60, 0.3)';
+                statusTextEl.innerHTML = `❌ <strong>Licencja nieważna</strong><br>${status.reason || (status.trial && status.trial.reason) || 'Nieznany błąd'}`;
+                activationEl.style.display = 'block';
+            }
+        }
+        
+        async function activateLicense() {
+            const keyInput = document.getElementById('license-key-input');
+            const key = keyInput.value.trim();
+            const errorEl = document.getElementById('license-error');
+            
+            if (!key) {
+                errorEl.textContent = 'Wprowadź klucz licencyjny';
+                errorEl.style.display = 'block';
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/license/activate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    errorEl.style.display = 'none';
+                    keyInput.value = '';
+                    await checkLicenseStatus();
+                } else {
+                    errorEl.textContent = result.error || 'Błąd aktywacji licencji';
+                    errorEl.style.display = 'block';
+                }
+            } catch (err) {
+                errorEl.textContent = 'Błąd połączenia z serwerem';
+                errorEl.style.display = 'block';
+            }
+        }
+        
+        // === SPRAWDZANIE AKTUALIZACJI ===
+        async function checkForUpdates() {
+            const statusEl = document.getElementById('update-status');
+            const statusTextEl = document.getElementById('update-status-text');
+            const btn = document.getElementById('check-updates-btn');
+            if (!statusEl || !statusTextEl || !btn) return;
+            statusTextEl.textContent = 'Sprawdzam...';
+            statusEl.style.background = 'rgba(241, 196, 15, 0.15)';
+            statusEl.style.border = '1px solid rgba(241, 196, 15, 0.3)';
+            btn.disabled = true;
+            try {
+                const response = await fetch('/api/check-updates', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+                const result = await response.json();
+                if (result.error) {
+                    statusTextEl.textContent = 'ℹ️ ' + (result.error || result.message);
+                    statusEl.style.background = 'rgba(255, 255, 255, 0.08)';
+                    statusEl.style.border = '1px solid var(--glass-border)';
+                } else if (result.available) {
+                    statusTextEl.textContent = '✅ ' + (result.message || 'Dostępna wersja ' + (result.version || ''));
+                    statusEl.style.background = 'rgba(46, 204, 113, 0.15)';
+                    statusEl.style.border = '1px solid rgba(46, 204, 113, 0.3)';
+                } else {
+                    statusTextEl.textContent = '✅ ' + (result.message || 'Masz najnowszą wersję.');
+                    statusEl.style.background = 'rgba(46, 204, 113, 0.15)';
+                    statusEl.style.border = '1px solid rgba(46, 204, 113, 0.3)';
+                }
+            } catch (err) {
+                statusTextEl.textContent = '❌ Błąd: ' + (err.message || 'Brak połączenia');
+                statusEl.style.background = 'rgba(231, 76, 60, 0.15)';
+                statusEl.style.border = '1px solid rgba(231, 76, 60, 0.3)';
+            }
+            btn.disabled = false;
+        }
+        
+        // Sprawdź licencję przy starcie
+        window.addEventListener('DOMContentLoaded', () => {
+            checkLicenseStatus();
+            // Odświeżaj status co 5 minut
+            setInterval(checkLicenseStatus, 5 * 60 * 1000);
+        });
+        
+        // Przełącznik wielkości czcionek
+        function toggleFontSize() {
+            const body = document.body;
+            const toggle = document.getElementById('font-size-toggle');
+            const icon = document.getElementById('font-size-icon');
+            const label = document.getElementById('font-size-label');
+            
+            if (body.classList.contains('font-large')) {
+                // Przełącz na standardowe
+                body.classList.remove('font-large');
+                body.classList.add('font-standard');
+                label.textContent = 'Standardowa';
+                icon.textContent = '🔤';
+                localStorage.setItem('adminFontSize', 'standard');
+            } else {
+                // Przełącz na duże
+                body.classList.remove('font-standard');
+                body.classList.add('font-large');
+                label.textContent = 'Duża';
+                icon.textContent = '🔠';
+                localStorage.setItem('adminFontSize', 'large');
+            }
+        }
+        
+        // Wczytaj zapisaną wielkość czcionek
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedSize = localStorage.getItem('adminFontSize') || 'large';
+            const body = document.body;
+            const label = document.getElementById('font-size-label');
+            const icon = document.getElementById('font-size-icon');
+            
+            if (savedSize === 'standard') {
+                body.classList.add('font-standard');
+                label.textContent = 'Standardowa';
+                icon.textContent = '🔤';
+            } else {
+                body.classList.add('font-large');
+                label.textContent = 'Duża';
+                icon.textContent = '🔠';
+            }
+        });
+
+        // Wake Lock – ekran admina nie gaśnie w trakcie rozgrywki (wymaga HTTPS lub localhost)
+        let adminWakeLock = null;
+        async function requestAdminWakeLock() {
+            if (!('wakeLock' in navigator) || document.visibilityState !== 'visible') return;
+            try {
+                if (adminWakeLock) {
+                    try { await adminWakeLock.release(); } catch (e) {}
+                    adminWakeLock = null;
+                }
+                adminWakeLock = await navigator.wakeLock.request('screen');
+                adminWakeLock.addEventListener('release', () => { adminWakeLock = null; });
+            } catch (err) {
+                if (window.isSecureContext === false) console.warn('Wake Lock: wymaga HTTPS lub localhost');
+            }
+        }
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') requestAdminWakeLock();
+        });
+        function requestAdminWakeLockOnce() {
+            requestAdminWakeLock();
+            document.removeEventListener('click', requestAdminWakeLockOnce);
+            document.removeEventListener('touchstart', requestAdminWakeLockOnce);
+        }
+        document.addEventListener('click', requestAdminWakeLockOnce, { once: true });
+        document.addEventListener('touchstart', requestAdminWakeLockOnce, { once: true });
+        if (document.visibilityState === 'visible') requestAdminWakeLock();
+
+        // Nagłówek widoczny tylko na szczycie strony, znika gdy przewijasz w dół
+        const adminHeader = document.getElementById('admin-header');
+        const HEADER_VISIBLE_THRESHOLD = 100; // Pokaż header tylko gdy jesteś w górnych 100px strony
+        window.addEventListener('scroll', () => {
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            if (scrollTop <= HEADER_VISIBLE_THRESHOLD) {
+                adminHeader.classList.remove('hidden');
+            } else {
+                adminHeader.classList.add('hidden');
+            }
+        }, { passive: true });
+        
+        // Panel Reset widoczny tylko na dole strony, znika gdy nie jesteś na samym dole
+        const resetButton = document.querySelector('.reset-button-fixed');
+        const RESET_VISIBLE_THRESHOLD = 150; // Pokaż reset tylko gdy jesteś w dolnych 150px strony
+        window.addEventListener('scroll', () => {
+            if (!resetButton) return;
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            const windowHeight = window.innerHeight;
+            const documentHeight = document.documentElement.scrollHeight;
+            const distanceFromBottom = documentHeight - (scrollTop + windowHeight);
+            
+            // Pokaż panel Reset tylko gdy jesteś blisko dołu strony
+            if (distanceFromBottom <= RESET_VISIBLE_THRESHOLD) {
+                resetButton.classList.remove('hidden');
+            } else {
+                resetButton.classList.add('hidden');
+            }
+        }, { passive: true });
+        
+        // Sprawdź pozycję przy załadowaniu strony
+        window.addEventListener('load', () => {
+            if (!resetButton) return;
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            const windowHeight = window.innerHeight;
+            const documentHeight = document.documentElement.scrollHeight;
+            const distanceFromBottom = documentHeight - (scrollTop + windowHeight);
+            
+            if (distanceFromBottom <= RESET_VISIBLE_THRESHOLD) {
+                resetButton.classList.remove('hidden');
+            } else {
+                resetButton.classList.add('hidden');
+            }
+        });
+
+        const isAdminFromComputer = () => /[?&]computer=1/i.test(window.location.search || '');
+        
+        socket.on('connect', () => {
+            document.getElementById('connection-status').textContent = '🟢 Online';
+            document.getElementById('connection-status').style.color = '#90EE90';
+            socket.emit('admin_login', isAdminFromComputer() ? { isComputer: true } : undefined);
+        });
+        
+        // Potwierdzenie aktywacji trybu drużynowego (tylko raz)
+        let teamModeActivated = false;
+        socket.on('team_mode_activated', (data) => {
+            if (teamModeActivated) {
+                console.log('⚠️ team_mode_activated już obsłużony, pomijam duplikat');
+                return;
+            }
+            teamModeActivated = true;
+            console.log('✅ Tryb drużynowy aktywowany:', data);
+            const statusEl = document.getElementById('connection-status');
+            if (statusEl) {
+                statusEl.textContent = `🟢 Online | ⚔️ ${data.teamA} vs ${data.teamB}`;
+            }
+            // Reset flag po 1 sekundzie (na wypadek kolejnej aktywacji)
+            setTimeout(() => { teamModeActivated = false; }, 1000);
+        });
+        
+        socket.on('team_mode_error', (data) => {
+            console.error('❌ Błąd aktywacji trybu drużynowego:', data);
+            alert('Błąd: ' + (data.message || 'Nie udało się aktywować trybu drużynowego'));
+        });
+        
+        // Event listener dla przycisku trybu drużynowego (po załadowaniu DOM)
+        // UWAGA: Nie dodajemy event listenera, bo przycisk już ma onclick="activateTeamMode()"
+        // Dodanie obu powodowałoby podwójne wywołanie
+        // document.addEventListener('DOMContentLoaded', () => {
+        //     const teamModeBtn = document.getElementById('activate-team-mode-btn');
+        //     if (teamModeBtn) {
+        //         teamModeBtn.addEventListener('click', activateTeamMode);
+        //         console.log('✅ Event listener dodany do przycisku trybu drużynowego');
+        //     } else {
+        //         console.warn('⚠️ Nie znaleziono przycisku activate-team-mode-btn');
+        //     }
+        // });
+        
+        // Wczytaj zapisane wartości przy starcie strony
+        window.addEventListener('DOMContentLoaded', () => {
+            loadSavedWiFiSSID();
+        });
+
+        socket.on('disconnect', () => {
+            document.getElementById('connection-status').textContent = '🔴 Offline';
+            document.getElementById('connection-status').style.color = '#FFB6C1';
+        });
+
+            // Wczytaj zapisaną nazwę sieci WiFi z localStorage
+        function loadSavedWiFiSSID() {
+            const savedSSID = localStorage.getItem('lastWiFiSSID');
+            const savedPassword = localStorage.getItem('lastWiFiPassword');
+            if (savedSSID) {
+                document.getElementById('wifi-ssid').value = savedSSID;
+            }
+            if (savedPassword) {
+                document.getElementById('wifi-password').value = savedPassword;
+            }
+        }
+        
+        // Zapisz nazwę sieci WiFi do localStorage
+        function saveWiFiSSID(ssid, password = null) {
+            if (ssid && ssid.trim() !== '') {
+                localStorage.setItem('lastWiFiSSID', ssid.trim());
+            }
+            if (password && password.trim() !== '') {
+                localStorage.setItem('lastWiFiPassword', password.trim());
+            } else {
+                localStorage.removeItem('lastWiFiPassword');
+            }
+        }
+        
+        function generateWiFiQR() {
+            const ssid = document.getElementById('wifi-ssid').value.trim();
+            const password = document.getElementById('wifi-password').value.trim();
+            const wifiType = document.getElementById('wifi-type').value || 'WPA2';
+            if (!ssid) return alert('Wpisz nazwę sieci!');
+            // Zapisz do localStorage
+            saveWiFiSSID(ssid, password);
+            // Wyślij obiekt z ssid, password i wifiType
+            socket.emit('admin_generate_wifi_qr', {
+                ssid: ssid,
+                password: password || null,
+                wifiType: wifiType
+            });
+        }
+        socket.on('wifi_qr_generated', (data) => {
+            const container = document.getElementById('wifi-qr-container');
+            container.style.display = 'block';
+            const passwordInfo = data.hasPassword ? '<br><small style="color: var(--accent-gold);">🔒 Sieć zabezpieczona hasłem</small>' : '<br><small style="color: var(--text-muted);">🔓 Sieć otwarta</small>';
+            container.innerHTML = `<img src="${data.qrCode}" alt="QR Code"><br><small>Sieć: ${data.ssid}</small>${passwordInfo}`;
+        });
+
+        function startTunnelOneClick() {
+            const btn = document.getElementById('tunnel-start-btn');
+            const status = document.getElementById('pinggy-status');
+            if (btn) btn.disabled = true;
+            if (status) { status.textContent = 'Uruchamianie tunelu… (ok. 5–15 s)'; status.style.color = 'var(--text-muted)'; }
+            socket.emit('admin_start_tunnel');
+        }
+        function stopTunnelOneClick() {
+            socket.emit('admin_stop_tunnel');
+        }
+        socket.on('tunnel_started', (data) => {
+            const startBtn = document.getElementById('tunnel-start-btn');
+            const stopBtn = document.getElementById('tunnel-stop-btn');
+            const status = document.getElementById('pinggy-status');
+            const urlDisplay = document.getElementById('pinggy-url-display');
+            if (startBtn) { startBtn.disabled = false; startBtn.style.display = 'none'; }
+            if (stopBtn) stopBtn.style.display = 'inline-block';
+            if (status) { status.textContent = '✅ Tunel działa. Kod QR na ekranie prowadzi przez ten adres:'; status.style.color = 'var(--accent-gold)'; }
+            if (urlDisplay && data.tunnelUrl) { urlDisplay.textContent = data.tunnelUrl; urlDisplay.style.display = 'block'; }
+            const input = document.getElementById('pinggy-url');
+            if (input) input.value = data.tunnelUrl || '';
+        });
+        socket.on('tunnel_stopped', () => {
+            const startBtn = document.getElementById('tunnel-start-btn');
+            const stopBtn = document.getElementById('tunnel-stop-btn');
+            const status = document.getElementById('pinggy-status');
+            const urlDisplay = document.getElementById('pinggy-url-display');
+            if (startBtn) { startBtn.disabled = false; startBtn.style.display = 'inline-block'; }
+            if (stopBtn) stopBtn.style.display = 'none';
+            if (status) { status.textContent = 'Tunel wyłączony – kod QR prowadzi na adres lokalny (Wi‑Fi).'; status.style.color = 'var(--text-muted)'; }
+            if (urlDisplay) urlDisplay.style.display = 'none';
+        });
+        socket.on('tunnel_error', (data) => {
+            const startBtn = document.getElementById('tunnel-start-btn');
+            const status = document.getElementById('pinggy-status');
+            if (startBtn) startBtn.disabled = false;
+            if (status) { status.textContent = '❌ ' + (data.message || 'Błąd tunelu.'); status.style.color = '#e74c3c'; }
+        });
+        let localQRVisible = false;
+        function toggleLocalQR() {
+            socket.emit('admin_set_show_local_qr', !localQRVisible);
+        }
+        function setPinggyUrl() {
+            const url = document.getElementById('pinggy-url').value.trim();
+            socket.emit('admin_set_pinggy_url', url || '');
+        }
+        function clearPinggyUrl() {
+            document.getElementById('pinggy-url').value = '';
+            socket.emit('admin_set_pinggy_url', '');
+        }
+        socket.on('pinggy_url_set', (data) => {
+            const status = document.getElementById('pinggy-status');
+            const urlDisplay = document.getElementById('pinggy-url-display');
+            const startBtn = document.getElementById('tunnel-start-btn');
+            const stopBtn = document.getElementById('tunnel-stop-btn');
+            if (data.tunnelUrl) {
+                status.textContent = '✅ Tunel ustawiony. Kod QR „Dołącz do gry” prowadzi przez ten adres.';
+                status.style.color = 'var(--accent-gold)';
+                if (urlDisplay) { urlDisplay.textContent = data.tunnelUrl; urlDisplay.style.display = 'block'; }
+                if (startBtn) startBtn.style.display = 'none';
+                if (stopBtn) stopBtn.style.display = 'inline-block';
+            } else {
+                status.textContent = 'Tunel wyłączony – kod QR prowadzi na adres lokalny (Wi‑Fi).';
+                status.style.color = 'var(--text-muted)';
+                if (urlDisplay) urlDisplay.style.display = 'none';
+                if (startBtn) startBtn.style.display = 'inline-block';
+                if (stopBtn) stopBtn.style.display = 'none';
+            }
+        });
+
+        socket.on('users_count', (count) => { document.getElementById('users-count').textContent = `👥 ${count}`; });
+
+        socket.on('files_list', (files) => {
+            const select = document.getElementById('quiz-select');
+            select.innerHTML = '<option value="">-- Wybierz --</option>';
+            files.forEach(file => {
+                const opt = document.createElement('option');
+                opt.value = file;
+                opt.textContent = file.replace('.json', '');
+                select.appendChild(opt);
+            });
+        });
+
+        function loadQuiz() {
+            const filename = document.getElementById('quiz-select').value;
+            if(!filename) return alert('Wybierz plik!');
+            socket.emit('admin_load_quiz', filename);
+        }
+
+        socket.on('quiz_loaded', (data) => {
+            questions = data.questions || [];
+            document.getElementById('loaded-quiz-name').textContent = data.filename.replace('.json', '');
+            document.getElementById('questions-count').textContent = questions.length;
+            document.getElementById('controls').style.display = 'block';
+            currentQuestionIndex = -1;
+            usedQuestions.clear(); 
+            renderQuestionsList();
+            // Po załadowaniu quizu pokaż „Rozpocznij rozgrywkę” gdy admin z komputera i stan to INTRO/IDLE
+            const startGameWrap = document.getElementById('start-game-wrap');
+            if (startGameWrap && typeof isAdminFromComputer === 'function' && currentGameState) {
+                const showStart = isAdminFromComputer() && (currentGameState.type === 'INTRO' || currentGameState.type === 'IDLE') && questions.length > 0;
+                startGameWrap.style.display = showStart ? 'block' : 'none';
+            }
+        });
+
+        var TYPE_LABELS = { S: 'Speedrun', E: 'Eliminacja', Z: 'Szacowanie', O: 'Pytanie otwarte', L: 'Pytanie z literą', H: 'Hot or Not', Q: 'QUIZ', V: 'Głosowanie', F: 'Foto Głos', M: 'Muzyka', B: 'Statki' };
+
+        function getTypeBadges(q) {
+            const badges = [];
+            if (q && q.speedrun) badges.push('S');
+            if (q && q.elimination) badges.push('E');
+            if (q && q.type === 'SHIPS') badges.push('B');
+            else if (q && q.type === 'LETTER') badges.push('L');
+            else if (q && q.type === 'HOT_OR_NOT') badges.push('H');
+            else if (q && q.type === 'ESTIMATION') badges.push('Z');
+            else if (q && q.type === 'OPEN') badges.push('O');
+            else if (q && q.type === 'QUIZ') badges.push('Q');
+            else if (q && q.type === 'MUSIC') badges.push('M');
+            else if (q && q.type === 'VOTE_IMG') badges.push('F');
+            else if (q && q.type === 'VOTE') badges.push('V');
+            return badges;
+        }
+
+        function renderTypeBadges(badges) {
+            if (!badges || badges.length === 0) return '';
+            return '<span class="type-badges">' + badges.map(b => `<span class="type-badge type-badge-${b}">${TYPE_LABELS[b] || b}</span>`).join('') + '</span>';
+        }
+
+        function renderQuestionsList() {
+            const container = document.getElementById('questions-list');
+            const panel = document.getElementById('question-control');
+            if (panel && panel.parentNode === container) panel.parentNode.removeChild(panel);
+            container.innerHTML = '';
+            questions.forEach((q, index) => {
+                const item = document.createElement('div');
+                item.className = 'question-item';
+                item.dataset.index = String(index);
+                
+                // Znaczek odchaczenia z lewej strony jeśli pytanie było już wyświetlane
+                if (usedQuestions.has(index)) {
+                    const checkmark = document.createElement('span');
+                    checkmark.className = 'question-checkmark';
+                    checkmark.textContent = '✓';
+                    item.appendChild(checkmark);
+                }
+                
+                const btn = document.createElement('button');
+                btn.className = 'btn btn-question';
+                if (index === activeQuestionIndex) btn.classList.add('active');
+                const badgesHtml = renderTypeBadges(getTypeBadges(q));
+                const prefix = '<b>' + (index + 1) + '.</b> '; // Usunięto ✓ z prefixu - teraz jest osobny element
+                const safeQ = (q.question || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                btn.innerHTML = '<div class="question-type-line">' + badgesHtml + '</div><span class="question-text-line">' + prefix + safeQ + '</span>';
+                btn.onclick = () => startQuestion(index);
+                item.appendChild(btn);
+                container.appendChild(item);
+            });
+            if (panel && (activeQuestionIndex >= 0 || currentQuestionIndex >= 0)) placeQuestionControlUnderActive();
+        }
+
+        function placeQuestionControlUnderActive() {
+            const panel = document.getElementById('question-control');
+            const list = document.getElementById('questions-list');
+            const idx = activeQuestionIndex >= 0 ? activeQuestionIndex : currentQuestionIndex;
+            if (!panel || !list || idx < 0) return;
+            const items = list.querySelectorAll('.question-item');
+            const activeItem = items[idx];
+            if (!activeItem) {
+                console.warn('⚠️ placeQuestionControlUnderActive: nie znaleziono aktywnego pytania o indeksie', idx, 'dostępne:', items.length);
+                return;
+            }
+            // Usuń panel z poprzedniej lokalizacji jeśli jest
+            if (panel.parentNode) panel.parentNode.removeChild(panel);
+            // Wstaw panel zaraz po aktywnym pytaniu
+            const nextSibling = activeItem.nextSibling;
+            if (nextSibling) {
+                list.insertBefore(panel, nextSibling);
+            } else {
+                // Jeśli nie ma następnego elementu, dodaj na końcu
+                list.appendChild(panel);
+            }
+            panel.style.display = 'flex';
+            console.log('✅ placeQuestionControlUnderActive: panel umieszczony pod pytaniem', idx + 1);
+        }
+
+        function updateQuestionButtonsActiveClass() {
+            const list = document.getElementById('questions-list');
+            if (!list) return;
+            const items = list.querySelectorAll('.question-item');
+            const idx = activeQuestionIndex >= 0 ? activeQuestionIndex : currentQuestionIndex;
+            items.forEach((item, i) => {
+                const btn = item.querySelector('.btn-question');
+                if (!btn) return;
+                btn.classList.toggle('active', i === idx);
+                
+                // Aktualizuj znaczek odchaczenia z lewej strony
+                const existingCheckmark = item.querySelector('.question-checkmark');
+                if (usedQuestions.has(i)) {
+                    if (!existingCheckmark) {
+                        const checkmark = document.createElement('span');
+                        checkmark.className = 'question-checkmark';
+                        checkmark.textContent = '✓';
+                        item.insertBefore(checkmark, btn);
+                    }
+                } else {
+                    if (existingCheckmark) {
+                        existingCheckmark.remove();
+                    }
+                }
+                
+                var textSpan = btn.querySelector('.question-text-line');
+                if (textSpan && questions[i]) {
+                    var pre = '<b>' + (i + 1) + '.</b> '; // Usunięto ✓ z prefixu - teraz jest osobny element
+                    var t = (questions[i].question || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                    textSpan.innerHTML = pre + t;
+                }
+                var typeLine = btn.querySelector('.question-type-line');
+                if (typeLine) {
+                    typeLine.innerHTML = renderTypeBadges(getTypeBadges(questions[i]));
+                }
+            });
+        }
+
+        let selectedLetterCount = 1; // Domyślnie 1 litera
+        
+        function setLetterCount(count) {
+            selectedLetterCount = count;
+            const btn1 = document.getElementById('letter-count-1-btn');
+            const btn2 = document.getElementById('letter-count-2-btn');
+            if (btn1 && btn2) {
+                btn1.style.background = (count === 1) ? '#9c27b0' : 'rgba(156, 39, 176, 0.3)';
+                btn2.style.background = (count === 2) ? '#9c27b0' : 'rgba(156, 39, 176, 0.3)';
+            }
+        }
+        
+        function startLetterGame(letterCount) {
+            // letterCount: 1 lub 2 - uruchom grę z tą liczbą liter
+            if (letterCount !== 1 && letterCount !== 2) letterCount = 1;
+            console.log('🔤 [admin] Wyślij litery: admin_start_letter_game(' + letterCount + ')');
+            socket.emit('admin_start_letter_game', letterCount);
+        }
+        
+        function startQuestion(index) {
+            currentQuestionIndex = index;
+            activeQuestionIndex = index;
+            usedQuestions.add(index);
+            const question = questions[index];
+            if (question && question.type === 'LETTER') {
+                console.log('🔤 [admin] Start pytania LETTER (index ' + index + ') – potem kliknij "Wyślij 1 literę" lub "Wyślij 2 litery"');
+            }
+            // Dla LETTER wysyłamy tylko index - litery wyśle admin przyciskiem "Wyślij 1 literę" / "Wyślij 2 litery"
+            socket.emit('admin_start_question', index);
+            updateQuestionButtonsActiveClass();
+            // Upewnij się że panel jest widoczny - użyj setTimeout żeby dać czas na aktualizację DOM
+            setTimeout(() => {
+                placeQuestionControlUnderActive();
+            }, 50);
+        }
+
+        function prevQuestion() { if (currentQuestionIndex > 0) startQuestion(currentQuestionIndex - 1); }
+        function nextQuestion() { 
+            if (currentQuestionIndex < questions.length - 1) startQuestion(currentQuestionIndex + 1); 
+            else showPodium();
+        }
+
+        let currentGameState = null;
+
+        // Bufor ostatnich błędów konsoli – do raportu na biuro@imprezja.pl
+        const bugReportConsoleErrors = [];
+        const BUG_REPORT_ERRORS_MAX = 15;
+        (function() {
+            var orig = console.error;
+            console.error = function() {
+                try {
+                    var msg = Array.prototype.slice.call(arguments).map(function(a) { return typeof a === 'object' ? JSON.stringify(a) : String(a); }).join(' ');
+                    bugReportConsoleErrors.push(msg);
+                    if (bugReportConsoleErrors.length > BUG_REPORT_ERRORS_MAX) bugReportConsoleErrors.shift();
+                } catch (e) {}
+                return orig.apply(console, arguments);
+            };
+        })();
+
+        function buildBugReport(userDescription) {
+            var lines = [];
+            lines.push('——— Raport błędów Imprezja Quiz ———');
+            lines.push('Data: ' + new Date().toLocaleString('pl-PL'));
+            lines.push('Strona: admin');
+            lines.push('URL: ' + (window.location.href || ''));
+            lines.push('Przeglądarka: ' + (navigator.userAgent || ''));
+            lines.push('Ekran: ' + (screen.width || '') + 'x' + (screen.height || '') + ', viewport: ' + (window.innerWidth || '') + 'x' + (window.innerHeight || ''));
+            lines.push('Połączenie z serwerem: ' + (socket && socket.connected ? 'tak' : 'nie'));
+            if (currentGameState) {
+                lines.push('Stan gry: type=' + (currentGameState.type || '') + ', activeQuestionIndex=' + (activeQuestionIndex) + ', currentQuestionIndex=' + (currentQuestionIndex));
+                if (currentGameState.quizTitle) lines.push('Quiz: ' + currentGameState.quizTitle);
+                if (currentGameState.teamBattleMode) lines.push('Tryb: drużynowy');
+                if (currentGameState.activeQuestion && currentGameState.activeQuestion.type) lines.push('Typ pytania: ' + currentGameState.activeQuestion.type);
+            }
+            if (bugReportConsoleErrors.length) {
+                lines.push('');
+                lines.push('Ostatnie błędy w konsoli:');
+                bugReportConsoleErrors.forEach(function(m) { lines.push('  ' + m); });
+            }
+            if (userDescription && String(userDescription).trim()) {
+                lines.push('');
+                lines.push('Opis od użytkownika:');
+                lines.push(String(userDescription).trim());
+            }
+            lines.push('');
+            lines.push('———————————————');
+            return lines.join('\n');
+        }
+
+        function sendBugReport() {
+            var el = document.getElementById('bug-report-description');
+            var userDesc = el ? el.value : '';
+            var body = buildBugReport(userDesc);
+            var subject = 'Imprezja Quiz – Raport błędów (' + new Date().toLocaleDateString('pl-PL') + ')';
+            var mailto = 'mailto:biuro@imprezja.pl?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+            window.location.href = mailto;
+        }
+
+        function updateAdminRankingAndPodium(state) {
+            const listEl = document.getElementById('admin-ranking-list');
+            const rankingPopupList = document.getElementById('ranking-popup-list');
+            const podiumBox = document.getElementById('admin-podium-box');
+            const podiumPlacesEl = document.getElementById('admin-podium-places');
+            const podiumPopupResults = document.getElementById('podium-popup-results');
+            const podiumPopupPlaces = document.getElementById('podium-popup-places');
+            const teamCountsBox = document.getElementById('admin-team-counts');
+            const teamCountsContent = document.getElementById('admin-team-counts-content');
+            
+            // Aktualizuj liczbę graczy w drużynach
+            if (state.teamBattleMode && state.teams && teamCountsBox && teamCountsContent) {
+                const countA = state.teams.A?.playerCount || 0;
+                const countB = state.teams.B?.playerCount || 0;
+                const nameA = state.teams.A?.name || 'Drużyna A';
+                const nameB = state.teams.B?.name || 'Drużyna B';
+                teamCountsBox.style.display = 'block';
+                teamCountsContent.innerHTML = `<div><strong>${nameA}:</strong> ${countA} graczy</div><div style="margin-top: 5px;"><strong>${nameB}:</strong> ${countB} graczy</div>`;
+            } else if (teamCountsBox) {
+                teamCountsBox.style.display = 'none';
+            }
+            
+            function renderRanking(list) {
+                if (list && Array.isArray(list) && list.length > 0) {
+                    return list.map((p, i) => {
+                        const nick = (p.nick || '—').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                        const score = p.score != null ? p.score : 0;
+                        return `<li><span>${i + 1}. ${nick}</span><strong>${score} pkt</strong></li>`;
+                    }).join('');
+                } else if (list && Array.isArray(list) && list.length === 0) {
+                    return '<li style="color: var(--text-muted);">Brak graczy z punktami.</li>';
+                }
+                return '';
+            }
+
+            function renderTeamRanking(teams) {
+                if (!teams || !teams.A || !teams.B) return '';
+                const nameA = (teams.A.name || 'Drużyna A').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                const nameB = (teams.B.name || 'Drużyna B').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                const scoreA = teams.A.score != null ? teams.A.score : 0;
+                const scoreB = teams.B.score != null ? teams.B.score : 0;
+                const sorted = [{ name: nameA, score: scoreA }, { name: nameB, score: scoreB }].sort((a, b) => (b.score || 0) - (a.score || 0));
+                return sorted.map((t, i) => `<li><span>${i + 1}. ${t.name}</span><strong>${t.score} pkt</strong></li>`).join('');
+            }
+
+            const rankingPopupTitle = document.getElementById('ranking-popup-title');
+            if (state.teamBattleMode && state.teams) {
+                const teamHtml = renderTeamRanking(state.teams);
+                if (listEl && teamHtml) listEl.innerHTML = teamHtml;
+                if (rankingPopupList && teamHtml) rankingPopupList.innerHTML = teamHtml;
+                if (rankingPopupTitle) rankingPopupTitle.textContent = '🏆 Wyniki drużyn';
+            } else {
+                if (rankingPopupTitle) rankingPopupTitle.textContent = '🏆 Ranking graczy';
+                if (listEl) {
+                    const html = renderRanking(state.leaderboard);
+                    if (html) listEl.innerHTML = html;
+                }
+                if (rankingPopupList) {
+                    const html = renderRanking(state.leaderboard);
+                    if (html) rankingPopupList.innerHTML = html;
+                }
+            }
+
+            function renderPodium(winners) {
+                if (!winners || !Array.isArray(winners) || winners.length === 0) return '';
+                const places = winners.slice(0, 3);
+                return places.map((w, i) => {
+                    const name = (w.nick != null ? w.nick : w.name) || '—';
+                    const score = w.score != null ? w.score : 0;
+                    const safeName = String(name).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    return `<div class="admin-podium-place place-${i + 1}"><span class="podium-name">${safeName}</span><span class="podium-points">${score} pkt</span></div>`;
+                }).join('');
+            }
+
+            if (state.type === 'PODIUM' && state.winners && Array.isArray(state.winners) && state.winners.length > 0) {
+                const podiumHtml = renderPodium(state.winners);
+                if (podiumBox && podiumPlacesEl) {
+                    podiumBox.style.display = 'block';
+                    podiumPlacesEl.innerHTML = podiumHtml;
+                }
+                if (podiumPopupResults && podiumPopupPlaces) {
+                    podiumPopupResults.style.display = 'block';
+                    podiumPopupPlaces.innerHTML = podiumHtml;
+                }
+            } else {
+                if (podiumBox) podiumBox.style.display = 'none';
+                if (podiumPlacesEl) podiumPlacesEl.innerHTML = '';
+                if (podiumPopupResults) podiumPopupResults.style.display = 'none';
+                if (podiumPopupPlaces) podiumPopupPlaces.innerHTML = '';
+            }
+        }
+        
+        socket.on('update_state', (state) => {
+            if (state.tunnelUrl != null) {
+                const el = document.getElementById('pinggy-url');
+                if (el && el.value !== state.tunnelUrl) el.value = state.tunnelUrl;
+                const status = document.getElementById('pinggy-status');
+                const urlDisplay = document.getElementById('pinggy-url-display');
+                const startBtn = document.getElementById('tunnel-start-btn');
+                const stopBtn = document.getElementById('tunnel-stop-btn');
+                if (state.tunnelUrl) {
+                    if (status) { status.textContent = '✅ Tunel ustawiony. Kod QR prowadzi przez ten adres.'; status.style.color = 'var(--accent-gold)'; }
+                    if (urlDisplay) { urlDisplay.textContent = state.tunnelUrl; urlDisplay.style.display = 'block'; }
+                    if (startBtn) startBtn.style.display = 'none';
+                    if (stopBtn) stopBtn.style.display = 'inline-block';
+                } else {
+                    if (status) { status.textContent = 'Tunel wyłączony – kod QR prowadzi na adres lokalny (Wi‑Fi).'; status.style.color = 'var(--text-muted)'; }
+                    if (urlDisplay) urlDisplay.style.display = 'none';
+                    if (startBtn) startBtn.style.display = 'inline-block';
+                    if (stopBtn) stopBtn.style.display = 'none';
+                }
+            }
+            if (state.showLocalGameQR != null) {
+                localQRVisible = !!state.showLocalGameQR;
+                const localBtn = document.getElementById('local-qr-btn');
+                const localStatus = document.getElementById('local-qr-status');
+                if (localBtn) localBtn.textContent = localQRVisible ? 'Ukryj QR sieci lokalnej z ekranu' : 'Pokaż QR sieci lokalnej na ekranie';
+                if (localStatus) localStatus.textContent = localQRVisible ? 'QR sieci lokalnej jest wyświetlany na ekranie.' : '';
+            }
+            currentGameState = state;
+            updateAdminRankingAndPodium(state);
+
+            // Logi LETTER na adminie – co serwer wysłał
+            if (state.activeQuestion && state.activeQuestion.type === 'LETTER') {
+                const lg = state.letterGame;
+                if (lg) {
+                    console.log('🔤 [admin] update_state LETTER:', {
+                        questionId: lg.questionId,
+                        gameStarted: !!lg.gameStarted,
+                        letterCount: lg.letterCount,
+                        playerLettersCount: lg.playerLetters ? Object.keys(lg.playerLetters).length : 0
+                    });
+                } else {
+                    console.log('🔤 [admin] update_state LETTER – brak state.letterGame');
+                }
+            }
+
+            // Przełącz przyciski podjum w zależności od trybu drużynowego
+            const podiumControlsIndividual = document.getElementById('podium-controls-individual');
+            const podiumControlsTeam = document.getElementById('podium-controls-team');
+            const podiumStep3Btn = document.getElementById('podium-step-3-btn');
+            
+            if (state.teamBattleMode) {
+                // Tryb drużynowy - pokaż tylko przyciski 2 i 1
+                if (podiumControlsIndividual) podiumControlsIndividual.style.display = 'none';
+                if (podiumControlsTeam) podiumControlsTeam.style.display = 'flex';
+                if (podiumStep3Btn) podiumStep3Btn.style.display = 'none';
+                console.log('🏆 Tryb drużynowy - pokazuję tylko przyciski 2 i 1');
+            } else {
+                // Tryb indywidualny - pokaż przyciski 3, 2 i 1
+                if (podiumControlsIndividual) podiumControlsIndividual.style.display = 'flex';
+                if (podiumControlsTeam) podiumControlsTeam.style.display = 'none';
+                if (podiumStep3Btn) podiumStep3Btn.style.display = '';
+                console.log('🏆 Tryb indywidualny - pokazuję przyciski 3, 2 i 1');
+            }
+            
+            // Aktualizuj stan przycisku „Pokaż QR na telefonach”
+            const showQrPhonesBtn = document.getElementById('show-qr-phones-btn');
+            if (showQrPhonesBtn) {
+                if (state.showQROnPhones) {
+                    showQrPhonesBtn.textContent = '📱 QR na telefonach (włączone)';
+                    showQrPhonesBtn.style.background = '#28a745';
+                } else {
+                    showQrPhonesBtn.textContent = '📱 Pokaż QR code na telefonach';
+                    showQrPhonesBtn.style.background = '#17a2b8';
+                }
+            }
+            
+            // Przycisk „Rozpocznij rozgrywkę” – tylko gdy admin na komputerze i ekran to INTRO/IDLE
+            const startGameWrap = document.getElementById('start-game-wrap');
+            if (startGameWrap && typeof isAdminFromComputer === 'function') {
+                const showStart = isAdminFromComputer() && (state.type === 'INTRO' || state.type === 'IDLE') && questions && questions.length > 0;
+                startGameWrap.style.display = showStart ? 'block' : 'none';
+            }
+            
+            if (state.type === 'GAME' || state.type === 'GAME_STATS') {
+                const serverActive = state.activeQuestionIndex;
+                if (typeof serverActive === 'number' && serverActive >= 0) {
+                    activeQuestionIndex = serverActive;
+                    currentQuestionIndex = serverActive;
+                    usedQuestions.add(serverActive);
+                }
+                const panel = document.getElementById('question-control');
+                const hasQuizLoaded = questions && questions.length > 0;
+                if (!hasQuizLoaded) {
+                    // Po resecie / przed wczytaniem quizu nie pokazuj panelu pytania (serwer może nadal wysyłać stan GAME)
+                    if (panel) panel.style.display = 'none';
+                } else {
+                    updateQuestionButtonsActiveClass();
+                    // WAŻNE: Zawsze wywołaj placeQuestionControlUnderActive gdy jest aktywna gra i quiz wczytany
+                    if (activeQuestionIndex >= 0 || currentQuestionIndex >= 0) {
+                        placeQuestionControlUnderActive();
+                        if (panel) panel.style.display = 'flex';
+                    }
+                }
+                // Treść panelu (pytanie, odpowiedzi, przyciski) tylko gdy quiz jest wczytany
+                if (hasQuizLoaded && (activeQuestionIndex >= 0 || currentQuestionIndex >= 0)) {
+                const popup = document.getElementById('podium-popup');
+                if (popup) popup.style.display = 'none';
+                const q = state.activeQuestion;
+                const activeQInfo = document.getElementById('active-q-info');
+                const answersList = document.getElementById('active-q-answers');
+                if (activeQInfo && answersList) {
+                const typeLineHtml = (q && q.type === 'LETTER') 
+                    ? '<span style="color: #9c27b0; font-weight: 600;">🔤 Pytanie z literą</span>' 
+                    : renderTypeBadges(getTypeBadges(q));
+                const safeQuestion = (q.question || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                activeQInfo.innerHTML =
+                    '<div class="question-type-line">' + typeLineHtml + '</div><span class="question-text-line">Pytanie ' + (activeQuestionIndex + 1) + ': ' + safeQuestion + '</span>';
+
+                // Ukryj przycisk "Odpowiedź" dla dogrywki lub pytań bez poprawnej odpowiedzi (ale nie dla ESTIMATION)
+                const correctBtn = document.querySelector('button[onclick="showCorrect()"]');
+                const isPlayoff = !!(state.playoff && state.playoff.active);
+                const isEstimation = q && q.type === 'ESTIMATION';
+                const isShips = q && q.type === 'SHIPS';
+                const isLetter = q && q.type === 'LETTER';
+                const hasCorrect = q && q.correct !== undefined && q.correct !== null && q.correct !== -1;
+                const hasCorrectValue = isEstimation && q.correctValue !== undefined && q.correctValue !== null && q.correctValue !== '';
+                
+                // Przyciski dla statków
+                const shipsNextBtn = document.getElementById('ships-next-turn-btn');
+                const shipsEndBtn = document.getElementById('ships-end-btn');
+                const shipsShowAnswerBtn = document.getElementById('ships-show-answer-btn');
+                const statsBtn = document.getElementById('stats-btn');
+                
+                // Przyciski LETTER: Wyślij 1 literę / Wyślij 2 litery (widoczne tylko zanim gra się rozpocznie)
+                const letterBtn1 = document.getElementById('letter-btn-1');
+                const letterBtn2 = document.getElementById('letter-btn-2');
+                if (letterBtn1 && letterBtn2) {
+                    if (isLetter) {
+                        const letterGameStarted = state.letterGame && state.letterGame.gameStarted;
+                        letterBtn1.style.display = letterGameStarted ? 'none' : 'inline-block';
+                        letterBtn2.style.display = letterGameStarted ? 'none' : 'inline-block';
+                    } else {
+                        letterBtn1.style.display = 'none';
+                        letterBtn2.style.display = 'none';
+                    }
+                }
+                // Ponowne ustawienie przycisków LETTER po odrysowaniu (panel mógł być dopiero przeniesiony)
+                if (q && q.type === 'LETTER' && state.letterGame && !state.letterGame.gameStarted) {
+                    requestAnimationFrame(() => {
+                        const lb1 = document.getElementById('letter-btn-1');
+                        const lb2 = document.getElementById('letter-btn-2');
+                        if (lb1) lb1.style.display = 'inline-block';
+                        if (lb2) lb2.style.display = 'inline-block';
+                    });
+                }
+                
+                if (isShips) {
+                    if (shipsNextBtn) shipsNextBtn.style.display = '';
+                    if (shipsEndBtn) shipsEndBtn.style.display = '';
+                    if (shipsShowAnswerBtn) shipsShowAnswerBtn.style.display = '';
+                    if (correctBtn) correctBtn.style.display = 'none';
+                    if (statsBtn) statsBtn.style.display = ''; // Statystyki dostępne dla statków
+                } else {
+                    if (shipsNextBtn) shipsNextBtn.style.display = 'none';
+                    if (shipsEndBtn) shipsEndBtn.style.display = 'none';
+                    if (shipsShowAnswerBtn) shipsShowAnswerBtn.style.display = 'none';
+                    if (statsBtn) statsBtn.style.display = '';
+                    if (correctBtn) {
+                        // Dla ESTIMATION zawsze pokazuj przycisk jeśli jest correctValue
+                        // Dla LETTER ukryj przycisk (brak poprawnej odpowiedzi)
+                        if (isEstimation && hasCorrectValue) {
+                            correctBtn.style.display = '';
+                        } else if (isPlayoff || (!hasCorrect && !isEstimation) || isLetter) {
+                            correctBtn.style.display = 'none';
+                        } else {
+                            correctBtn.style.display = '';
+                        }
+                    }
+                }
+
+                answersList.innerHTML = '';
+                if (q.type === 'SHIPS') {
+                    // Statki - zawsze pokaż planszę z rozgrywką
+                    const boardSize = q.boardSize || 8;
+                    const ships = q.ships || [];
+                    const shots = state.shipsGame?.shots || {};
+                    const showAnswer = state.showCorrect || false;
+                    
+                    const boardDiv = document.createElement('div');
+                    boardDiv.style.cssText = 'padding: 15px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 15px; border: 2px solid #0066cc;';
+                    boardDiv.innerHTML = '<h4 style="color: #00aaff; margin: 0 0 15px 0; text-align: center;">⚓ Plansza rozgrywki</h4>';
+                    
+                    const LETTERS = ['A','B','C','D','E','F','G','H','I','J'];
+                    const cellSize = Math.min(400 / boardSize, 40);
+                    
+                    let boardHtml = '<div style="display: flex; justify-content: center; overflow-x: auto;">';
+                    boardHtml += `<table id="admin-ships-board" style="border-collapse: collapse; border: 2px solid #0066cc; background: #000;">`;
+                    
+                    // Nagłówek kolumn
+                    boardHtml += `<tr><th style="width: ${cellSize}px; height: ${cellSize}px; border: 1px solid #0066cc; color: #00aaff; font-size: ${Math.max(12, cellSize * 0.4)}px; font-weight: bold; background: #001122;"></th>`;
+                    for(let c = 0; c < boardSize; c++) {
+                        boardHtml += `<th style="width: ${cellSize}px; height: ${cellSize}px; border: 1px solid #0066cc; color: #00aaff; font-size: ${Math.max(12, cellSize * 0.4)}px; font-weight: bold; background: #001122;">${LETTERS[c]}</th>`;
+                    }
+                    boardHtml += `</tr>`;
+                    
+                    // Wiersze
+                    for(let r = 0; r < boardSize; r++) {
+                        boardHtml += `<tr>`;
+                        boardHtml += `<th style="width: ${cellSize}px; height: ${cellSize}px; border: 1px solid #0066cc; color: #00aaff; font-size: ${Math.max(12, cellSize * 0.4)}px; font-weight: bold; background: #001122;">${r + 1}</th>`;
+                        for(let c = 0; c < boardSize; c++) {
+                            const key = `${r}_${c}`;
+                            const shot = shots[key];
+                            
+                            // Sprawdź czy jest statek
+                            let hasShip = false;
+                            let shipSize = 0;
+                            for (const ship of ships) {
+                                for(let i = 0; i < ship.size; i++) {
+                                    const sr = ship.row + (ship.vertical ? i : 0);
+                                    const sc = ship.col + (ship.vertical ? 0 : i);
+                                    if (sr === r && sc === c) {
+                                        hasShip = true;
+                                        shipSize = ship.size;
+                                        break;
+                                    }
+                                }
+                                if (hasShip) break;
+                            }
+                            
+                            let cellStyle = `width: ${cellSize}px; height: ${cellSize}px; border: 1px solid #0066cc; background: #001122; text-align: center; color: #fff; font-size: ${Math.max(14, cellSize * 0.5)}px; font-weight: bold;`;
+                            
+                            if (shot) {
+                                if (shot.hit) {
+                                    cellStyle += 'background: #00ff00; box-shadow: 0 0 15px #00ff00;';
+                                    boardHtml += `<td style="${cellStyle}">${showAnswer && hasShip ? `${shipSize}🔥` : '🔥'}</td>`;
+                                } else {
+                                    cellStyle += 'background: #667788; opacity: 0.7;';
+                                    boardHtml += `<td style="${cellStyle}">○</td>`;
+                                }
+                            } else if (showAnswer && hasShip) {
+                                // Pokaż statek jeśli pokazujemy odpowiedź
+                                cellStyle += 'background: #0066cc; border: 2px solid #00aaff;';
+                                boardHtml += `<td style="${cellStyle}">${shipSize}</td>`;
+                            } else {
+                                boardHtml += `<td style="${cellStyle}"></td>`;
+                            }
+                        }
+                        boardHtml += `</tr>`;
+                    }
+                    boardHtml += `</table></div>`;
+                    
+                    boardDiv.innerHTML += boardHtml;
+                    answersList.appendChild(boardDiv);
+                    
+                    // Statystyki trafień jeśli są dostępne
+                    if (state.showStats && state.shipsGame && state.shipsGame.playerStats) {
+                        const playerStats = state.shipsGame.playerStats;
+                        const statsArray = Object.values(playerStats).sort((a, b) => (b.hits + b.misses) - (a.hits + a.misses));
+                        
+                        const statsDiv = document.createElement('div');
+                        statsDiv.style.cssText = 'padding: 15px; background: rgba(0,102,204,0.2); border-radius: 8px; margin-bottom: 15px;';
+                        statsDiv.innerHTML = '<h4 style="color: #00aaff; margin: 0 0 10px 0;">📊 Statystyki trafień</h4>';
+                        
+                        const table = document.createElement('table');
+                        table.style.cssText = 'width: 100%; border-collapse: collapse;';
+                        table.innerHTML = '<tr style="border-bottom: 1px solid #0066cc;"><th style="text-align: left; padding: 8px; color: #00aaff;">Gracz</th><th style="text-align: center; padding: 8px; color: #00aaff;">Trafienia</th><th style="text-align: center; padding: 8px; color: #00aaff;">Pudła</th><th style="text-align: center; padding: 8px; color: #00aaff;">Razem</th></tr>';
+                        
+                        if (statsArray.length === 0) {
+                            const row = document.createElement('tr');
+                            row.innerHTML = '<td colspan="4" style="padding: 8px; color: var(--text-muted); text-align: center;">Brak trafień</td>';
+                            table.appendChild(row);
+                        } else {
+                            statsArray.forEach(stats => {
+                                const row = document.createElement('tr');
+                                row.style.cssText = 'border-bottom: 1px solid rgba(0,102,204,0.3);';
+                                row.innerHTML = `<td style="padding: 8px; color: #fff;">${stats.nick}</td><td style="text-align: center; padding: 8px; color: #00ff00; font-weight: bold;">${stats.hits}</td><td style="text-align: center; padding: 8px; color: #ff0044;">${stats.misses}</td><td style="text-align: center; padding: 8px; color: #fff;">${stats.hits + stats.misses}</td>`;
+                                table.appendChild(row);
+                            });
+                        }
+                        
+                        statsDiv.appendChild(table);
+                        answersList.appendChild(statsDiv);
+                    }
+                } else if (q.type === 'OPEN') {
+                    if (state.openCloud && state.openCloud.length > 0) {
+                        const hint = document.createElement('p');
+                        hint.className = 'admin-word-cloud-hint';
+                        hint.textContent = 'Wyniki (chmura słów). Kliknij słowo, aby uruchomić dogrywkę TAK/NIE (bez punktów):';
+                        answersList.appendChild(hint);
+                        const cloudDiv = document.createElement('div');
+                        cloudDiv.className = 'admin-word-cloud';
+                        state.openCloud.forEach(item => {
+                            const tag = document.createElement('span');
+                            tag.className = 'word-tag';
+                            tag.textContent = item.word + (item.count > 1 ? ' (' + item.count + ')' : '');
+                            tag.style.fontSize = (14 + Math.min(item.count * 2, 14)) + 'px';
+                            tag.title = 'Kliknij – dogrywka: Czy ' + item.word + ' rozkręca imprezę?';
+                            tag.onclick = () => { socket.emit('admin_start_playoff', item.word); };
+                            cloudDiv.appendChild(tag);
+                        });
+                        answersList.appendChild(cloudDiv);
+                    } else {
+                        const li = document.createElement('li');
+                        li.className = 'admin-answer-item';
+                        li.textContent = 'Brak odpowiedzi (gracze jeszcze nie wpisali lub nie pokazano statystyk). Kliknij „Statystyki”, potem wyniki będą tutaj klikalne (dogrywka TAK/NIE).';
+                        answersList.appendChild(li);
+                    }
+                    if (state.playoff && state.playoff.active) {
+                        const pBar = document.createElement('div');
+                        pBar.className = 'admin-playoff-bar';
+                        pBar.innerHTML = `🎤 Dogrywka: <strong>${state.playoff.word}</strong> – TAK: ${state.playoff.stats.A || 0}, NIE: ${state.playoff.stats.B || 0} &nbsp; <button type="button" class="btn btn-warning" onclick="socket.emit(\'admin_end_playoff\')">Zakończ dogrywkę</button>`;
+                        answersList.appendChild(pBar);
+                    }
+                } else if (q.type === 'LETTER') {
+                    // Pytanie z literą – tak samo jak OPEN: chmura słów, klikalne słowa = dogrywka TAK/NIE
+                    if (state.openCloud && state.openCloud.length > 0) {
+                        const hint = document.createElement('p');
+                        hint.className = 'admin-word-cloud-hint';
+                        hint.textContent = 'Wyniki (chmura słów). Kliknij słowo, aby uruchomić dogrywkę TAK/NIE (bez punktów):';
+                        answersList.appendChild(hint);
+                        const cloudDiv = document.createElement('div');
+                        cloudDiv.className = 'admin-word-cloud';
+                        state.openCloud.forEach(item => {
+                            const tag = document.createElement('span');
+                            tag.className = 'word-tag';
+                            tag.textContent = item.word + (item.count > 1 ? ' (' + item.count + ')' : '');
+                            tag.style.fontSize = (14 + Math.min(item.count * 2, 14)) + 'px';
+                            tag.title = 'Kliknij – dogrywka: Czy ' + item.word + ' rozkręca imprezę?';
+                            tag.onclick = () => { socket.emit('admin_start_playoff', item.word); };
+                            cloudDiv.appendChild(tag);
+                        });
+                        answersList.appendChild(cloudDiv);
+                    } else {
+                        const li = document.createElement('li');
+                        li.className = 'admin-answer-item';
+                        li.textContent = 'Brak odpowiedzi (gracze jeszcze nie wpisali lub nie pokazano statystyk). Kliknij „Statystyki”, potem wyniki będą tutaj klikalne (dogrywka TAK/NIE).';
+                        answersList.appendChild(li);
+                    }
+                    if (state.playoff && state.playoff.active) {
+                        const pBar = document.createElement('div');
+                        pBar.className = 'admin-playoff-bar';
+                        pBar.innerHTML = `🎤 Dogrywka: <strong>${state.playoff.word}</strong> – TAK: ${state.playoff.stats.A || 0}, NIE: ${state.playoff.stats.B || 0} &nbsp; <button type="button" class="btn btn-warning" onclick="socket.emit(\'admin_end_playoff\')">Zakończ dogrywkę</button>`;
+                        answersList.appendChild(pBar);
+                    }
+                } else if (q.type === 'ESTIMATION') {
+                    const li = document.createElement('li');
+                    li.className = 'admin-answer-item';
+                    li.innerHTML = `<span class="admin-answer-badge" style="background: #5c6bc0;">✓</span> Poprawna wartość: <strong>${q.correctValue ?? '?'}</strong> (zakres ${q.min ?? 0} – ${q.max ?? 100})`;
+                    answersList.appendChild(li);
+                    if (state.estimationStats && state.estimationStats.length > 0 && (state.showStats || state.showCorrect)) {
+                        const total = state.estimationStats.reduce((s, x) => s + x.count, 0);
+                        const statsDiv = document.createElement('div');
+                        statsDiv.className = 'admin-word-cloud-hint';
+                        statsDiv.style.marginTop = '10px';
+                        statsDiv.innerHTML = 'Odpowiedzi graczy: ' + state.estimationStats.map(item => {
+                            const pct = total > 0 ? Math.round(item.count / total * 100) : 0;
+                            return '<span class="word-tag" style="margin:4px;font-size:13px">' + item.value + ': ' + item.count + (pct > 0 ? ' (' + pct + '%)' : '') + '</span>';
+                        }).join(' ');
+                        answersList.appendChild(statsDiv);
+                    }
+                } else if (state.activeQuestion && state.activeQuestion.answers) {
+                    const correctAnswer = state.activeQuestion.correct;
+                    const correctAnswers = Array.isArray(correctAnswer) ? correctAnswer : (correctAnswer !== undefined && correctAnswer !== null && correctAnswer !== -1 ? [correctAnswer] : []);
+                    const stats = state.stats || {};
+                    const letters = ['A', 'B', 'C', 'D', 'E'];
+                    
+                    state.activeQuestion.answers.forEach((ans, idx) => {
+                        if (ans) {
+                            const li = document.createElement('li');
+                            li.className = 'admin-answer-item';
+                            const isCorrect = correctAnswers.includes(idx);
+                            if (isCorrect && state.showCorrect) {
+                                li.style.background = '#d4edda';
+                                li.style.borderColor = '#28a745';
+                            }
+                            const count = stats[letters[idx]] != null ? stats[letters[idx]] : 0;
+                            const countStr = (state.showStats || state.showCorrect) ? ` <strong style="margin-left:8px;color:var(--text-muted);">(${count})</strong>` : '';
+                            li.innerHTML = `<span class="admin-answer-badge" style="background: ${isCorrect && state.showCorrect ? '#28a745' : '#d35400'}">${String.fromCharCode(65 + idx)}</span> ${ans}${countStr}${isCorrect && state.showCorrect ? ' ✅' : ''}`;
+                            answersList.appendChild(li);
+                        }
+                    });
+                }
+                
+                // Jeśli showCorrect jest true, zaznacz odpowiedzi
+                if (state.showCorrect) {
+                    highlightCorrectAnswers(state.activeQuestion);
+                }
+                }
+                }
+            } 
+            else if (state.type === 'PODIUM') {
+                document.getElementById('podium-popup').style.display = 'block';
+                hideQuestionControl();
+            }
+            else if (state.type === 'IDLE') {
+                hideQuestionControl();
+            }
+            
+            const qcNextBtn = document.getElementById('qc-next-btn');
+            if (qcNextBtn) {
+                if (currentQuestionIndex >= questions.length - 1) {
+                    qcNextBtn.textContent = "🏆 PODIUM";
+                    qcNextBtn.className = "btn-nav-next btn-gold";
+                } else {
+                    qcNextBtn.textContent = "Następne ▶";
+                    qcNextBtn.className = "btn-nav-next btn-primary";
+                }
+            }
+        });
+
+        function showStats() { 
+            const q = questions[activeQuestionIndex];
+            if (q && q.type === 'SHIPS') {
+                socket.emit('admin_show_ships_stats');
+            } else {
+                socket.emit('admin_show_stats'); 
+            }
+        }
+        function shipsNextTurn() {
+            console.log('🔄 shipsNextTurn WYWOŁANE - sprawdzam stan...');
+            const q = questions[activeQuestionIndex];
+            console.log('🔄 shipsNextTurn - pytanie:', {
+                hasQ: !!q,
+                type: q?.type,
+                id: q?.id,
+                activeQuestionIndex: activeQuestionIndex,
+                questionsLength: questions.length
+            });
+            if (q && q.type === 'SHIPS') {
+                console.log('🔄 shipsNextTurn - wysyłam ships_next_turn dla pytania:', q.id);
+                socket.emit('ships_next_turn', { questionId: q.id });
+                console.log('✅ shipsNextTurn - ships_next_turn wysłane');
+            } else {
+                console.error('❌ shipsNextTurn - pytanie nie jest typu SHIPS:', q);
+                alert('Błąd: Pytanie nie jest typu SHIPS lub nie ma aktywnego pytania');
+            }
+        }
+        
+        // Upewnij się że funkcja jest dostępna globalnie
+        window.shipsNextTurn = shipsNextTurn;
+        function shipsEndGame() {
+            const q = questions[activeQuestionIndex];
+            if (q && q.type === 'SHIPS') {
+                if (confirm('Czy na pewno chcesz zakończyć grę w statki?')) {
+                    socket.emit('ships_end_game', { questionId: q.id });
+                }
+            }
+        }
+        function shipsShowAnswer() {
+            const q = questions[activeQuestionIndex];
+            if (q && q.type === 'SHIPS') {
+                socket.emit('admin_show_ships_answer');
+            }
+        }
+        function showCorrect() { 
+            socket.emit('admin_show_correct');
+            // Zaznacz odpowiedzi lokalnie
+            const state = currentGameState || {};
+            if (state.activeQuestion) {
+                highlightCorrectAnswers(state.activeQuestion);
+            }
+        }
+        
+        function highlightCorrectAnswers(question) {
+            const answersList = document.getElementById('active-q-answers');
+            if (!answersList) return;
+            const items = answersList.querySelectorAll('.admin-answer-item');
+            const correctAnswer = question.correct;
+            const correctAnswers = Array.isArray(correctAnswer) ? correctAnswer : (correctAnswer !== undefined && correctAnswer !== null && correctAnswer !== -1 ? [correctAnswer] : []);
+            
+            items.forEach((item, idx) => {
+                const isCorrect = correctAnswers.includes(idx);
+                if (isCorrect) {
+                    item.style.background = 'rgba(46, 204, 113, 0.25)';
+                    item.style.borderColor = '#2ecc71';
+                    const badge = item.querySelector('.admin-answer-badge');
+                    if (badge) badge.style.background = '#2ecc71';
+                    if (!item.innerHTML.includes('✅')) {
+                        item.innerHTML += ' ✅';
+                    }
+                } else {
+                    item.style.background = 'var(--glass-bg)';
+                    item.style.borderColor = 'var(--glass-border)';
+                    const badge = item.querySelector('.admin-answer-badge');
+                    if (badge) badge.style.background = 'var(--accent-orange)';
+                }
+            });
+        }
+        
+        function hideQuestionControl() {
+            const panel = document.getElementById('question-control');
+            if (panel) panel.style.display = 'none';
+        }
+        
+        function sendCommand(cmd) { socket.emit(cmd); }
+        
+        function resetGame() {
+            if (confirm('⚠️ CZY NA PEWNO CHCESZ ZRESETOWAĆ GRĘ?\n\nTo spowoduje:\n• Wyzerowanie wszystkich punktów\n• Wymuszenie ponownego wprowadzenia nicka przez wszystkich graczy\n• Usunięcie przydziałów drużyn\n• Wyzerowanie wyników drużyn\n\nTa operacja jest nieodwracalna!')) {
+                socket.emit('admin_reset_game');
+                alert('✅ Reset gry został wykonany. Wszyscy gracze muszą ponownie wprowadzić swój nick.');
+            }
+        }
+        function endGame() {
+            if (confirm('⛔ CZY NA PEWNO CHCESZ ZAKOŃCZYĆ GRĘ I WYŁĄCZYĆ SERWER?\n\nSerwer zostanie zatrzymany, wszystkie połączenia (ekran, telefony, admin) zostaną zamknięte.\nAby uruchomić grę ponownie, trzeba będzie uruchomić serwer od nowa (np. start.command).\n\nKontynuować?')) {
+                socket.emit('admin_end_game');
+                alert('Serwer się wyłącza. Połączenie zostanie zerwane.');
+            }
+        }
+        
+        function toggleShowQROnPhones() {
+            socket.emit('admin_toggle_show_qr_on_phones');
+        }
+        
+        function startGame() {
+            if (!questions || questions.length === 0) {
+                alert('Najpierw załaduj quiz i wybierz „Ekran Start”.');
+                return;
+            }
+            socket.emit('admin_start_question', 0);
+        }
+
+        function showPodium() { 
+            // Sprawdź czy tryb drużynowy jest aktywny
+            const isTeamBattle = currentGameState?.teamBattleMode || false;
+            console.log('🏆 showPodium wywołane, teamBattleMode:', isTeamBattle);
+            
+            if (isTeamBattle) {
+                // Tryb drużynowy - resetuj podjum i pokaż popup z przyciskami 2 i 1
+                socket.emit('admin_show_podium');
+                // Resetuj podjum (step 0)
+                socket.emit('admin_podium_step', 0);
+            } else {
+                // Tryb indywidualny - standardowe podjum z miejscami 3, 2, 1
+                socket.emit('admin_show_podium');
+                // Resetuj podjum (step 0)
+                socket.emit('admin_podium_step', 0);
+            }
+        }
+        function hidePodiumPopup() { document.getElementById('podium-popup').style.display = 'none'; }
+        function showRankingPopup() {
+            socket.emit('admin_show_leaderboard');
+            const popup = document.getElementById('ranking-popup');
+            if (popup) popup.style.display = 'block';
+        }
+        function hideRankingPopup() {
+            const popup = document.getElementById('ranking-popup');
+            if (popup) popup.style.display = 'none';
+        }
+        function sendPodiumStep(step) { 
+            console.log('🏆 sendPodiumStep wywołane, step:', step, 'teamBattleMode:', currentGameState?.teamBattleMode);
+            socket.emit('admin_podium_step', step); 
+        }
+        function showThanksScreen() {
+            socket.emit('admin_show_thanks');
+            hidePodiumPopup();
+        }
+        
+        // Team Mode Activation - funkcja globalna z zabezpieczeniem przed podwójnym wywołaniem
+        let isActivatingTeamMode = false;
+        window.activateTeamMode = function() {
+            // Zabezpieczenie przed podwójnym wywołaniem (onclick + event listener)
+            if (isActivatingTeamMode) {
+                console.log('⚠️ activateTeamMode już w trakcie wykonywania, pomijam');
+                return;
+            }
+            
+            isActivatingTeamMode = true;
+            console.log('🔘 activateTeamMode wywołane');
+            
+            if (!socket || !socket.connected) {
+                console.error('❌ Socket nie jest połączony');
+                alert('Błąd: Brak połączenia z serwerem! Odśwież stronę.');
+                isActivatingTeamMode = false;
+                return;
+            }
+            
+            const teamAInput = document.getElementById('team-a-name');
+            const teamBInput = document.getElementById('team-b-name');
+            
+            if (!teamAInput || !teamBInput) {
+                console.error('❌ Nie znaleziono pól nazw drużyn');
+                alert('Błąd: Nie znaleziono pól formularza!');
+                isActivatingTeamMode = false;
+                return;
+            }
+            
+            const teamA = teamAInput.value.trim();
+            const teamB = teamBInput.value.trim();
+            
+            console.log('📝 Wprowadzone nazwy:', { teamA, teamB });
+            
+            if (teamA && teamB) {
+                console.log('✅ Wysyłam admin_set_teams:', { teamA, teamB });
+                socket.emit('admin_set_teams', { teamA, teamB });
+                // Reset flag po 500ms (na wypadek kolejnej aktywacji)
+                setTimeout(() => { isActivatingTeamMode = false; }, 500);
+            } else {
+                console.warn('⚠️ Puste nazwy drużyn');
+                alert('Proszę wprowadzić nazwy obu drużyn!');
+                isActivatingTeamMode = false;
+            }
+        };
+    </script>
+    <footer style="position: fixed; bottom: 10px; left: 0; right: 0; text-align: center; font-size: 0.75rem; color: rgba(255,255,255,0.4);">© Damian Nowaczyk. Wszelkie prawa zastrzeżone.</footer>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function() {});
+        }
+    </script>
+</body>
+</html>
+

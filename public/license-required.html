@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Imprezja Quiz – Licencja wymagana</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: radial-gradient(circle at center, #1a1a2e, #000);
+            min-height: 100vh;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .box {
+            background: rgba(255,255,255,0.08);
+            border: 2px solid rgba(255,255,255,0.15);
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 520px;
+            width: 100%;
+            text-align: center;
+        }
+        h1 { font-size: 1.8rem; margin-bottom: 10px; background: linear-gradient(#f1c40f, #e67e22); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .sub { color: rgba(255,255,255,0.75); font-size: 0.95rem; margin-bottom: 30px; }
+        .reason { background: rgba(231,76,60,0.2); border: 1px solid rgba(231,76,60,0.4); padding: 12px; border-radius: 8px; margin-bottom: 24px; font-size: 0.95rem; }
+        .info { color: rgba(255,255,255,0.7); font-size: 0.85rem; margin-bottom: 20px; line-height: 1.5; }
+        input {
+            width: 100%;
+            padding: 14px 16px;
+            font-size: 1rem;
+            font-family: monospace;
+            letter-spacing: 1px;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            margin-bottom: 12px;
+        }
+        input::placeholder { color: rgba(255,255,255,0.4); }
+        button {
+            width: 100%;
+            padding: 14px;
+            font-size: 1rem;
+            font-weight: 700;
+            background: linear-gradient(#f1c40f, #e67e22);
+            border: none;
+            border-radius: 8px;
+            color: #1a1a2e;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        button:hover { opacity: 0.9; }
+        .error { color: #e74c3c; font-size: 0.9rem; margin-top: 10px; display: none; }
+        .machine-id { background: rgba(0,0,0,0.3); padding: 8px 12px; border-radius: 6px; font-family: monospace; font-size: 0.85rem; margin-top: 16px; word-break: break-all; }
+        .success { color: #2ecc71; font-size: 0.95rem; margin-top: 12px; display: none; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h1>Imprezja Quiz</h1>
+        <p class="sub">Quiz i głosowanie w sieci lokalnej</p>
+        <div id="reason" class="reason"></div>
+        <p class="info">Program można pobrać bezpłatnie i testować przez 14 dni. Po tym czasie wymagana jest licencja – czasowa lub dożywotnia.</p>
+        <p class="info">Kup licencję na stronie wydawcy i wprowadź klucz poniżej:</p>
+        <a href="https://nowajakoscrozrywki.pl/produkt/imprezja-quiz/" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 12px 20px; margin-bottom: 15px; font-size: 1rem; font-weight: 700; background: linear-gradient(#2ecc71, #27ae60); color: #fff; border-radius: 8px; text-decoration: none;">🛒 Kup licencję</a>
+        <input type="text" id="key" placeholder="IMPREZJA-RSA-... lub IMPREZJA-XXXX-XXXX-XXXX-XXXX" autocomplete="off">
+        <button onclick="activate()">Aktywuj licencję</button>
+        <div id="error" class="error"></div>
+        <div id="success" class="success"></div>
+        <div style="margin-top: 20px; font-size: 0.8rem; color: rgba(255,255,255,0.5);">
+            ID komputera (do zamówienia):<br>
+            <span id="machine-id" class="machine-id">Ładowanie...</span>
+        </div>
+        <p style="margin-top: 24px; font-size: 0.75rem; color: rgba(255,255,255,0.4);">© Damian Nowaczyk. Wszelkie prawa zastrzeżone.</p>
+    </div>
+    <script>
+        async function loadStatus() {
+            try {
+                const [statusRes, machineRes] = await Promise.all([
+                    fetch('/api/license/status'),
+                    fetch('/api/license/machine-id')
+                ]);
+                const status = await statusRes.json();
+                const machine = await machineRes.json();
+                document.getElementById('machine-id').textContent = machine.machineId || '—';
+                const reasonEl = document.getElementById('reason');
+                if (status.reason) {
+                    reasonEl.textContent = status.reason;
+                    reasonEl.style.display = 'block';
+                } else if (status.trial && status.trial.reason) {
+                    reasonEl.textContent = status.trial.reason;
+                    reasonEl.style.display = 'block';
+                } else {
+                    reasonEl.style.display = 'none';
+                }
+            } catch (e) {
+                document.getElementById('machine-id').textContent = 'Błąd połączenia';
+                document.getElementById('reason').textContent = 'Nie można połączyć z serwerem.';
+            }
+        }
+        async function activate() {
+            const key = document.getElementById('key').value.trim();
+            const errorEl = document.getElementById('error');
+            const successEl = document.getElementById('success');
+            errorEl.style.display = 'none';
+            successEl.style.display = 'none';
+            if (!key) {
+                errorEl.textContent = 'Wprowadź klucz licencyjny';
+                errorEl.style.display = 'block';
+                return;
+            }
+            try {
+                const res = await fetch('/api/license/activate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    successEl.textContent = 'Licencja aktywowana! Przekierowanie...';
+                    successEl.style.display = 'block';
+                    document.getElementById('key').value = '';
+                    setTimeout(() => { window.location.href = '/admin.html'; }, 1500);
+                } else {
+                    errorEl.textContent = data.error || 'Błąd aktywacji';
+                    errorEl.style.display = 'block';
+                }
+            } catch (e) {
+                errorEl.textContent = 'Błąd połączenia z serwerem';
+                errorEl.style.display = 'block';
+            }
+        }
+        document.getElementById('key').addEventListener('keydown', e => { if (e.key === 'Enter') activate(); });
+        loadStatus();
+    </script>
+</body>
+</html>
