@@ -1,0 +1,229 @@
+{
+  "disableTimePoints": false,
+  "questions": [
+    {
+      "id": "q_1770813595123_bijj1",
+      "type": "QUIZ",
+      "question": "Które zwierzę śpi stojąc?",
+      "time": 25,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Krowa",
+        "Koń",
+        "Słoń",
+        "Wszystkie powyższe"
+      ],
+      "media": "/uploads/1770813038131-zwierzeta-stojace-na-planecie-ziemia_1308-129961.webp",
+      "image": "/uploads/1770813038131-zwierzeta-stojace-na-planecie-ziemia_1308-129961.webp",
+      "imageSmall": "/uploads/1770813038131-zwierzeta-stojace-na-planecie-ziemia_1308-129961-thumb.webp",
+      "correct": 3
+    },
+    {
+      "id": "q_1770813595123_6hv6x",
+      "type": "VOTE",
+      "question": "Który zmysł jest bardziej rozwinięty u psa?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Węch",
+        "Wzrok"
+      ],
+      "media": "/uploads/1770813077866-6704ed60cb375062252964.webp",
+      "image": "/uploads/1770813077866-6704ed60cb375062252964.webp",
+      "imageSmall": "/uploads/1770813077866-6704ed60cb375062252964-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813595123_4itxv",
+      "type": "QUIZ",
+      "question": "Ile kości ma dorosły człowiek?",
+      "time": 25,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "186",
+        "206",
+        "226",
+        "246"
+      ],
+      "media": "/uploads/1770813113470-skeletor_yktf.webp",
+      "image": "/uploads/1770813113470-skeletor_yktf.webp",
+      "imageSmall": "/uploads/1770813113470-skeletor_yktf-thumb.webp",
+      "correct": 1
+    },
+    {
+      "id": "q_1770813595123_5i3xn",
+      "type": "ESTIMATION",
+      "question": "Ile serc ma ośmiornica?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "/uploads/1770813146091-002095_r0_1920.webp",
+      "image": "/uploads/1770813146091-002095_r0_1920.webp",
+      "imageSmall": "/uploads/1770813146091-002095_r0_1920-thumb.webp",
+      "correctValue": 3,
+      "min": 1,
+      "max": 5
+    },
+    {
+      "id": "q_1770813595123_3fbzh",
+      "type": "OPEN",
+      "question": "Jaki jest najdziwniejszy fakt o przyrodzie, który znasz?",
+      "time": 60,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "/uploads/1770813201694-6c7cd191aae7a253819dfa4395c680e5.webp",
+      "image": "/uploads/1770813201694-6c7cd191aae7a253819dfa4395c680e5.webp",
+      "imageSmall": "/uploads/1770813201694-6c7cd191aae7a253819dfa4395c680e5-thumb.webp"
+    },
+    {
+      "id": "q_1770813595123_fbzwc",
+      "type": "LETTER",
+      "question": "Wymień owoc zaczynający się na literę B",
+      "time": 45,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813595123_tnkkl",
+      "type": "QUIZ",
+      "question": "Który cesarz rzymski mianował swego konia senatorem?",
+      "time": 25,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Neron",
+        "Kaligula",
+        "Commodus",
+        "Heliogabal"
+      ],
+      "media": "/uploads/1770813270805-Kon__-w-senacie.webp",
+      "image": "/uploads/1770813270805-Kon__-w-senacie.webp",
+      "imageSmall": "/uploads/1770813270805-Kon__-w-senacie-thumb.webp",
+      "correct": 1
+    },
+    {
+      "id": "q_1770813595123_uis55",
+      "type": "VOTE",
+      "question": "Czy pszczoły rozpoznają ludzkie twarze?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Tak, potrafią",
+        "Nie, to mit"
+      ],
+      "media": "/uploads/1770813303353-pszczola_2a.webp",
+      "image": "/uploads/1770813303353-pszczola_2a.webp",
+      "imageSmall": "/uploads/1770813303353-pszczola_2a-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813595123_gy276",
+      "type": "QUIZ",
+      "question": "Ile czasu trwa jedno mrugnięcie oka?",
+      "time": 15,
+      "speedrun": true,
+      "elimination": false,
+      "answers": [
+        "0,1 sekundy",
+        "0,3 sekundy",
+        "0,5 sekundy",
+        "1 sekunda"
+      ],
+      "media": "/uploads/1770813335600-Ludzkie-oko-anatomia.webp",
+      "image": "/uploads/1770813335600-Ludzkie-oko-anatomia.webp",
+      "imageSmall": "/uploads/1770813335600-Ludzkie-oko-anatomia-thumb.webp",
+      "correct": 1
+    },
+    {
+      "id": "q_1770813595123_z72is",
+      "type": "ESTIMATION",
+      "question": "Ile języków mówionych jest na świecie (około)?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "/uploads/1770813376313-jezyki-swiata.webp",
+      "image": "/uploads/1770813376313-jezyki-swiata.webp",
+      "imageSmall": "/uploads/1770813376313-jezyki-swiata-thumb.webp",
+      "correctValue": 7000,
+      "min": 100,
+      "max": 10000
+    },
+    {
+      "id": "q_1770813595123_zu0lj",
+      "type": "LETTER",
+      "question": "Wymień kraj zaczynający się na literę J",
+      "time": 45,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813595123_k7zce",
+      "type": "SHIPS",
+      "question": "Statki – morska bitwa o wiedzę!",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "",
+      "boardSize": 8,
+      "ships": [
+        {
+          "row": 0,
+          "col": 0,
+          "size": 2,
+          "vertical": false
+        },
+        {
+          "row": 2,
+          "col": 2,
+          "size": 3,
+          "vertical": true
+        },
+        {
+          "row": 4,
+          "col": 3,
+          "size": 4,
+          "vertical": false
+        },
+        {
+          "row": 3,
+          "col": 1,
+          "size": 5,
+          "vertical": true
+        }
+      ]
+    },
+    {
+      "id": "q_1770813595123_s4lss",
+      "type": "MUSIC",
+      "question": "Z jakiego serialu jest ta melodia?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Kollombo",
+        "CSI",
+        "Archiwum X",
+        "Żar tropików",
+        "Słoneczny Patrol"
+      ],
+      "media": "/uploads/1770813410399-zar_tropikow.mp3",
+      "audio": "/uploads/1770813410399-zar_tropikow.mp3",
+      "correct": 3
+    }
+  ],
+  "thanksScreen": null
+}

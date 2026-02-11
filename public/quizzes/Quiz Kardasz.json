@@ -1,0 +1,243 @@
+{
+  "disableTimePoints": false,
+  "questions": [
+    {
+      "id": "q_1770400055157_it7o2",
+      "type": "QUIZ",
+      "question": "MATEMATYKA: Ile to jest 5 razy 5?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "10",
+        "20",
+        "25",
+        "55"
+      ],
+      "media": "/uploads/1770379759881-MATEMATYKA-KURSY-768x512.webp",
+      "image": "/uploads/1770379759881-MATEMATYKA-KURSY-768x512.webp",
+      "imageSmall": "/uploads/1770379759881-MATEMATYKA-KURSY-768x512-thumb.webp",
+      "correct": 2
+    },
+    {
+      "id": "q_1770400055157_h2ouz",
+      "type": "QUIZ",
+      "question": "POLSKI: Wskaż wyraz napisany poprawnie:",
+      "time": 25,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Rzułw",
+        "Żułw",
+        "Żółw",
+        "Rzółw"
+      ],
+      "media": "/uploads/1770379846447-z_ortografia_za_pan_brat-1.webp",
+      "image": "/uploads/1770379846447-z_ortografia_za_pan_brat-1.webp",
+      "imageSmall": "/uploads/1770379846447-z_ortografia_za_pan_brat-1-thumb.webp",
+      "correct": 2
+    },
+    {
+      "id": "q_1770400055157_xn7eg",
+      "type": "QUIZ",
+      "question": "INFORMATYKA: Urządzenie, którym poruszasz kursorem po ekranie to:",
+      "time": 15,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Myszka",
+        "Klawiatura",
+        "Drukarka",
+        "Głośnik"
+      ],
+      "media": "/uploads/1770379886310-p_63699_1.webp",
+      "image": "/uploads/1770379886310-p_63699_1.webp",
+      "imageSmall": "/uploads/1770379886310-p_63699_1-thumb.webp",
+      "correct": 0
+    },
+    {
+      "id": "q_1770400055157_1b83h",
+      "type": "QUIZ",
+      "question": "ANGIELSKI: Co oznacza słowo 'Yellow'?",
+      "time": 15,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Zielony",
+        "Czerwony",
+        "Niebieski",
+        "Żółty"
+      ],
+      "media": "/uploads/1770379926930-blog-gramatyka-czasy.webp",
+      "image": "/uploads/1770379926930-blog-gramatyka-czasy.webp",
+      "imageSmall": "/uploads/1770379926930-blog-gramatyka-czasy-thumb.webp",
+      "correct": 3
+    },
+    {
+      "id": "q_1770400055157_tbxew",
+      "type": "HOT_OR_NOT",
+      "question": "Kogo bardziej lubisz?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Opcja A",
+        "Opcja B"
+      ],
+      "media": "",
+      "imageA": "/uploads/1770380135995-images.webp",
+      "imageB": "/uploads/1770380140351-pitbull.webp",
+      "imageSmallA": "/uploads/1770380135995-images-thumb.webp",
+      "imageSmallB": "/uploads/1770380140351-pitbull-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770400055157_aosjr",
+      "type": "OPEN",
+      "question": "Najlepszy gatunek muzyczna na imprezę to?",
+      "time": 60,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "/uploads/1770380209586-istockphoto-501387734-612x612.webp",
+      "image": "/uploads/1770380209586-istockphoto-501387734-612x612.webp",
+      "imageSmall": "/uploads/1770380209586-istockphoto-501387734-612x612-thumb.webp"
+    },
+    {
+      "id": "q_1770400055157_77ndg",
+      "type": "ESTIMATION",
+      "question": "Ilow wzrostu ma Jubilat",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "/uploads/1770380346756-604d0734-b3c6-4ec8-93a9-c7cf57fd5cdc_i-party-deco-balon-zegar-bialy-45cm-idealny-na-urodziny-i-imprezy.webp",
+      "image": "/uploads/1770380346756-604d0734-b3c6-4ec8-93a9-c7cf57fd5cdc_i-party-deco-balon-zegar-bialy-45cm-idealny-na-urodziny-i-imprezy.webp",
+      "imageSmall": "/uploads/1770380346756-604d0734-b3c6-4ec8-93a9-c7cf57fd5cdc_i-party-deco-balon-zegar-bialy-45cm-idealny-na-urodziny-i-imprezy-thumb.webp",
+      "correctValue": 180,
+      "min": 150,
+      "max": 210
+    },
+    {
+      "id": "q_1770400055157_hlja4",
+      "type": "MUSIC",
+      "question": "Co to za wykonawca?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Rammstain",
+        "Piękni i Młodzi",
+        "Michael Jackson",
+        "Tina Turner",
+        "Avici"
+      ],
+      "media": "/uploads/1770380829152-loop_tina.mp3",
+      "audio": "/uploads/1770380829152-loop_tina.mp3",
+      "correct": 3
+    },
+    {
+      "id": "q_1770400055157_t6my7",
+      "type": "HOT_OR_NOT",
+      "question": "Co lubisz bardziej?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Ciasto",
+        "Kotlety"
+      ],
+      "media": "",
+      "imageA": "/uploads/1770382667839-images.webp",
+      "imageB": "/uploads/1770382689379-55b7344c28a6-bb7bac30a151-kuchnia-lidla-kotlety-siekane-z-kurczaka.webp",
+      "imageSmallA": "/uploads/1770382667839-images-thumb.webp",
+      "imageSmallB": "/uploads/1770382689379-55b7344c28a6-bb7bac30a151-kuchnia-lidla-kotlety-siekane-z-kurczaka-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770400055157_25kcb",
+      "type": "QUIZ",
+      "question": "Jak ma na imię DJ?",
+      "time": 30,
+      "speedrun": true,
+      "elimination": false,
+      "answers": [
+        "Wiesła",
+        "Czesław",
+        "Dominik",
+        "Damian"
+      ],
+      "media": "/uploads/1770211072863-7C1A0526.jpg",
+      "image": "/uploads/1770211072863-7C1A0526.jpg",
+      "imageSmall": "/uploads/1770211072863-7C1A0526-thumb.webp",
+      "correct": 3
+    },
+    {
+      "id": "q_1770400055158_vl56x",
+      "type": "QUIZ",
+      "question": "Eliminacja Jak ma na imię Jubilat?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": true,
+      "answers": [
+        "Antoni",
+        "Arek",
+        "Michał",
+        "Damian"
+      ],
+      "media": "/uploads/1770211146348-7C1A0539.jpg",
+      "image": "/uploads/1770211146348-7C1A0539.jpg",
+      "imageSmall": "/uploads/1770211146348-7C1A0539-thumb.webp",
+      "correct": 0
+    },
+    {
+      "id": "q_1770400055158_hup57",
+      "type": "SHIPS",
+      "question": "Zagrajmy w statki!",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "",
+      "boardSize": 8,
+      "ships": [
+        {
+          "row": 0,
+          "col": 0,
+          "size": 2,
+          "vertical": true
+        },
+        {
+          "row": 4,
+          "col": 1,
+          "size": 3,
+          "vertical": true
+        },
+        {
+          "row": 1,
+          "col": 2,
+          "size": 5,
+          "vertical": false
+        },
+        {
+          "row": 3,
+          "col": 6,
+          "size": 4,
+          "vertical": true
+        }
+      ]
+    },
+    {
+      "id": "q_1770400055158_k2uc0",
+      "type": "LETTER",
+      "question": "Opisz Jubilata jednym słowe",
+      "time": 45,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "",
+      "correct": -1
+    }
+  ],
+  "thanksScreen": null
+}

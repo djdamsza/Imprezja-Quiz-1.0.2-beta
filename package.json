@@ -1,0 +1,117 @@
+{
+  "name": "votebattle",
+  "description": "Imprezja Quiz – quiz i głosowanie w sieci lokalnej (działa offline)",
+  "version": "1.0.2",
+  "author": "Damian Nowaczyk",
+  "main": "electron-main.js",
+  "scripts": {
+    "start": "node server.js",
+    "clean": "node scripts/clean.js",
+    "electron": "electron .",
+    "build": "electron-builder",
+    "build:mac": "electron-builder --mac",
+    "build:mac:universal": "electron-builder --mac --universal",
+    "build:mac:x64": "electron-builder --mac --x64",
+    "build:mac:intel": "electron-builder --mac --x64",
+    "build:mac:arm64": "electron-builder --mac --arm64",
+    "build:win": "electron-builder --win --x64",
+    "pac": "node scripts/clean.js && npm run build:mac:arm64 && npm run build:mac:x64 && npm run build:win",
+    "build:launcher": "pkg launcher.js --targets node18-win-x64 --output dist/ImprezjaQuiz-Launcher.exe",
+    "license-key": "node scripts/generate-license-key.js"
+  },
+  "dependencies": {
+    "electron-updater": "^6.7.3",
+    "express": "^4.21.1",
+    "jimp": "^0.22.10",
+    "multer": "^1.4.5-lts.1",
+    "qrcode": "^1.5.4",
+    "sharp": "^0.34.5",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "electron": "^25.9.8",
+    "electron-builder": "^26.7.0"
+  },
+  "build": {
+    "appId": "pl.imprezja.votebattle",
+    "productName": "Imprezja Quiz",
+    "copyright": "Copyright © Damian Nowaczyk. Wszelkie prawa zastrzeżone.",
+    "forceCodeSigning": false,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!node_modules/.cache",
+      "!**/.DS_Store",
+      "!**/._*",
+      "!**/*.dmg",
+      "!**/*.pkg",
+      "!docs",
+      "!**/*.md",
+      "!css",
+      "!js",
+      "!*.bat",
+      "!*.command",
+      "!*.sh",
+      "!electron-main-test.js",
+      "!electron-main-minimal.js",
+      "!nw-main.js",
+      "!package-nw.json",
+      "!package.json-RECOVERY",
+      "!scripts",
+      "!launcher.js",
+      "!license-private.pem",
+      "!VoteBattle-zrodla*.zip"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "**/*.node",
+      "**/node_modules/sharp/**",
+      "**/node_modules/@img/**"
+    ],
+    "mac": {
+      "category": "public.app-category.entertainment",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "minimumSystemVersion": "10.13",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "singleArchFiles": "**/node_modules/@img/**"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "executableName": "ImprezjaQuiz"
+    },
+    "publish": {
+      "provider": "generic",
+      "url": "https://nowajakoscrozrywki.pl/updates/"
+    },
+    "nsis": {
+      "oneClick": true,
+      "allowToChangeInstallationDirectory": false,
+      "runAfterFinish": false,
+      "deleteAppDataOnUninstall": false,
+      "allowElevation": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Imprezja Quiz",
+      "installerLanguages": [
+        "pl"
+      ]
+    }
+  }
+}

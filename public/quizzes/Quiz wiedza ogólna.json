@@ -1,0 +1,238 @@
+{
+  "disableTimePoints": false,
+  "questions": [
+    {
+      "id": "q_1770813632592_e4mx0",
+      "type": "QUIZ",
+      "question": "Jaka jest stolica Francji?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Londyn",
+        "Berlin",
+        "Paryż",
+        "Madryt"
+      ],
+      "media": "/uploads/1770811935010-38dd3cd112bd7eaba3e06d77ede7c9b2.webp",
+      "image": "/uploads/1770811935010-38dd3cd112bd7eaba3e06d77ede7c9b2.webp",
+      "imageSmall": "/uploads/1770811935010-38dd3cd112bd7eaba3e06d77ede7c9b2-thumb.webp",
+      "correct": 2
+    },
+    {
+      "id": "q_1770813632592_dwoh3",
+      "type": "VOTE",
+      "question": "Co było lepszym wynalazkiem dla ludzkości?",
+      "time": 25,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Telefon",
+        "Internet"
+      ],
+      "media": "/uploads/1770811911898-1769711329319-219866978.webp",
+      "image": "/uploads/1770811911898-1769711329319-219866978.webp",
+      "imageSmall": "/uploads/1770811911898-1769711329319-219866978-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813632592_8hihb",
+      "type": "QUIZ",
+      "question": "Ile to jest 7 × 8?",
+      "time": 15,
+      "speedrun": true,
+      "elimination": false,
+      "answers": [
+        "54",
+        "56",
+        "58",
+        "64"
+      ],
+      "media": "/uploads/1770811868681-1770034348737-1769711367280-834621499.webp",
+      "image": "/uploads/1770811868681-1770034348737-1769711367280-834621499.webp",
+      "imageSmall": "/uploads/1770811868681-1770034348737-1769711367280-834621499-thumb.webp",
+      "correct": 1
+    },
+    {
+      "id": "q_1770813632592_y4ft4",
+      "type": "ESTIMATION",
+      "question": "Ile kilometrów ma równik Ziemi (w przybliżeniu)?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "/uploads/1770811775513-QuZk9lBaHR0cHM6Ly9vY2RuLmV1L3B1bHNjbXMvTURBXy8yMjI3YTVmMDE3MTc1ZDM5OWEzMjljOTY1Yzk1OTI2Yi5qcGeSlQMBAM0Hzs0EZJMFzQlgzQTs3gACoTAHoTEE.webp",
+      "image": "/uploads/1770811775513-QuZk9lBaHR0cHM6Ly9vY2RuLmV1L3B1bHNjbXMvTURBXy8yMjI3YTVmMDE3MTc1ZDM5OWEzMjljOTY1Yzk1OTI2Yi5qcGeSlQMBAM0Hzs0EZJMFzQlgzQTs3gACoTAHoTEE.webp",
+      "imageSmall": "/uploads/1770811572613-QuZk9lBaHR0cHM6Ly9vY2RuLmV1L3B1bHNjbXMvTURBXy8yMjI3YTVmMDE3MTc1ZDM5OWEzMjljOTY1Yzk1OTI2Yi5qcGeSlQMBAM0Hzs0EZJMFzQlgzQTs3gACoTAHoTEE-thumb.webp",
+      "correctValue": 40075,
+      "min": 35000,
+      "max": 45000
+    },
+    {
+      "id": "q_1770813632592_huflp",
+      "type": "QUIZ",
+      "question": "Kto napisał „Hamleta”?",
+      "time": 25,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Charles Dickens",
+        "William Shakespeare",
+        "Oscar Wilde",
+        "Jane Austen"
+      ],
+      "media": "/uploads/1770811758698-15_HAMLET_wybrane_www_fot._Marta_Ankiersztejn.webp",
+      "image": "/uploads/1770811758698-15_HAMLET_wybrane_www_fot._Marta_Ankiersztejn.webp",
+      "imageSmall": "/uploads/1770811758698-15_HAMLET_wybrane_www_fot._Marta_Ankiersztejn-thumb.webp",
+      "correct": 1
+    },
+    {
+      "id": "q_1770813632592_65o6h",
+      "type": "OPEN",
+      "question": "Jaki był najważniejszy wynalazek XX wieku?",
+      "time": 45,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "/uploads/1770811726785-wynalazki.webp",
+      "image": "/uploads/1770811726785-wynalazki.webp",
+      "imageSmall": "/uploads/1770811726785-wynalazki-thumb.webp"
+    },
+    {
+      "id": "q_1770813632592_3aslj",
+      "type": "LETTER",
+      "question": "Wymień zwierzę zaczynające się na literę K",
+      "time": 45,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813632592_mogk6",
+      "type": "QUIZ",
+      "question": "Ile planet ma Układ Słoneczny (według obecnej definicji)?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "7",
+        "8",
+        "9",
+        "10"
+      ],
+      "media": "/uploads/1770811669062-jak-powstal-uklad-sloneczny-na-poczatku-byl-chaos-ktory-moze-sie-powtorzyc-i-zniszczyc-ziemie-fot-getty-images-5d0bc31.webp",
+      "image": "/uploads/1770811669062-jak-powstal-uklad-sloneczny-na-poczatku-byl-chaos-ktory-moze-sie-powtorzyc-i-zniszczyc-ziemie-fot-getty-images-5d0bc31.webp",
+      "imageSmall": "/uploads/1770811669062-jak-powstal-uklad-sloneczny-na-poczatku-byl-chaos-ktory-moze-sie-powtorzyc-i-zniszczyc-ziemie-fot-getty-images-5d0bc31-thumb.webp",
+      "correct": 1
+    },
+    {
+      "id": "q_1770813632592_di969",
+      "type": "QUIZ",
+      "question": "W którym roku upadł Mur Berliński?",
+      "time": 25,
+      "speedrun": false,
+      "elimination": true,
+      "answers": [
+        "1987",
+        "1989",
+        "1991",
+        "1985"
+      ],
+      "media": "/uploads/1770811613621-Grafitti-na-pozosta__os__ciach-Muru-Berlin__skiego-z__ro__d__o-Pixabay-fot.-igorelick-800x450.webp",
+      "image": "/uploads/1770811613621-Grafitti-na-pozosta__os__ciach-Muru-Berlin__skiego-z__ro__d__o-Pixabay-fot.-igorelick-800x450.webp",
+      "imageSmall": "/uploads/1770811613621-Grafitti-na-pozosta__os__ciach-Muru-Berlin__skiego-z__ro__d__o-Pixabay-fot.-igorelick-800x450-thumb.webp",
+      "correct": 1
+    },
+    {
+      "id": "q_1770813632592_15bs1",
+      "type": "ESTIMATION",
+      "question": "Prędkość światła w próżni to około ile km/s?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "/uploads/1770811810824-odqk9lBaHR0cHM6Ly9vY2RuLmV1L3B1bHNjbXMvTURBXy9iMzU2YmVjNDczY2U1MTkxNDRhYTBkZWM5Zjc3ZTIyMy5qcGeSlQMAAM0PAM0IcJMFzQlgzQTs3gACoTAHoTEE.webp",
+      "image": "/uploads/1770811810824-odqk9lBaHR0cHM6Ly9vY2RuLmV1L3B1bHNjbXMvTURBXy9iMzU2YmVjNDczY2U1MTkxNDRhYTBkZWM5Zjc3ZTIyMy5qcGeSlQMAAM0PAM0IcJMFzQlgzQTs3gACoTAHoTEE.webp",
+      "imageSmall": "/uploads/1770811810824-odqk9lBaHR0cHM6Ly9vY2RuLmV1L3B1bHNjbXMvTURBXy9iMzU2YmVjNDczY2U1MTkxNDRhYTBkZWM5Zjc3ZTIyMy5qcGeSlQMAAM0PAM0IcJMFzQlgzQTs3gACoTAHoTEE-thumb.webp",
+      "correctValue": 300000,
+      "min": 250000,
+      "max": 350000
+    },
+    {
+      "id": "q_1770813632592_y3a1h",
+      "type": "SHIPS",
+      "question": "Zagrajmy w statki",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "",
+      "boardSize": 8,
+      "ships": [
+        {
+          "row": 1,
+          "col": 0,
+          "size": 2,
+          "vertical": true
+        },
+        {
+          "row": 0,
+          "col": 4,
+          "size": 3,
+          "vertical": false
+        },
+        {
+          "row": 2,
+          "col": 3,
+          "size": 4,
+          "vertical": false
+        },
+        {
+          "row": 3,
+          "col": 2,
+          "size": 5,
+          "vertical": true
+        }
+      ]
+    },
+    {
+      "id": "q_1770813632592_zhpio",
+      "type": "MUSIC",
+      "question": "Z jakiej bajki jest ta bellodia",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Muminki",
+        "Smerfy",
+        "Asterix i Obelix",
+        "Sąsiedzi",
+        "Wilk i zając"
+      ],
+      "media": "/uploads/1770811411340-sasiedzi.mp3",
+      "audio": "/uploads/1770811411340-sasiedzi.mp3",
+      "correct": 3
+    },
+    {
+      "id": "q_1770813632592_f6c6p",
+      "type": "HOT_OR_NOT",
+      "question": "Którego wykonawcę wolisz?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Opcja A",
+        "Opcja B"
+      ],
+      "media": "",
+      "imageA": "/uploads/1770811982452-1770380135995-images.webp",
+      "imageB": "/uploads/1770812004412-1770380140351-pitbull.webp",
+      "imageSmallA": "/uploads/1770811982452-1770380135995-images-thumb.webp",
+      "imageSmallB": "/uploads/1770812004412-1770380140351-pitbull-thumb.webp",
+      "correct": -1
+    }
+  ],
+  "thanksScreen": null
+}

@@ -1,0 +1,566 @@
+{
+  "disableTimePoints": false,
+  "questions": [
+    {
+      "id": "q_1770813673424_w0ked",
+      "type": "VOTE",
+      "question": "Kto się pierwszy urodził?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808437855-images.webp",
+      "image": "/uploads/1770808437855-images.webp",
+      "imageSmall": "/uploads/1770808437855-images-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813673424_zv4n7",
+      "type": "VOTE",
+      "question": "Kto zainicjował pierwszą randkę?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808444456-360_F_919165333_Z1JH1Qq1PqOs6ARBMd7f5rAhXg7UedmR.webp",
+      "image": "/uploads/1770808444456-360_F_919165333_Z1JH1Qq1PqOs6ARBMd7f5rAhXg7UedmR.webp",
+      "imageSmall": "/uploads/1770808444456-360_F_919165333_Z1JH1Qq1PqOs6ARBMd7f5rAhXg7UedmR-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813673424_495zh",
+      "type": "VOTE",
+      "question": "Kto pierwszy powiedział 'Kocham Cię'?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808449717-panna-m__oda-i-pan-m__ody-tan__cza__-na-tle-tro__jka__tnego-okna-kto__re-para-weselna-dobrze-sie__-bawia__-w-dniu-s__lubu-nowi-wesele-188212323.webp",
+      "image": "/uploads/1770808449717-panna-m__oda-i-pan-m__ody-tan__cza__-na-tle-tro__jka__tnego-okna-kto__re-para-weselna-dobrze-sie__-bawia__-w-dniu-s__lubu-nowi-wesele-188212323.webp",
+      "imageSmall": "/uploads/1770808449717-panna-m__oda-i-pan-m__ody-tan__cza__-na-tle-tro__jka__tnego-okna-kto__re-para-weselna-dobrze-sie__-bawia__-w-dniu-s__lubu-nowi-wesele-188212323-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813673424_ifcfr",
+      "type": "VOTE",
+      "question": "Kto pierwszy zaczął mówić o ślubie?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808454654-55ce396910d49_o_full.webp",
+      "image": "/uploads/1770808454654-55ce396910d49_o_full.webp",
+      "imageSmall": "/uploads/1770808454654-55ce396910d49_o_full-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813673424_e2svl",
+      "type": "VOTE",
+      "question": "Kto jest większym śpiochem?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808459102-wesele-taniec-para-003b743.webp",
+      "image": "/uploads/1770808459102-wesele-taniec-para-003b743.webp",
+      "imageSmall": "/uploads/1770808459102-wesele-taniec-para-003b743-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813673424_p9c20",
+      "type": "VOTE",
+      "question": "Kto nie wyobraża sobie poranka bez kawy?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808472939-zimne-ognie-zdjecia-wesele.webp",
+      "image": "/uploads/1770808472939-zimne-ognie-zdjecia-wesele.webp",
+      "imageSmall": "/uploads/1770808472939-zimne-ognie-zdjecia-wesele-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813673424_l0af0",
+      "type": "VOTE",
+      "question": "Kto dłużej okupuje łazienkę?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808476976-360_F_228830967_ATEGt4v3Ml32blJdGrUKpEpqjR3JbsTc.webp",
+      "image": "/uploads/1770808476976-360_F_228830967_ATEGt4v3Ml32blJdGrUKpEpqjR3JbsTc.webp",
+      "imageSmall": "/uploads/1770808476976-360_F_228830967_ATEGt4v3Ml32blJdGrUKpEpqjR3JbsTc-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813673424_mpuhm",
+      "type": "VOTE",
+      "question": "Czyje włosy wyglądają lepiej?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808481761-imgJX9Kdq-45e6d96.webp",
+      "image": "/uploads/1770808481761-imgJX9Kdq-45e6d96.webp",
+      "imageSmall": "/uploads/1770808481761-imgJX9Kdq-45e6d96-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813673424_zoy89",
+      "type": "VOTE",
+      "question": "Kto lepiej sprząta?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808491756-images.webp",
+      "image": "/uploads/1770808491756-images.webp",
+      "imageSmall": "/uploads/1770808437855-images-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813673424_spjvv",
+      "type": "VOTE",
+      "question": "Kto jest większym bałaganiarzem?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808496138-360_F_919165333_Z1JH1Qq1PqOs6ARBMd7f5rAhXg7UedmR.webp",
+      "image": "/uploads/1770808496138-360_F_919165333_Z1JH1Qq1PqOs6ARBMd7f5rAhXg7UedmR.webp",
+      "imageSmall": "/uploads/1770808444456-360_F_919165333_Z1JH1Qq1PqOs6ARBMd7f5rAhXg7UedmR-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813673424_vahw8",
+      "type": "VOTE",
+      "question": "Kto lepiej gotuje (lub zamawia pizzę)?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808499975-panna-m__oda-i-pan-m__ody-tan__cza__-na-tle-tro__jka__tnego-okna-kto__re-para-weselna-dobrze-sie__-bawia__-w-dniu-s__lubu-nowi-wesele-188212323.webp",
+      "image": "/uploads/1770808499975-panna-m__oda-i-pan-m__ody-tan__cza__-na-tle-tro__jka__tnego-okna-kto__re-para-weselna-dobrze-sie__-bawia__-w-dniu-s__lubu-nowi-wesele-188212323.webp",
+      "imageSmall": "/uploads/1770808449717-panna-m__oda-i-pan-m__ody-tan__cza__-na-tle-tro__jka__tnego-okna-kto__re-para-weselna-dobrze-sie__-bawia__-w-dniu-s__lubu-nowi-wesele-188212323-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813673424_c18fy",
+      "type": "VOTE",
+      "question": "Komu zależy bardziej na zdrowym stylu życia?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808504528-55ce396910d49_o_full.webp",
+      "image": "/uploads/1770808504528-55ce396910d49_o_full.webp",
+      "imageSmall": "/uploads/1770808454654-55ce396910d49_o_full-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813673424_6464z",
+      "type": "VOTE",
+      "question": "Kto jest lepszym kierowcą?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808508392-wesele-taniec-para-003b743.webp",
+      "image": "/uploads/1770808508392-wesele-taniec-para-003b743.webp",
+      "imageSmall": "/uploads/1770808459102-wesele-taniec-para-003b743-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813673424_a79aq",
+      "type": "VOTE",
+      "question": "Kto szybciej orientuje się w nieznanym terenie?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808513974-zimne-ognie-zdjecia-wesele.webp",
+      "image": "/uploads/1770808513974-zimne-ognie-zdjecia-wesele.webp",
+      "imageSmall": "/uploads/1770808472939-zimne-ognie-zdjecia-wesele-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813673424_ntpug",
+      "type": "VOTE",
+      "question": "Kto nigdy nie zdąża na autobus?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808517708-360_F_228830967_ATEGt4v3Ml32blJdGrUKpEpqjR3JbsTc.webp",
+      "image": "/uploads/1770808517708-360_F_228830967_ATEGt4v3Ml32blJdGrUKpEpqjR3JbsTc.webp",
+      "imageSmall": "/uploads/1770808476976-360_F_228830967_ATEGt4v3Ml32blJdGrUKpEpqjR3JbsTc-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813673424_msu02",
+      "type": "VOTE",
+      "question": "Kto częściej przegląda telefon w łóżku?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808522377-imgJX9Kdq-45e6d96.webp",
+      "image": "/uploads/1770808522377-imgJX9Kdq-45e6d96.webp",
+      "imageSmall": "/uploads/1770808481761-imgJX9Kdq-45e6d96-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813673424_t21zm",
+      "type": "VOTE",
+      "question": "Gdy leci dobra muzyka, kto pierwszy rwie się do tańca?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808526713-images.webp",
+      "image": "/uploads/1770808526713-images.webp",
+      "imageSmall": "/uploads/1770808437855-images-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813673424_aqctq",
+      "type": "VOTE",
+      "question": "Kto jest większym imprezowiczem?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808530670-360_F_919165333_Z1JH1Qq1PqOs6ARBMd7f5rAhXg7UedmR.webp",
+      "image": "/uploads/1770808530670-360_F_919165333_Z1JH1Qq1PqOs6ARBMd7f5rAhXg7UedmR.webp",
+      "imageSmall": "/uploads/1770808444456-360_F_919165333_Z1JH1Qq1PqOs6ARBMd7f5rAhXg7UedmR-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813673424_ueipi",
+      "type": "VOTE",
+      "question": "Kto jest bardziej towarzyski?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808535644-panna-m__oda-i-pan-m__ody-tan__cza__-na-tle-tro__jka__tnego-okna-kto__re-para-weselna-dobrze-sie__-bawia__-w-dniu-s__lubu-nowi-wesele-188212323.webp",
+      "image": "/uploads/1770808535644-panna-m__oda-i-pan-m__ody-tan__cza__-na-tle-tro__jka__tnego-okna-kto__re-para-weselna-dobrze-sie__-bawia__-w-dniu-s__lubu-nowi-wesele-188212323.webp",
+      "imageSmall": "/uploads/1770808449717-panna-m__oda-i-pan-m__ody-tan__cza__-na-tle-tro__jka__tnego-okna-kto__re-para-weselna-dobrze-sie__-bawia__-w-dniu-s__lubu-nowi-wesele-188212323-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813673424_b4wkd",
+      "type": "VOTE",
+      "question": "Kto ma bardziej zakręcone poczucie humoru?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808540770-55ce396910d49_o_full.webp",
+      "image": "/uploads/1770808540770-55ce396910d49_o_full.webp",
+      "imageSmall": "/uploads/1770808454654-55ce396910d49_o_full-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813673424_gweg4",
+      "type": "VOTE",
+      "question": "Kto ma lepszą teściową?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808545084-wesele-taniec-para-003b743.webp",
+      "image": "/uploads/1770808545084-wesele-taniec-para-003b743.webp",
+      "imageSmall": "/uploads/1770808459102-wesele-taniec-para-003b743-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813673424_blih7",
+      "type": "VOTE",
+      "question": "Kto ma bardziej szaloną rodzinę?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808550069-zimne-ognie-zdjecia-wesele.webp",
+      "image": "/uploads/1770808550069-zimne-ognie-zdjecia-wesele.webp",
+      "imageSmall": "/uploads/1770808472939-zimne-ognie-zdjecia-wesele-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813673424_egt3r",
+      "type": "VOTE",
+      "question": "Kto jest bardziej oszczędny?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808555532-360_F_228830967_ATEGt4v3Ml32blJdGrUKpEpqjR3JbsTc.webp",
+      "image": "/uploads/1770808555532-360_F_228830967_ATEGt4v3Ml32blJdGrUKpEpqjR3JbsTc.webp",
+      "imageSmall": "/uploads/1770808476976-360_F_228830967_ATEGt4v3Ml32blJdGrUKpEpqjR3JbsTc-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813673424_w6dc7",
+      "type": "VOTE",
+      "question": "Kto daje lepsze prezenty?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808560078-imgJX9Kdq-45e6d96.webp",
+      "image": "/uploads/1770808560078-imgJX9Kdq-45e6d96.webp",
+      "imageSmall": "/uploads/1770808481761-imgJX9Kdq-45e6d96-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813673424_3y8zy",
+      "type": "VOTE",
+      "question": "Kto jest bardziej uparty?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808564173-images.webp",
+      "image": "/uploads/1770808564173-images.webp",
+      "imageSmall": "/uploads/1770808437855-images-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813673424_gathz",
+      "type": "VOTE",
+      "question": "Kto częściej ma rację (nawet jak jej nie ma)?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808568603-360_F_919165333_Z1JH1Qq1PqOs6ARBMd7f5rAhXg7UedmR.webp",
+      "image": "/uploads/1770808568603-360_F_919165333_Z1JH1Qq1PqOs6ARBMd7f5rAhXg7UedmR.webp",
+      "imageSmall": "/uploads/1770808444456-360_F_919165333_Z1JH1Qq1PqOs6ARBMd7f5rAhXg7UedmR-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813673424_wdgz0",
+      "type": "VOTE",
+      "question": "Kto pierwszy wyciąga rękę na zgodę po kłótni?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808572217-panna-m__oda-i-pan-m__ody-tan__cza__-na-tle-tro__jka__tnego-okna-kto__re-para-weselna-dobrze-sie__-bawia__-w-dniu-s__lubu-nowi-wesele-188212323.webp",
+      "image": "/uploads/1770808572217-panna-m__oda-i-pan-m__ody-tan__cza__-na-tle-tro__jka__tnego-okna-kto__re-para-weselna-dobrze-sie__-bawia__-w-dniu-s__lubu-nowi-wesele-188212323.webp",
+      "imageSmall": "/uploads/1770808449717-panna-m__oda-i-pan-m__ody-tan__cza__-na-tle-tro__jka__tnego-okna-kto__re-para-weselna-dobrze-sie__-bawia__-w-dniu-s__lubu-nowi-wesele-188212323-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813673424_sqmxt",
+      "type": "VOTE",
+      "question": "Kto częściej marudzi przy chorym 'katerku'?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808575887-55ce396910d49_o_full.webp",
+      "image": "/uploads/1770808575887-55ce396910d49_o_full.webp",
+      "imageSmall": "/uploads/1770808454654-55ce396910d49_o_full-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813673424_qv1f0",
+      "type": "VOTE",
+      "question": "Kto jest lepszym opiekunem w razie choroby?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808579864-wesele-taniec-para-003b743.webp",
+      "image": "/uploads/1770808579864-wesele-taniec-para-003b743.webp",
+      "imageSmall": "/uploads/1770808459102-wesele-taniec-para-003b743-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813673424_tctgs",
+      "type": "VOTE",
+      "question": "Kto by wytrzymał dłużej na bezludnej wyspie?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808585156-zimne-ognie-zdjecia-wesele.webp",
+      "image": "/uploads/1770808585156-zimne-ognie-zdjecia-wesele.webp",
+      "imageSmall": "/uploads/1770808472939-zimne-ognie-zdjecia-wesele-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813673424_2rdxv",
+      "type": "VOTE",
+      "question": "Kto robi lepsze masaże?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808590658-zimne-ognie-zdjecia-wesele.webp",
+      "image": "/uploads/1770808590658-zimne-ognie-zdjecia-wesele.webp",
+      "imageSmall": "/uploads/1770808472939-zimne-ognie-zdjecia-wesele-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813673424_8eo31",
+      "type": "VOTE",
+      "question": "Kto jest bardziej romantyczny?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808596309-360_F_228830967_ATEGt4v3Ml32blJdGrUKpEpqjR3JbsTc.webp",
+      "image": "/uploads/1770808596309-360_F_228830967_ATEGt4v3Ml32blJdGrUKpEpqjR3JbsTc.webp",
+      "imageSmall": "/uploads/1770808476976-360_F_228830967_ATEGt4v3Ml32blJdGrUKpEpqjR3JbsTc-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813673424_yw702",
+      "type": "VOTE",
+      "question": "Kto miewa bardziej szalone pomysły?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808600569-imgJX9Kdq-45e6d96.webp",
+      "image": "/uploads/1770808600569-imgJX9Kdq-45e6d96.webp",
+      "imageSmall": "/uploads/1770808481761-imgJX9Kdq-45e6d96-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813673424_umdkq",
+      "type": "VOTE",
+      "question": "Kto rządzi w związku?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808604256-images.webp",
+      "image": "/uploads/1770808604256-images.webp",
+      "imageSmall": "/uploads/1770808437855-images-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770813673424_0ff4j",
+      "type": "VOTE",
+      "question": "Kto kogo bardziej kocha?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "ON (Pan Młody)",
+        "ONA (Pani Młoda)"
+      ],
+      "media": "/uploads/1770808608227-360_F_919165333_Z1JH1Qq1PqOs6ARBMd7f5rAhXg7UedmR.webp",
+      "image": "/uploads/1770808608227-360_F_919165333_Z1JH1Qq1PqOs6ARBMd7f5rAhXg7UedmR.webp",
+      "imageSmall": "/uploads/1770808444456-360_F_919165333_Z1JH1Qq1PqOs6ARBMd7f5rAhXg7UedmR-thumb.webp",
+      "correct": -1
+    }
+  ],
+  "thanksScreen": null
+}
