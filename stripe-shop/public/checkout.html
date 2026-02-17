@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Imprezja Quiz – Wybierz plan</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1a1a2e; color: #fff; min-height: 100vh; padding: 40px 20px; }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 { text-align: center; margin-bottom: 10px; font-size: 1.8rem; }
+        .subtitle { text-align: center; color: #95a5a6; margin-bottom: 40px; }
+        .pricing { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
+        .plan { background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 24px; text-align: center; transition: all 0.2s; }
+        .plan:hover { border-color: #f1c40f; background: rgba(241,196,15,0.08); }
+        .plan.popular { border-color: #f1c40f; position: relative; }
+        .plan.popular::before { content: 'Popularny'; position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #f1c40f; color: #000; font-size: 11px; font-weight: bold; padding: 4px 12px; border-radius: 20px; }
+        .plan-name { font-size: 1.1rem; font-weight: bold; margin-bottom: 8px; color: #f1c40f; }
+        .plan-price { font-size: 1.8rem; font-weight: 800; margin-bottom: 4px; }
+        .plan-period { font-size: 0.85rem; color: #95a5a6; margin-bottom: 16px; }
+        .plan-desc { font-size: 0.9rem; color: #bdc3c7; margin-bottom: 20px; min-height: 40px; }
+        .btn { display: block; width: 100%; padding: 14px 20px; background: #3498db; color: #fff; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; text-decoration: none; text-align: center; transition: background 0.2s; }
+        .btn:hover { background: #2980b9; }
+        .btn-lifetime { background: #27ae60; }
+        .btn-lifetime:hover { background: #219a52; }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .error { color: #e74c3c; margin-top: 10px; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Imprezja Quiz</h1>
+        <p class="subtitle">Quiz i głosowanie na imprezach – działa offline</p>
+
+        <div class="pricing">
+            <div class="plan">
+                <div class="plan-name">1 miesiąc</div>
+                <div class="plan-price" id="price-1m">—</div>
+                <div class="plan-period">subskrypcja miesięczna</div>
+                <div class="plan-desc">Dla okazjonalnych imprez</div>
+                <button class="btn" data-lookup="imprezja-1m" onclick="checkout(this)">Wybierz</button>
+            </div>
+
+            <div class="plan popular">
+                <div class="plan-name">3 miesiące</div>
+                <div class="plan-price" id="price-3m">—</div>
+                <div class="plan-period">subskrypcja kwartalna</div>
+                <div class="plan-desc">Oszczędność ~15%</div>
+                <button class="btn" data-lookup="imprezja-3m" onclick="checkout(this)">Wybierz</button>
+            </div>
+
+            <div class="plan">
+                <div class="plan-name">12 miesięcy</div>
+                <div class="plan-price" id="price-12m">—</div>
+                <div class="plan-period">subskrypcja roczna</div>
+                <div class="plan-desc">Najlepsza wartość – oszczędność ~30%</div>
+                <button class="btn" data-lookup="imprezja-12m" onclick="checkout(this)">Wybierz</button>
+            </div>
+
+            <div class="plan">
+                <div class="plan-name">Dożywotnia</div>
+                <div class="plan-price" id="price-lifetime">—</div>
+                <div class="plan-period">jednorazowa płatność</div>
+                <div class="plan-desc">Bez limitów, na zawsze</div>
+                <button class="btn btn-lifetime" data-lookup="imprezja-lifetime" onclick="checkout(this)">Kup</button>
+            </div>
+        </div>
+
+        <div id="error" class="error" style="display:none;"></div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        async function checkout(btn) {
+            const lookup = btn.dataset.lookup;
+            btn.disabled = true;
+            document.getElementById('error').style.display = 'none';
+
+            try {
+                const res = await fetch(API_BASE + '/create-checkout-session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        lookup_key: lookup,
+                        success_url: window.location.origin + '/success.html?session_id={CHECKOUT_SESSION_ID}',
+                        cancel_url: window.location.href
+                    })
+                });
+                const data = await res.json();
+                if (data.url) {
+                    window.location.href = data.url;
+                } else {
+                    throw new Error(data.error || 'Błąd serwera');
+                }
+            } catch (err) {
+                document.getElementById('error').textContent = err.message || 'Błąd połączenia';
+                document.getElementById('error').style.display = 'block';
+                btn.disabled = false;
+            }
+        }
+
+        // Opcjonalnie: załaduj ceny z API (wymaga produktów w Stripe)
+        async function loadPrices() {
+            try {
+                const res = await fetch(API_BASE + '/api/prices');
+                const { prices } = await res.json();
+                prices.forEach(p => {
+                    const amount = (p.unit_amount / 100).toFixed(2);
+                    const currency = (p.currency || 'pln').toUpperCase();
+                    const recurring = p.recurring;
+                    let label = amount + ' ' + currency;
+                    if (recurring) {
+                        const interval = recurring.interval_count > 1 ? recurring.interval_count + ' ' : '';
+                        label += '/' + interval + (recurring.interval === 'month' ? 'mc' : 'rok');
+                    }
+                    const key = p.lookup_key || '';
+                    if (key.includes('1m')) document.getElementById('price-1m').textContent = label;
+                    else if (key.includes('3m')) document.getElementById('price-3m').textContent = label;
+                    else if (key.includes('12m')) document.getElementById('price-12m').textContent = label;
+                    else if (key.includes('lifetime')) document.getElementById('price-lifetime').textContent = label;
+                });
+            } catch (_) {}
+        }
+        loadPrices();
+    </script>
+</body>
+</html>
