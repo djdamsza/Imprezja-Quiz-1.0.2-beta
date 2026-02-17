@@ -2311,6 +2311,14 @@
             color: #f1c40f;
         }
 
+        .answer-btn.is-correct {
+            border-color: #2ecc71 !important;
+            box-shadow: 0 0 30px rgba(46, 204, 113, 0.6);
+        }
+        .answer-btn.is-correct::after {
+            color: #2ecc71 !important;
+        }
+
         .answer-locked {
             opacity: 0.6;
             pointer-events: none;
@@ -3325,11 +3333,24 @@
         }
 
         // === AKTUALIZACJA STANU GRY ===
+        let stateRefreshTimer = null;
+        function scheduleStateRefresh() {
+            if (stateRefreshTimer) clearTimeout(stateRefreshTimer);
+            stateRefreshTimer = setTimeout(() => {
+                if (currentGameState && (currentGameState.type === 'GAME' || currentGameState.type === 'GAME_STATS') && socket.connected && playerNick) {
+                    console.log('🔄 Brak aktualizacji 3s – proszę o stan');
+                    socket.emit('request_state');
+                }
+                stateRefreshTimer = null;
+            }, 3000);
+        }
         socket.on('update_state', (state) => {
             console.log('📡 Stan gry:', state.type, 'showStats:', state.showStats, 'showCorrect:', state.showCorrect, 'teamBattleMode:', state.teamBattleMode, 'playerNick:', playerNick, 'playerTeam:', playerTeam);
             
             // Zapisz aktualny stan gry
             currentGameState = state;
+            if (state.type === 'GAME' || state.type === 'GAME_STATS') scheduleStateRefresh();
+            else if (stateRefreshTimer) { clearTimeout(stateRefreshTimer); stateRefreshTimer = null; }
             playerEliminated = !!(state.eliminatedMap && state.eliminatedMap[socket.id]);
             
             // WAŻNE: Jeśli dogrywka jest aktywna, natychmiast ukryj wszystkie obrazy i upewnij się że dogrywka jest wyświetlona
@@ -3760,8 +3781,13 @@
                         } else {
                             // LETTER: gdy litery właśnie przyszły (gameStarted=true), przeładuj widok żeby pokazać pola na odpowiedź
                             const letterJustStarted = q.type === 'LETTER' && state.letterGame && state.letterGame.questionId === questionId && state.letterGame.gameStarted === true;
-                            if (letterJustStarted) {
-                                console.log('📝 [LETTER] To samo pytanie, ale gameStarted=true – przeładowuję widok (pola na litery)');
+                            const grid = document.getElementById('answers-grid');
+                            const gridEmpty = !grid || !grid.children || grid.children.length === 0;
+                            const hasLetterInputs = !!document.getElementById('letter-answer-input-1');
+                            // WAŻNE: Nie przeładowuj LETTER gdy gracz już ma pola do wpisania – inaczej update_state co 120ms czyściłby tekst podczas pisania
+                            if ((letterJustStarted || gridEmpty) && !hasLetterInputs) {
+                                if (gridEmpty) console.log('📝 To samo pytanie, ale grid pusty – wymuszam showVotingScreen');
+                                if (letterJustStarted) console.log('📝 [LETTER] To samo pytanie, gameStarted=true, brak pól – przeładowuję widok (pola na litery)');
                                 showVotingScreen(q, state.timeLeft || 30);
                             } else {
                                 console.log('📝 To samo pytanie - pomijam showVotingScreen:', { 
@@ -3776,6 +3802,9 @@
                         if (state.timeLeft !== undefined && state.timeLeft !== null && q.type !== 'SHIPS') {
                             updateTimerFromServer(state.timeLeft);
                         }
+                        // WAŻNE: Aktualizuj obrazek hero przy każdym update_state – showVotingScreen może nie być wywołane
+                        // (np. to samo pytanie LETTER z polami), a obrazki muszą być widoczne dla ESTIMATION, LETTER, OPEN itd.
+                        updateQuestionDisplay(q, { imageOnly: true });
                         updateEliminatedOverlay();
                     } else {
                         console.log('⚠️ Brak aktywnego pytania w stanie GAME');
@@ -3820,7 +3849,8 @@
                                     const heroImg = document.getElementById('hero-image');
                                     const questionHeader = document.querySelector('.question-header');
                                     const imgSrc = (state.activeQuestion.imageSmall || state.activeQuestion.image || state.activeQuestion.media || '').trim();
-                                    if (imgSrc && heroContainer && heroImg) {
+                                    const skipImages = state.sendImagesToPhones === false;
+                                    if (imgSrc && heroContainer && heroImg && !skipImages) {
                                         console.log('📊 [GAME_STATS] OPEN - Utrzymuję widoczność grafiki podczas pokazywania statystyk');
                                         const src = (imgSrc.startsWith('/') || imgSrc.startsWith('http')) ? imgSrc : '/uploads/' + imgSrc;
                                         heroContainer.style.display = 'block';
@@ -4499,10 +4529,12 @@
             console.log('🎤 ========== KONIEC showPlayoffScreen ==========');
         }
 
-        function updateQuestionDisplay(q) {
+        function updateQuestionDisplay(q, opts) {
+            const imageOnly = opts && opts.imageOnly === true;
             console.log('🎤 updateQuestionDisplay wywołane:', {
                 question: q ? q.question : 'brak',
                 questionType: q ? q.type : 'brak',
+                imageOnly,
                 playoffExists: !!(currentGameState && currentGameState.playoff),
                 playoffActive: !!(currentGameState && currentGameState.playoff && currentGameState.playoff.active)
             });
@@ -4568,11 +4600,11 @@
             const isPlayoffActive = currentGameState && currentGameState.playoff && currentGameState.playoff.active;
             const hasPlayoffAttr = qTextEl && qTextEl.getAttribute('data-playoff-active') === 'true';
             console.log('📝 updateQuestionDisplay - isPlayoffActive:', isPlayoffActive, 'hasPlayoffAttr:', hasPlayoffAttr);
-            if (qTextEl && q && !isPlayoffActive && !hasPlayoffAttr) {
+            if (!imageOnly && qTextEl && q && !isPlayoffActive && !hasPlayoffAttr) {
                 console.log('📝 updateQuestionDisplay - nadpisuję tekst pytania:', q.question);
                 qTextEl.textContent = q.question || 'Pytanie...';
                 qTextEl.removeAttribute('data-playoff-active');
-            } else {
+            } else if (!imageOnly) {
                 console.log('📝 updateQuestionDisplay - POMIJAM nadpisanie (dogrywka aktywna lub atrybut)');
                 // Jeśli dogrywka jest aktywna, upewnij się że słowo dogrywki i napis DOGRYWKA są ustawione - styl jak normalne pytania
                 if (isPlayoffActive && qTextEl && qTextEl.getAttribute('data-playoff-active') !== 'true') {
@@ -4590,13 +4622,14 @@
             
             const heroContainer = document.getElementById('hero-image-container');
             const heroImg = document.getElementById('hero-image');
-            if (!heroContainer || !heroImg) return;
+            if (!heroContainer || !heroImg || !q) return;
             
             // WAŻNE: Dla pytań otwartych - grafika powinna być widoczna podczas wpisywania odpowiedzi i pokazywania statystyk
             // Grafika znika dopiero gdy zaczyna się dogrywka (sprawdzenie wyżej)
+            const skipImages = currentGameState?.sendImagesToPhones === false;
             if (q && q.type === 'OPEN' && !isPlayoffActive) {
                 const imgSrc = (q.imageSmall || q.image || q.media || '').trim();
-                if (imgSrc) {
+                if (imgSrc && !skipImages) {
                     const src = (imgSrc.startsWith('/') || imgSrc.startsWith('http')) ? imgSrc : '/uploads/' + imgSrc;
                     console.log('📊 updateQuestionDisplay OPEN - Utrzymuję widoczność grafiki:', src);
                     heroContainer.style.display = 'block';
@@ -4626,7 +4659,7 @@
             } else {
                 // Dla innych typów pytań - standardowa logika
                 const imgSrc = (q.imageSmall || q.image || q.media || '').trim();
-                if (imgSrc) {
+                if (imgSrc && !skipImages) {
                     const src = (imgSrc.startsWith('/') || imgSrc.startsWith('http')) ? imgSrc : '/uploads/' + imgSrc;
                     heroContainer.style.display = 'block';
                     heroImg.src = src;
@@ -4913,9 +4946,10 @@
                 grid.innerHTML = html;
             } else if (q.type === 'HOT_OR_NOT' && q.answers) {
                 // HOT_OR_NOT - specjalny układ z obrazkami dla wyników
+                const skipImages = state.sendImagesToPhones === false;
                 const correctAnswers = Array.isArray(q.correct) ? q.correct : (q.correct !== undefined && q.correct !== null && q.correct !== -1 ? [q.correct] : []);
-                const imageASrc = q.imageSmallA || q.imageA || '';
-                const imageBSrc = q.imageSmallB || q.imageB || '';
+                const imageASrc = skipImages ? '' : (q.imageSmallA || q.imageA || '');
+                const imageBSrc = skipImages ? '' : (q.imageSmallB || q.imageB || '');
                 const statsA = stats['A'] || 0;
                 const statsB = stats['B'] || 0;
                 const totalHot = statsA + statsB;
@@ -4996,7 +5030,7 @@
                     // Zaznacz odpowiedź gracza lub poprawną odpowiedź
                     let cls = 'answer-btn ' + colors[i];
                     if (state.showCorrect && isCorrect) {
-                        cls += ' answer-selected';
+                        cls += ' answer-selected is-correct';
                     } else if (isPlayerAnswer && !state.showCorrect) {
                         // Pokaż odpowiedź gracza nawet gdy nie pokazujemy poprawnej odpowiedzi
                         cls += ' answer-selected';
@@ -5014,8 +5048,8 @@
                 }
                 grid.innerHTML = html;
                 
-                // WAŻNE: Dla VOTE_IMG i VOTE pokaż battle bar gdy showStats jest true
-                if ((q.type === 'VOTE' || q.type === 'VOTE_IMG') && state.showStats) {
+                // WAŻNE: Dla VOTE_IMG i VOTE pokaż battle bar gdy showStats lub showCorrect (aby widzieć rozkład przy pokazywaniu poprawnej)
+                if ((q.type === 'VOTE' || q.type === 'VOTE_IMG') && (state.showStats || state.showCorrect)) {
                     const statsA = stats['A'] || 0;
                     const statsB = stats['B'] || 0;
                     const battleBar = document.getElementById('hot-battle-bar-container');
@@ -5269,12 +5303,13 @@
                     qTextEl.innerText = rawText;
                 }
                 
+                const skipImages = currentGameState?.sendImagesToPhones === false;
                 // Do wykrywania orientacji: pełne obrazki (imageA/imageB), żeby nie brać miniatur w portrait
-                const orientASrc = question.imageA || question.imageSmallA || '';
-                const orientBSrc = question.imageB || question.imageSmallB || '';
+                const orientASrc = skipImages ? '' : (question.imageA || question.imageSmallA || '');
+                const orientBSrc = skipImages ? '' : (question.imageB || question.imageSmallB || '');
                 // Do wyświetlania: miniatury na telefonie (imageSmall), fallback do pełnych
-                const imageASrc = question.imageSmallA || question.imageA || '';
-                const imageBSrc = question.imageSmallB || question.imageB || '';
+                const imageASrc = skipImages ? '' : (question.imageSmallA || question.imageA || '');
+                const imageBSrc = skipImages ? '' : (question.imageSmallB || question.imageB || '');
                 
                 console.log('🖼️ HOT_OR_NOT vote.html - imageSmallA:', question.imageSmallA, 'imageA:', question.imageA);
                 console.log('🖼️ HOT_OR_NOT vote.html - imageSmallB:', question.imageSmallB, 'imageB:', question.imageB);
@@ -5431,7 +5466,8 @@
             } else if (question.type === 'ESTIMATION') {
                 // Szacowanie – gracz wpisuje liczbę (suwak + pole); opcjonalnie z obrazkiem
                 votingScreen.classList.remove('hot-or-not-mode');
-                let imgSrc = (question.imageSmall && question.imageSmall.trim() !== '') ? question.imageSmall : (question.image && question.image.trim() !== '') ? question.image : (question.media && question.media.trim() !== '') ? question.media : '';
+                const skipImagesEst = currentGameState?.sendImagesToPhones === false;
+                let imgSrc = skipImagesEst ? '' : ((question.imageSmall && question.imageSmall.trim() !== '') ? question.imageSmall : (question.image && question.image.trim() !== '') ? question.image : (question.media && question.media.trim() !== '') ? question.media : '');
                 if (imgSrc && imgSrc.trim() !== '') {
                     if (!imgSrc.startsWith('/') && !imgSrc.startsWith('http')) imgSrc = '/uploads/' + imgSrc;
                     heroContainer.style.setProperty('display', 'block', 'important');
@@ -5454,6 +5490,7 @@
                     };
                     heroImg.src = imgUrl.toString();
                     votingScreen.classList.remove('no-image');
+                    triggerHeroReveal();
                 } else {
                     heroContainer.style.display = 'none';
                     heroImg.src = '';
@@ -5557,12 +5594,14 @@
                 
                 // Pytanie otwarte – gracz wpisuje tekst (np. gatunek muzyki); opcjonalnie z obrazkiem
                 votingScreen.classList.remove('hot-or-not-mode');
-                let imgSrc = (question.imageSmall && question.imageSmall.trim() !== '') ? question.imageSmall : (question.image && question.image.trim() !== '') ? question.image : (question.media && question.media.trim() !== '') ? question.media : '';
+                const skipImagesOpen = currentGameState?.sendImagesToPhones === false;
+                let imgSrc = skipImagesOpen ? '' : ((question.imageSmall && question.imageSmall.trim() !== '') ? question.imageSmall : (question.image && question.image.trim() !== '') ? question.image : (question.media && question.media.trim() !== '') ? question.media : '');
                 if (imgSrc && imgSrc.trim() !== '') {
                     if (!imgSrc.startsWith('/') && !imgSrc.startsWith('http')) imgSrc = '/uploads/' + imgSrc;
                     heroContainer.style.display = 'block';
                     heroImg.src = imgSrc;
                     votingScreen.classList.remove('no-image');
+                    triggerHeroReveal();
                 } else {
                     heroContainer.style.display = 'none';
                     heroImg.src = '';
@@ -5663,12 +5702,14 @@
                 }
                 
                 votingScreen.classList.remove('hot-or-not-mode');
-                let imgSrc = (question.imageSmall && question.imageSmall.trim() !== '') ? question.imageSmall : (question.image && question.image.trim() !== '') ? question.image : (question.media && question.media.trim() !== '') ? question.media : '';
+                const skipImagesLetter = currentGameState?.sendImagesToPhones === false;
+                let imgSrc = skipImagesLetter ? '' : ((question.imageSmall && question.imageSmall.trim() !== '') ? question.imageSmall : (question.image && question.image.trim() !== '') ? question.image : (question.media && question.media.trim() !== '') ? question.media : '');
                 if (imgSrc && imgSrc.trim() !== '') {
                     if (!imgSrc.startsWith('/') && !imgSrc.startsWith('http')) imgSrc = '/uploads/' + imgSrc;
                     heroContainer.style.display = 'block';
                     heroImg.src = imgSrc;
                     votingScreen.classList.remove('no-image');
+                    triggerHeroReveal();
                 } else {
                     heroContainer.style.display = 'none';
                     heroImg.src = '';
@@ -5945,7 +5986,9 @@
                 
                 // Użyj imageSmall dla telefonu, fallback do image, potem media
                 // Dla pytań muzycznych sprawdź też image/imageSmall (okładka albumu)
+                const skipImagesDefault = currentGameState?.sendImagesToPhones === false;
                 let imgSrc = '';
+                if (!skipImagesDefault) {
                 if(question.imageSmall && question.imageSmall.trim() !== '') {
                     imgSrc = question.imageSmall;
                 } else if(question.image && question.image.trim() !== '') {
@@ -5960,6 +6003,7 @@
                     } else if(question.type !== 'MUSIC') {
                         imgSrc = question.media;
                     }
+                }
                 }
                 
                 console.log('🖼️ vote.html - imgSrc:', imgSrc, 'question.image:', question.image, 'question.media:', question.media);

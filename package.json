@@ -1,11 +1,14 @@
 {
   "name": "votebattle",
   "description": "Imprezja Quiz – quiz i głosowanie w sieci lokalnej (działa offline)",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "author": "Damian Nowaczyk",
   "main": "electron-main.js",
   "scripts": {
     "start": "node server.js",
+    "kill-port": "lsof -ti:3000 | xargs kill -9 2>/dev/null || true",
+    "electron:fresh": "npm run kill-port && sleep 2 && npm run electron",
+    "electron:dev": "npm run kill-port && sleep 2 && electron .",
     "clean": "node scripts/clean.js",
     "electron": "electron .",
     "build": "electron-builder",
@@ -20,6 +23,14 @@
     "license-key": "node scripts/generate-license-key.js"
   },
   "dependencies": {
+    "@fontsource/ibm-plex-mono": "^5.2.7",
+    "@fontsource/pixelify-sans": "^5.2.7",
+    "@fontsource/press-start-2p": "^5.2.7",
+    "@fontsource/rubik-pixels": "^5.2.8",
+    "@fontsource/share-tech-mono": "^5.2.7",
+    "@fontsource/vt323": "^5.2.7",
+    "adm-zip": "^0.5.16",
+    "archiver": "^7.0.1",
     "electron-updater": "^6.7.3",
     "express": "^4.21.1",
     "jimp": "^0.22.10",
@@ -97,8 +108,10 @@
       "executableName": "ImprezjaQuiz"
     },
     "publish": {
-      "provider": "generic",
-      "url": "https://nowajakoscrozrywki.pl/updates/"
+      "provider": "github",
+      "owner": "djdamsza",
+      "repo": "Imprezja-Quiz-1.0.2-beta",
+      "releaseType": "release"
     },
     "nsis": {
       "oneClick": true,

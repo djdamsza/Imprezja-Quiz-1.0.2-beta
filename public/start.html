@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Imprezja – wybór trybu</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background: radial-gradient(ellipse at center, #1a1a2e 0%, #0d0d14 100%);
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+        }
+        h1 {
+            font-size: clamp(2rem, 5vw, 3.5rem);
+            font-weight: 800;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #ffd700, #f39c12);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .subtitle {
+            color: rgba(255,255,255,0.6);
+            font-size: 1.1rem;
+            margin-bottom: 60px;
+        }
+        .mode-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+            max-width: 700px;
+        }
+        .mode-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 50px 40px;
+            border-radius: 20px;
+            border: 3px solid rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.05);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            color: inherit;
+        }
+        .mode-btn:hover {
+            transform: translateY(-4px);
+            border-color: rgba(255,215,0,0.5);
+            background: rgba(255,215,0,0.1);
+            box-shadow: 0 12px 40px rgba(255,215,0,0.15);
+        }
+        .mode-btn:active { transform: translateY(-2px); }
+        .mode-icon {
+            font-size: 4rem;
+            margin-bottom: 16px;
+        }
+        .mode-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .mode-desc {
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.6);
+            text-align: center;
+            line-height: 1.4;
+        }
+        .mode-btn.quiz { border-color: rgba(52, 152, 219, 0.4); }
+        .mode-btn.quiz:hover { border-color: #3498db; background: rgba(52, 152, 219, 0.15); }
+        .mode-btn.familiada { border-color: rgba(231, 76, 60, 0.4); }
+        .mode-btn.familiada:hover { border-color: #e74c3c; background: rgba(231, 76, 60, 0.15); }
+    </style>
+</head>
+<body>
+    <h1>Imprezja</h1>
+    <p class="subtitle">Wybierz tryb rozgrywki</p>
+    
+    <div class="mode-grid">
+        <a href="/Screen.html" class="mode-btn quiz">
+            <span class="mode-icon">🎮</span>
+            <span class="mode-title">Imprezja Quiz</span>
+            <span class="mode-desc">Quiz z głosowaniem na telefonach.<br>Gracze łączą się przez QR.</span>
+        </a>
+        <a href="/familiada/screen.html" class="mode-btn familiada">
+            <span class="mode-icon">🎤</span>
+            <span class="mode-title">Familiada</span>
+            <span class="mode-desc">Gra drużynowa z tablicą odpowiedzi.<br>Pilot na telefonie, ekran na TV.</span>
+        </a>
+    </div>
+</body>
+</html>

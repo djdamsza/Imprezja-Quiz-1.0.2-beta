@@ -125,18 +125,24 @@ releaseDate: '2026-02-15T12:00:00.000Z'
 
 ---
 
-## Stan wdrożenia (2026-02-11)
+## Stan wdrożenia (2026-02-16)
 
 ✅ **Zaimplementowane:**
 - `electron-updater` w `electron-main.js` – `setupAutoUpdater()` przed startem serwera
+- **Źródło aktualizacji:** GitHub Releases – wymuszone w `electron-main.js` przez `setFeedURL({ provider: 'github', owner: 'djdamsza', repo: 'Imprezja-Quiz-1.0.2-beta' })`
 - Endpoint `POST /api/check-updates` w server.js – wywołuje `global.imprezjaCheckForUpdates()`
 - Sekcja „Aktualizacje” w panelu admina – przycisk „Sprawdź aktualizacje” + ostrzeżenie: *Nie zalecam aktualizacji w trakcie imprezy – lepiej zrobić to na spokojnie i przetestować*
-- `publish` w package.json: `generic` → `https://nowajakoscrozrywki.pl/updates/`
+- Przy błędzie sprawdzania – komunikat + link do ręcznego pobrania z GitHub Releases
 
 ## Publikowanie aktualizacji
 
-1. Zwiększ `version` w `package.json` (np. 1.0.2 → 1.0.3)
-2. Zbuduj: `npm run build:win`, `npm run build:mac:arm64`, `npm run build:mac:x64`
-3. Wgraj do `https://nowajakoscrozrywki.pl/updates/`:
-   - **Windows:** `latest.yml`, `Imprezja Quiz Setup X.X.X.exe`, `*.blockmap`
-   - **Mac:** `latest-mac.yml`, `Imprezja Quiz-X.X.X.dmg`, `Imprezja Quiz-X.X.X-arm64.dmg`, `*.blockmap`
+1. Zwiększ `version` w `package.json` (np. 1.0.3 → 1.0.4)
+2. Zbuduj i opublikuj:
+   ```bash
+   # Gdy release ma >2h – wymuś nadpisanie plików:
+   export EP_GH_IGNORE_TIME=true
+   npm run build:mac:arm64 -- --publish always
+   npm run build:mac:x64 -- --publish always
+   npm run build:win -- --publish always
+   ```
+3. Pliki trafiają na **GitHub Releases** – electron-updater pobiera stamtąd `latest-mac.yml` / `latest.yml`

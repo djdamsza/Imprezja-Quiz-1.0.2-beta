@@ -1,0 +1,622 @@
+{
+  "disableTimePoints": false,
+  "questions": [
+    {
+      "id": "q_1770910852131_a059t",
+      "type": "QUIZ",
+      "question": "Jaki kolor oczu ma Dominika?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Piwne",
+        "Niebieskie",
+        "Szare",
+        "Zielone"
+      ],
+      "media": "/uploads/1770908431881-unnamed__2_.webp",
+      "image": "/uploads/1770908431881-unnamed__2_.webp",
+      "imageSmall": "/uploads/1770908431881-unnamed__2_-thumb.webp",
+      "correct": 1
+    },
+    {
+      "id": "q_1770910852131_pyo72",
+      "type": "ESTIMATION",
+      "question": "Ile wzrostu ma Mateusz? ",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "/uploads/1770908526411-unnamed__3_.webp",
+      "image": "/uploads/1770908526411-unnamed__3_.webp",
+      "imageSmall": "/uploads/1770908526411-unnamed__3_-thumb.webp",
+      "correctValue": 198,
+      "min": 165,
+      "max": 210
+    },
+    {
+      "id": "q_1770910852131_zuinp",
+      "type": "OPEN",
+      "question": "Gdzie odbył się ślub?",
+      "time": 45,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "/uploads/1770908593293-unnamed__4_.webp",
+      "image": "/uploads/1770908593293-unnamed__4_.webp",
+      "imageSmall": "/uploads/1770908593293-unnamed__4_-thumb.webp"
+    },
+    {
+      "id": "q_1770910852131_ntjqf",
+      "type": "QUIZ",
+      "question": "Ulubiony kolor Mateusza",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Czarny",
+        "Złoty",
+        "Zielony",
+        "Biały"
+      ],
+      "media": "/uploads/1770908645845-unnamed__3_.webp",
+      "image": "/uploads/1770908645845-unnamed__3_.webp",
+      "imageSmall": "/uploads/1770908526411-unnamed__3_-thumb.webp",
+      "correct": 1
+    },
+    {
+      "id": "q_1770910852131_1s6iw",
+      "type": "QUIZ",
+      "question": "Ulubione kwiaty Dominiki?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Róże",
+        "Tulipan",
+        "Przebiśniegi",
+        "Kaktusy"
+      ],
+      "media": "/uploads/1770908689799-unnamed__5_.webp",
+      "image": "/uploads/1770908689799-unnamed__5_.webp",
+      "imageSmall": "/uploads/1770908689799-unnamed__5_-thumb.webp",
+      "correct": 3
+    },
+    {
+      "id": "q_1770910852131_x9qu3",
+      "type": "QUIZ",
+      "question": "W którym miesiącu były zaręczyny? ",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Czerwiec",
+        "Wrzesień",
+        "Kwiecień",
+        "Grudzień"
+      ],
+      "media": "/uploads/1770908745737-unnamed__2_.webp",
+      "image": "/uploads/1770908745737-unnamed__2_.webp",
+      "imageSmall": "/uploads/1770908431881-unnamed__2_-thumb.webp",
+      "correct": 0
+    },
+    {
+      "id": "q_1770910852131_eo20z",
+      "type": "VOTE_IMG",
+      "question": "Kto ma więcej cierpliwości?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Mateusz",
+        "Dominika"
+      ],
+      "media": "/uploads/1770908840266-unnamed__7_.webp",
+      "image": "/uploads/1770908840266-unnamed__7_.webp",
+      "imageSmall": "/uploads/1770908840266-unnamed__7_-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770910852131_5detn",
+      "type": "VOTE_IMG",
+      "question": "Czy Dominika i Mateusz mają tatuaże?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Tak",
+        "Nie"
+      ],
+      "media": "/uploads/1770908903646-unnamed__6_.webp",
+      "image": "/uploads/1770908903646-unnamed__6_.webp",
+      "imageSmall": "/uploads/1770908903646-unnamed__6_-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770910852131_3tfp9",
+      "type": "QUIZ",
+      "question": "Ulubiony festiwal Dominiki i Mateusza",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Audioriver",
+        "Tomorowland",
+        "Sunrise with Equador",
+        "Pol'n'Rock"
+      ],
+      "media": "/uploads/1770910356686-unnamed__2_.webp",
+      "image": "/uploads/1770910356686-unnamed__2_.webp",
+      "imageSmall": "/uploads/1770908431881-unnamed__2_-thumb.webp",
+      "correct": 3
+    },
+    {
+      "id": "q_1770910852131_sc3ud",
+      "type": "VOTE",
+      "question": "Zaręczyli się podczas wakacji?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Tak",
+        "Nie"
+      ],
+      "media": "/uploads/1770909047633-unnamed__1_.webp",
+      "image": "/uploads/1770909047633-unnamed__1_.webp",
+      "imageSmall": "/uploads/1770909047633-unnamed__1_-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770910852131_cwmq3",
+      "type": "VOTE",
+      "question": "Jedno z nich ma rodzeństwo",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Tak",
+        "Nie"
+      ],
+      "media": "",
+      "image": "",
+      "imageSmall": "",
+      "correct": -1
+    },
+    {
+      "id": "q_1770910852131_7emgv",
+      "type": "VOTE_IMG",
+      "question": "Oboje lubią oglądać komedie romantyczne",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Tak",
+        "Nie"
+      ],
+      "media": "/uploads/1770909113915-unnamed__7_.webp",
+      "image": "/uploads/1770909113915-unnamed__7_.webp",
+      "imageSmall": "/uploads/1770908840266-unnamed__7_-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770910852131_2wy45",
+      "type": "VOTE",
+      "question": "Mają pasujące tatuaże",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Tak",
+        "Nie"
+      ],
+      "media": "",
+      "image": "",
+      "imageSmall": "",
+      "correct": -1
+    },
+    {
+      "id": "q_1770910852131_41nk9",
+      "type": "VOTE_IMG",
+      "question": "Oboję wolą psy od kotów ",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Tak",
+        "Nie"
+      ],
+      "media": "/uploads/1770909210635-unnamed__8_.webp",
+      "image": "/uploads/1770909210635-unnamed__8_.webp",
+      "imageSmall": "/uploads/1770909210635-unnamed__8_-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770910852131_gqnxz",
+      "type": "VOTE",
+      "question": "Dominika jest starsza od Mateusza",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Prawda",
+        "Fałsz"
+      ],
+      "media": "/uploads/1770909256408-unnamed__9_.webp",
+      "image": "/uploads/1770909256408-unnamed__9_.webp",
+      "imageSmall": "/uploads/1770909256408-unnamed__9_-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770910852131_tanc4",
+      "type": "QUIZ",
+      "question": "Jaki trunek najczęściej wybiera Mateusz? ",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Piwo",
+        "Wino",
+        "Aperol",
+        "Wódka"
+      ],
+      "media": "/uploads/1770909290220-unnamed__5_.webp",
+      "image": "/uploads/1770909290220-unnamed__5_.webp",
+      "imageSmall": "/uploads/1770908689799-unnamed__5_-thumb.webp",
+      "correct": 3
+    },
+    {
+      "id": "q_1770910852131_n6vyp",
+      "type": "QUIZ",
+      "question": "Jak mają na imię mamy Dominiki i Mateusza?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Marysie",
+        "Krystyny",
+        "Małgorzaty",
+        "Czesławy"
+      ],
+      "media": "/uploads/1770909334124-unnamed__1_.webp",
+      "image": "/uploads/1770909334124-unnamed__1_.webp",
+      "imageSmall": "/uploads/1770909047633-unnamed__1_-thumb.webp",
+      "correct": 2
+    },
+    {
+      "id": "q_1770910852131_4r9y7",
+      "type": "ESTIMATION",
+      "question": "Ile lat mają razem Dominika i Mateusz (rocznikowo)",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "/uploads/1770910375722-unnamed__7_.webp",
+      "image": "/uploads/1770910375722-unnamed__7_.webp",
+      "imageSmall": "/uploads/1770908840266-unnamed__7_-thumb.webp",
+      "correctValue": 65,
+      "min": 35,
+      "max": 95
+    },
+    {
+      "id": "q_1770910852131_qyzh5",
+      "type": "QUIZ",
+      "question": "Jaki kolor ma sukienka świadkowej",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Biały",
+        "Granatowy",
+        "Niebieski",
+        "Zielony"
+      ],
+      "media": "/uploads/1770909418922-unnamed__2_.webp",
+      "image": "/uploads/1770909418922-unnamed__2_.webp",
+      "imageSmall": "/uploads/1770908431881-unnamed__2_-thumb.webp",
+      "correct": 1
+    },
+    {
+      "id": "q_1770910852131_c92a9",
+      "type": "QUIZ",
+      "question": "W którym miesiącu urodziła się Dominika? ",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Styczeń",
+        "Czerwiec",
+        "Lipiec",
+        "Październik"
+      ],
+      "media": "/uploads/1770910390423-unnamed__11_.webp",
+      "image": "/uploads/1770910390423-unnamed__11_.webp",
+      "imageSmall": "/uploads/1770909945958-unnamed__11_-thumb.webp",
+      "correct": 1
+    },
+    {
+      "id": "q_1770910852131_3kecz",
+      "type": "VOTE",
+      "question": "Kto dłużej śpi?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Dominika",
+        "Mateusz"
+      ],
+      "media": "/uploads/1770909527892-unnamed__3_.webp",
+      "image": "/uploads/1770909527892-unnamed__3_.webp",
+      "imageSmall": "/uploads/1770908526411-unnamed__3_-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770910852131_ekbw2",
+      "type": "VOTE",
+      "question": "Kto częściej robi zdjęcia? ",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Dominika",
+        "Mateusz"
+      ],
+      "media": "/uploads/1770909561157-unnamed__5_.webp",
+      "image": "/uploads/1770909561157-unnamed__5_.webp",
+      "imageSmall": "/uploads/1770908689799-unnamed__5_-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770910852131_zbnjp",
+      "type": "VOTE",
+      "question": "Kto lepiej organizuje wyjazdy?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Dominika",
+        "Mateusz"
+      ],
+      "media": "/uploads/1770909592573-unnamed__1_.webp",
+      "image": "/uploads/1770909592573-unnamed__1_.webp",
+      "imageSmall": "/uploads/1770909047633-unnamed__1_-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770910852131_cly3l",
+      "type": "QUIZ",
+      "question": "Ulubione ciasto Mateusza? ",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Sernik",
+        "Makowiec",
+        "Mazurek",
+        "Rafaello"
+      ],
+      "media": "/uploads/1770909618919-unnamed__8_.webp",
+      "image": "/uploads/1770909618919-unnamed__8_.webp",
+      "imageSmall": "/uploads/1770909210635-unnamed__8_-thumb.webp",
+      "correct": 1
+    },
+    {
+      "id": "q_1770910852131_3p91b",
+      "type": "VOTE",
+      "question": "Kto lepiej radzi sobie z technologia?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Dominika",
+        "Mateusz"
+      ],
+      "media": "",
+      "image": "",
+      "imageSmall": "",
+      "correct": -1
+    },
+    {
+      "id": "q_1770910852131_jm8h6",
+      "type": "QUIZ",
+      "question": "Jak długo trwały przygotowania do dzisiejszego przyjęcia? ",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "2 miesiace",
+        "3 miesiące",
+        "6 miesięcy",
+        "rok"
+      ],
+      "media": "/uploads/1770909721260-unnamed__4_.webp",
+      "image": "/uploads/1770909721260-unnamed__4_.webp",
+      "imageSmall": "/uploads/1770908593293-unnamed__4_-thumb.webp",
+      "correct": 0
+    },
+    {
+      "id": "q_1770910852131_c3ydv",
+      "type": "VOTE",
+      "question": "Kto robi większy bałagan gotując? ",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Dominika",
+        "Mateusz"
+      ],
+      "media": "/uploads/1770909769324-unnamed__6_.webp",
+      "image": "/uploads/1770909769324-unnamed__6_.webp",
+      "imageSmall": "/uploads/1770908903646-unnamed__6_-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770910852131_bt48b",
+      "type": "VOTE",
+      "question": "Kto ma więcej ",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Dominika",
+        "Mateusz"
+      ],
+      "media": "",
+      "image": "",
+      "imageSmall": "",
+      "correct": -1
+    },
+    {
+      "id": "q_1770910852131_znsp5",
+      "type": "VOTE",
+      "question": "Kto bardziej dramatyzuje przy przeziębieniu? ",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Dominika",
+        "Mateusz"
+      ],
+      "media": "/uploads/1770909839987-unnamed__9_.webp",
+      "image": "/uploads/1770909839987-unnamed__9_.webp",
+      "imageSmall": "/uploads/1770909256408-unnamed__9_-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770910852131_ofnr8",
+      "type": "VOTE",
+      "question": "Kto ma więcej ",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Dominika",
+        "Mateusz"
+      ],
+      "media": "",
+      "image": "",
+      "imageSmall": "",
+      "correct": -1
+    },
+    {
+      "id": "q_1770910852131_nmtkh",
+      "type": "VOTE",
+      "question": "Kto częściej robi zakupy ",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Dominika",
+        "Mateusz"
+      ],
+      "media": "/uploads/1770909911871-images__1_.webp",
+      "image": "/uploads/1770909911871-images__1_.webp",
+      "imageSmall": "/uploads/1770909911871-images__1_-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770910852131_s3myl",
+      "type": "QUIZ",
+      "question": "Jak wyglądała pierwsza randka?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Kono",
+        "Restauracja",
+        "S[acer",
+        "Impreza"
+      ],
+      "media": "/uploads/1770909945958-unnamed__11_.webp",
+      "image": "/uploads/1770909945958-unnamed__11_.webp",
+      "imageSmall": "/uploads/1770909945958-unnamed__11_-thumb.webp",
+      "correct": 2
+    },
+    {
+      "id": "q_1770910852131_yv5rg",
+      "type": "QUIZ",
+      "question": "Ulubione wspólne jedzenie",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Pizza",
+        "Sushi",
+        "Kebab",
+        "Jajecznica"
+      ],
+      "media": "/uploads/1770910002101-unnamed__5_.webp",
+      "image": "/uploads/1770910002101-unnamed__5_.webp",
+      "imageSmall": "/uploads/1770908689799-unnamed__5_-thumb.webp",
+      "correct": 1
+    },
+    {
+      "id": "q_1770910852131_oslj8",
+      "type": "VOTE_IMG",
+      "question": "Zgadnij kto to",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Dominika",
+        "Mateusz"
+      ],
+      "media": "/uploads/1770910048397-unnamed__12_.webp",
+      "image": "/uploads/1770910048397-unnamed__12_.webp",
+      "imageSmall": "/uploads/1770910048397-unnamed__12_-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770910852131_u9jgm",
+      "type": "QUIZ",
+      "question": "Ulubione wspólne jedzenie",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Roczek",
+        "Dwa Latka",
+        "Dwa i pół roku",
+        "Pięć lat"
+      ],
+      "media": "/uploads/1770910090580-unnamed__13_.webp",
+      "image": "/uploads/1770910090580-unnamed__13_.webp",
+      "imageSmall": "/uploads/1770910090580-unnamed__13_-thumb.webp",
+      "correct": 2
+    },
+    {
+      "id": "q_1770910852131_4ijor",
+      "type": "VOTE_IMG",
+      "question": "Zgadnij kto to",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Dominika",
+        "Mateusz"
+      ],
+      "media": "/uploads/1770910165553-unnamed__14_.webp",
+      "image": "/uploads/1770910165553-unnamed__14_.webp",
+      "imageSmall": "/uploads/1770910165553-unnamed__14_-thumb.webp",
+      "correct": -1
+    },
+    {
+      "id": "q_1770910852131_ub9ef",
+      "type": "QUIZ",
+      "question": "Ile lat ma Mati na zdjęciu?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "5",
+        "7",
+        "9",
+        "11"
+      ],
+      "media": "/uploads/1770910204511-unnamed__15_.webp",
+      "image": "/uploads/1770910204511-unnamed__15_.webp",
+      "imageSmall": "/uploads/1770910204511-unnamed__15_-thumb.webp",
+      "correct": 2
+    }
+  ],
+  "thanksScreen": null
+}

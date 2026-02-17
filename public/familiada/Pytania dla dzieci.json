@@ -1,0 +1,201 @@
+[
+  {
+    "question": "Co zabieramy ze sobą do szkoły",
+    "answers": [
+      {
+        "text": "plecak",
+        "points": 40
+      },
+      {
+        "text": "książki",
+        "points": 20
+      },
+      {
+        "text": "kanapki",
+        "points": 20
+      },
+      {
+        "text": "zeszyty",
+        "points": 10
+      },
+      {
+        "text": "piórnik",
+        "points": 6
+      },
+      {
+        "text": "ściągi",
+        "points": 4
+      }
+    ]
+  },
+  {
+    "question": "Podaj tytuły kultowych polskich komedii",
+    "answers": [
+      {
+        "text": "Sami Swoi",
+        "points": 30
+      },
+      {
+        "text": "Seksmisja",
+        "points": 24
+      },
+      {
+        "text": "Miś",
+        "points": 20
+      },
+      {
+        "text": "Chłopaki nie płaczą",
+        "points": 10
+      },
+      {
+        "text": "Killer",
+        "points": 8
+      },
+      {
+        "text": "Kogel Mogel",
+        "points": 6
+      }
+    ]
+  },
+  {
+    "question": "Europejskie państwo większe od Polski",
+    "answers": [
+      {
+        "text": "Niemcy",
+        "points": 31
+      },
+      {
+        "text": "Francja",
+        "points": 29
+      },
+      {
+        "text": "Wielka Brytania",
+        "points": 18
+      },
+      {
+        "text": "Szwecja",
+        "points": 12
+      },
+      {
+        "text": "Hiszpania",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Co jest dostarczane do mieszkania za pomocą różnego rodzaju przewodów",
+    "answers": [
+      {
+        "text": "Prąd",
+        "points": 30
+      },
+      {
+        "text": "Telewizja",
+        "points": 25
+      },
+      {
+        "text": "Internet",
+        "points": 24
+      },
+      {
+        "text": "Gaz",
+        "points": 11
+      },
+      {
+        "text": "Woda",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "WYMIEŃ BAJKI ANDERSENA",
+    "answers": [
+      {
+        "text": "Dziewczynka z zapałkami",
+        "points": 46
+      },
+      {
+        "text": "Brzydkie kaczątko",
+        "points": 32
+      },
+      {
+        "text": "Calineczka",
+        "points": 26
+      },
+      {
+        "text": "Księżniczka na ziarnku grochu",
+        "points": 15
+      },
+      {
+        "text": "Królowa śniegu",
+        "points": 11
+      }
+    ]
+  },
+  {
+    "question": "WYMIEŃ NAZWY KONTYNENTÓW",
+    "answers": [
+      {
+        "text": "Europa",
+        "points": 36
+      },
+      {
+        "text": "Azja",
+        "points": 17
+      },
+      {
+        "text": "Australia",
+        "points": 13
+      },
+      {
+        "text": "Ameryka Północna",
+        "points": 10
+      },
+      {
+        "text": "Ameryka Południowa",
+        "points": 9
+      },
+      {
+        "text": "Afryka",
+        "points": 6
+      },
+      {
+        "text": "Antarktyda",
+        "points": 3
+      }
+    ]
+  },
+  {
+    "question": "PODAJ NAZWY ZWIERZĄT NA LITERĘ „K”:",
+    "answers": [
+      {
+        "text": "Kogut",
+        "points": 29
+      },
+      {
+        "text": "Koń",
+        "points": 23
+      },
+      {
+        "text": "Kot",
+        "points": 18
+      },
+      {
+        "text": "Kangur",
+        "points": 13
+      },
+      {
+        "text": "Kameleon",
+        "points": 9
+      },
+      {
+        "text": "Kuna",
+        "points": 5
+      },
+      {
+        "text": "Kukułka",
+        "points": 2
+      }
+    ]
+  }
+]

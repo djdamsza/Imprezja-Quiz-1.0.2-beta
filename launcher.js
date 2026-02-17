@@ -98,12 +98,12 @@ async function main() {
             console.log('✅ Serwer gotowy!');
         }
         
-        const url = `http://127.0.0.1:${PORT}/Screen.html`;
+        const url = `http://127.0.0.1:${PORT}/start.html`;
         console.log('🌐 Otwieram przeglądarkę:', url);
         openBrowser(url);
         
         console.log('\n✅ IMPREZJA działa!');
-        console.log('📺 Ekran TV:', url);
+        console.log('📺 Ekran startowy (Quiz / Familiada):', url);
         console.log('👨‍💼 Admin:', `http://127.0.0.1:${PORT}/admin.html`);
         console.log('\nNaciśnij Ctrl+C żeby zamknąć serwer.');
         

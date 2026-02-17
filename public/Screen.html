@@ -965,13 +965,19 @@
         .lb-row:nth-child(3) { border-color: #cd7f32; }
 
         /* QR */
-        .qr-container { display: flex; gap: 60px; align-items: center; justify-content: center; margin-top: 20px; }
-        .qr-box {
-            display: flex; flex-direction: column; align-items: center;
-            background: rgba(255, 255, 255, 0.1); padding: 30px; border-radius: 20px;
-            backdrop-filter: blur(10px); border: 2px solid rgba(255, 255, 255, 0.2);
+        .qr-container { display: flex; flex-direction: row; flex-wrap: wrap; gap: 24px; align-items: center; justify-content: center; margin-top: 20px; }
+        .qr-wrapper { display: flex; flex-direction: row; gap: 40px; align-items: center; justify-content: center; flex-wrap: wrap;
+            background: rgba(52, 152, 219, 0.2); padding: 30px 40px; border-radius: 20px;
+            backdrop-filter: blur(10px); border: 2px solid rgba(52, 152, 219, 0.4);
             box-shadow: 0 20px 50px rgba(0,0,0,0.5);
         }
+        .qr-lub { font-size: 2.5vw; font-weight: 900; color: rgba(255,255,255,0.9); text-transform: uppercase; letter-spacing: 4px; margin: 8px 0; }
+        .qr-box {
+            display: flex; flex-direction: column; align-items: center;
+            background: rgba(255, 255, 255, 0.08); padding: 24px; border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        .qr-num { display: inline-block; width: 1.4em; height: 1.4em; line-height: 1.3; text-align: center; background: rgba(255,255,255,0.3); border-radius: 50%; margin-right: 6px; font-size: 0.9em; }
         .qr-label {
             font-size: 2vw; font-weight: 700; text-transform: uppercase; margin-bottom: 15px; letter-spacing: 2px;
         }
@@ -979,6 +985,7 @@
         .qr-label.local { color: #2ecc71; text-shadow: 0 0 20px rgba(46, 204, 113, 0.8); }
         .qr-label.tunnel { color: #9b59b6; text-shadow: 0 0 20px rgba(155, 89, 182, 0.8); }
         .qr-label.admin { color: #e67e22; text-shadow: 0 0 20px rgba(230, 126, 34, 0.8); }
+        .qr-box-lte-info { background: rgba(231, 76, 60, 0.25); border: 2px solid rgba(231, 76, 60, 0.5); color: #ecf0f1; padding: 20px; border-radius: 12px; text-align: center; font-size: 1.1rem; }
         .intro-editor-btn {
             display: inline-block; flex-shrink: 0; margin-top: 16px; padding: 14px 28px;
             background: #3498db; color: #fff !important; text-decoration: none; font-weight: bold;
@@ -1313,22 +1320,32 @@
                 </div>
             </div>
         </div>
-        <div class="qr-container">
-            <div id="qr-box-wifi" class="qr-box" style="display: none;">
-                <div class="qr-label wifi">SIEĆ Wi-Fi</div>
-                <img id="qr-wifi" class="qr-image" src="" alt="QR WiFi">
-                <div class="qr-wifi-info" id="wifi-info"><strong>Zeskanuj aby połączyć</strong></div>
+        <div class="qr-container" id="qr-main-container">
+            <div id="qr-wrapper" class="qr-wrapper" style="display: none;">
+                <div id="qr-box-wifi" class="qr-box" style="display: none;">
+                    <div class="qr-label wifi"><span class="qr-num">1</span> SIEĆ Wi-Fi</div>
+                    <img id="qr-wifi" class="qr-image" src="" alt="QR WiFi">
+                    <div class="qr-wifi-info" id="wifi-info"><strong>Zeskanuj aby połączyć</strong></div>
+                </div>
+                <div id="qr-box-local" class="qr-box" style="display: none;">
+                    <div class="qr-label local"><span class="qr-num">2</span> GRA (Wi‑Fi)</div>
+                    <img id="qr-local" class="qr-image" src="" alt="QR Gra lokalna">
+                    <div class="qr-wifi-info"><strong>Zeskanuj – sieć lokalna</strong></div>
+                </div>
             </div>
-            <div id="qr-box-local" class="qr-box" style="display: none;">
-                <div class="qr-label local">GRA (Wi‑Fi)</div>
-                <img id="qr-local" class="qr-image" src="" alt="QR Gra lokalna">
-                <div class="qr-wifi-info"><strong>Zeskanuj – sieć lokalna</strong></div>
-            </div>
+            <div id="qr-lub" class="qr-lub" style="display: none;">LUB</div>
             <div id="qr-box-tunnel" class="qr-box" style="display: none;">
-                <div class="qr-label tunnel">GRA (sieć komórkowa)</div>
+                <div class="qr-label tunnel">GRA (LTE)</div>
                 <img id="qr-tunnel" class="qr-image" src="" alt="QR Tunel">
-                <div class="qr-wifi-info"><strong>Zeskanuj – bez Wi‑Fi</strong></div>
+                <div class="qr-wifi-info"><strong>Alternatywa – sieć komórkowa</strong></div>
             </div>
+            <div id="qr-box-lte-info" class="qr-box qr-box-lte-info" style="display: none;">
+                <strong>Gra przez LTE</strong><br>
+                Organizator musi kliknąć <strong style="color: #e74c3c;">czerwony przycisk</strong> „Uruchom tunel" w panelu admina.
+            </div>
+        </div>
+        <div style="margin-top: 24px;">
+            <a href="/start.html" class="intro-editor-btn" style="background:#555; color:#fff;">← Cofnij</a>
         </div>
     </div>
 
@@ -1336,20 +1353,27 @@
     <div id="zaraz-zaczynamy-overlay" class="overlay-screen" style="display: none; z-index: 9999;">
         <div class="intro-title" style="font-size: clamp(2rem, 10vw, 6rem); margin-bottom: 20px;">Zaraz zaczynamy</div>
         <div id="zaraz-qr-container" class="qr-container" style="display: none; flex-wrap: wrap; justify-content: center; gap: 20px;">
-            <div id="zaraz-qr-wifi" class="qr-box" style="display: none;">
-                <div class="qr-label wifi">SIEĆ Wi-Fi</div>
-                <img id="zaraz-qr-wifi-img" class="qr-image" src="" alt="QR WiFi">
-                <div class="qr-wifi-info"><strong>Zeskanuj aby połączyć</strong></div>
+            <div id="zaraz-qr-wrapper" class="qr-wrapper" style="display: none;">
+                <div id="zaraz-qr-wifi" class="qr-box" style="display: none;">
+                    <div class="qr-label wifi"><span class="qr-num">1</span> SIEĆ Wi-Fi</div>
+                    <img id="zaraz-qr-wifi-img" class="qr-image" src="" alt="QR WiFi">
+                    <div class="qr-wifi-info"><strong>Zeskanuj aby połączyć</strong></div>
+                </div>
+                <div id="zaraz-qr-local" class="qr-box" style="display: none;">
+                    <div class="qr-label local"><span class="qr-num">2</span> GRA (Wi‑Fi)</div>
+                    <img id="zaraz-qr-local-img" class="qr-image" src="" alt="QR Gra lokalna">
+                    <div class="qr-wifi-info"><strong>Zeskanuj – sieć lokalna</strong></div>
+                </div>
             </div>
-            <div id="zaraz-qr-local" class="qr-box" style="display: none;">
-                <div class="qr-label local">GRA (Wi‑Fi)</div>
-                <img id="zaraz-qr-local-img" class="qr-image" src="" alt="QR Gra lokalna">
-                <div class="qr-wifi-info"><strong>Zeskanuj – sieć lokalna</strong></div>
-            </div>
+            <div id="zaraz-qr-lub" class="qr-lub" style="display: none;">LUB</div>
             <div id="zaraz-qr-tunnel" class="qr-box" style="display: none;">
-                <div class="qr-label tunnel">GRA (sieć komórkowa)</div>
+                <div class="qr-label tunnel">GRA (LTE)</div>
                 <img id="zaraz-qr-tunnel-img" class="qr-image" src="" alt="QR Tunel">
-                <div class="qr-wifi-info"><strong>Zeskanuj – bez Wi‑Fi</strong></div>
+                <div class="qr-wifi-info"><strong>Alternatywa – sieć komórkowa</strong></div>
+            </div>
+            <div id="zaraz-qr-lte-info" class="qr-box qr-box-lte-info" style="display: none;">
+                <strong>Gra przez LTE</strong><br>
+                Organizator musi kliknąć <strong style="color: #e74c3c;">czerwony przycisk</strong> „Uruchom tunel" w panelu admina.
             </div>
         </div>
     </div>
@@ -1578,28 +1602,38 @@
             const wifiImg = document.getElementById('qr-wifi');
             const localImg = document.getElementById('qr-local');
             const tunnelImg = document.getElementById('qr-tunnel');
+            const zarazWrapper = document.getElementById('zaraz-qr-wrapper');
+            const zarazLub = document.getElementById('zaraz-qr-lub');
             const zarazWifi = document.getElementById('zaraz-qr-wifi');
             const zarazLocal = document.getElementById('zaraz-qr-local');
             const zarazTunnel = document.getElementById('zaraz-qr-tunnel');
+            const zarazLteInfo = document.getElementById('zaraz-qr-lte-info');
             const zarazWifiImg = document.getElementById('zaraz-qr-wifi-img');
             const zarazLocalImg = document.getElementById('zaraz-qr-local-img');
             const zarazTunnelImg = document.getElementById('zaraz-qr-tunnel-img');
             const zarazContainer = document.getElementById('zaraz-qr-container');
+            const state = currentGameState;
+            const hasWifiOrLocal = state && (state.hasWifi || state.showLocalGameQR);
             let hasAny = false;
+            if (zarazWrapper) zarazWrapper.style.display = hasWifiOrLocal ? 'flex' : 'none';
+            if (hasWifiOrLocal) hasAny = true;
+            if (zarazLub) zarazLub.style.display = hasWifiOrLocal ? 'block' : 'none';
             if (wifiImg && wifiImg.src && zarazWifi && zarazWifiImg) {
                 zarazWifiImg.src = wifiImg.src;
-                zarazWifi.style.display = (currentGameState && currentGameState.hasWifi) ? 'flex' : 'none';
-                if (zarazWifi.style.display === 'flex') hasAny = true;
+                zarazWifi.style.display = (state && state.hasWifi) ? 'flex' : 'none';
             }
             if (localImg && localImg.src && zarazLocal && zarazLocalImg) {
                 zarazLocalImg.src = localImg.src;
-                zarazLocal.style.display = (currentGameState && currentGameState.showLocalGameQR) ? 'flex' : 'none';
-                if (zarazLocal.style.display === 'flex') hasAny = true;
+                zarazLocal.style.display = (state && state.showLocalGameQR) ? 'flex' : 'none';
             }
             if (tunnelImg && tunnelImg.src && zarazTunnel && zarazTunnelImg) {
                 zarazTunnelImg.src = tunnelImg.src;
-                zarazTunnel.style.display = (currentGameState && currentGameState.tunnelUrl) ? 'flex' : 'none';
+                zarazTunnel.style.display = (state && state.tunnelUrl) ? 'flex' : 'none';
                 if (zarazTunnel.style.display === 'flex') hasAny = true;
+            }
+            if (zarazLteInfo) {
+                zarazLteInfo.style.display = (state && !state.tunnelUrl && hasWifiOrLocal) ? 'flex' : 'none';
+                if (zarazLteInfo.style.display === 'flex') hasAny = true;
             }
             if (zarazContainer) zarazContainer.style.display = hasAny ? 'flex' : 'none';
         }
@@ -1764,6 +1798,7 @@
 
         socket.on('connect', () => {
             console.log("Connected");
+            socket.emit('set_game_mode', 'quiz');
             socket.emit('request_qr');
             socket.emit('request_qr_wifi');
             socket.emit('request_qr_local');
@@ -1833,13 +1868,20 @@
             // Widoczność QR admina: pokazuj jeśli serwer każe LUB admin otwarty z komputera (nie zamykaj – komp+telefon jednocześnie). Zamyka dopiero przycisk Rozpocznij.
             const qrBoxAdminWrap = document.getElementById('qr-box-admin-wrap');
             if (qrBoxAdminWrap) qrBoxAdminWrap.style.display = (state.showAdminQR || window._adminOpenedFromScreen) ? 'flex' : 'none';
-            // Widoczność trzech kodów QR – WiFi, lokalna gra, tunel (można wszystkie naraz)
+            // Widoczność QR: pole jednego koloru (1-WiFi, 2-Gra) → LUB → LTE (bez nr) lub info
+            const qrWrapper = document.getElementById('qr-wrapper');
+            const qrLub = document.getElementById('qr-lub');
             const qrBoxWifi = document.getElementById('qr-box-wifi');
             const qrBoxLocal = document.getElementById('qr-box-local');
             const qrBoxTunnel = document.getElementById('qr-box-tunnel');
+            const qrBoxLteInfo = document.getElementById('qr-box-lte-info');
+            const hasWifiOrLocal = state.hasWifi || state.showLocalGameQR;
+            if (qrWrapper) qrWrapper.style.display = hasWifiOrLocal ? 'flex' : 'none';
             if (qrBoxWifi) qrBoxWifi.style.display = state.hasWifi ? 'flex' : 'none';
             if (qrBoxLocal) qrBoxLocal.style.display = state.showLocalGameQR ? 'flex' : 'none';
+            if (qrLub) qrLub.style.display = hasWifiOrLocal ? 'block' : 'none';
             if (qrBoxTunnel) qrBoxTunnel.style.display = state.tunnelUrl ? 'flex' : 'none';
+            if (qrBoxLteInfo) qrBoxLteInfo.style.display = (!state.tunnelUrl && hasWifiOrLocal) ? 'flex' : 'none';
             const zarazOverlayEl = document.getElementById('zaraz-zaczynamy-overlay');
             if (zarazOverlayEl && zarazOverlayEl.style.display === 'flex' && typeof syncZarazQRCodes === 'function') syncZarazQRCodes();
 
