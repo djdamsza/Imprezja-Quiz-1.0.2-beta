@@ -6,8 +6,8 @@
     <title>Zaawansowany Edytor Quizów - Imprezja Quiz</title>
     <meta name="copyright" content="© Damian Nowaczyk. Wszelkie prawa zastrzeżone.">
     <link rel="icon" href="data:,">
-    <link rel="manifest" href="/manifest.json">
-    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" 
+            onerror="var s=document.createElement('script');s.src='jszip.min.js';document.head.appendChild(s);"></script>
     <!-- Fonty systemowe – działanie offline. Kolorystyka spójna z vote/Screen. -->
     <style>
         :root {
@@ -88,21 +88,12 @@
 <body>
 
 <div class="container">
-    <h1>🎛️ Zaawansowany Edytor Quizów (Auto-Optymalizacja)</h1>
+    <h1>🎛️ Edytor Quizów – wersja przenośna</h1>
+    <p style="text-align: center; color: var(--text-muted); margin: -15px 0 20px 0;">Działa offline. Eksportuj pakiet ZIP i prześlij go do Imprezja Quiz.</p>
 
     <div class="control-panel">
         <div class="panel-row">
             <div class="form-group" style="flex: 2;">
-                <label>📂 Pliki na serwerze:</label>
-                <div style="display: flex; gap: 10px;">
-                    <select id="server-files-list">
-                        <option value="">-- Wybierz plik --</option>
-                    </select>
-                    <button class="btn btn-info" onclick="loadFromServer()">📥 Wczytaj</button>
-                    <button class="btn btn-danger" onclick="openDeleteModal()" id="delete-btn" disabled>🗑️ Usuń</button>
-                </div>
-            </div>
-            <div class="form-group">
                 <label>Szybkie akcje:</label>
                 <div style="display: flex; gap: 5px; flex-wrap: wrap;">
                     <button class="btn btn-dark" onclick="openPasteModal()">📋 Wklej JSON</button>
@@ -188,8 +179,7 @@
 
     <div class="panel-row" style="margin-top: 40px; border-top: 2px solid var(--glass-border); padding-top: 20px;">
         <button class="btn btn-dark btn-full" onclick="downloadQuiz()" style="font-size: 1.1em; padding: 15px;">💾 Pobierz Plik (.json)</button>
-        <button class="btn btn-info btn-full" onclick="downloadPackage()" style="font-size: 1.1em; padding: 15px;">📦 Pobierz Pakiet (JSON + pliki)</button>
-        <button class="btn btn-primary btn-full" onclick="saveToServer()" style="font-size: 1.1em; padding: 15px;">☁️ Zapisz na Serwerze</button>
+        <button class="btn btn-info btn-full" onclick="downloadPackage()" style="font-size: 1.1em; padding: 15px;">📦 Pobierz Pakiet (ZIP – JSON + pliki)</button>
     </div>
 </div>
 
@@ -203,39 +193,6 @@
         <div style="display: flex; justify-content: flex-end; gap: 10px;">
             <button class="btn btn-secondary" onclick="document.getElementById('pasteModal').style.display='none'">Anuluj</button>
             <button class="btn btn-success" onclick="loadFromPaste()">Załaduj</button>
-        </div>
-    </div>
-</div>
-
-<div class="modal-overlay" id="deleteModal">
-    <div class="modal" style="max-height: 90vh; overflow-y: auto;">
-        <h3>🗑️ Usuwanie quizu</h3>
-        <p style="font-size: 0.9em; color: #666;">Wybierz opcję usuwania dla pliku: <strong id="delete-filename"></strong></p>
-        <div id="delete-related-files" style="margin: 15px 0; padding: 15px; background: rgba(241, 196, 15, 0.15); border-radius: 8px; border: 1px solid var(--accent-gold);">
-            <p style="margin: 0 0 10px 0; font-weight: 600;">Znalezione powiązane pliki:</p>
-            <ul id="delete-files-list" style="margin: 0; padding-left: 20px; font-size: 0.9em;">
-                <li>Ładowanie...</li>
-            </ul>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 10px; margin: 20px 0;">
-            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px; border: 2px solid #dc3545; border-radius: 8px;">
-                <input type="radio" name="delete-option" value="all" checked>
-                <div>
-                    <strong>Usuń wszystko</strong>
-                    <div style="font-size: 0.85em; color: #666; margin-top: 5px;">Usuń plik JSON + wszystkie powiązane pliki graficzne, dźwiękowe i miniatury</div>
-                </div>
-            </label>
-            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px; border: 2px solid #6c757d; border-radius: 8px;">
-                <input type="radio" name="delete-option" value="json-only">
-                <div>
-                    <strong>Usuń tylko plik JSON</strong>
-                    <div style="font-size: 0.85em; color: #666; margin-top: 5px;">Zachowaj wszystkie pliki graficzne i dźwiękowe</div>
-                </div>
-            </label>
-        </div>
-        <div style="display: flex; justify-content: flex-end; gap: 10px;">
-            <button class="btn btn-secondary" onclick="document.getElementById('deleteModal').style.display='none'">Anuluj</button>
-            <button class="btn btn-danger" onclick="confirmDelete()">🗑️ Usuń</button>
         </div>
     </div>
 </div>
@@ -256,7 +213,37 @@
 </div>
 
 <script>
-    const socket = io();
+    // === MAGAZYN PLIKÓW LOKALNY (bez serwera) ===
+    const fileStore = new Map(); // path (np. "uploads/xxx.webp") -> { blob }
+
+    function getPreviewUrl(path) {
+        if (!path) return '';
+        const key = path.replace(/^\/+/, '');
+        const entry = fileStore.get(key);
+        if (entry && entry.blob) return URL.createObjectURL(entry.blob);
+        if (/^https?:\/\//i.test(path)) return path;
+        const origin = window.location.origin;
+        if (origin && origin !== 'null' && /^https?:/.test(origin)) {
+            return origin + (path.startsWith('/') ? path : '/' + path);
+        }
+        return path;
+    }
+
+    function extractFilePathsFromPayload(payload) {
+        const paths = new Set();
+        function add(pathOrUrl) {
+            if (!pathOrUrl) return;
+            const m = String(pathOrUrl).match(/\/?uploads\/([^\/]+)$/);
+            if (m) paths.add('uploads/' + m[1]); // klucz fileStore + ścieżka w ZIP
+        }
+        const qList = Array.isArray(payload) ? payload : (payload.questions || []);
+        qList.forEach(q => {
+            add(q.media); add(q.image); add(q.imageSmall); add(q.audio);
+            add(q.imageA); add(q.imageB); add(q.imageSmallA); add(q.imageSmallB);
+        });
+        if (payload.thanksScreen && payload.thanksScreen.image) add(payload.thanksScreen.image);
+        return Array.from(paths);
+    }
 
     // === OPTYMALIZATOR GRAFIKI (FUNKCJE POMOCNICZE) ===
     /**
@@ -311,82 +298,7 @@
         });
     }
 
-    // === KOMUNIKACJA Z SERWEREM ===
-    socket.on('connect', () => socket.emit('editor_get_files'));
-    
-    socket.on('editor_files_list', (files) => {
-        const sel = document.getElementById('server-files-list');
-        const curr = sel.value;
-        sel.innerHTML = '<option value="">-- Wybierz plik --</option>';
-        files.forEach(f => {
-            const opt = document.createElement('option');
-            opt.value = f;
-            opt.innerText = f;
-            sel.appendChild(opt);
-        });
-        if(files.includes(curr)) sel.value = curr;
-        // Włącz/wyłącz przycisk usuwania
-        document.getElementById('delete-btn').disabled = !sel.value;
-    });
-
-    // Obsługa zmiany wyboru pliku (po załadowaniu DOM)
-    socket.on('connect', () => {
-        const fileSelect = document.getElementById('server-files-list');
-        if(fileSelect) {
-            fileSelect.addEventListener('change', function() {
-                const deleteBtn = document.getElementById('delete-btn');
-                if(deleteBtn) deleteBtn.disabled = !this.value;
-            });
-        }
-    });
-
-    socket.on('editor_delete_status', (status) => {
-        console.log('📥 Otrzymano status usuwania:', status);
-        alert(status.message);
-        if(status.success) {
-            socket.emit('editor_get_files');
-            const deleteModalEl = document.getElementById('deleteModal');
-            if(deleteModalEl) deleteModalEl.style.display = 'none';
-            // Wyczyść wybór pliku
-            const fileSelect = document.getElementById('server-files-list');
-            if(fileSelect) fileSelect.value = '';
-            const deleteBtn = document.getElementById('delete-btn');
-            if(deleteBtn) deleteBtn.disabled = true;
-        }
-    });
-
-    socket.on('editor_related_files', (data) => {
-        const listEl = document.getElementById('delete-files-list');
-        if(data.files && data.files.length > 0) {
-            listEl.innerHTML = data.files.map(f => `<li>${f}</li>`).join('');
-        } else {
-            listEl.innerHTML = '<li style="color: #666;">Brak powiązanych plików</li>';
-        }
-    });
-
-    socket.on('editor_file_content', (data) => {
-        if(confirm('Wczytanie pliku nadpisze obecny widok. Kontynuować?')) {
-            document.getElementById('filename').value = data.filename.replace('.json', '');
-            processData(data);
-        }
-    });
-
-    socket.on('editor_save_status', (status) => alert(status.message));
-
     // === LOGIKA EDYTORA ===
-
-    /** Dla ścieżek /uploads/... zwraca pełny URL (origin + path), żeby obrazki ładowały się po wczytaniu quizu */
-    function resolveMediaUrl(path) {
-        if (!path || typeof path !== 'string') return '';
-        const p = path.trim();
-        if (!p) return '';
-        if (/^https?:\/\//i.test(p)) return p;
-        const origin = window.location.origin;
-        if (origin && origin !== 'null' && /^https?:/.test(origin)) {
-            return origin + (p.startsWith('/') ? p : '/' + p);
-        }
-        return p.startsWith('/') ? p : '/' + p;
-    }
 
     /** Znaki " & < > w treści zamykają atrybuty HTML – escapowanie pozwala używać ich w pytaniach i odpowiedziach */
     function escapeHtmlAttr(s) {
@@ -570,7 +482,7 @@
                         <div id="loader-${qId}" class="loader"></div>
                     </div>
                 </div>
-                ${mediaUrl && mediaType === 'image' ? `<img src="${escapeHtmlAttr(resolveMediaUrl(mediaUrl))}" class="media-preview" id="preview-${qId}">` : `<img src="" class="media-preview" id="preview-${qId}" style="display:none">`}
+                ${mediaUrl && mediaType === 'image' ? `<img src="${escapeHtmlAttr(getPreviewUrl(mediaUrl))}" class="media-preview" id="preview-${qId}">` : `<img src="" class="media-preview" id="preview-${qId}" style="display:none">`}
                 <input type="file" id="upload-${qId}" style="display: none;" onchange="uploadFile(this, '${qId}', '${mediaType}')">
             </div>`;
         } else if (type === 'HOT_OR_NOT') {
@@ -594,7 +506,7 @@
                         <div id="loader-hot-a-${qId}" class="loader"></div>
                     </div>
                 </div>
-                ${imageA ? `<img src="${escapeHtmlAttr(resolveMediaUrl(imageA))}" class="media-preview" id="preview-hot-a-${qId}" style="max-width: 200px;">` : `<img src="" class="media-preview" id="preview-hot-a-${qId}" style="display:none">`}
+                ${imageA ? `<img src="${escapeHtmlAttr(getPreviewUrl(imageA))}" class="media-preview" id="preview-hot-a-${qId}" style="max-width: 200px;">` : `<img src="" class="media-preview" id="preview-hot-a-${qId}" style="display:none">`}
                 <input type="file" id="upload-hot-a-${qId}" style="display: none;" onchange="uploadFileHot(this, '${qId}', 'imageA')">
             </div>
             <div class="media-section">
@@ -610,7 +522,7 @@
                         <div id="loader-hot-b-${qId}" class="loader"></div>
                     </div>
                 </div>
-                ${imageB ? `<img src="${escapeHtmlAttr(resolveMediaUrl(imageB))}" class="media-preview" id="preview-hot-b-${qId}" style="max-width: 200px;">` : `<img src="" class="media-preview" id="preview-hot-b-${qId}" style="display:none">`}
+                ${imageB ? `<img src="${escapeHtmlAttr(getPreviewUrl(imageB))}" class="media-preview" id="preview-hot-b-${qId}" style="max-width: 200px;">` : `<img src="" class="media-preview" id="preview-hot-b-${qId}" style="display:none">`}
                 <input type="file" id="upload-hot-b-${qId}" style="display: none;" onchange="uploadFileHot(this, '${qId}', 'imageB')">
             </div>`;
         }
@@ -726,57 +638,37 @@
         const loader = document.getElementById(`loader-${id}`);
         if(loader) loader.style.display = 'inline-block';
 
-        const formData = new FormData();
-
-        // Jeśli to obrazek, optymalizujemy główny obrazek (1920px dla Screen.html) + miniatura (500px dla telefonów)
-        if (type === 'image') {
-            try {
-                console.log("🖼️ Optymalizacja obrazka dla Screen.html (1920px)...");
-                // Główny obrazek: maksymalnie 1920px szerokości, jakość 0.85, WebP
+        try {
+            let mainPath, thumbPath;
+            if (type === 'image') {
                 const optimizedBlob = await resizeImage(file, 1920, 0.85, 'webp');
-                formData.append('file', optimizedBlob, file.name.replace(/\.[^.]+$/, '.webp'));
-                
-                console.log("📱 Generowanie miniatury dla telefonów (500px)...");
-                // Miniatura: 500px szerokości, jakość 0.8, WebP
                 const thumbBlob = await resizeImage(file, 500, 0.8, 'webp');
-                formData.append('thumbnail', thumbBlob, 'thumb.webp');
-                
-                console.log(`✅ Obrazek zoptymalizowany: ${(file.size / 1024 / 1024).toFixed(2)}MB → ~${(optimizedBlob.size / 1024 / 1024).toFixed(2)}MB`);
-            } catch (err) {
-                console.error("❌ Błąd optymalizacji obrazka:", err);
-                // Fallback: wyślij oryginał jeśli optymalizacja się nie powiodła
-                formData.append('file', file);
+                const base = `uploads/${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+                mainPath = '/' + base + '.webp';
+                thumbPath = '/' + base + '_thumb.webp';
+                fileStore.set(base + '.webp', { blob: optimizedBlob });
+                fileStore.set(base + '_thumb.webp', { blob: thumbBlob });
+            } else {
+                const key = `uploads/${Date.now()}_${Math.random().toString(36).substr(2, 6)}_${file.name}`;
+                mainPath = '/' + key;
+                fileStore.set(key, { blob: file });
+                thumbPath = '';
             }
-        } else {
-            // Dla audio: wyślij oryginał
-            formData.append('file', file);
+            const card = document.getElementById(`card-${id}`);
+            card.querySelector('.media-input').value = mainPath;
+            const thumbInput = card.querySelector('.media-thumb-input');
+            if(thumbInput && thumbPath) thumbInput.value = thumbPath;
+            const preview = document.getElementById(`preview-${id}`);
+            if(preview) {
+                preview.src = getPreviewUrl(mainPath.replace(/^\/+/, ''));
+                preview.style.display = 'block';
+            }
+        } catch (err) {
+            alert('Błąd: ' + err.message);
+        } finally {
+            if(loader) loader.style.display = 'none';
         }
-
-        fetch('/upload', { method: 'POST', body: formData })
-            .then(res => res.json())
-            .then(data => {
-                if(data.filepath) {
-                    const card = document.getElementById(`card-${id}`);
-                    card.querySelector('.media-input').value = data.filepath; // Duży
-                    
-                    if (data.thumbnailpath) {
-                         card.querySelector('.media-thumb-input').value = data.thumbnailpath; // Mały
-                         console.log("Miniatura zapisana:", data.thumbnailpath);
-                    }
-
-                    const preview = document.getElementById(`preview-${id}`);
-                    if(preview) {
-                        preview.src = data.filepath;
-                        preview.style.display = 'block';
-                    }
-                } else {
-                    alert('Błąd uploadu');
-                }
-            })
-            .catch(err => alert('Błąd: ' + err))
-            .finally(() => {
-                if(loader) loader.style.display = 'none';
-            });
+        input.value = '';
     }
 
     // Upload dla HOT_OR_NOT (dwa obrazki)
@@ -794,70 +686,33 @@
         const loader = document.getElementById(`loader-hot-${suffix}-${id}`);
         if(loader) loader.style.display = 'inline-block';
 
-        const formData = new FormData();
-
-        // Optymalizujemy główny obrazek (1920px dla Screen.html) + miniatura (500px dla telefonów)
         try {
-            console.log(`🖼️ HOT_OR_NOT - optymalizacja obrazka ${imageType} (1920px)...`);
-            // Główny obrazek: maksymalnie 1920px szerokości, jakość 0.85, WebP
             const optimizedBlob = await resizeImage(file, 1920, 0.85, 'webp');
-            formData.append('file', optimizedBlob, file.name.replace(/\.[^.]+$/, '.webp'));
-            
-            console.log(`📱 HOT_OR_NOT - generowanie miniatury ${imageType} (500px)...`);
-            // Miniatura: 500px szerokości, jakość 0.8, WebP
             const thumbBlob = await resizeImage(file, 500, 0.8, 'webp');
-            formData.append('thumbnail', thumbBlob, 'thumb.webp');
-            
-            console.log(`✅ HOT_OR_NOT ${imageType} zoptymalizowany: ${(file.size / 1024 / 1024).toFixed(2)}MB → ~${(optimizedBlob.size / 1024 / 1024).toFixed(2)}MB`);
+            const base = `uploads/hot_${Date.now()}_${suffix}_${Math.random().toString(36).substr(2, 6)}`;
+            const mainPath = '/' + base + '.webp';
+            const thumbPath = '/' + base + '_thumb.webp';
+            fileStore.set(base + '.webp', { blob: optimizedBlob });
+            fileStore.set(base + '_thumb.webp', { blob: thumbBlob });
+            const card = document.getElementById(`card-${id}`);
+            const imageInput = card.querySelector(`.hot-image-${suffix}-input`);
+            const imageSmallInput = card.querySelector(`.hot-image-small-${suffix}-input`);
+            if(imageInput) {
+                imageInput.value = mainPath;
+                imageInput.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            if(imageSmallInput) imageSmallInput.value = thumbPath;
+            const preview = document.getElementById(`preview-hot-${suffix}-${id}`);
+            if(preview) {
+                preview.src = getPreviewUrl(mainPath.replace(/^\/+/, ''));
+                preview.style.display = 'block';
+            }
         } catch (err) {
-            console.error(`❌ HOT_OR_NOT - błąd optymalizacji ${imageType}:`, err);
-            // Fallback: wyślij oryginał jeśli optymalizacja się nie powiodła
-            formData.append('file', file);
+            alert('Błąd: ' + err.message);
+        } finally {
+            if(loader) loader.style.display = 'none';
         }
-
-        fetch('/upload', { method: 'POST', body: formData })
-            .then(res => res.json())
-            .then(data => {
-                if(data.filepath) {
-                    const card = document.getElementById(`card-${id}`);
-                    // Popraw selektor - imageType to 'imageA' lub 'imageB', więc potrzebujemy 'a' lub 'b'
-                    const suffix = imageType === 'imageA' ? 'a' : 'b';
-                    const imageInput = card.querySelector(`.hot-image-${suffix}-input`);
-                    const imageSmallInput = card.querySelector(`.hot-image-small-${suffix}-input`);
-                    
-                    if(imageInput) {
-                        imageInput.value = data.filepath;
-                        // Wywołaj zdarzenie input aby upewnić się że wartość jest zapisana
-                        imageInput.dispatchEvent(new Event('input', { bubbles: true }));
-                        console.log(`✅ HOT_OR_NOT - zapisano ${imageType} do input:`, data.filepath, 'input.value po zapisie:', imageInput.value);
-                    } else {
-                        console.error(`❌ HOT_OR_NOT - nie znaleziono input dla ${imageType}`, {
-                            'card.id': `card-${id}`,
-                            'imageType': imageType,
-                            'selector': `.hot-image-${imageType.toLowerCase()}-input`,
-                            'card exists': !!card
-                        });
-                    }
-                    
-                    if(imageSmallInput && data.thumbnailpath) {
-                        imageSmallInput.value = data.thumbnailpath;
-                        console.log(`✅ HOT_OR_NOT - zapisano ${imageType} miniatura do input:`, data.thumbnailpath);
-                    }
-
-                    const preview = document.getElementById(`preview-hot-${suffix}-${id}`);
-                    if(preview) {
-                        preview.src = data.filepath;
-                        preview.style.display = 'block';
-                        console.log(`✅ HOT_OR_NOT - zaktualizowano preview dla ${imageType}`);
-                    }
-                } else {
-                    alert('Błąd uploadu');
-                }
-            })
-            .catch(err => alert('Błąd: ' + err))
-            .finally(() => {
-                if(loader) loader.style.display = 'none';
-            });
+        input.value = '';
     }
 
     // --- ZBIERANIE DANYCH ---
@@ -1227,25 +1082,6 @@
     }
 
     // --- ZAPIS / ODCZYT ---
-    function loadFromServer() {
-        const name = document.getElementById('server-files-list').value;
-        if(name) socket.emit('editor_load_file', name);
-    }
-
-    function saveToServer() {
-        const data = collectData();
-        if (!data) return;
-        showValidationModal(data, () => {
-            const payload = collectData();
-            if (payload) {
-                socket.emit('editor_save_file', {
-                    filename: document.getElementById('filename').value,
-                    content: payload
-                });
-            }
-        }, null);
-    }
-
     function downloadQuiz() {
         const data = collectData();
         if (!data) return;
@@ -1267,13 +1103,15 @@
             const payload = collectData();
             if (!payload) return;
             try {
-                const res = await fetch('/api/editor/export-package', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                if (!res.ok) throw new Error(await res.text());
-                const blob = await res.blob();
+                const zip = new JSZip();
+                zip.file('quiz.json', JSON.stringify(payload, null, 2));
+                const paths = extractFilePathsFromPayload(payload);
+                for (const p of paths) {
+                    const key = p.startsWith('/') ? p.slice(1) : p;
+                    const entry = fileStore.get(key);
+                    if (entry && entry.blob) zip.file(key, entry.blob);
+                }
+                const blob = await zip.generateAsync({ type: 'blob' });
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);
                 a.download = (document.getElementById('filename').value || 'quiz') + '-pakiet.zip';
@@ -1287,41 +1125,45 @@
     async function loadFromPackage(input) {
         const file = input.files[0];
         if (!file) return;
-        const formData = new FormData();
-        formData.append('file', file);
         try {
-            const res = await fetch('/api/editor/import-package', { method: 'POST', body: formData });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Błąd importu');
-            processData(data.data);
+            const zip = await JSZip.loadAsync(file);
+            const quizFile = zip.file('quiz.json');
+            if (!quizFile) throw new Error('Brak pliku quiz.json w pakiecie');
+            const jsonStr = await quizFile.async('string');
+            const payload = JSON.parse(jsonStr);
+            fileStore.clear();
+            const promises = [];
+            zip.forEach((relativePath, zipEntry) => {
+                if (relativePath === 'quiz.json') return;
+                if (relativePath.startsWith('uploads/')) {
+                    promises.push(zipEntry.async('blob').then(blob => {
+                        fileStore.set(relativePath, { blob });
+                    }));
+                }
+            });
+            await Promise.all(promises);
+            document.getElementById('filename').value = (payload.filename || 'quiz').replace(/\.json$/, '');
+            processData(payload);
             input.value = '';
         } catch (e) {
             alert('Błąd importu pakietu: ' + e.message);
         }
     }
 
-    function handleThanksImageUpload(input) {
+    async function handleThanksImageUpload(input) {
         if (!input.files || !input.files[0]) return;
         const file = input.files[0];
-        const formData = new FormData();
-        formData.append('file', file);
-        
-        fetch('/upload', {
-            method: 'POST',
-            body: formData
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.filepath) {
-                document.getElementById('thanks-image').value = data.filepath;
-                const preview = document.getElementById('thanks-image-preview');
-                preview.innerHTML = `<img src="${escapeHtmlAttr(data.filepath)}" style="max-width: 200px; max-height: 150px; border-radius: 4px; margin-top: 10px;" alt="Podgląd">`;
-            }
-        })
-        .catch(err => {
-            console.error('Błąd uploadu:', err);
-            alert('Błąd podczas przesyłania obrazka');
-        });
+        try {
+            const blob = await resizeImage(file, 1920, 0.85, 'webp');
+            const path = `/uploads/thanks_${Date.now()}_${Math.random().toString(36).substr(2, 6)}.webp`;
+            fileStore.set(path.replace(/^\/+/, ''), { blob });
+            document.getElementById('thanks-image').value = path;
+            const preview = document.getElementById('thanks-image-preview');
+            preview.innerHTML = `<img src="${escapeHtmlAttr(getPreviewUrl(path.replace(/^\/+/, '')))}" style="max-width: 200px; max-height: 150px; border-radius: 4px; margin-top: 10px;" alt="Podgląd">`;
+        } catch (err) {
+            alert('Błąd: ' + err.message);
+        }
+        input.value = '';
     }
 
     function processData(data) {
@@ -1337,7 +1179,7 @@
             document.getElementById('thanks-image').value = data.thanksScreen.image || '';
             const preview = document.getElementById('thanks-image-preview');
             if (data.thanksScreen.image) {
-                preview.innerHTML = `<img src="${escapeHtmlAttr(resolveMediaUrl(data.thanksScreen.image))}" style="max-width: 200px; max-height: 150px; border-radius: 4px; margin-top: 10px;" alt="Podgląd">`;
+                preview.innerHTML = `<img src="${escapeHtmlAttr(getPreviewUrl(data.thanksScreen.image))}" style="max-width: 200px; max-height: 150px; border-radius: 4px; margin-top: 10px;" alt="Podgląd">`;
             }
         } else {
             document.getElementById('thanks-text').value = '';
@@ -1648,52 +1490,6 @@
         return qId;
     };
 
-    // --- USUWANIE QUIZU ---
-    function openDeleteModal() {
-        const filename = document.getElementById('server-files-list').value;
-        if(!filename) {
-            alert('Wybierz plik do usunięcia!');
-            return;
-        }
-        const deleteFilenameEl = document.getElementById('delete-filename');
-        const deleteModalEl = document.getElementById('deleteModal');
-        if(!deleteFilenameEl || !deleteModalEl) {
-            console.error('❌ Nie znaleziono elementów modala usuwania');
-            alert('Błąd: Nie znaleziono elementów modala. Odśwież stronę.');
-            return;
-        }
-        deleteFilenameEl.textContent = filename;
-        deleteModalEl.style.display = 'flex';
-        // Pobierz listę powiązanych plików
-        socket.emit('editor_get_related_files', filename);
-        console.log('📤 Wysłano żądanie powiązanych plików dla:', filename);
-    }
-
-    function confirmDelete() {
-        const filename = document.getElementById('server-files-list').value;
-        if(!filename) {
-            alert('Błąd: Nie wybrano pliku!');
-            return;
-        }
-        
-        const checkedOption = document.querySelector('input[name="delete-option"]:checked');
-        if(!checkedOption) {
-            alert('Błąd: Nie wybrano opcji usuwania!');
-            return;
-        }
-        
-        const deleteRelated = checkedOption.value === 'all';
-        
-        if(confirm(`Czy na pewno chcesz usunąć "${filename}"${deleteRelated ? ' wraz z wszystkimi powiązanymi plikami' : ''}?`)) {
-            console.log('📤 Wysyłanie żądania usunięcia:', { filename, deleteRelated });
-            socket.emit('editor_delete_file', { filename, deleteRelated });
-        }
-    }
 </script>
-    <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function() {});
-        }
-    </script>
 </body>
 </html>

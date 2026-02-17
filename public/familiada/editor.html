@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edytor pytań Familiady</title>
+    <link rel="icon" href="data:,">
+    <style>
+        :root {
+            --bg-dark: radial-gradient(circle at center, #1a1a2e, #000);
+            --glass-bg: rgba(255, 255, 255, 0.08);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --accent-gold: #ffcc00;
+            --accent-orange: #e67e22;
+            --text-white: #ffffff;
+            --text-muted: rgba(255, 255, 255, 0.75);
+        }
+        body { font-family: 'Courier New', Courier, Consolas, monospace; background: var(--bg-dark); padding: 20px; margin: 0; color: var(--text-white); min-height: 100vh; }
+        .container { max-width: 900px; margin: 0 auto; background: var(--glass-bg); padding: 30px; border-radius: 15px; border: 1px solid var(--glass-border); backdrop-filter: blur(10px); }
+        h1 { text-align: center; color: var(--accent-gold); margin-bottom: 30px; font-weight: 700; }
+        .question-card { background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 10px; padding: 20px; margin-bottom: 25px; border-left: 5px solid var(--accent-gold); }
+        .question-card:hover { box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px; }
+        .q-number { font-weight: 700; color: var(--accent-gold); }
+        .form-group { margin-bottom: 15px; }
+        label { font-weight: 600; display: block; margin-bottom: 6px; font-size: 0.9em; color: var(--text-muted); }
+        input[type="text"], input[type="number"] { width: 100%; padding: 10px; border: 1px solid var(--glass-border); border-radius: 6px; font-size: 14px; box-sizing: border-box; background: rgba(0,0,0,0.3); color: var(--text-white); }
+        .answer-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .answer-row input[type="text"] { flex: 1; }
+        .answer-row input[type="number"] { width: 70px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 14px; font-family: inherit; }
+        .btn:hover { opacity: 0.9; }
+        .btn-primary { background: linear-gradient(135deg, var(--accent-gold), var(--accent-orange)); color: #000; }
+        .btn-success { background: #2ecc71; color: #000; }
+        .btn-danger { background: #e74c3c; color: white; }
+        .btn-secondary { background: var(--glass-bg); color: var(--text-white); border: 1px solid var(--glass-border); }
+        .btn-sm { padding: 6px 12px; font-size: 12px; }
+        .btn-move { padding: 8px 10px; min-width: 36px; min-height: 36px; }
+        .btn-move svg { width: 18px; height: 18px; display: block; }
+        .btn-move:hover { background: rgba(255, 204, 0, 0.25); border-color: var(--accent-gold); }
+        .panel-row { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 15px; }
+        .control-panel { background: rgba(0,0,0,0.2); padding: 20px; border-radius: 12px; border: 1px solid var(--glass-border); margin-bottom: 25px; }
+        .form-group { margin-bottom: 10px; }
+        select { width: 100%; padding: 10px; border: 1px solid var(--glass-border); border-radius: 6px; font-size: 14px; box-sizing: border-box; background: rgba(0,0,0,0.3); color: var(--text-white); }
+        .modal-overlay { display: flex; }
+        .status { padding: 10px; border-radius: 6px; margin-bottom: 15px; }
+        .status.success { background: rgba(46, 204, 113, 0.2); border: 1px solid #2ecc71; }
+        .status.error { background: rgba(231, 76, 60, 0.2); border: 1px solid #e74c3c; }
+        .status.loading { background: rgba(241, 196, 15, 0.2); border: 1px solid var(--accent-gold); }
+        .validation-error { border-color: #e74c3c !important; box-shadow: 0 0 0 2px rgba(231,76,60,0.3); }
+        .btn-auto-points { padding: 6px 12px; font-size: 12px; background: rgba(255,204,0,0.2); color: var(--accent-gold); border: 1px solid var(--accent-gold); }
+        .btn-auto-points:hover { background: rgba(255,204,0,0.35); }
+        .btn-star { padding: 6px 10px; font-size: 18px; background: transparent; border: none; cursor: pointer; color: var(--text-muted); transition: color 0.2s; }
+        .btn-star:hover { color: var(--accent-gold); }
+        .btn-star.in-golden { color: var(--accent-gold); }
+        .drop-zone { border: 2px dashed var(--glass-border); border-radius: 12px; padding: 25px; text-align: center; background: rgba(0,0,0,0.2); margin-bottom: 25px; transition: all 0.2s; cursor: pointer; }
+        .drop-zone:hover, .drop-zone.dragover { border-color: var(--accent-gold); background: rgba(255,204,0,0.08); }
+        .drop-zone p { margin: 0; color: var(--text-muted); font-size: 0.95em; }
+        .drop-zone .drop-icon { font-size: 2em; margin-bottom: 8px; opacity: 0.8; }
+        a.back-link { display: inline-block; margin-bottom: 20px; color: var(--accent-gold); text-decoration: none; }
+        a.back-link:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <a href="/familiada/screen.html" class="back-link">← Powrót do Familiady</a>
+    <h1>✏️ Edytor pytań Familiady</h1>
+
+    <div id="status" class="status" style="display:none;"></div>
+
+    <div class="control-panel">
+        <div class="panel-row">
+            <div class="form-group" style="flex: 2;">
+                <label>📂 Pliki na serwerze:</label>
+                <div style="display: flex; gap: 10px;">
+                    <select id="server-files-list">
+                        <option value="">-- Wybierz plik --</option>
+                    </select>
+                    <button class="btn btn-secondary" onclick="loadFromServer()">📥 Wczytaj</button>
+                    <button class="btn btn-danger" onclick="deleteFile()" id="delete-btn" disabled>🗑️ Usuń</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Szybkie akcje:</label>
+                <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+                    <button class="btn btn-secondary" onclick="openPasteModal()">📋 Wklej JSON</button>
+                    <button class="btn btn-secondary" onclick="document.getElementById('file-input').click()">📂 Z dysku (JSON)</button>
+                    <button class="btn btn-secondary" onclick="document.getElementById('xml-input').click()">📄 Importuj XML</button>
+                    <input type="file" id="file-input" accept=".json" style="display: none;" onchange="loadFromFile(this)">
+                    <input type="file" id="xml-input" accept=".xml,.json,.txt,text/xml,text/plain" style="display: none;" onchange="loadFromDroppedOrSelectedFile(this)">
+                </div>
+            </div>
+        </div>
+        <div id="drop-zone" class="drop-zone" onclick="document.getElementById('xml-input').click()">
+            <div class="drop-icon">📥</div>
+            <p><strong>Przeciągnij plik XML, JSON lub TXT tutaj</strong></p>
+            <p>lub kliknij, aby wybrać plik</p>
+        </div>
+        <div class="panel-row">
+            <div class="form-group" style="flex: 1;">
+                <label>Nazwa pliku (np. familiada_wesela)</label>
+                <input type="text" id="filename" placeholder="np. familiada_wesela">
+            </div>
+        </div>
+    </div>
+
+    <div id="questions-container"></div>
+
+    <div class="control-panel" style="margin-top: 30px; border-left-color: var(--accent-gold);">
+        <h3 style="margin: 0 0 15px 0; color: var(--accent-gold);">⭐ Złota Lista (max 10)</h3>
+        <p style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 15px;">Ulubione pytania – kliknij ☆ przy pytaniu, aby dodać. Edytuj i zapisz.</p>
+        <div id="golden-questions-container"></div>
+        <div class="panel-row" style="margin-top: 15px;">
+            <button class="btn btn-primary btn-sm" onclick="addGoldenQuestion()" style="margin-right:10px;">➕ Dodaj pytanie</button>
+            <button class="btn btn-success" onclick="saveGoldenList()">💾 Zapisz złotą listę</button>
+        </div>
+    </div>
+
+    <div class="panel-row" style="margin-top: 25px; padding-top: 20px; border-top: 2px solid var(--glass-border);">
+        <button class="btn btn-primary" onclick="addQuestion()">➕ DODAJ PYTANIE</button>
+        <button class="btn btn-success" onclick="saveToServer()">💾 Zapisz</button>
+    </div>
+</div>
+
+<div id="validationModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1001; justify-content: center; align-items: center;" class="modal-overlay">
+    <div class="modal" style="background: rgba(26,26,46,0.98); padding: 25px; border-radius: 12px; border: 1px solid var(--glass-border); max-width: 500px;">
+        <h3 style="margin-top:0; color: #e74c3c;">⚠️ Błędy przed zapisem</h3>
+        <p style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 12px;">Popraw poniższe błędy:</p>
+        <ul id="validation-errors-list" style="margin: 0 0 15px 0; padding-left: 20px; color: #ff9999; font-size: 0.9em; line-height: 1.6;"></ul>
+        <div style="display: flex; justify-content: flex-end;">
+            <button class="btn btn-secondary" onclick="closeValidationModal()">Zamknij</button>
+        </div>
+    </div>
+</div>
+
+<div id="pasteModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center;" class="modal-overlay">
+    <div class="modal" style="background: rgba(26,26,46,0.98); padding: 25px; border-radius: 12px; border: 1px solid var(--glass-border); max-width: 600px;">
+        <h3 style="margin-top:0; color: var(--accent-gold);">Wklej JSON, XML lub tekst</h3>
+        <p style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 10px;">Wklej treść pliku JSON, XML lub tekstu (Pytanie 1: ... / Odpowiedź - 40).</p>
+        <textarea id="pasteArea" style="width:100%; height:250px; font-family:monospace; padding:10px; border:1px solid var(--glass-border); border-radius:6px; background:rgba(0,0,0,0.3); color:var(--text-white); resize:vertical;"></textarea>
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px;">
+            <button class="btn btn-secondary" onclick="document.getElementById('pasteModal').style.display='none'">Anuluj</button>
+            <button class="btn btn-success" onclick="loadFromPaste()">Załaduj</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function showStatus(msg, type) {
+        const el = document.getElementById('status');
+        el.textContent = msg;
+        el.className = 'status ' + (type || '');
+        el.style.display = 'block';
+        if (type === 'success') setTimeout(() => { el.style.display = 'none'; }, 3000);
+    }
+
+    function escapeHtmlAttr(s) {
+        if (s == null || s === undefined) return '';
+        return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    let goldenList = [];
+    const MAX_GOLDEN = 10;
+
+    function getQuestionDataFromCard(card) {
+        if (!card) return null;
+        const qText = (card.querySelector('.q-text')?.value ?? '').trim();
+        const answers = [];
+        card.querySelectorAll('.answer-row').forEach(row => {
+            const text = (row.querySelector('.ans-text')?.value ?? '').trim();
+            const points = parseInt(row.querySelector('.ans-points')?.value, 10) || 0;
+            if (text) answers.push({ text, points });
+        });
+        return { question: qText, answers: answers.length ? answers : [{ text: '', points: 40 }] };
+    }
+
+    function isQuestionInGolden(q) {
+        if (!q || !q.question) return false;
+        return goldenList.some(g => g.question === q.question && JSON.stringify(g.answers) === JSON.stringify(q.answers));
+    }
+
+    function updateGoldenStars() {
+        document.querySelectorAll('#questions-container .question-card').forEach(card => {
+            const q = getQuestionDataFromCard(card);
+            const star = card.querySelector('.btn-star');
+            if (star) {
+                star.textContent = isQuestionInGolden(q) ? '★' : '☆';
+                star.classList.toggle('in-golden', isQuestionInGolden(q));
+            }
+        });
+    }
+
+    function toggleGolden(qId) {
+        const card = document.getElementById('card-' + qId);
+        if (!card) return;
+        const q = getQuestionDataFromCard(card);
+        if (!q.question.trim()) return showStatus('Dodaj treść pytania przed dodaniem do złotej listy', 'error');
+        if (isQuestionInGolden(q)) {
+            goldenList = goldenList.filter(g => !(g.question === q.question && JSON.stringify(g.answers) === JSON.stringify(q.answers)));
+            renderGoldenList();
+        } else if (goldenList.length >= MAX_GOLDEN) {
+            showStatus('Złota lista może mieć max ' + MAX_GOLDEN + ' pytań', 'error');
+        } else {
+            goldenList.push(JSON.parse(JSON.stringify(q)));
+            renderGoldenList();
+        }
+        updateGoldenStars();
+        showStatus('Złota lista: ' + goldenList.length + '/' + MAX_GOLDEN, 'success');
+    }
+
+    function addGoldenQuestion(data) {
+        const qId = 'g_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+        const q = data || { question: '', answers: [{ text: '', points: 40 }] };
+        if (!q.answers || q.answers.length === 0) q.answers = [{ text: '', points: 40 }];
+        const answersHtml = q.answers.map((a) => `
+            <div class="answer-row">
+                <input type="text" class="ans-text" value="${escapeHtmlAttr(a.text)}" placeholder="Odpowiedź">
+                <input type="number" class="ans-points" value="${a.points || 0}" min="0" placeholder="Pkt">
+                <button class="btn btn-danger btn-sm" onclick="this.closest('.answer-row').remove()">✕</button>
+            </div>
+        `).join('');
+        const num = document.querySelectorAll('#golden-questions-container .question-card').length + 1;
+        const card = document.createElement('div');
+        card.className = 'question-card';
+        card.id = 'card-' + qId;
+        card.dataset.golden = '1';
+        card.innerHTML = `
+            <div class="card-header">
+                <span class="q-number">⭐ ${num}</span>
+                <div style="display: flex; gap: 6px; align-items: center;">
+                    <button class="btn btn-secondary btn-move" onclick="moveGoldenUp('${qId}')" title="Przesuń w górę"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 14l5-5 5 5z"/></svg></button>
+                    <button class="btn btn-secondary btn-move" onclick="moveGoldenDown('${qId}')" title="Przesuń w dół"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg></button>
+                    <button class="btn btn-danger btn-sm" onclick="removeGoldenQuestion('${qId}')">Usuń z listy</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Treść pytania</label>
+                <input type="text" class="q-text" value="${escapeHtmlAttr(q.question)}" placeholder="np. Co zabieramy ze sobą do szkoły?">
+            </div>
+            <div class="form-group">
+                <label>Odpowiedzi (tekst + punkty)</label>
+                <button class="btn btn-auto-points btn-sm" style="margin-bottom:8px;" onclick="autoDistributePoints('${qId}')" title="Rozdziel 100 pkt">🔢 Rozdziel automatycznie</button>
+                <div class="answers-list" id="answers-${qId}">${answersHtml}</div>
+                <button class="btn btn-secondary btn-sm" style="margin-top:8px;" onclick="addAnswer('${qId}')">+ Dodaj odpowiedź</button>
+            </div>
+        `;
+        document.getElementById('golden-questions-container').appendChild(card);
+        updateGoldenNumbers();
+    }
+
+    function removeGoldenQuestion(qId) {
+        document.getElementById('card-' + qId)?.remove();
+        goldenListFromDom();
+        updateGoldenNumbers();
+    }
+
+    function moveGoldenUp(id) {
+        const card = document.getElementById('card-' + id);
+        if (!card) return;
+        const prev = card.previousElementSibling;
+        if (!prev || !prev.classList.contains('question-card')) return;
+        card.parentNode.insertBefore(card, prev);
+        goldenListFromDom();
+        updateGoldenNumbers();
+    }
+
+    function moveGoldenDown(id) {
+        const card = document.getElementById('card-' + id);
+        if (!card) return;
+        const next = card.nextElementSibling;
+        if (!next || !next.classList.contains('question-card')) return;
+        card.parentNode.insertBefore(next, card);
+        goldenListFromDom();
+        updateGoldenNumbers();
+    }
+
+    function updateGoldenNumbers() {
+        document.querySelectorAll('#golden-questions-container .question-card').forEach((card, i) => {
+            const span = card.querySelector('.q-number');
+            if (span) span.textContent = '⭐ ' + (i + 1);
+        });
+    }
+
+    function goldenListFromDom() {
+        goldenList = [];
+        document.querySelectorAll('#golden-questions-container .question-card').forEach(card => {
+            const q = getQuestionDataFromCard(card);
+            goldenList.push(JSON.parse(JSON.stringify(q || { question: '', answers: [{ text: '', points: 40 }] })));
+        });
+        goldenList = goldenList.filter(q => q.question.trim());
+        updateGoldenStars();
+    }
+
+    function renderGoldenList() {
+        const container = document.getElementById('golden-questions-container');
+        container.innerHTML = '';
+        goldenList.forEach(q => addGoldenQuestion(q));
+    }
+
+    async function loadGoldenList() {
+        try {
+            const res = await fetch('/api/familiada/golden');
+            goldenList = await res.json();
+            if (!Array.isArray(goldenList)) goldenList = [];
+            goldenList = goldenList.slice(0, MAX_GOLDEN);
+            renderGoldenList();
+            updateGoldenStars();
+        } catch (err) {
+            console.error('Błąd ładowania złotej listy:', err);
+        }
+    }
+
+    async function saveGoldenList() {
+        goldenListFromDom();
+        const valid = goldenList.filter(q => q.question.trim()).slice(0, MAX_GOLDEN);
+        try {
+            const res = await fetch('/api/familiada/golden', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(valid)
+            });
+            const result = await res.json();
+            if (!res.ok) throw new Error(result.error || 'Błąd zapisu');
+            goldenList = valid;
+            renderGoldenList();
+            updateGoldenStars();
+            showStatus('Zapisano złotą listę (' + result.count + ' pytań)', 'success');
+        } catch (err) {
+            showStatus('Błąd: ' + err.message, 'error');
+        }
+    }
+
+    function addQuestion(data) {
+        const qId = 'q_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+        const q = data || { question: '', answers: [{ text: '', points: 40 }] };
+        if (!q.answers || q.answers.length === 0) q.answers = [{ text: '', points: 40 }];
+
+        const answersHtml = q.answers.map((a) => `
+            <div class="answer-row">
+                <input type="text" class="ans-text" value="${escapeHtmlAttr(a.text)}" placeholder="Odpowiedź">
+                <input type="number" class="ans-points" value="${a.points || 0}" min="0" placeholder="Pkt">
+                <button class="btn btn-danger btn-sm" onclick="this.closest('.answer-row').remove()">✕</button>
+            </div>
+        `).join('');
+
+        const num = document.querySelectorAll('.question-card').length + 1;
+        const card = document.createElement('div');
+        card.className = 'question-card';
+        card.id = 'card-' + qId;
+        card.innerHTML = `
+            <div class="card-header">
+                <span class="q-number">Pytanie ${num}</span>
+                <div style="display: flex; gap: 6px; align-items: center;">
+                    <button class="btn btn-star" id="star-${qId}" onclick="toggleGolden('${qId}')" title="Dodaj do złotej listy">☆</button>
+                    <button class="btn btn-secondary btn-move" onclick="moveQuestionUp('${qId}')" title="Przesuń w górę"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 14l5-5 5 5z"/></svg></button>
+                    <button class="btn btn-secondary btn-move" onclick="moveQuestionDown('${qId}')" title="Przesuń w dół"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg></button>
+                    <button class="btn btn-danger btn-sm" onclick="removeQuestion('${qId}')">Usuń</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Treść pytania</label>
+                <input type="text" class="q-text" value="${escapeHtmlAttr(q.question)}" placeholder="np. Co zabieramy ze sobą do szkoły?">
+            </div>
+            <div class="form-group">
+                <label>Odpowiedzi (tekst + punkty)</label>
+                <button class="btn btn-auto-points btn-sm" style="margin-bottom:8px;" onclick="autoDistributePoints('${qId}')" title="Rozdziel 100 pkt: 1. najwięcej, 2. mniej, itd.">🔢 Rozdziel automatycznie</button>
+                <div class="answers-list" id="answers-${qId}">${answersHtml}</div>
+                <button class="btn btn-secondary btn-sm" style="margin-top:8px;" onclick="addAnswer('${qId}')">+ Dodaj odpowiedź</button>
+            </div>
+        `;
+        document.getElementById('questions-container').appendChild(card);
+        updateQuestionNumbers();
+    }
+
+    function addAnswer(qId) {
+        const list = document.getElementById('answers-' + qId);
+        if (!list) return;
+        const row = document.createElement('div');
+        row.className = 'answer-row';
+        row.innerHTML = `
+            <input type="text" class="ans-text" placeholder="Odpowiedź">
+            <input type="number" class="ans-points" value="0" min="0" placeholder="Pkt">
+            <button class="btn btn-danger btn-sm" onclick="this.closest('.answer-row').remove()">✕</button>
+        `;
+        list.appendChild(row);
+    }
+
+    function removeQuestion(qId) {
+        document.getElementById('card-' + qId)?.remove();
+        updateQuestionNumbers();
+    }
+
+    function moveQuestionUp(id) {
+        const card = document.getElementById('card-' + id);
+        if (!card) return;
+        const prev = card.previousElementSibling;
+        if (!prev || !prev.classList.contains('question-card')) return;
+        card.parentNode.insertBefore(card, prev);
+        updateQuestionNumbers();
+    }
+
+    function moveQuestionDown(id) {
+        const card = document.getElementById('card-' + id);
+        if (!card) return;
+        const next = card.nextElementSibling;
+        if (!next || !next.classList.contains('question-card')) return;
+        card.parentNode.insertBefore(next, card);
+        updateQuestionNumbers();
+    }
+
+    function updateQuestionNumbers() {
+        document.querySelectorAll('.question-card').forEach((card, i) => {
+            const span = card.querySelector('.q-number');
+            if (span) span.textContent = 'Pytanie ' + (i + 1);
+        });
+    }
+
+    /** Rozkład punktów 1→najwięcej, 2→mniej, itd. Suma 100. */
+    const POINTS_PRESETS = {
+        2: [60, 40],
+        3: [50, 33, 17],
+        4: [40, 30, 20, 10],
+        5: [30, 25, 20, 15, 10],
+        6: [25, 21, 18, 15, 12, 9],
+        7: [22, 18, 15, 13, 12, 11, 9],
+        8: [20, 17, 15, 13, 11, 10, 8, 6],
+        9: [22, 18, 14, 12, 10, 9, 7, 5, 3],
+        10: [20, 16, 13, 11, 10, 9, 8, 7, 5, 1]
+    };
+
+    function getAutoPoints(n) {
+        if (POINTS_PRESETS[n]) return [...POINTS_PRESETS[n]];
+        const base = [25, 20, 17, 14, 12, 10, 8, 6, 5, 4, 3, 2];
+        const arr = base.slice(0, n).map((v, i) => Math.max(1, v - Math.floor(i / 3)));
+        const sum = arr.reduce((a, b) => a + b, 0);
+        const scaled = arr.map(v => Math.round(v * 100 / sum));
+        const diff = 100 - scaled.reduce((a, b) => a + b, 0);
+        if (diff !== 0) scaled[0] += diff;
+        return scaled;
+    }
+
+    function autoDistributePoints(qId) {
+        const list = document.getElementById('answers-' + qId);
+        if (!list) return;
+        const rows = list.querySelectorAll('.answer-row');
+        if (rows.length === 0) return;
+        const points = getAutoPoints(rows.length);
+        rows.forEach((row, i) => {
+            const inp = row.querySelector('.ans-points');
+            if (inp) inp.value = points[i] ?? 0;
+        });
+        showStatus('Rozdzielono ' + points.length + ' punktów (suma 100)', 'success');
+    }
+
+    /** Walidacja przed zapisem. Zwraca { ok, errors } */
+    function validateBeforeSave() {
+        const errors = [];
+        const cards = document.querySelectorAll('.question-card');
+        cards.forEach((card, qIdx) => {
+            const qText = (card.querySelector('.q-text')?.value ?? '').trim();
+            const rows = card.querySelectorAll('.answer-row');
+            const qNum = qIdx + 1;
+
+            if (!qText) {
+                errors.push({ type: 'empty_question', qNum, msg: 'Pytanie ' + qNum + ': brak treści pytania' });
+            }
+            if (rows.length === 0) {
+                errors.push({ type: 'no_answers', qNum, msg: 'Pytanie ' + qNum + ': brak odpowiedzi' });
+            }
+            rows.forEach((row, aIdx) => {
+                const text = (row.querySelector('.ans-text')?.value ?? '').trim();
+                const pointsVal = row.querySelector('.ans-points')?.value;
+                const points = parseInt(pointsVal, 10);
+                const aNum = aIdx + 1;
+                if (!text) {
+                    errors.push({ type: 'empty_answer', qNum, aNum, msg: 'Pytanie ' + qNum + ', odp. ' + aNum + ': pusta treść odpowiedzi' });
+                }
+                if (pointsVal === '' || isNaN(points) || points < 0) {
+                    errors.push({ type: 'invalid_points', qNum, aNum, msg: 'Pytanie ' + qNum + ', odp. ' + aNum + ': brak lub nieprawidłowe punkty' });
+                }
+            });
+        });
+        if (cards.length === 0) {
+            errors.push({ type: 'no_questions', msg: 'Brak pytań' });
+        }
+        return { ok: errors.length === 0, errors };
+    }
+
+    function collectData() {
+        const questions = [];
+        document.querySelectorAll('.question-card').forEach(card => {
+            const qText = (card.querySelector('.q-text')?.value ?? '').trim();
+            const answers = [];
+            card.querySelectorAll('.answer-row').forEach(row => {
+                const text = (row.querySelector('.ans-text')?.value ?? '').trim();
+                const points = parseInt(row.querySelector('.ans-points')?.value, 10) || 0;
+                if (text) answers.push({ text, points });
+            });
+            questions.push({ question: qText, answers });
+        });
+        return questions;
+    }
+
+    async function refreshFilesList() {
+        try {
+            const res = await fetch('/api/familiada/files');
+            const files = await res.json();
+            const sel = document.getElementById('server-files-list');
+            const curr = sel.value;
+            sel.innerHTML = '<option value="">-- Wybierz plik --</option>';
+            (files || []).forEach(f => {
+                const opt = document.createElement('option');
+                opt.value = f;
+                opt.innerText = f.replace('.json', '');
+                sel.appendChild(opt);
+            });
+            if (files && files.includes(curr)) sel.value = curr;
+            document.getElementById('delete-btn').disabled = !sel.value;
+        } catch (err) {
+            console.error('Błąd listy plików:', err);
+        }
+    }
+
+    async function loadFromServer() {
+        const file = document.getElementById('server-files-list').value;
+        const url = file ? '/api/familiada/data?file=' + encodeURIComponent(file) : '/api/familiada/data';
+        showStatus('Ładowanie...', 'loading');
+        try {
+            const res = await fetch(url);
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Błąd ładowania');
+            document.getElementById('questions-container').innerHTML = '';
+            if (Array.isArray(data) && data.length > 0) {
+                data.forEach(q => addQuestion(q));
+            } else {
+                addQuestion();
+            }
+            if (file) document.getElementById('filename').value = file.replace('.json', '');
+            showStatus('Wczytano ' + (data?.length || 0) + ' pytań', 'success');
+        } catch (err) {
+            showStatus('Błąd: ' + err.message, 'error');
+        }
+    }
+
+    function clearValidationHighlights() {
+        document.querySelectorAll('.question-card.validation-error').forEach(c => c.classList.remove('validation-error'));
+    }
+
+    async function saveToServer() {
+        clearValidationHighlights();
+        const v = validateBeforeSave();
+        if (!v.ok) {
+            const errList = v.errors.map(e => e.msg).join('\n');
+            showStatus('Popraw błędy przed zapisem', 'error');
+            openValidationModal(v.errors);
+            let firstErrorCard = null;
+            v.errors.forEach(e => {
+                if (e.qNum) {
+                    const card = document.querySelectorAll('.question-card')[e.qNum - 1];
+                    if (card) {
+                        card.classList.add('validation-error');
+                        if (!firstErrorCard) firstErrorCard = card;
+                    }
+                }
+            });
+            if (firstErrorCard) firstErrorCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+        }
+        const data = collectData();
+        const valid = data.filter(q => q.question.trim());
+        if (valid.length === 0) {
+            showStatus('Dodaj przynajmniej jedno pytanie z treścią', 'error');
+            return;
+        }
+        const name = document.getElementById('filename').value.trim();
+        const filename = name ? (name.endsWith('.json') ? name : name + '.json') : null;
+        showStatus('Zapisywanie...', 'loading');
+        try {
+            const body = filename ? { filename, data: valid } : valid;
+            const res = await fetch('/api/familiada/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            const result = await res.json();
+            if (!res.ok) throw new Error(result.error || 'Błąd zapisu');
+            if (filename) {
+                await refreshFilesList();
+                document.getElementById('server-files-list').value = filename;
+                document.getElementById('delete-btn').disabled = false;
+            }
+            showStatus('Zapisano ' + result.count + ' pytań', 'success');
+        } catch (err) {
+            showStatus('Błąd: ' + err.message, 'error');
+        }
+    }
+
+    function openValidationModal(errors) {
+        const list = document.getElementById('validation-errors-list');
+        list.innerHTML = (errors || []).map(e => '<li>' + (e.msg || e).replace(/</g, '&lt;') + '</li>').join('');
+        document.getElementById('validationModal').style.display = 'flex';
+    }
+
+    function closeValidationModal() {
+        document.getElementById('validationModal').style.display = 'none';
+    }
+
+    function openPasteModal() {
+        document.getElementById('pasteArea').value = '';
+        document.getElementById('pasteModal').style.display = 'flex';
+    }
+
+    function loadFromPaste() {
+        const raw = document.getElementById('pasteArea').value.trim();
+        if (!raw) return showStatus('Wklej treść JSON lub XML', 'error');
+        let arr = [];
+        const looksLikeXml = raw.startsWith('<?xml') || raw.startsWith('<familiada');
+        const looksLikeText = /Pytanie\s+\d+\s*:/i.test(raw) && !raw.trim().startsWith('{') && !raw.trim().startsWith('[');
+        try {
+            if (looksLikeXml) {
+                arr = parseXmlFamiliada(raw);
+            } else if (looksLikeText) {
+                arr = parseTextFamiliada(raw);
+            } else {
+                const data = JSON.parse(raw);
+                arr = Array.isArray(data) ? data : (data.questions || data.data || []);
+            }
+        } catch (err) {
+            if (looksLikeXml) {
+                showStatus('Błąd XML: ' + err.message, 'error');
+                return;
+            }
+            if (looksLikeText) {
+                showStatus('Błąd formatu tekstowego: ' + err.message, 'error');
+                return;
+            }
+            try {
+                arr = parseTextFamiliada(raw);
+            } catch (e) {
+                try {
+                    arr = parseXmlFamiliada(raw);
+                } catch (e2) {
+                    showStatus('Błąd JSON/tekst/XML: ' + err.message, 'error');
+                    return;
+                }
+            }
+        }
+        document.getElementById('questions-container').innerHTML = '';
+        if (arr.length > 0) {
+            arr.forEach(q => addQuestion(q));
+        } else {
+            addQuestion();
+        }
+        document.getElementById('pasteModal').style.display = 'none';
+        showStatus('Wczytano ' + arr.length + ' pytań z ' + (looksLikeXml ? 'XML' : looksLikeText ? 'tekstu' : 'JSON'), 'success');
+    }
+
+    function loadFromFile(input) {
+        const file = input.files[0];
+        if (!file) return;
+        const r = new FileReader();
+        r.onload = () => {
+            try {
+                const data = JSON.parse(r.result);
+                const arr = Array.isArray(data) ? data : (data.questions || data.data || []);
+                document.getElementById('questions-container').innerHTML = '';
+                if (arr.length > 0) {
+                    arr.forEach(q => addQuestion(q));
+                } else {
+                    addQuestion();
+                }
+                const base = file.name.replace(/\.json$/i, '');
+                document.getElementById('filename').value = base;
+                showStatus('Wczytano ' + arr.length + ' pytań z pliku', 'success');
+            } catch (err) {
+                showStatus('Błąd pliku: ' + err.message, 'error');
+            }
+        };
+        r.readAsText(file, 'UTF-8');
+        input.value = '';
+    }
+
+    /** Konwersja z formatu tekstowego: Pytanie 1: / 1. Treść | Odpowiedź - 40 lub Odpowiedź (bez punktów – przydziela auto) */
+    function parseTextFamiliada(text) {
+        const questions = [];
+        const lines = (text || '').split(/\r?\n/);
+        let currentQuestion = null;
+        const answerWithPointsRegex = /^(?:(?:[-–—•*·)）]|\d+\.)\s*)?(.+?)\s*[-–—]\s*(\d+)\s*$/;
+        const answerNoPointsRegex = /^(?:(?:[-–—•*·)）]|\d+\.)\s*)?(.+)$/;
+        const questionRegex = /^(?:Pytanie\s+\d+\s*:\s*|\d+\s*\.\s*)(.+)$/i;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const trimmed = line.trim();
+            if (!trimmed) continue;
+
+            const aMatch = trimmed.match(answerWithPointsRegex);
+            if (aMatch) {
+                if (!currentQuestion) currentQuestion = { question: '', answers: [] };
+                currentQuestion.answers.push({ text: aMatch[1].trim(), points: parseInt(aMatch[2], 10) || 0 });
+                continue;
+            }
+
+            const qMatch = trimmed.match(questionRegex);
+            const isLikelyQuestion = trimmed.endsWith('?') || trimmed.endsWith('!') || /^Pytanie\s+\d+\s*:/i.test(trimmed);
+            if (qMatch && (isLikelyQuestion || !currentQuestion)) {
+                if (currentQuestion && (currentQuestion.question || currentQuestion.answers.length)) {
+                    questions.push(currentQuestion);
+                }
+                currentQuestion = { question: qMatch[1].trim(), answers: [] };
+                continue;
+            }
+
+            const aNoPointsMatch = trimmed.match(answerNoPointsRegex);
+            if (currentQuestion && aNoPointsMatch && aNoPointsMatch[1].trim()) {
+                currentQuestion.answers.push({ text: aNoPointsMatch[1].trim(), points: null });
+            }
+        }
+        if (currentQuestion && (currentQuestion.question || currentQuestion.answers.length)) {
+            questions.push(currentQuestion);
+        }
+        return questions.map(q => {
+            const answers = q.answers.length ? q.answers : [{ text: '', points: 40 }];
+            const needsAuto = answers.some(a => a.points === null);
+            if (needsAuto) {
+                const pts = getAutoPoints(answers.length);
+                answers.forEach((a, i) => { if (a.points === null) a.points = pts[i] ?? 0; });
+            }
+            return { question: q.question || '', answers };
+        });
+    }
+
+    /** Konwersja z formatu XML Familiady: <familiada><question text="..."><answer count="N">...</answer></question></familiada> */
+    function parseXmlFamiliada(xmlString) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(xmlString, 'text/xml');
+        const parseError = doc.querySelector('parsererror');
+        if (parseError) throw new Error('Błąd parsowania XML: ' + (parseError.textContent || 'nieznany'));
+        const questions = [];
+        let questionEls = doc.querySelectorAll('familiada question, familiada > question');
+        if (questionEls.length === 0) questionEls = doc.querySelectorAll('question');
+        questionEls.forEach(qEl => {
+            const text = (qEl.getAttribute('text') || qEl.getAttribute('Text') || '').trim();
+            const answers = [];
+            qEl.querySelectorAll('answer').forEach(aEl => {
+                const count = parseInt(aEl.getAttribute('count') || aEl.getAttribute('Count') || '0', 10) || 0;
+                const ansText = (aEl.textContent || '').trim();
+                if (ansText) answers.push({ text: ansText, points: count });
+            });
+            if (text || answers.length > 0) questions.push({ question: text, answers: answers.length ? answers : [{ text: '', points: 40 }] });
+        });
+        return questions;
+    }
+
+    function loadFromDroppedOrSelectedFile(input) {
+        const file = input.files[0];
+        if (!file) return;
+        handleDroppedFile(file);
+        input.value = '';
+    }
+
+    function handleDroppedFile(file) {
+        if (!file) return;
+        const name = (file.name || '').toLowerCase();
+        let forceXml = name.endsWith('.xml') || file.type === 'text/xml' || file.type === 'application/xml';
+        let forceJson = name.endsWith('.json');
+        const r = new FileReader();
+        r.onload = () => {
+            try {
+                let arr;
+                const content = r.result;
+                const looksLikeXml = typeof content === 'string' && (content.trim().startsWith('<?xml') || content.trim().startsWith('<familiada'));
+                const looksLikeText = typeof content === 'string' && /Pytanie\s+\d+\s*:/i.test(content) && !content.trim().startsWith('{') && !content.trim().startsWith('[');
+                const useXml = forceXml || (!forceJson && looksLikeXml);
+                const useText = !forceJson && !useXml && looksLikeText;
+                if (useXml) {
+                    arr = parseXmlFamiliada(content);
+                } else if (useText) {
+                    arr = parseTextFamiliada(content);
+                } else {
+                    const data = JSON.parse(content);
+                    arr = Array.isArray(data) ? data : (data.questions || data.data || []);
+                }
+                document.getElementById('questions-container').innerHTML = '';
+                if (arr.length > 0) {
+                    arr.forEach(q => addQuestion(q));
+                } else {
+                    addQuestion();
+                }
+                const base = file.name.replace(/\.(json|xml|txt)$/i, '');
+                document.getElementById('filename').value = base;
+                showStatus('Zaimportowano ' + arr.length + ' pytań z ' + (useXml ? 'XML' : useText ? 'tekstu' : 'JSON'), 'success');
+            } catch (err) {
+                showStatus('Błąd: ' + err.message, 'error');
+            }
+        };
+        r.readAsText(file, 'UTF-8');
+    }
+
+    async function deleteFile() {
+        const file = document.getElementById('server-files-list').value;
+        if (!file || !confirm('Usunąć plik ' + file + '?')) return;
+        try {
+            const res = await fetch('/api/familiada/file/' + encodeURIComponent(file), { method: 'DELETE' });
+            const result = await res.json();
+            if (!res.ok) throw new Error(result.error || 'Błąd usuwania');
+            await refreshFilesList();
+            document.getElementById('server-files-list').value = '';
+            document.getElementById('delete-btn').disabled = true;
+            showStatus('Usunięto plik', 'success');
+        } catch (err) {
+            showStatus('Błąd: ' + err.message, 'error');
+        }
+    }
+
+    document.getElementById('server-files-list').addEventListener('change', function() {
+        document.getElementById('delete-btn').disabled = !this.value;
+    });
+
+    (function initDropZone() {
+        const dz = document.getElementById('drop-zone');
+        if (!dz) return;
+        ['dragenter', 'dragover'].forEach(ev => {
+            dz.addEventListener(ev, (e) => { e.preventDefault(); e.stopPropagation(); dz.classList.add('dragover'); });
+        });
+        ['dragleave', 'drop'].forEach(ev => {
+            dz.addEventListener(ev, (e) => { e.preventDefault(); e.stopPropagation(); dz.classList.remove('dragover'); });
+        });
+        dz.addEventListener('drop', (e) => {
+            const file = e.dataTransfer?.files?.[0];
+            if (file) {
+                const name = file.name.toLowerCase();
+                if (name.endsWith('.xml') || name.endsWith('.json') || name.endsWith('.txt') || file.type === 'text/xml' || file.type === 'application/xml') {
+                    handleDroppedFile(file);
+                } else {
+                    showStatus('Upuść plik XML lub JSON (.xml, .json)', 'error');
+                }
+            }
+        });
+    })();
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        await refreshFilesList();
+        loadFromServer();
+        await loadGoldenList();
+    });
+</script>
+</body>
+</html>

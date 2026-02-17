@@ -432,6 +432,11 @@
             </div>
         </header>
 
+        <!-- Banner rozłączenia – widoczny gdy socket offline (np. przeciążenie sieci) -->
+        <div id="disconnect-banner" style="display: none; position: fixed; top: 60px; left: 0; right: 0; z-index: 99; background: #c0392b; color: white; padding: 12px 20px; text-align: center; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+            ⚠️ Utracono połączenie – przyciski mogą nie działać. <a href="#" onclick="location.reload(); return false;" style="color: #fff; text-decoration: underline;">Odśwież stronę</a>, aby kontynuować.
+        </div>
+
         <!-- SEKCJA LICENCJI -->
         <section class="wifi-generator" id="license-section" style="background: var(--glass-bg); border: 2px solid var(--glass-border); border-radius: 12px; padding: 20px; margin-top: 20px;">
             <h2>🔐 Licencja</h2>
@@ -463,6 +468,7 @@
             </div>
             <div id="update-status" style="margin-bottom: 12px; padding: 12px; border-radius: 6px; font-size: 0.95rem; min-height: 24px;">
                 <span id="update-status-text"></span>
+                <span id="update-status-link"></span>
             </div>
             <button type="button" onclick="checkForUpdates()" class="btn btn-primary" id="check-updates-btn">🔍 Sprawdź aktualizacje</button>
         </section>
@@ -471,8 +477,12 @@
         <section class="wifi-generator">
             <h2>📶 Generator QR WiFi</h2>
             <div class="wifi-input-group">
-                <input type="text" id="wifi-ssid" class="wifi-input" placeholder="Nazwa sieci WiFi..." autocomplete="off">
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                    <input type="text" id="wifi-ssid" class="wifi-input" placeholder="Nazwa sieci WiFi..." autocomplete="off" style="flex: 1; min-width: 180px;">
+                    <button type="button" onclick="fillCurrentWiFiSSID()" class="btn btn-secondary" title="Wpisz nazwę aktualnie połączonej sieci">Wpisz aktualną sieć</button>
+                </div>
                 <input type="password" id="wifi-password" class="wifi-input" placeholder="Hasło WiFi (opcjonalne)..." autocomplete="off" style="margin-top: 10px;">
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 6px;">Ostatnio wpisane wartości są zapamiętywane.</p>
                 <select id="wifi-type" class="wifi-input" style="margin-top: 10px;">
                     <option value="WPA2">WPA2-Personal (domyślne)</option>
                     <option value="WPA">WPA/WPA2/WPA3 (ogólne)</option>
@@ -484,6 +494,7 @@
             <div style="margin-top: 15px; padding: 10px; background: rgba(241, 196, 15, 0.15); border-radius: 6px; border: 1px solid rgba(241, 196, 15, 0.3); font-size: 0.85rem; color: var(--text-muted);">
                 <strong>ℹ️ Uwaga:</strong> Niektóre routery (np. Xiaomi) mogą mieć problemy z łączeniem przez QR kod WiFi. Jeśli QR kod nie działa, spróbuj połączyć się ręcznie lub użyj innego routera.
             </div>
+
         </section>
 
         <!-- QR DO GRY W SIECI LOKALNEJ (Wi‑Fi) -->
@@ -503,7 +514,7 @@
                 <strong>⏱️ Limit czasu:</strong> Wersja darmowa Pinggy ma limit ok. <strong>60 minut</strong> na jedno połączenie – po tym czasie tunel się rozłączy i trzeba go uruchomić ponownie (adres URL się zmieni).
             </div>
             <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-                <button type="button" id="tunnel-start-btn" onclick="startTunnelOneClick()" class="btn btn-primary">🌐 Uruchom tunel i generuj QR</button>
+                <button type="button" id="tunnel-start-btn" onclick="startTunnelOneClick()" class="btn btn-danger">🌐 Uruchom tunel i generuj QR</button>
                 <button type="button" id="tunnel-stop-btn" onclick="stopTunnelOneClick()" class="btn btn-danger" style="display: none;">Zatrzymaj tunel</button>
             </div>
             <div id="pinggy-status" style="margin-top: 12px; font-size: 0.9rem; color: var(--text-muted);"></div>
@@ -556,6 +567,13 @@
             <h2>📱 Pokaż QR code na telefonach</h2>
             <p style="margin-bottom: 15px; color: var(--text-muted); font-size: 0.95rem;">Po włączeniu na ekranach zalogowanych graczy (ekran oczekiwania) pojawią się te same kody QR co na ekranie TV (WiFi, gra w sieci lokalnej, tunel). Gracze mogą w ten sposób przekazać dalej link do gry innym osobom.</p>
             <button onclick="toggleShowQROnPhones()" class="btn btn-primary" id="show-qr-phones-btn" style="width: auto;">📱 Pokaż QR code na telefonach</button>
+        </section>
+
+        <!-- Nie wysyłaj obrazków na telefony -->
+        <section class="team-battle-config" style="border-bottom: 2px solid var(--glass-border);">
+            <h2>🖼️ Obrazki na telefonach</h2>
+            <p style="margin-bottom: 15px; color: var(--text-muted); font-size: 0.95rem;">Gdy wyłączone, telefony nie ładują obrazków pytań (np. zdjęć, okładek). <strong>Zalecane przy większej liczbie graczy</strong> – ogranicza obciążenie sieci. Obrazki nadal wyświetlają się na ekranie TV.</p>
+            <button onclick="toggleSendImagesToPhones()" class="btn btn-primary" id="send-images-phones-btn" style="width: auto;">🖼️ Nie wysyłaj obrazków na telefony</button>
         </section>
         
         <!-- Link do otwarcia admina na komputerze (jak przy edytorze na Screen) -->
@@ -785,9 +803,11 @@
         async function checkForUpdates() {
             const statusEl = document.getElementById('update-status');
             const statusTextEl = document.getElementById('update-status-text');
+            const statusLinkEl = document.getElementById('update-status-link');
             const btn = document.getElementById('check-updates-btn');
             if (!statusEl || !statusTextEl || !btn) return;
             statusTextEl.textContent = 'Sprawdzam...';
+            if (statusLinkEl) statusLinkEl.innerHTML = '';
             statusEl.style.background = 'rgba(241, 196, 15, 0.15)';
             statusEl.style.border = '1px solid rgba(241, 196, 15, 0.3)';
             btn.disabled = true;
@@ -795,20 +815,30 @@
                 const response = await fetch('/api/check-updates', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
                 const result = await response.json();
                 if (result.error) {
-                    statusTextEl.textContent = 'ℹ️ ' + (result.error || result.message);
+                    statusTextEl.textContent = 'ℹ️ Nie można sprawdzić aktualizacji.';
+                    if (statusLinkEl && result.manualUrl) {
+                        statusLinkEl.innerHTML = ' <a href="' + result.manualUrl + '" target="_blank" rel="noopener noreferrer" style="color: var(--accent-gold); text-decoration: underline;">Pobierz najnowszą wersję ręcznie →</a>';
+                    } else {
+                        if (statusLinkEl) statusLinkEl.textContent = ' ' + (result.error || result.message);
+                    }
                     statusEl.style.background = 'rgba(255, 255, 255, 0.08)';
                     statusEl.style.border = '1px solid var(--glass-border)';
                 } else if (result.available) {
                     statusTextEl.textContent = '✅ ' + (result.message || 'Dostępna wersja ' + (result.version || ''));
+                    if (statusLinkEl) statusLinkEl.innerHTML = '';
                     statusEl.style.background = 'rgba(46, 204, 113, 0.15)';
                     statusEl.style.border = '1px solid rgba(46, 204, 113, 0.3)';
                 } else {
                     statusTextEl.textContent = '✅ ' + (result.message || 'Masz najnowszą wersję.');
+                    if (statusLinkEl) statusLinkEl.innerHTML = '';
                     statusEl.style.background = 'rgba(46, 204, 113, 0.15)';
                     statusEl.style.border = '1px solid rgba(46, 204, 113, 0.3)';
                 }
             } catch (err) {
                 statusTextEl.textContent = '❌ Błąd: ' + (err.message || 'Brak połączenia');
+                if (statusLinkEl) {
+                    statusLinkEl.innerHTML = ' <a href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/latest" target="_blank" rel="noopener noreferrer" style="color: var(--accent-gold); text-decoration: underline;">Pobierz ręcznie →</a>';
+                }
                 statusEl.style.background = 'rgba(231, 76, 60, 0.15)';
                 statusEl.style.border = '1px solid rgba(231, 76, 60, 0.3)';
             }
@@ -941,6 +971,8 @@
         socket.on('connect', () => {
             document.getElementById('connection-status').textContent = '🟢 Online';
             document.getElementById('connection-status').style.color = '#90EE90';
+            const banner = document.getElementById('disconnect-banner');
+            if (banner) banner.style.display = 'none';
             socket.emit('admin_login', isAdminFromComputer() ? { isComputer: true } : undefined);
         });
         
@@ -982,11 +1014,35 @@
         // Wczytaj zapisane wartości przy starcie strony
         window.addEventListener('DOMContentLoaded', () => {
             loadSavedWiFiSSID();
+            document.getElementById('wifi-ssid').addEventListener('blur', function() {
+                if (this.value.trim()) saveWiFiSSID(this.value.trim(), document.getElementById('wifi-password').value);
+            });
+            document.getElementById('wifi-password').addEventListener('blur', function() {
+                const ssid = document.getElementById('wifi-ssid').value.trim();
+                if (ssid) saveWiFiSSID(ssid, this.value);
+            });
         });
+
+        async function fillCurrentWiFiSSID() {
+            try {
+                const res = await fetch('/api/current-wifi-ssid');
+                const data = await res.json();
+                if (data.ssid) {
+                    document.getElementById('wifi-ssid').value = data.ssid;
+                    saveWiFiSSID(data.ssid, document.getElementById('wifi-password').value);
+                } else {
+                    alert('Nie można pobrać nazwy sieci. Upewnij się, że komputer jest połączony z WiFi.');
+                }
+            } catch (e) {
+                alert('Błąd: ' + (e.message || 'Nie można pobrać sieci'));
+            }
+        }
 
         socket.on('disconnect', () => {
             document.getElementById('connection-status').textContent = '🔴 Offline';
             document.getElementById('connection-status').style.color = '#FFB6C1';
+            const banner = document.getElementById('disconnect-banner');
+            if (banner) banner.style.display = 'block';
         });
 
             // Wczytaj zapisaną nazwę sieci WiFi z localStorage
@@ -1168,17 +1224,12 @@
             if (panel && panel.parentNode === container) panel.parentNode.removeChild(panel);
             container.innerHTML = '';
             questions.forEach((q, index) => {
+                // Ukryj rozegrane pytania (zostaw tylko aktualnie wyświetlane)
+                if (usedQuestions.has(index) && index !== activeQuestionIndex && index !== currentQuestionIndex) return;
+                
                 const item = document.createElement('div');
                 item.className = 'question-item';
                 item.dataset.index = String(index);
-                
-                // Znaczek odchaczenia z lewej strony jeśli pytanie było już wyświetlane
-                if (usedQuestions.has(index)) {
-                    const checkmark = document.createElement('span');
-                    checkmark.className = 'question-checkmark';
-                    checkmark.textContent = '✓';
-                    item.appendChild(checkmark);
-                }
                 
                 const btn = document.createElement('button');
                 btn.className = 'btn btn-question';
@@ -1191,20 +1242,27 @@
                 item.appendChild(btn);
                 container.appendChild(item);
             });
-            if (panel && (activeQuestionIndex >= 0 || currentQuestionIndex >= 0)) placeQuestionControlUnderActive();
+            if (panel && (activeQuestionIndex >= 0 || currentQuestionIndex >= 0)) placeQuestionControlUnderActive(panel);
         }
 
-        function placeQuestionControlUnderActive() {
-            const panel = document.getElementById('question-control');
+        let placeQuestionControlRetryCount = 0;
+        function placeQuestionControlUnderActive(panelRef) {
+            const panel = panelRef || document.getElementById('question-control');
             const list = document.getElementById('questions-list');
             const idx = activeQuestionIndex >= 0 ? activeQuestionIndex : currentQuestionIndex;
-            if (!panel || !list || idx < 0) return;
-            const items = list.querySelectorAll('.question-item');
-            const activeItem = items[idx];
+            if (!panel || !list || idx < 0) { placeQuestionControlRetryCount = 0; return; }
+            const activeItem = list.querySelector('.question-item[data-index="' + idx + '"]');
             if (!activeItem) {
-                console.warn('⚠️ placeQuestionControlUnderActive: nie znaleziono aktywnego pytania o indeksie', idx, 'dostępne:', items.length);
+                if (placeQuestionControlRetryCount < 3) {
+                    placeQuestionControlRetryCount++;
+                    setTimeout(() => placeQuestionControlUnderActive(), 150);
+                } else {
+                    placeQuestionControlRetryCount = 0;
+                    console.warn('⚠️ placeQuestionControlUnderActive: nie znaleziono aktywnego pytania po 3 próbach');
+                }
                 return;
             }
+            placeQuestionControlRetryCount = 0;
             // Usuń panel z poprzedniej lokalizacji jeśli jest
             if (panel.parentNode) panel.parentNode.removeChild(panel);
             // Wstaw panel zaraz po aktywnym pytaniu
@@ -1224,35 +1282,21 @@
             if (!list) return;
             const items = list.querySelectorAll('.question-item');
             const idx = activeQuestionIndex >= 0 ? activeQuestionIndex : currentQuestionIndex;
-            items.forEach((item, i) => {
+            items.forEach((item) => {
                 const btn = item.querySelector('.btn-question');
                 if (!btn) return;
-                btn.classList.toggle('active', i === idx);
-                
-                // Aktualizuj znaczek odchaczenia z lewej strony
-                const existingCheckmark = item.querySelector('.question-checkmark');
-                if (usedQuestions.has(i)) {
-                    if (!existingCheckmark) {
-                        const checkmark = document.createElement('span');
-                        checkmark.className = 'question-checkmark';
-                        checkmark.textContent = '✓';
-                        item.insertBefore(checkmark, btn);
-                    }
-                } else {
-                    if (existingCheckmark) {
-                        existingCheckmark.remove();
-                    }
-                }
+                const itemIndex = parseInt(item.dataset.index, 10);
+                btn.classList.toggle('active', itemIndex === idx);
                 
                 var textSpan = btn.querySelector('.question-text-line');
-                if (textSpan && questions[i]) {
-                    var pre = '<b>' + (i + 1) + '.</b> '; // Usunięto ✓ z prefixu - teraz jest osobny element
-                    var t = (questions[i].question || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                if (textSpan && questions[itemIndex]) {
+                    var pre = '<b>' + (itemIndex + 1) + '.</b> ';
+                    var t = (questions[itemIndex].question || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
                     textSpan.innerHTML = pre + t;
                 }
                 var typeLine = btn.querySelector('.question-type-line');
                 if (typeLine) {
-                    typeLine.innerHTML = renderTypeBadges(getTypeBadges(questions[i]));
+                    typeLine.innerHTML = renderTypeBadges(getTypeBadges(questions[itemIndex]));
                 }
             });
         }
@@ -1286,10 +1330,11 @@
             }
             // Dla LETTER wysyłamy tylko index - litery wyśle admin przyciskiem "Wyślij 1 literę" / "Wyślij 2 litery"
             socket.emit('admin_start_question', index);
+            const panelRef = document.getElementById('question-control');
+            renderQuestionsList(); // Rozegrane pytania znikają z listy
             updateQuestionButtonsActiveClass();
-            // Upewnij się że panel jest widoczny - użyj setTimeout żeby dać czas na aktualizację DOM
             setTimeout(() => {
-                placeQuestionControlUnderActive();
+                placeQuestionControlUnderActive(panelRef);
             }, 50);
         }
 
@@ -1448,6 +1493,7 @@
         }
         
         socket.on('update_state', (state) => {
+            try {
             if (state.tunnelUrl != null) {
                 const el = document.getElementById('pinggy-url');
                 if (el && el.value !== state.tunnelUrl) el.value = state.tunnelUrl;
@@ -1475,6 +1521,11 @@
                 if (localStatus) localStatus.textContent = localQRVisible ? 'QR sieci lokalnej jest wyświetlany na ekranie.' : '';
             }
             currentGameState = state;
+            // Po odświeżeniu strony local questions jest puste – zsynchronizuj z serwera (naprawia „żadne pytanie się nie otwiera”)
+            if (state.questions && state.questions.length > 0 && (!questions || questions.length === 0)) {
+                questions = state.questions;
+                renderQuestionsList();
+            }
             updateAdminRankingAndPodium(state);
 
             // Logi LETTER na adminie – co serwer wysłał
@@ -1522,6 +1573,17 @@
                     showQrPhonesBtn.style.background = '#17a2b8';
                 }
             }
+            // Aktualizuj stan przycisku „Obrazki na telefonach”
+            const sendImagesBtn = document.getElementById('send-images-phones-btn');
+            if (sendImagesBtn) {
+                if (state.sendImagesToPhones === false) {
+                    sendImagesBtn.textContent = '🖼️ Obrazki wyłączone (zalecane przy wielu graczach)';
+                    sendImagesBtn.style.background = '#28a745';
+                } else {
+                    sendImagesBtn.textContent = '🖼️ Nie wysyłaj obrazków na telefony';
+                    sendImagesBtn.style.background = '#17a2b8';
+                }
+            }
             
             // Przycisk „Rozpocznij rozgrywkę” – tylko gdy admin na komputerze i ekran to INTRO/IDLE
             const startGameWrap = document.getElementById('start-game-wrap');
@@ -1543,10 +1605,10 @@
                     // Po resecie / przed wczytaniem quizu nie pokazuj panelu pytania (serwer może nadal wysyłać stan GAME)
                     if (panel) panel.style.display = 'none';
                 } else {
+                    renderQuestionsList(); // Odśwież listę – rozegrane pytania znikają
                     updateQuestionButtonsActiveClass();
-                    // WAŻNE: Zawsze wywołaj placeQuestionControlUnderActive gdy jest aktywna gra i quiz wczytany
                     if (activeQuestionIndex >= 0 || currentQuestionIndex >= 0) {
-                        placeQuestionControlUnderActive();
+                        placeQuestionControlUnderActive(panel);
                         if (panel) panel.style.display = 'flex';
                     }
                 }
@@ -1855,6 +1917,9 @@
                     qcNextBtn.className = "btn-nav-next btn-primary";
                 }
             }
+            } catch (e) {
+                console.error('update_state error:', e);
+            }
         });
 
         function showStats() { 
@@ -1958,6 +2023,9 @@
         
         function toggleShowQROnPhones() {
             socket.emit('admin_toggle_show_qr_on_phones');
+        }
+        function toggleSendImagesToPhones() {
+            socket.emit('admin_toggle_send_images_to_phones');
         }
         
         function startGame() {

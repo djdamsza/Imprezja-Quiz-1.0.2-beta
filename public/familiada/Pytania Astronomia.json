@@ -1,0 +1,256 @@
+[
+  {
+    "question": "Co możemy zobaczyć na niebie w nocy?",
+    "answers": [
+      {
+        "text": "Gwiazdy",
+        "points": 40
+      },
+      {
+        "text": "Księżyc",
+        "points": 30
+      },
+      {
+        "text": "Planety",
+        "points": 15
+      },
+      {
+        "text": "Spadające gwiazdy",
+        "points": 10
+      },
+      {
+        "text": "Chmury",
+        "points": 5
+      }
+    ]
+  },
+  {
+    "question": "Jakie znasz planety Układu Słonecznego?",
+    "answers": [
+      {
+        "text": "Mars",
+        "points": 25
+      },
+      {
+        "text": "Jowisz",
+        "points": 20
+      },
+      {
+        "text": "Saturn",
+        "points": 18
+      },
+      {
+        "text": "Wenus",
+        "points": 15
+      },
+      {
+        "text": "Merkury",
+        "points": 10
+      },
+      {
+        "text": "Neptun",
+        "points": 7
+      },
+      {
+        "text": "Uran",
+        "points": 5
+      }
+    ]
+  },
+  {
+    "question": "Co astronauci zabierają w podróż kosmiczną?",
+    "answers": [
+      {
+        "text": "Skafander",
+        "points": 35
+      },
+      {
+        "text": "Jedzenie w tubkach",
+        "points": 25
+      },
+      {
+        "text": "Tlen",
+        "points": 20
+      },
+      {
+        "text": "Wodę",
+        "points": 10
+      },
+      {
+        "text": "Aparaturę naukową",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Wymień ciała niebieskie, które krążą wokół Słońca:",
+    "answers": [
+      {
+        "text": "Planety",
+        "points": 40
+      },
+      {
+        "text": "Księżyce",
+        "points": 25
+      },
+      {
+        "text": "Asteroidy",
+        "points": 15
+      },
+      {
+        "text": "Komety",
+        "points": 12
+      },
+      {
+        "text": "Planety karłowate",
+        "points": 8
+      }
+    ]
+  },
+  {
+    "question": "Co astronauci robią na Międzynarodowej Stacji Kosmicznej?",
+    "answers": [
+      {
+        "text": "Przeprowadzają eksperymenty",
+        "points": 30
+      },
+      {
+        "text": "Obserwują Ziemię",
+        "points": 25
+      },
+      {
+        "text": "Ćwiczą",
+        "points": 20
+      },
+      {
+        "text": "Jedzą",
+        "points": 15
+      },
+      {
+        "text": "Naprawiają stację",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Jakie kolory ma Księżyc w różnych fazach?",
+    "answers": [
+      {
+        "text": "Srebrny",
+        "points": 35
+      },
+      {
+        "text": "Biały",
+        "points": 30
+      },
+      {
+        "text": "Żółty",
+        "points": 20
+      },
+      {
+        "text": "Pomarańczowy",
+        "points": 10
+      },
+      {
+        "text": "Szary",
+        "points": 5
+      }
+    ]
+  },
+  {
+    "question": "Co potrzebne jest do życia na Ziemi, czego nie ma na innych planetach?",
+    "answers": [
+      {
+        "text": "Powietrze/tlen",
+        "points": 35
+      },
+      {
+        "text": "Woda",
+        "points": 30
+      },
+      {
+        "text": "Odpowiednia temperatura",
+        "points": 20
+      },
+      {
+        "text": "Atmosfera",
+        "points": 15
+      }
+    ]
+  },
+  {
+    "question": "Jakie kształty ma Księżyc podczas różnych faz?",
+    "answers": [
+      {
+        "text": "Pełnia",
+        "points": 30
+      },
+      {
+        "text": "Półksiężyc",
+        "points": 25
+      },
+      {
+        "text": "Nów",
+        "points": 20
+      },
+      {
+        "text": "Kwadra",
+        "points": 15
+      },
+      {
+        "text": "Sierp",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Co można zobaczyć przez teleskop?",
+    "answers": [
+      {
+        "text": "Księżyc",
+        "points": 30
+      },
+      {
+        "text": "Planety",
+        "points": 25
+      },
+      {
+        "text": "Gwiazdy",
+        "points": 20
+      },
+      {
+        "text": "Galaktyki",
+        "points": 15
+      },
+      {
+        "text": "Mgławice",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Wymień rzeczy, które są okrągłe jak planety:",
+    "answers": [
+      {
+        "text": "Piłka",
+        "points": 30
+      },
+      {
+        "text": "Pomarańcza",
+        "points": 25
+      },
+      {
+        "text": "Balon",
+        "points": 20
+      },
+      {
+        "text": "Bańka mydlana",
+        "points": 15
+      },
+      {
+        "text": "Kula ziemska",
+        "points": 10
+      }
+    ]
+  }
+]

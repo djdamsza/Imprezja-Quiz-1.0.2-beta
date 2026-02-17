@@ -95,16 +95,95 @@ let tunnelProcess = null;
 let showLocalGameQR = false;
 // Czy panel admina został już otwarty (np. z telefonu) – wtedy ukrywamy QR do admina na ekranie
 let adminHasBeenOpened = false;
+// Pokój Socket.IO dla admina – priorytet przy broadcast (aktualizacje od razu, bez throttle)
+const ADMIN_ROOM = 'admin_room';
+
+// Tryb gry: null | 'quiz' | 'familiada' – gdy 'familiada', wstrzymujemy broadcast do telefonów
+let gameMode = null;
+// Stan Familiady
+let familiadaQuestions = [];
+let familiadaTeam1Score = 0;
+let familiadaTeam2Score = 0;
+let familiadaTeam1Name = 'Niebiescy';
+let familiadaTeam2Name = 'Czerwoni';
+let familiadaRoundAwardedTo = null;
+let familiadaButtonUsedThisRound = false;
+let familiadaQuestionActive = false;
+const FAMILIADA_DATA_FILE = 'familiada-data.json';
+const familiadaDataPath = path.join(path.dirname(quizzesDir), FAMILIADA_DATA_FILE);
+const familiadaDir = path.join(path.dirname(quizzesDir), 'familiada');
+const FAMILIADA_GOLDEN_FILE = 'familiada-golden.json';
+const familiadaGoldenPath = path.join(familiadaDir, FAMILIADA_GOLDEN_FILE);
+let familiadaGoldenQuestions = [];
+
+const GOLDEN_LIST_DEFAULT = [
+    { question: 'Co zabieramy ze sobą do szkoły?', answers: [{ text: 'Plecak', points: 40 }, { text: 'Książki', points: 20 }, { text: 'Kanapki', points: 20 }, { text: 'Zeszyty', points: 10 }] },
+    { question: 'Podaj tytuły kultowych polskich komedii', answers: [{ text: 'Sami Swoi', points: 30 }, { text: 'Seksmisja', points: 24 }, { text: 'Miś', points: 20 }] },
+    { question: 'Europejskie państwo większe od Polski', answers: [{ text: 'Niemcy', points: 31 }, { text: 'Francja', points: 29 }, { text: 'Wielka Brytania', points: 18 }] }
+];
+
+function loadFamiliadaGoldenData() {
+    try {
+        const appPathForGolden = process.env.IMPREZJA_APP_PATH || __dirname;
+        const publicGolden = path.join(appPathForGolden, 'public', 'familiada', FAMILIADA_GOLDEN_FILE);
+        if (fs.existsSync(familiadaGoldenPath)) {
+            const raw = fs.readFileSync(familiadaGoldenPath, 'utf8');
+            familiadaGoldenQuestions = JSON.parse(raw);
+            if (!Array.isArray(familiadaGoldenQuestions)) familiadaGoldenQuestions = [];
+            familiadaGoldenQuestions = familiadaGoldenQuestions.slice(0, 10);
+            console.log(`✅ Familiada Złota Lista: załadowano ${familiadaGoldenQuestions.length} pytań z ${familiadaGoldenPath}`);
+        } else if (fs.existsSync(publicGolden)) {
+            const raw = fs.readFileSync(publicGolden, 'utf8');
+            familiadaGoldenQuestions = JSON.parse(raw);
+            if (!Array.isArray(familiadaGoldenQuestions)) familiadaGoldenQuestions = [];
+            familiadaGoldenQuestions = familiadaGoldenQuestions.slice(0, 10);
+            if (!fs.existsSync(familiadaDir)) fs.mkdirSync(familiadaDir, { recursive: true });
+            fs.writeFileSync(familiadaGoldenPath, JSON.stringify(familiadaGoldenQuestions, null, 2), 'utf8');
+            console.log(`✅ Familiada Złota Lista: skopiowano ${familiadaGoldenQuestions.length} pytań z public`);
+        } else {
+            familiadaGoldenQuestions = [...GOLDEN_LIST_DEFAULT];
+            if (!fs.existsSync(familiadaDir)) fs.mkdirSync(familiadaDir, { recursive: true });
+            fs.writeFileSync(familiadaGoldenPath, JSON.stringify(familiadaGoldenQuestions, null, 2), 'utf8');
+            console.log(`✅ Familiada Złota Lista: utworzono z 3 przykładowymi pytaniami`);
+        }
+    } catch (err) {
+        console.warn('⚠️ Familiada Złota Lista: błąd ładowania:', err.message);
+        familiadaGoldenQuestions = [...GOLDEN_LIST_DEFAULT];
+    }
+}
+loadFamiliadaGoldenData();
+
+function loadFamiliadaData() {
+    try {
+        if (fs.existsSync(familiadaDataPath)) {
+            const raw = fs.readFileSync(familiadaDataPath, 'utf8');
+            familiadaQuestions = JSON.parse(raw);
+            console.log(`✅ Familiada: załadowano ${familiadaQuestions.length} pytań`);
+        } else {
+            const appPathForData = process.env.IMPREZJA_APP_PATH || __dirname;
+            const fallback = path.join(appPathForData, 'public', 'familiada', 'data.json');
+            if (fs.existsSync(fallback)) {
+                familiadaQuestions = JSON.parse(fs.readFileSync(fallback, 'utf8'));
+                console.log(`✅ Familiada: załadowano ${familiadaQuestions.length} pytań z data.json`);
+            }
+        }
+    } catch (err) {
+        console.warn('⚠️ Familiada: błąd ładowania pytań:', err.message);
+    }
+}
+loadFamiliadaData();
 
 // Stwórz foldery jeśli nie istnieją
 if (!fs.existsSync(quizzesDir)) fs.mkdirSync(quizzesDir, { recursive: true });
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-// Przy pierwszym uruchomieniu z katalogu danych: skopiuj quizy z aplikacji (asar) do data dir
+if (!fs.existsSync(familiadaDir)) fs.mkdirSync(familiadaDir, { recursive: true });
+// Przy pierwszym uruchomieniu z katalogu danych: skopiuj quizy i pliki Familiady z aplikacji
 if (dataDir) {
     try {
         const existing = fs.readdirSync(quizzesDir).filter(f => f.toLowerCase().endsWith('.json'));
         if (existing.length === 0) {
-            const appQuizzes = path.join(__dirname, 'public', 'quizzes');
+            const appPathForQuizzes = process.env.IMPREZJA_APP_PATH || __dirname;
+            const appQuizzes = path.join(appPathForQuizzes, 'public', 'quizzes');
             if (fs.existsSync(appQuizzes)) {
                 const toCopy = fs.readdirSync(appQuizzes).filter(f => f.toLowerCase().endsWith('.json'));
                 for (const name of toCopy) {
@@ -117,8 +196,21 @@ if (dataDir) {
                 }
             }
         }
+        const appPathForCopy = process.env.IMPREZJA_APP_PATH || __dirname;
+        const appFamiliada = path.join(appPathForCopy, 'public', 'familiada');
+        if (fs.existsSync(appFamiliada) && fs.existsSync(familiadaDir)) {
+            const appFiles = fs.readdirSync(appFamiliada).filter(f => f.toLowerCase().endsWith('.json') && f.toLowerCase() !== FAMILIADA_GOLDEN_FILE.toLowerCase());
+            for (const name of appFiles) {
+                const src = path.join(appFamiliada, name);
+                const dest = path.join(familiadaDir, name);
+                if (!fs.existsSync(dest)) {
+                    fs.copyFileSync(src, dest);
+                    console.log('   📋 Skopiowano listę Familiady:', name);
+                }
+            }
+        }
     } catch (err) {
-        console.warn('   ⚠️ Nie udało się skopiować quizów z aplikacji:', err.message);
+        console.warn('   ⚠️ Nie udało się skopiować plików z aplikacji:', err.message);
     }
 }
 
@@ -154,11 +246,176 @@ app.get('/api/license/machine-id', (req, res) => {
     res.json({ machineId: license.getMachineId() });
 });
 
+// === API FAMILIADA ===
+const appPath = path.resolve(process.env.IMPREZJA_APP_PATH || __dirname);
+const familiadaPublicDir = path.join(__dirname, 'public', 'familiada');
+const familiadaFromAppPath = path.join(appPath, 'public', 'familiada');
+function getFamiliadaDirs() {
+    const dirs = [
+        familiadaFromAppPath,
+        familiadaPublicDir,
+        familiadaDir,
+        path.join(process.cwd(), 'public', 'familiada')
+    ];
+    const seen = new Set();
+    const result = [];
+    for (const d of dirs) {
+        if (!d || seen.has(d)) continue;
+        seen.add(d);
+        try {
+            if (fs.existsSync(d)) result.push(d);
+        } catch (_) {}
+    }
+    return result;
+}
+
+function getFamiliadaFiles() {
+    try {
+        const dirs = getFamiliadaDirs();
+        const seen = new Set();
+        const result = [];
+        for (const dir of dirs) {
+            const files = fs.readdirSync(dir)
+                .filter(f => f.toLowerCase().endsWith('.json') && f.toLowerCase() !== FAMILIADA_GOLDEN_FILE.toLowerCase());
+            for (const f of files) {
+                if (!seen.has(f)) { seen.add(f); result.push(f); }
+            }
+        }
+        return result.sort();
+    } catch (err) {
+        return [];
+    }
+}
+
+app.get('/api/familiada/files', (req, res) => {
+    try {
+        res.json(getFamiliadaFiles());
+    } catch (err) {
+        console.error('Familiada files błąd:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+function resolveFamiliadaFilePath(filename) {
+    const name = (filename && typeof filename === 'string') ? filename.trim() : '';
+    if (!name || name.includes('..') || name.includes('/') || !name.toLowerCase().endsWith('.json')) return null;
+    const dirs = getFamiliadaDirs();
+    const availableFiles = getFamiliadaFiles();
+    const nameLower = name.toLowerCase();
+    const match = availableFiles.find(f => f.toLowerCase() === nameLower);
+    if (match) {
+        for (const dir of dirs) {
+            const p = path.join(dir, match);
+            if (fs.existsSync(p)) return p;
+        }
+    }
+    for (const dir of dirs) {
+        const p = path.join(dir, name);
+        if (fs.existsSync(p)) return p;
+    }
+    return null;
+}
+app.get('/api/familiada/data', (req, res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    try {
+        let file = req.query.file;
+        if (file && typeof file === 'string') file = file.trim();
+        const filePath = file ? resolveFamiliadaFilePath(file) : null;
+        if (filePath) {
+            const raw = fs.readFileSync(filePath, 'utf8');
+            const data = JSON.parse(raw);
+            return res.json(Array.isArray(data) ? data : []);
+        }
+        loadFamiliadaData();
+        res.json(familiadaQuestions);
+    } catch (err) {
+        console.error('Familiada data błąd:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/familiada/save', (req, res) => {
+    try {
+        let data, filename;
+        if (Array.isArray(req.body)) {
+            data = req.body;
+            filename = null;
+        } else if (req.body && typeof req.body.data !== 'undefined' && req.body.filename) {
+            data = req.body.data;
+            filename = req.body.filename.replace(/\.json$/i, '') + '.json';
+        } else {
+            return res.status(400).json({ error: 'Oczekiwana tablica pytań lub { filename, data }' });
+        }
+        if (!Array.isArray(data)) {
+            return res.status(400).json({ error: 'Oczekiwana tablica pytań' });
+        }
+        const valid = data.filter(q => q && (q.question || '').trim());
+        if (filename) {
+            const filePath = path.join(familiadaDir, filename);
+            if (!fs.existsSync(familiadaDir)) fs.mkdirSync(familiadaDir, { recursive: true });
+            fs.writeFileSync(filePath, JSON.stringify(valid, null, 2), 'utf8');
+        }
+        const dir = path.dirname(familiadaDataPath);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(familiadaDataPath, JSON.stringify(valid, null, 2), 'utf8');
+        familiadaQuestions = valid;
+        io.to('familiada').emit('familiada_data_updated', valid);
+        res.json({ success: true, count: valid.length });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/familiada/file/:filename', (req, res) => {
+    try {
+        const name = decodeURIComponent(req.params.filename || '');
+        if (!name || name.includes('..') || name.includes('/') || !name.toLowerCase().endsWith('.json')) {
+            return res.status(400).json({ error: 'Nieprawidłowa nazwa pliku' });
+        }
+        const filePath = path.join(familiadaDir, name);
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ error: 'Plik nie istnieje' });
+        }
+        fs.unlinkSync(filePath);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/familiada/golden', (req, res) => {
+    try {
+        loadFamiliadaGoldenData();
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.json(familiadaGoldenQuestions);
+    } catch (err) {
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/familiada/golden', (req, res) => {
+    try {
+        const data = req.body;
+        if (!Array.isArray(data)) {
+            return res.status(400).json({ error: 'Oczekiwana tablica pytań' });
+        }
+        const valid = data.slice(0, 10).filter(q => q && (q.question || '').trim());
+        familiadaGoldenQuestions = valid;
+        if (!fs.existsSync(familiadaDir)) fs.mkdirSync(familiadaDir, { recursive: true });
+        fs.writeFileSync(familiadaGoldenPath, JSON.stringify(familiadaGoldenQuestions, null, 2), 'utf8');
+        io.to('familiada').emit('familiada_golden_updated', familiadaGoldenQuestions);
+        res.json({ success: true, count: familiadaGoldenQuestions.length });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Sprawdź aktualizacje (tylko w aplikacji Electron – in-process)
 app.post('/api/check-updates', async (req, res) => {
     const fn = typeof global.imprezjaCheckForUpdates === 'function' ? global.imprezjaCheckForUpdates : null;
     if (!fn) {
-        return res.json({ available: false, message: 'Sprawdzanie aktualizacji dostępne tylko w aplikacji desktop.' });
+        return res.json({ available: false, message: 'Sprawdzanie aktualizacji działa tylko w aplikacji desktop (uruchom z launchera).' });
     }
     try {
         const result = await fn();
@@ -253,12 +510,156 @@ app.get('/vote.html', (req, res) => {
 // /uploads: najpierw katalog danych (zapis użytkownika), potem fallback na pliki z aplikacji (asar) – żeby w DMG/setup były dźwięki i grafika z pytań
 app.use('/uploads', express.static(uploadsDir));
 app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
+app.use('/fonts/pixelify-sans', express.static(path.join(__dirname, 'node_modules', '@fontsource', 'pixelify-sans')));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Obsługa favicon.ico (aby uniknąć błędów 404)
 app.get('/favicon.ico', (req, res) => {
     res.status(204).end(); // No Content - pusty favicon
 });
+
+// === API: aktualna sieć WiFi (tylko nazwa – hasła nie da się pobrać) ===
+app.get('/api/current-wifi-ssid', (req, res) => {
+    let ssid = null;
+    try {
+        const { execSync } = require('child_process');
+        const isWin = process.platform === 'win32';
+        if (isWin) {
+            const out = execSync('netsh wlan show interfaces', { encoding: 'utf8', timeout: 3000 });
+            const m = out.match(/SSID\s*:\s*(.+)/);
+            if (m) ssid = m[1].trim();
+        } else {
+            for (const iface of ['en0', 'en1', 'wlan0']) {
+                try {
+                    const out = execSync(`networksetup -getairportnetwork ${iface}`, { encoding: 'utf8', timeout: 2000 });
+                    const m = out.match(/Current Wi-Fi Network:\s*(.+)/);
+                    if (m && m[1].trim()) {
+                        ssid = m[1].trim();
+                        break;
+                    }
+                } catch (_) {}
+            }
+            if (!ssid) {
+                try {
+                    const out = execSync('iwgetid -r', { encoding: 'utf8', timeout: 2000 });
+                    if (out && out.trim()) ssid = out.trim();
+                } catch (_) {}
+            }
+        }
+    } catch (err) {
+        console.warn('⚠️ Nie można pobrać SSID:', err.message);
+    }
+    res.json({ ssid: ssid || null });
+});
+
+// === QR 2.0: Strona /join – maksymalny komfort: wyświetl na TV, skanuj telefonem ===
+app.get('/join', async (req, res) => {
+    const ssid = (req.query.ssid || '').trim();
+    const pass = (req.query.pass || req.query.password || '').trim();
+    const baseUrl = `${req.protocol}://${req.get('host')}`.replace(/\/$/, '');
+    const localGameUrl = `http://${IP}:${PORT}/vote.html`;
+    const tunnelOrigin = currentPinggyUrl ? (normalizePinggyUrl(currentPinggyUrl) || currentPinggyUrl.replace(/\/$/, '')) : null;
+    const tunnelGameUrl = tunnelOrigin ? `${tunnelOrigin}/vote.html` : null;
+    const hasTunnel = !!tunnelGameUrl;
+    const gameQRUrl = hasTunnel ? tunnelGameUrl : localGameUrl;
+    let wifiQRDataUrl = '';
+    if (ssid) {
+        const wifiData = await generateWiFiQR(ssid, pass || null, 'WPA2');
+        if (wifiData && wifiData.qrCode) wifiQRDataUrl = wifiData.qrCode;
+    }
+    const gameQRDataUrl = await (async () => {
+        try {
+            return await QRCode.toDataURL(gameQRUrl, { width: 220, margin: 2 });
+        } catch (_) { return ''; }
+    })();
+    const wifiSectionHtml = ssid ? `
+        <p style="margin-bottom: 16px; font-weight: 600;">Wyświetl tę stronę na ekranie TV – gracze skanują telefonem:</p>
+        <div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; margin-bottom: 16px;">
+            ${wifiQRDataUrl ? `<div><p style="font-size: 0.85rem; margin-bottom: 6px;">1. WiFi</p><img src="${wifiQRDataUrl}" alt="QR WiFi" style="width: 140px; height: 140px; background: #fff; padding: 6px; border-radius: 8px;"></div>` : ''}
+            ${gameQRDataUrl ? `<div><p style="font-size: 0.85rem; margin-bottom: 6px;">${wifiQRDataUrl ? '2. Gra' : 'Wejdź'}</p><img src="${gameQRDataUrl}" alt="QR Gra" style="width: 140px; height: 140px; background: #fff; padding: 6px; border-radius: 8px;"></div>` : ''}
+        </div>
+        <p style="font-size: 0.8rem; color: rgba(255,255,255,0.7); margin-bottom: 12px;">Na telefonie? Skopiuj dane WiFi:</p>
+        <button type="button" class="btn btn-wifi" id="btn-connect">📋 Skopiuj sieć i hasło</button>
+    ` : (gameQRDataUrl ? `
+        <p style="margin-bottom: 12px;">Zeskanuj i wejdź do gry:</p>
+        <img src="${gameQRDataUrl}" alt="QR Gra" style="width: 180px; height: 180px; background: #fff; padding: 8px; border-radius: 8px;">
+    ` : '');
+    const html = `<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dołącz do gry – Imprezja Quiz</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #0d0d1a 100%); min-height: 100vh; color: #fff; padding: 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .card { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 16px; padding: 28px; max-width: 360px; width: 100%; text-align: center; }
+        h1 { font-size: 1.4rem; margin-bottom: 24px; color: #f1c40f; }
+        .btn { display: block; width: 100%; margin: 12px 0; padding: 16px 24px; font-weight: 700; font-size: 1rem; text-decoration: none; border-radius: 10px; border: none; cursor: pointer; transition: transform 0.2s; text-align: center; }
+        .btn:active { transform: scale(0.98); }
+        .btn-wifi { background: linear-gradient(135deg, #3498db, #2980b9); color: #fff; }
+        .btn-game { background: linear-gradient(135deg, #f1c40f, #e67e22); color: #000; }
+        .btn-lte { background: linear-gradient(135deg, #9b59b6, #8e44ad); color: #fff; }
+        .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: rgba(46,204,113,0.95); color: #000; padding: 12px 20px; border-radius: 8px; font-weight: 600; font-size: 0.9rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+        .toast.show { opacity: 1; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🎮 Imprezja Quiz</h1>
+        ${wifiSectionHtml}
+        <div style="margin-top: 24px; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 20px;">
+            <p style="font-size: 0.85rem; margin-bottom: 12px; color: rgba(255,255,255,0.8);">Jesteś na telefonie? Kliknij:</p>
+            ${hasTunnel ? `
+            <a href="${escapeHtml(tunnelGameUrl)}" class="btn btn-lte">Wejdź do gry (LTE) – od razu</a>
+            <a href="${escapeHtml(localGameUrl)}" class="btn btn-game">Wejdź do gry (WiFi)</a>
+            <p style="font-size: 0.75rem; color: rgba(255,255,255,0.5); margin-top: 8px;">LTE = bez WiFi, WiFi = gdy jesteś w sieci</p>
+            ` : `
+            <a href="${escapeHtml(localGameUrl)}" class="btn btn-game">Wejdź do gry</a>
+            `}
+        </div>
+    </div>
+    <div class="toast" id="toast">Skopiowano!</div>
+    ${ssid ? `
+    <script>
+        (function(){
+            var ssid = ${JSON.stringify(ssid)};
+            var pass = ${JSON.stringify(pass)};
+            var text = pass ? ssid + '\\n' + pass : ssid;
+            var btn = document.getElementById('btn-connect');
+            if (btn) btn.onclick = function(){
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text).then(function(){
+                        var t = document.getElementById('toast');
+                        t.textContent = 'Skopiowano – połącz się w WiFi';
+                        t.classList.add('show');
+                        setTimeout(function(){ t.classList.remove('show'); }, 2500);
+                    });
+                } else {
+                    var ta = document.createElement('textarea');
+                    ta.value = text;
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                    var t = document.getElementById('toast');
+                    t.textContent = 'Skopiowano – połącz się w WiFi';
+                    t.classList.add('show');
+                    setTimeout(function(){ t.classList.remove('show'); }, 2500);
+                }
+            };
+        })();
+    </script>
+    ` : ''}
+</body>
+</html>`;
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+});
+function escapeHtml(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 
 // Cache dla hash plików (hash -> nazwa pliku)
 const fileHashCache = new Map();
@@ -604,6 +1005,85 @@ app.post('/import-url', async (req, res) => {
     });
 });
 
+// --- EKSPORT / IMPORT PAKIETU (quiz + powiązane pliki) ---
+function extractFilePathsFromPayload(payload) {
+    const paths = new Set();
+    function add(pathOrUrl) {
+        if (!pathOrUrl) return;
+        const m = String(pathOrUrl).match(/\/uploads\/([^\/]+)$/);
+        if (m) paths.add(m[1]);
+    }
+    const qList = Array.isArray(payload) ? payload : (payload.questions || []);
+    qList.forEach(q => {
+        add(q.media); add(q.image); add(q.imageSmall); add(q.audio);
+        add(q.imageA); add(q.imageB); add(q.imageSmallA); add(q.imageSmallB);
+    });
+    if (payload.thanksScreen && payload.thanksScreen.image) {
+        add(payload.thanksScreen.image);
+    }
+    return Array.from(paths);
+}
+
+app.post('/api/editor/export-package', async (req, res) => {
+    try {
+        const archiver = require('archiver');
+        const payload = req.body;
+        if (!payload || !(payload.questions || Array.isArray(payload))) {
+            return res.status(400).json({ error: 'Brak danych quizu' });
+        }
+        const filePaths = extractFilePathsFromPayload(payload);
+        const archive = archiver('zip', { zlib: { level: 6 } });
+        const qList = Array.isArray(payload) ? payload : (payload.questions || []);
+        const firstQ = qList[0];
+        const baseName = (firstQ && firstQ.question) ? 
+            (String(firstQ.question).substring(0, 30).replace(/[^a-zA-Z0-9-_]/g, '_') + '-pakiet.zip') : 'quiz-pakiet.zip';
+        res.attachment(baseName);
+        res.setHeader('Content-Type', 'application/zip');
+        archive.pipe(res);
+        archive.append(JSON.stringify(payload, null, 2), { name: 'quiz.json' });
+        for (const f of filePaths) {
+            const fullPath = path.join(uploadsDir, f);
+            if (fs.existsSync(fullPath)) {
+                archive.file(fullPath, { name: `uploads/${f}` });
+            }
+        }
+        await archive.finalize();
+    } catch (err) {
+        console.error('❌ Błąd eksportu pakietu:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+const uploadZip = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
+app.post('/api/editor/import-package', uploadZip.single('file'), async (req, res) => {
+    try {
+        const AdmZip = require('adm-zip');
+        if (!req.file || !req.file.buffer) {
+            return res.status(400).json({ error: 'Brak pliku ZIP' });
+        }
+        const zip = new AdmZip(req.file.buffer);
+        const entries = zip.getEntries();
+        const quizEntry = entries.find(e => e.entryName === 'quiz.json' || e.entryName.endsWith('/quiz.json'));
+        if (!quizEntry) {
+            return res.status(400).json({ error: 'Brak quiz.json w archiwum' });
+        }
+        const payload = JSON.parse(quizEntry.getData().toString('utf8'));
+        for (const e of entries) {
+            if (e.isDirectory) continue;
+            const idx = e.entryName.indexOf('uploads/');
+            if (idx === -1) continue;
+            const relPath = e.entryName.slice(idx + 8);
+            const destPath = path.join(uploadsDir, relPath);
+            fs.mkdirSync(path.dirname(destPath), { recursive: true });
+            fs.writeFileSync(destPath, e.getData());
+        }
+        res.json({ success: true, data: payload });
+    } catch (err) {
+        console.error('❌ Błąd importu pakietu:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Stan gry
 let gameState = {
     type: 'IDLE',
@@ -623,6 +1103,7 @@ let gameState = {
     quizOptions: { disableTimePoints: false }, // Opcje quizu
     teamBattleMode: false,
     showQROnPhones: false,
+    sendImagesToPhones: true,  // false = nie ładuj obrazków na telefonach (zalecane przy wielu graczach)
     teams: {
         A: { name: "", score: 0 },
         B: { name: "", score: 0 }
@@ -1110,10 +1591,23 @@ function calculatePoints(question, answerIndex, responseTime) {
         return { points: basePoints + bonusPoints, isCorrect: true };
     }
     
-    // VOTE / VOTE_IMG – 100 pkt za udział (lub w speedrun kolejka według czasu)
+    // VOTE / VOTE_IMG – jeśli jest wskazana poprawna odpowiedź: punkty tylko za nią (z bonusem za czas)
     if (questionType === 'VOTE' || questionType === 'VOTE_IMG') {
         if (question.speedrun) return { points: 0, isCorrect: true };
-        return { points: 100, isCorrect: true };
+        const hasCorrect = correctAnswers !== undefined && correctAnswers !== null && correctAnswers !== -1 &&
+            (Array.isArray(correctAnswers) ? correctAnswers.length > 0 : true);
+        if (!hasCorrect) {
+            return { points: 100, isCorrect: true }; // Bez poprawnej: 100 pkt za udział
+        }
+        if (!isCorrect) return { points: 0, isCorrect: false };
+        const basePoints = 100;
+        let bonusPoints = 0;
+        if (!gameState.quizOptions.disableTimePoints) {
+            const maxTime = question.time || 30;
+            const timeBonus = Math.max(0, maxTime - responseTime);
+            bonusPoints = Math.floor(timeBonus * 10);
+        }
+        return { points: basePoints + bonusPoints, isCorrect: true };
     }
     
     // QUIZ / MUSIC
@@ -1304,7 +1798,27 @@ function sendPlayerScore(socket, player) {
     }
 }
 
+// Throttle broadcast – przy 10+ telefonach wiele odpowiedzi w krótkim czasie powodowało przeciążenie sieci
+let broadcastTimer = null;
+const BROADCAST_DEBOUNCE_MS = parseInt(process.env.IMPREZJA_BROADCAST_DEBOUNCE_MS, 10) || 120;
+
 function broadcastState() {
+    if (gameMode === 'familiada') return;
+    // Admin ma priorytet – dostaje update od razu (bez throttle), żeby panel się nie zawieszał
+    io.to(ADMIN_ROOM).emit('update_state', getStateForBroadcast());
+    if (broadcastTimer) clearTimeout(broadcastTimer);
+    broadcastTimer = setTimeout(() => {
+        broadcastTimer = null;
+        io.except(ADMIN_ROOM).emit('update_state', getStateForBroadcast());
+    }, BROADCAST_DEBOUNCE_MS);
+}
+
+function broadcastStateImmediate() {
+    if (gameMode === 'familiada') return;
+    if (broadcastTimer) {
+        clearTimeout(broadcastTimer);
+        broadcastTimer = null;
+    }
     io.emit('update_state', getStateForBroadcast());
 }
 
@@ -1397,6 +1911,166 @@ function resetOrphanedGameState() {
 
 io.on('connection', (socket) => {
     resetOrphanedGameState();
+
+    // === FAMILIADA ===
+    socket.on('register_familiada', (data) => {
+        socket.familiadaRole = (data && data.role) || null;
+        socket.join('familiada');
+        if (socket.familiadaRole === 'admin') {
+            socket.emit('init_admin', familiadaQuestions);
+            socket.emit('familiada_golden_list', familiadaGoldenQuestions);
+        }
+        socket.emit('update_scores', { t1: familiadaTeam1Score, t2: familiadaTeam2Score, roundAwarded: familiadaRoundAwardedTo !== null, team1: familiadaTeam1Name, team2: familiadaTeam2Name });
+        socket.emit('familiada_team_names', { team1: familiadaTeam1Name, team2: familiadaTeam2Name });
+        io.to('familiada').emit('familiada_request_intro_state');
+    });
+    socket.on('familiada_set_mode', () => {
+        gameMode = 'familiada';
+        socket.join('familiada');
+        familiadaTeam1Score = 0;
+        familiadaTeam2Score = 0;
+        familiadaRoundAwardedTo = null;
+        io.to('familiada').emit('update_scores', { t1: 0, t2: 0, roundAwarded: false, team1: familiadaTeam1Name, team2: familiadaTeam2Name });
+        socket.emit('familiada_team_names', { team1: familiadaTeam1Name, team2: familiadaTeam2Name });
+    });
+    socket.on('familiada_set_team_names', (data) => {
+        if (socket.familiadaRole !== 'admin') return;
+        if (data.team1 && data.team1.trim()) familiadaTeam1Name = data.team1.trim();
+        if (data.team2 && data.team2.trim()) familiadaTeam2Name = data.team2.trim();
+        const payload = { team1: familiadaTeam1Name, team2: familiadaTeam2Name };
+        io.to('familiada').emit('familiada_team_names', payload);
+        io.emit('familiada_team_names', payload);
+        io.to('familiada').emit('board_update', { type: 'TEAM_NAMES', ...payload });
+    });
+    socket.on('familiada_request_team_names', () => {
+        socket.emit('familiada_team_names', { team1: familiadaTeam1Name, team2: familiadaTeam2Name });
+    });
+    socket.on('familiada_request_qr_admin', async () => {
+        const adminUrl = `http://${IP}:${PORT}/familiada/admin.html`;
+        const buttonsUrl = `http://${IP}:${PORT}/familiada/buttons.html`;
+        try {
+            const [adminQr, buttonsQr] = await Promise.all([
+                QRCode.toDataURL(adminUrl, { width: 220, margin: 2 }),
+                QRCode.toDataURL(buttonsUrl, { width: 220, margin: 2 })
+            ]);
+            socket.emit('familiada_qr_admin', { qrCode: adminQr, url: adminUrl });
+            socket.emit('familiada_qr_buttons', { qrCode: buttonsQr, url: buttonsUrl });
+        } catch (err) {
+            socket.emit('familiada_qr_admin', { url: adminUrl });
+            socket.emit('familiada_qr_buttons', { url: buttonsUrl });
+        }
+    });
+    socket.on('set_game_mode', (mode) => {
+        if (mode === 'quiz') gameMode = 'quiz';
+    });
+
+    socket.on('select_question', (index) => {
+        if (socket.familiadaRole !== 'admin') return;
+        if (familiadaQuestions[index]) {
+            familiadaRoundAwardedTo = null;
+            familiadaQuestionActive = true;
+            familiadaButtonUsedThisRound = false;
+            io.to('familiada').emit('board_update', { type: 'NEW_ROUND', data: familiadaQuestions[index], team1: familiadaTeam1Name, team2: familiadaTeam2Name });
+        }
+    });
+    socket.on('select_golden_question', (index) => {
+        if (socket.familiadaRole !== 'admin') return;
+        if (familiadaGoldenQuestions[index]) {
+            familiadaRoundAwardedTo = null;
+            familiadaQuestionActive = true;
+            familiadaButtonUsedThisRound = false;
+            io.to('familiada').emit('board_update', { type: 'NEW_ROUND', data: familiadaGoldenQuestions[index], team1: familiadaTeam1Name, team2: familiadaTeam2Name });
+        }
+    });
+    socket.on('familiada_button_press', (data) => {
+        if (!familiadaQuestionActive || familiadaButtonUsedThisRound) return;
+        const team = data && (data.team === 1 || data.team === 2) ? data.team : null;
+        if (!team) return;
+        familiadaButtonUsedThisRound = true;
+        io.to('familiada').emit('familiada_button_flash', { team });
+    });
+    socket.on('reveal_answer', (index) => {
+        if (socket.familiadaRole !== 'admin') return;
+        io.to('familiada').emit('board_update', { type: 'REVEAL', index: index, team1: familiadaTeam1Name, team2: familiadaTeam2Name });
+    });
+    socket.on('send_error', (data) => {
+        if (socket.familiadaRole !== 'admin') return;
+        io.to('familiada').emit('board_update', { type: 'ERROR', team: data.team, count: data.count, team1: familiadaTeam1Name, team2: familiadaTeam2Name });
+    });
+    socket.on('add_points', (data) => {
+        if (socket.familiadaRole !== 'admin') return;
+        const team = data.team;
+        const points = Number(data.points) || 0;
+        if (points <= 0) return;
+        if (familiadaRoundAwardedTo === null) {
+            // Pierwsze przyznanie – tylko wybrana drużyna dostaje punkty
+            if (team === 1) familiadaTeam1Score += points;
+            else if (team === 2) familiadaTeam2Score += points;
+            familiadaRoundAwardedTo = team;
+            if (data.playSound) io.to('familiada').emit('play_sound_event', 'win_round');
+        } else if (familiadaRoundAwardedTo === team) {
+            // Cofnięcie – ta sama drużyna, odejmujemy punkty
+            if (team === 1) familiadaTeam1Score -= points;
+            else if (team === 2) familiadaTeam2Score -= points;
+            familiadaRoundAwardedTo = null;
+            io.to('familiada').emit('update_scores', { t1: familiadaTeam1Score, t2: familiadaTeam2Score, roundAwarded: false, team1: familiadaTeam1Name, team2: familiadaTeam2Name });
+            return;
+        } else {
+            // Przeniesienie – druga drużyna: odejmujemy od obecnej, dodajemy do nowej
+            if (familiadaRoundAwardedTo === 1) familiadaTeam1Score -= points;
+            else if (familiadaRoundAwardedTo === 2) familiadaTeam2Score -= points;
+            if (team === 1) familiadaTeam1Score += points;
+            else if (team === 2) familiadaTeam2Score += points;
+            familiadaRoundAwardedTo = team;
+            if (data.playSound) io.to('familiada').emit('play_sound_event', 'win_round');
+        }
+        familiadaTeam1Score = Math.max(0, familiadaTeam1Score);
+        familiadaTeam2Score = Math.max(0, familiadaTeam2Score);
+        io.to('familiada').emit('update_scores', { t1: familiadaTeam1Score, t2: familiadaTeam2Score, roundAwarded: true, team1: familiadaTeam1Name, team2: familiadaTeam2Name });
+    });
+    socket.on('play_sound', (soundName) => {
+        if (socket.familiadaRole !== 'admin') return;
+        io.to('familiada').emit('play_sound_event', soundName);
+    });
+    socket.on('familiada_intro_state', (playing) => {
+        io.to('familiada').emit('familiada_intro_state', playing);
+    });
+    socket.on('show_final', () => {
+        if (socket.familiadaRole !== 'admin') return;
+        familiadaQuestionActive = false;
+        io.to('familiada').emit('board_update', { type: 'SHOW_FINAL', scores: { t1: familiadaTeam1Score, t2: familiadaTeam2Score, team1: familiadaTeam1Name, team2: familiadaTeam2Name } });
+    });
+    socket.on('reset_game', () => {
+        if (socket.familiadaRole !== 'admin') return;
+        familiadaTeam1Score = 0;
+        familiadaTeam2Score = 0;
+        familiadaRoundAwardedTo = null;
+        familiadaQuestionActive = false;
+        familiadaButtonUsedThisRound = false;
+        io.to('familiada').emit('update_scores', { t1: 0, t2: 0, roundAwarded: false, team1: familiadaTeam1Name, team2: familiadaTeam2Name });
+        io.to('familiada').emit('board_update', { type: 'FULL_RESET', team1: familiadaTeam1Name, team2: familiadaTeam2Name });
+    });
+    socket.on('familiada_get_files', () => {
+        socket.emit('familiada_files_list', getFamiliadaFiles());
+    });
+    socket.on('familiada_load_file', (filename) => {
+        if (socket.familiadaRole !== 'admin') return;
+        const filePath = resolveFamiliadaFilePath(filename);
+        if (!filePath) return socket.emit('familiada_load_error', 'Plik nie istnieje');
+        try {
+            const raw = fs.readFileSync(filePath, 'utf8');
+            const data = JSON.parse(raw);
+            const questions = Array.isArray(data) ? data : [];
+            familiadaQuestions = questions;
+            const dir = path.dirname(familiadaDataPath);
+            if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+            fs.writeFileSync(familiadaDataPath, JSON.stringify(questions, null, 2), 'utf8');
+            io.to('familiada').emit('familiada_data_updated', questions);
+            socket.emit('familiada_load_ok', { count: questions.length });
+        } catch (err) {
+            socket.emit('familiada_load_error', err.message || 'Błąd ładowania');
+        }
+    });
     // QR tunel (tylko gdy otwarty) – osobny box na ekranie
     if (currentPinggyUrl) {
         generateGameQR().then((data) => {
@@ -1648,6 +2322,8 @@ io.on('connection', (socket) => {
         console.log('🌐 Tunel Pinggy (ręczny URL):', currentPinggyUrl ? currentPinggyUrl : '(wyłączony)');
         const data = await generateGameQR();
         if (data) io.emit('qr_code', data.qrCode);
+        // Regeneruj QR 2.0 – baseUrl się zmienił (tunel włączony/wyłączony)
+        io.emit('update_state', getStateForBroadcast());
         socket.emit('pinggy_url_set', { tunnelUrl: currentPinggyUrl });
     });
 
@@ -1662,6 +2338,7 @@ io.on('connection', (socket) => {
     // === ADMIN ===
 
     socket.on('admin_login', (data) => {
+        socket.join(ADMIN_ROOM); // Priorytet – admin dostaje update_state od razu, bez throttle
         const fromComputer = data && data.isComputer === true;
         // Gdy admin wchodzi z komputera – nie chowaj QR (można sterować z komputera i z telefonu)
         if (!fromComputer && !adminHasBeenOpened) {
@@ -1822,7 +2499,7 @@ io.on('connection', (socket) => {
             }
         }
         
-        broadcastState();
+        broadcastStateImmediate(); // Admin musi od razu zobaczyć panel pytania
         const questionTime = question.time || (question.type === 'LETTER' ? 45 : 30);
         console.log(`❓ Pytanie ${index + 1}: ${question.question} (czas: ${questionTime}s${question.type === 'LETTER' ? ', oczekiwanie na wysłanie liter' : ''})`);
     });
@@ -1849,8 +2526,8 @@ io.on('connection', (socket) => {
         const finalLetterCount = (letterCount === 1 || letterCount === 2) ? letterCount : (gameState.letterGame.letterCount || 1);
         gameState.letterGame.letterCount = finalLetterCount;
         // Tylko litery bez diakrytyków – skrypt NIE wysyła ś, ć, ń, ó, ą, ę, ź, ż, ł (ani wielkich) przy „Wyślij 1/2 litery”
-        // Bez Q, X, Y (mało słów w polskim). Gracze mogą wpisywać wyrazy z V i znakami polskimi – blokada tylko przy wylosowanej literze.
-        const availableLetters = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','r','s','t','u','v','w','z'];
+        // Bez Q, V, X, Y (mało słów w polskim). Gracze mogą wpisywać wyrazy z polskimi znakami – blokada tylko przy wylosowanej literze.
+        const availableLetters = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','r','s','t','u','w','z'];
         const playerLetters = {};
         
         // Losuj litery dla każdego gracza
@@ -1884,7 +2561,7 @@ io.on('connection', (socket) => {
             }, questionTime * 1000);
         }
         
-        broadcastState();
+        broadcastStateImmediate(); // Admin musi od razu zobaczyć aktualizację
         const lg = gameState.letterGame;
         console.log(`🔤 [LETTER] Gra z literami rozpoczęta: questionId=${question.id}, letterCount=${finalLetterCount}, gameStarted=${!!lg?.gameStarted}, playerLettersCount=${lg?.playerLetters ? Object.keys(lg.playerLetters).length : 0}, czas=${questionTime}s`);
     });
@@ -1907,7 +2584,7 @@ io.on('connection', (socket) => {
         gameState.showCorrect = false;
         // NIE zmieniaj type na GAME_STATS - pozostaw GAME aby można było rozpocząć następną rundę
         console.log('📊 admin_show_ships_stats - ustawiono showStats=true');
-        broadcastState();
+        broadcastStateImmediate();
     });
 
     socket.on('admin_show_ships_answer', () => {
@@ -1915,7 +2592,7 @@ io.on('connection', (socket) => {
         
         gameState.showCorrect = true;
         gameState.showStats = false;
-        broadcastState();
+        broadcastStateImmediate();
     });
 
     socket.on('admin_show_stats', () => {
@@ -1936,7 +2613,7 @@ io.on('connection', (socket) => {
         // Dogrywka będzie uruchomiona dopiero gdy admin kliknie słowo w chmurze
         // Tutaj tylko przygotuj chmurę słów (openCloud) dla wyświetlenia
         
-        broadcastState();
+        broadcastStateImmediate(); // Admin klika „Statystyki"
     });
 
     socket.on('admin_show_correct', () => {
@@ -1951,7 +2628,7 @@ io.on('connection', (socket) => {
         checkEliminationNoAnswer(); // Sprawdź brak odpowiedzi w pytaniach eliminacyjnych
         gameState.showCorrect = true;
         gameState.showStats = false;
-        broadcastState();
+        broadcastStateImmediate(); // Admin klika „Odpowiedź" – natychmiastowa aktualizacja
     });
 
     socket.on('admin_start_playoff', (word) => {
@@ -1963,19 +2640,76 @@ io.on('connection', (socket) => {
         
         const w = (word != null && word !== undefined) ? String(word).trim() : '';
         if (!w) return;
+        const q = gameState.activeQuestion;
+        const qId = q && q.id;
+        const isOpenOrLetter = q && (q.type === 'OPEN' || q.type === 'LETTER');
+        const wLower = w.toLowerCase();
+        const submitters = [];
+        if (isOpenOrLetter && qId) {
+            players.forEach((p, socketId) => {
+                const raw = p.answers[qId];
+                if (raw === undefined || raw === null) return;
+                let words = [];
+                if (Array.isArray(raw)) {
+                    words = raw.map(x => String(x).trim()).filter(x => x);
+                } else {
+                    const t = String(raw).trim();
+                    if (t) words = [t];
+                }
+                const matches = words.some(word => word.toLowerCase() === wLower);
+                if (matches) submitters.push({ socketId, nick: p.nick, points: 100 });
+            });
+        }
         gameState.playoff = {
             active: true,
             word: w,
             question: `Czy ${w} rozkręca imprezę?`,
             options: ['TAK', 'NIE'],
             stats: { A: 0, B: 0 },
-            voted: []
+            voted: [],
+            submitters
         };
         broadcastState();
-        console.log(`🎤 Dogrywka: ${w}`);
+        console.log(`🎤 Dogrywka: ${w}${submitters.length ? ` (${submitters.length} graczy: ${submitters.map(s => s.nick).join(', ')})` : ''}`);
     });
 
     socket.on('admin_end_playoff', () => {
+        const playoff = gameState.playoff;
+        if (playoff && playoff.submitters && playoff.submitters.length > 0) {
+            const total = (playoff.stats.A || 0) + (playoff.stats.B || 0);
+            const takPct = total > 0 ? (playoff.stats.A || 0) / total : 1;
+            if (takPct < 0.51) {
+                const ptsToRemove = 100;
+                playoff.submitters.forEach(({ socketId, nick, points }) => {
+                    const player = players.get(socketId);
+                    if (player) {
+                        const remove = Math.min(points, player.score);
+                        player.score -= remove;
+                        if (player.correctAnswersCount > 0) player.correctAnswersCount--;
+                        if (gameState.teamBattleMode && player.team && gameState.teams[player.team]) {
+                            gameState.teams[player.team].score -= remove * getTeamBalanceMultiplier(player.team);
+                        }
+                        const sock = io.sockets.sockets.get(socketId);
+                        if (sock) sendPlayerScore(sock, player);
+                        console.log(`🎤 Dogrywka: odjęto ${remove} pkt graczowi ${nick} (TAK < 51%)`);
+                    } else {
+                        const pending = pendingDisconnects.get(socketId);
+                        const disc = disconnectedPlayersWithScore.get(nick);
+                        const p = (pending && pending.player) ? pending.player : disc;
+                        if (p) {
+                            const remove = Math.min(points, p.score);
+                            p.score -= remove;
+                            if (p.correctAnswersCount > 0) p.correctAnswersCount--;
+                            if (gameState.teamBattleMode && p.team && gameState.teams[p.team]) {
+                                gameState.teams[p.team].score -= remove * getTeamBalanceMultiplier(p.team);
+                            }
+                            console.log(`🎤 Dogrywka: odjęto ${remove} pkt (rozłączony) ${nick}`);
+                        }
+                    }
+                });
+                io.emit('update_team_scores', gameState.teams);
+            }
+        }
         gameState.playoff = null;
         broadcastState();
     });
@@ -1994,7 +2728,7 @@ io.on('connection', (socket) => {
         gameState.showStats = false;
         gameState.showCorrect = false;
         gameState.leaderboard = calculateLeaderboard();
-        broadcastState();
+        broadcastStateImmediate(); // Admin klika „Ranking"
     });
 
     // === PODIUM (PRZYWRÓCONE) ===
@@ -2040,12 +2774,12 @@ io.on('connection', (socket) => {
         
         gameState.type = 'PODIUM';
         gameState.podiumStep = 0;
-        broadcastState();
+        broadcastStateImmediate(); // Admin klika „Podium" – natychmiastowa aktualizacja
     });
 
     socket.on('admin_podium_step', (step) => {
         gameState.podiumStep = step;
-        broadcastState();
+        broadcastStateImmediate(); // Admin klika krok podium
     });
 
     socket.on('admin_idle', () => {
@@ -2199,6 +2933,12 @@ io.on('connection', (socket) => {
         }
         
         broadcastState();
+    });
+
+    socket.on('admin_toggle_send_images_to_phones', () => {
+        gameState.sendImagesToPhones = !gameState.sendImagesToPhones;
+        console.log(`🖼️ Obrazki na telefonach: ${gameState.sendImagesToPhones ? 'WŁĄCZONE' : 'WYŁĄCZONE'}`);
+        broadcastStateImmediate();
     });
     
     // Gracz prosi o kody QR (po dołączeniu, gdy opcja włączona)
@@ -3083,9 +3823,9 @@ function onServerReady(urlPrefix) {
     }
     console.log('   ═══════════════════════════════════════════════════\n');
     // Otwieraj przeglądarkę tylko gdy uruchamiasz serwer ręcznie (node server.js) – nie w aplikacji Electron
-    if (process.platform === 'darwin' && !process.env.IMPREZJA_ELECTRON) {
+    if (process.platform === 'darwin' && !process.env.IMPREZJA_ELECTRON && !process.env.IMPREZJA_NO_BROWSER) {
         const { exec } = require('child_process');
-        exec(`open "${urlPrefix}/Screen.html"`, () => {});
+        exec(`open "${urlPrefix}/start.html"`, () => {});
     }
 }
 

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, height=device-height, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Familiada – Przyciski</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; overflow: hidden; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+        body { display: flex; flex-direction: column; font-family: sans-serif; }
+        .btn-half {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.15s, filter 0.15s;
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
+            min-height: 50vh;
+        }
+        .btn-half:active { opacity: 1; filter: brightness(1); }
+        #btn-blue {
+            background: linear-gradient(180deg, #0066dd 0%, #0044aa 50%, #003380 100%);
+        }
+        #btn-red {
+            background: linear-gradient(0deg, #dd2244 0%, #aa0022 50%, #880018 100%);
+        }
+        .btn-half.pressed {
+            opacity: 1 !important;
+            filter: brightness(1) !important;
+        }
+        .btn-label {
+            font-size: clamp(1.5rem, 6vw, 3rem);
+            font-weight: bold;
+            color: rgba(255,255,255,0.9);
+            text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            pointer-events: none;
+        }
+        #flash-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 100; pointer-events: none; opacity: 0;
+            transition: opacity 0.3s ease-out;
+        }
+        #flash-overlay.visible { opacity: 1; }
+        #flash-overlay.fade-out { transition: opacity 3s ease-out; opacity: 0; }
+        .btn-half.disabled { pointer-events: none; opacity: 0.5; }
+        #fs-btn {
+            position: fixed; top: 12px; right: 12px; z-index: 200;
+            background: rgba(0,0,0,0.6); color: #fff; border: 1px solid #777;
+            padding: 10px 16px; border-radius: 8px; font-size: 14px;
+            cursor: pointer; font-family: sans-serif;
+        }
+        #fs-btn:hover { background: rgba(0,0,0,0.8); }
+    </style>
+</head>
+<body>
+    <button id="fs-btn" type="button">⛶ Pełny ekran</button>
+    <div id="flash-overlay"></div>
+    <div class="btn-half" id="btn-blue" data-team="1">
+        <span class="btn-label">NIEBIESCY</span>
+    </div>
+    <div class="btn-half" id="btn-red" data-team="2">
+        <span class="btn-label">CZERWONI</span>
+    </div>
+
+    <script>
+        const socket = io();
+        const btnBlue = document.getElementById('btn-blue');
+        const btnRed = document.getElementById('btn-red');
+        const flashOverlay = document.getElementById('flash-overlay');
+
+        socket.emit('register_familiada', { role: 'buttons' });
+
+        let buttonsEnabled = false;
+
+        function setButtonsEnabled(enabled) {
+            buttonsEnabled = enabled;
+            btnBlue.classList.toggle('disabled', !enabled);
+            btnRed.classList.toggle('disabled', !enabled);
+        }
+
+        function showFlash(team) {
+            flashOverlay.style.background = team === 1
+                ? 'linear-gradient(180deg, #0044aa 0%, #003380 50%, #002255 100%)'
+                : 'linear-gradient(0deg, #aa0022 0%, #800018 50%, #550010 100%)';
+            flashOverlay.classList.remove('fade-out');
+            flashOverlay.style.transition = 'none';
+            flashOverlay.style.opacity = '1';
+            flashOverlay.classList.add('visible');
+            setTimeout(() => {
+                flashOverlay.classList.add('fade-out');
+                flashOverlay.style.opacity = '0';
+                setTimeout(() => {
+                    flashOverlay.classList.remove('visible', 'fade-out');
+                }, 3000);
+            }, 5000);
+        }
+
+        function sendPress(team) {
+            if (!buttonsEnabled) return;
+            socket.emit('familiada_button_press', { team: team });
+            setButtonsEnabled(false);
+            const btn = team === 1 ? btnBlue : btnRed;
+            btn.classList.add('pressed');
+            setTimeout(() => btn.classList.remove('pressed'), 300);
+        }
+
+        socket.on('familiada_button_flash', (data) => {
+            setButtonsEnabled(false);
+            showFlash(data.team);
+        });
+
+        socket.on('board_update', (msg) => {
+            if (msg.type === 'NEW_ROUND') setButtonsEnabled(true);
+            if (msg.type === 'SHOW_FINAL' || msg.type === 'FULL_RESET') setButtonsEnabled(false);
+        });
+
+        btnBlue.addEventListener('click', () => sendPress(1));
+        btnBlue.addEventListener('touchend', (e) => { e.preventDefault(); sendPress(1); });
+        btnRed.addEventListener('click', () => sendPress(2));
+        btnRed.addEventListener('touchend', (e) => { e.preventDefault(); sendPress(2); });
+
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+                document.getElementById('fs-btn').textContent = '✕ Wyjdź';
+            } else {
+                document.exitFullscreen();
+                document.getElementById('fs-btn').textContent = '⛶ Pełny ekran';
+            }
+        }
+        document.getElementById('fs-btn').addEventListener('click', toggleFullScreen);
+    </script>
+</body>
+</html>

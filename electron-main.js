@@ -211,6 +211,12 @@ function setupAutoUpdater() {
     }
     try {
         const { autoUpdater } = require('electron-updater');
+        // Wymuszamy GitHub jako źródło aktualizacji (nadpisuje ewentualną starą konfigurację generic/nowajakoscrozrywki)
+        autoUpdater.setFeedURL({
+            provider: 'github',
+            owner: 'djdamsza',
+            repo: 'Imprezja-Quiz-1.0.2-beta'
+        });
         autoUpdater.autoDownload = false;
         autoUpdater.allowDowngrade = false;
         autoUpdater.logger = {
@@ -218,13 +224,23 @@ function setupAutoUpdater() {
             warn: (msg) => logToFile('[updater] ' + msg),
             error: (msg) => logToFile('[updater] ' + msg)
         };
+        const MANUAL_DOWNLOAD_URL = 'https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/latest';
         global.imprezjaCheckForUpdates = async () => {
-            const result = await autoUpdater.checkForUpdates();
-            if (!result || !result.updateInfo) {
-                return { available: false, message: 'Masz najnowszą wersję.' };
+            try {
+                const result = await autoUpdater.checkForUpdates();
+                if (!result || !result.updateInfo) {
+                    return { available: false, message: 'Masz najnowszą wersję.' };
+                }
+                const version = result.updateInfo.version;
+                return { available: true, version, message: `Dostępna wersja ${version}` };
+            } catch (err) {
+                const msg = err && err.message ? err.message : String(err);
+                return {
+                    available: false,
+                    error: `Nie można sprawdzić aktualizacji. Pobierz najnowszą wersję ręcznie: ${MANUAL_DOWNLOAD_URL}`,
+                    manualUrl: MANUAL_DOWNLOAD_URL
+                };
             }
-            const version = result.updateInfo.version;
-            return { available: true, version, message: `Dostępna wersja ${version}` };
         };
         logToFile('✅ AutoUpdater skonfigurowany');
     } catch (err) {
@@ -277,8 +293,8 @@ function isServerReady() {
 }
 
 function waitForServer(maxWaitMs = 60000) {
-    const step = 400;
-    const initialDelay = 1500; // pierwsze sprawdzenie po 1,5 s – daj czas procesowi na start (require, listen)
+    const step = 300;
+    const initialDelay = 800; // pierwsze sprawdzenie po 0,8 s – serwer może startować wolno (licencja, sieć)
     return new Promise((resolve, reject) => {
         let elapsed = 0;
         const tick = async () => {
@@ -304,12 +320,14 @@ function startServer() {
 
         const userDataDir = app && typeof app.getPath === 'function' ? app.getPath('userData') : '';
         if (userDataDir) process.env.IMPREZJA_DATA_DIR = userDataDir;
-        process.env.IMPREZJA_ELECTRON = '1';
+        process.env.IMPREZJA_APP_PATH = APP_ROOT;
         logToFile('🔧 IMPREZJA_DATA_DIR: ' + (userDataDir || '(nie ustawiony)'));
+        logToFile('🔧 IMPREZJA_APP_PATH: ' + APP_ROOT);
 
         // W spakowanej aplikacji (DMG, setup.exe) uruchamiamy serwer w tym samym procesie – bez spawn.
         // Na macOS spawn drugiego procesu (nawet Electron jako node) powodował dialog z prośbą o hasło.
         if (app.isPackaged) {
+            process.env.IMPREZJA_ELECTRON = '1';
             try {
                 const serverModule = require(serverPath);
                 if (typeof serverModule.startServer === 'function') {
@@ -339,8 +357,12 @@ function startServer() {
         const isAsar = APP_ROOT && APP_ROOT.endsWith('.asar');
         const scriptArg = isAsar ? serverPath : (process.platform === 'win32' ? 'server.js' : serverPath);
         const spawnCwd = isAsar && process.resourcesPath ? process.resourcesPath : path.resolve(APP_ROOT);
-        const spawnEnv = { ...process.env, ELECTRON_RUN_AS_NODE: '1', IMPREZJA_ELECTRON: '1' };
+        // NIE ustawiaj IMPREZJA_ELECTRON przy spawn – wtedy server.js wywołuje doListen() i startuje.
+        // IMPREZJA_ELECTRON jest tylko dla trybu in-process (spakowana aplikacja).
+        const spawnEnv = { ...process.env, ELECTRON_RUN_AS_NODE: '1', IMPREZJA_NO_BROWSER: '1' };
+        delete spawnEnv.IMPREZJA_ELECTRON;
         if (userDataDir) spawnEnv.IMPREZJA_DATA_DIR = userDataDir;
+        spawnEnv.IMPREZJA_APP_PATH = APP_ROOT;
 
         serverProcess = spawn(electronPath, [scriptArg], {
             cwd: spawnCwd,
@@ -421,18 +443,11 @@ function createWindow() {
             nodeIntegration: false,
             contextIsolation: true
         },
-        show: false
+        show: true
     });
 
-    // Ukryj pasek menu (File, Widok, Help) – także w pełnym ekranie
     Menu.setApplicationMenu(null);
-
-    // W trybie deweloperskim pokaż konsolę (Shift+Ctrl+I też działa)
-    if (process.env.NODE_ENV === 'development' || !app.isPackaged) {
-        mainWindow.webContents.openDevTools();
-    }
-
-    mainWindow.loadURL(`http://127.0.0.1:${PORT}/Screen.html`);
+    mainWindow.loadURL(`http://127.0.0.1:${PORT}/start.html`);
 
     mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
         console.error('❌ Błąd ładowania strony:', errorCode, errorDescription);
@@ -444,12 +459,66 @@ function createWindow() {
     });
 
     mainWindow.once('ready-to-show', () => {
-        mainWindow.show();
+        mainWindow.focus();
     });
 
     mainWindow.on('closed', () => {
         mainWindow = null;
     });
+}
+
+function createWindowWithRetry() {
+    if (loadingWindow) {
+        loadingWindow.close();
+        loadingWindow = null;
+    }
+    mainWindow = new BrowserWindow({
+        width: 1200,
+        height: 800,
+        title: 'Imprezja Quiz – Ekran TV',
+        webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true
+        },
+        show: true
+    });
+
+    Menu.setApplicationMenu(null);
+
+    const url = `http://127.0.0.1:${PORT}/start.html`;
+    let retryCount = 0;
+    const maxRetries = 30;
+
+    function tryLoad() {
+        mainWindow.loadURL(url).catch(() => {});
+    }
+
+    mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+        if (mainWindow.isDestroyed() || !isMainFrame) return;
+        retryCount++;
+        if (retryCount >= maxRetries) {
+            logToFile('❌ Przekroczono limit retry ładowania strony');
+            dialog.showMessageBoxSync(mainWindow, {
+                type: 'error',
+                title: 'Imprezja Quiz – błąd',
+                message: `Serwer nie wystartował w czasie.\n\nSprawdź log: ${logFile}`
+            });
+            return;
+        }
+        logToFile(`⏳ Retry ${retryCount}/${maxRetries} ładowania strony...`);
+        setTimeout(tryLoad, 2000);
+    });
+
+    mainWindow.webContents.on('did-finish-load', () => {
+        logToFile('✅ Strona załadowana');
+        mainWindow.focus();
+    });
+
+    mainWindow.on('closed', () => {
+        mainWindow = null;
+    });
+
+    tryLoad();
 }
 
     app.whenReady().then(async () => {
@@ -478,10 +547,8 @@ function createWindow() {
                 } else {
                     logToFile('🚀 Uruchamiam nowy serwer...');
                     await startServer();
-                    logToFile('⏳ Czekam na gotowość serwera...');
-                    await waitForServer();
-                    logToFile('✅ Serwer gotowy!');
-                    createWindow();
+                    logToFile('📺 Tworzę okno – strona załaduje się gdy serwer będzie gotowy');
+                    createWindowWithRetry();
                 }
             } catch (err) {
                 const errMsg = err.message || String(err);
@@ -527,7 +594,7 @@ function createWindow() {
                     `));
                 } catch (_) {}
             }
-        }, 500); // Małe opóźnienie żeby loading window się pokazało
+        }, 300); // Krótkie opóźnienie żeby loading window się pokazało
     }).catch((err) => {
         logToFile('❌ BŁĄD w app.whenReady(): ' + err.message);
         logToFile('Stack: ' + (err.stack || 'brak'));

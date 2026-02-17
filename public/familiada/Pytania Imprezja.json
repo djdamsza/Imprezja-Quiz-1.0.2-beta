@@ -1,0 +1,222 @@
+[
+  {
+    "question": "Sport, w któym walczymy z przeciwnikiem ale go nie dotykamy?",
+    "answers": [
+      {
+        "text": "Tenis",
+        "points": 31
+      },
+      {
+        "text": "Ping-Pong",
+        "points": 24
+      },
+      {
+        "text": "Siatkóka",
+        "points": 18
+      },
+      {
+        "text": "Badmington",
+        "points": 12
+      },
+      {
+        "text": "Szachy",
+        "points": 8
+      }
+    ]
+  },
+  {
+    "question": "Państwo, którego nazwa kończy się na \"NIA\"",
+    "answers": [
+      {
+        "text": "Dania",
+        "points": 28
+      },
+      {
+        "text": "Hiszpania",
+        "points": 18
+      },
+      {
+        "text": "Japonia",
+        "points": 10
+      },
+      {
+        "text": "Estonia",
+        "points": 5
+      },
+      {
+        "text": "Rumunia",
+        "points": 4
+      }
+    ]
+  },
+  {
+    "question": "Owoc z jedną pestką",
+    "answers": [
+      {
+        "text": "Śliwka",
+        "points": 50
+      },
+      {
+        "text": "Wiśnia",
+        "points": 25
+      },
+      {
+        "text": "Morela",
+        "points": 15
+      }
+    ]
+  },
+  {
+    "question": "Muzycy, którzy sprzedali najwięcej płyt",
+    "answers": [
+      {
+        "text": "The Beatles",
+        "points": 30
+      },
+      {
+        "text": "Michael Jackson",
+        "points": 20
+      },
+      {
+        "text": "Elvis Presley",
+        "points": 15
+      },
+      {
+        "text": "Madonna",
+        "points": 10
+      },
+      {
+        "text": "Elton John",
+        "points": 14
+      },
+      {
+        "text": "ABBA",
+        "points": 11
+      }
+    ]
+  },
+  {
+    "question": "Jakie kolory ma tęcza",
+    "answers": [
+      {
+        "text": "Czerwony",
+        "points": 30
+      },
+      {
+        "text": "Pomarańczowy",
+        "points": 20
+      },
+      {
+        "text": "Żólty",
+        "points": 15
+      },
+      {
+        "text": "Fioletowy",
+        "points": 12
+      },
+      {
+        "text": "Zielony",
+        "points": 10
+      },
+      {
+        "text": "Niebieski",
+        "points": 8
+      },
+      {
+        "text": "Granatowy",
+        "points": 5
+      }
+    ]
+  },
+  {
+    "question": "Wymień baśnie Andersena",
+    "answers": [
+      {
+        "text": "Dziewczynka z zapałkami",
+        "points": 30
+      },
+      {
+        "text": "Brzydkie kaczątko",
+        "points": 25
+      },
+      {
+        "text": "Calineczka",
+        "points": 20
+      },
+      {
+        "text": "Księżniczka na ziarnku grochu",
+        "points": 15
+      },
+      {
+        "text": "Królowa śniegu",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Podaj tytuły kultowych polskich komedii",
+    "answers": [
+      {
+        "text": "Sami swoi",
+        "points": 30
+      },
+      {
+        "text": "Seksmisja",
+        "points": 22
+      },
+      {
+        "text": "Miś",
+        "points": 20
+      },
+      {
+        "text": "Killer",
+        "points": 15
+      },
+      {
+        "text": "Kogel Mogel",
+        "points": 10
+      },
+      {
+        "text": "Chłopaki nie płaczą",
+        "points": 3
+      }
+    ]
+  },
+  {
+    "question": "Alkohol bez litery \"W\" w nazwie",
+    "answers": [
+      {
+        "text": "Bimber",
+        "points": 25
+      },
+      {
+        "text": "Rum",
+        "points": 20
+      },
+      {
+        "text": "Gin",
+        "points": 15
+      },
+      {
+        "text": "Tequila",
+        "points": 10
+      },
+      {
+        "text": "Szampan",
+        "points": 10
+      },
+      {
+        "text": "Koniak",
+        "points": 10
+      },
+      {
+        "text": "Likier",
+        "points": 5
+      },
+      {
+        "text": "Burbon",
+        "points": 5
+      }
+    ]
+  }
+]

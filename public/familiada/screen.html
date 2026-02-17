@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>Familiada – ekran TV</title>
+    <link href="/fonts/pixelify-sans/400.css" rel="stylesheet">
+    <link href="/fonts/pixelify-sans/700.css" rel="stylesheet">
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        :root {
+            --led-yellow: #ffe033;
+            --led-off: #443300;
+            --font-led: 'Pixelify Sans', monospace;
+        }
+        body { background: #000; font-family: var(--font-led); margin: 0; overflow: hidden; height: 100vh; display: flex; flex-direction: column; color: var(--led-yellow); position: relative; }
+        body::before { content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none;
+            background: linear-gradient(90deg, rgba(0, 80, 180, 0.65) 0%, rgba(0, 60, 140, 0.45) 30%, transparent 75%), linear-gradient(270deg, rgba(180, 0, 0, 0.65) 0%, rgba(140, 0, 0, 0.45) 30%, transparent 75%);
+            animation: bgGradientPulse 4s ease-in-out infinite; }
+        @keyframes bgGradientPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        #fs-btn { position: fixed; bottom: 20px; right: 20px; background: rgba(50, 50, 50, 0.5); color: #fff; border: 1px solid #777; padding: 10px 20px; border-radius: 5px; cursor: pointer; z-index: 9999; font-family: sans-serif; font-size: 12px; text-transform: uppercase; }
+        #fs-btn:hover { opacity: 1; background: #444; }
+
+        #top-section { height: 20vh; display: flex; z-index: 10; position: relative; }
+        .team-score-panel { width: 28%; min-width: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; z-index: 1; }
+        #panel-blue { background: linear-gradient(135deg, rgba(0, 40, 100, 0.3) 0%, transparent 70%); }
+        #panel-red { background: linear-gradient(225deg, rgba(100, 0, 0, 0.3) 0%, transparent 70%); }
+        .team-name { font-family: var(--font-led); font-size: 1.8vw; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px; color: var(--led-yellow); text-shadow: 0 0 8px var(--led-yellow); line-height: 1.4; }
+        .score-display { background: transparent; color: var(--led-yellow); font-family: var(--font-led); font-size: 4vw; padding: 2px 8px; min-width: 50px; text-align: center; text-shadow: 0 0 10px var(--led-yellow); }
+        #question-box { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 15px; text-align: center; position: relative; z-index: 2; }
+        #question-text { color: var(--led-yellow); font-family: var(--font-led); font-size: 3vw; text-transform: uppercase; text-shadow: 0 0 8px var(--led-yellow); line-height: 1.35; letter-spacing: 1px; max-width: 95%; white-space: normal; word-wrap: break-word; }
+        #question-text.question-long { font-size: 2.4vw; line-height: 1.3; }
+
+        #main-board { flex: 1; display: flex; position: relative; padding: 15px 0; z-index: 1; }
+        #main-board .carbon-bg { flex: 1; background: #000; }
+
+        .x-zone { width: 15%; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 40px; gap: 20px; }
+        .x-mark { width: 14vw; height: 14vw; background: #0a0505; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #330808; opacity: 0.4; transition: all 0.2s; font-family: var(--font-led); font-size: 8vw; }
+        .x-mark.active { background: #1a0808; color: var(--led-yellow); opacity: 1; animation: blinkX 0.4s ease-out; }
+        .x-mark.active .x-pixel { filter: drop-shadow(0 0 8px var(--led-yellow)); }
+
+        #board-display { flex: 1; background: #000; margin: 0 10px 10px 10px; display: flex; flex-direction: column; padding: 20px; position: relative; min-height: 0; }
+        #rows-container { flex: 1; display: flex; flex-direction: column; justify-content: space-evenly; gap: 0.5vh; min-height: 0; }
+        .answer-row { display: flex; align-items: center; margin-bottom: 0; padding: 0.2vh 0; font-size: var(--answer-font-size, 3vw); transition: all 0.5s; line-height: 1.35; flex: 1; min-height: 0; }
+
+        .row-num { width: 50px; min-width: 50px; text-align: center; color: var(--led-yellow); font-family: var(--font-led); margin-right: 15px; text-shadow: 0 0 5px var(--led-yellow); flex-shrink: 0; }
+        .row-text { flex: 1; text-transform: uppercase; letter-spacing: var(--answer-spacing, 2px); position: relative; white-space: nowrap; overflow: hidden; font-family: var(--font-led); }
+        .hidden-mask { display: block; color: var(--led-off); font-family: var(--font-led); letter-spacing: 3px; }
+        .revealed-text { display: none; color: var(--led-yellow); text-shadow: 0 0 8px var(--led-yellow); font-family: var(--font-led); }
+        .revealed .hidden-mask { display: none; }
+        .revealed .revealed-text { display: block; }
+        .row-points { width: var(--row-points-width, 80px); min-width: 50px; text-align: right; padding-right: 10px; color: var(--led-yellow); font-family: var(--font-led); text-shadow: 0 0 5px var(--led-yellow); visibility: hidden; flex-shrink: 0; }
+        .revealed .row-points { visibility: visible; }
+
+        #total-pot { text-align: right; font-size: 2.5vw; padding-top: 10px; color: var(--led-yellow); text-shadow: 0 0 10px var(--led-yellow); margin-top: 10px; font-family: var(--font-led); }
+
+        #familiada-title-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 250; background: #000; pointer-events: none; overflow: hidden; }
+        #familiada-title-overlay::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0;
+            background: linear-gradient(90deg,
+                rgba(0, 80, 180, 0.7) 0%,
+                rgba(0, 60, 140, 0.55) 20%,
+                rgba(60, 20, 100, 0.35) 30%,
+                rgba(120, 0, 40, 0.4) 40%,
+                rgba(180, 0, 0, 0.6) 50%,
+                rgba(140, 0, 0, 0.5) 60%,
+                rgba(80, 20, 80, 0.35) 70%,
+                rgba(0, 60, 140, 0.55) 80%,
+                rgba(0, 80, 180, 0.7) 100%);
+            background-size: 200% 100%;
+            background-position: 0% 0%;
+            animation: gradientShift 10s ease-in-out infinite; }
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 0%; }
+            50% { background-position: 100% 0%; }
+        }
+        #familiada-title-overlay.visible { display: flex; }
+        #familiada-title-overlay.fade-out { animation: overlayFadeOut 1s ease-out forwards; }
+        @keyframes overlayFadeOut { to { opacity: 0; } }
+        #familiada-title-overlay .pixel-title-wrap { position: relative; z-index: 1; }
+        .pixel-title-wrap { display: flex; gap: 1.2vw; justify-content: center; align-items: center; flex-wrap: nowrap; max-width: 90vw; }
+        .pixel-letter { display: flex; flex-direction: column; gap: 0.35vw; }
+        .pixel-row { display: flex; gap: 0.35vw; }
+        .pixel-tile { width: 1.2vw; height: 1.2vw; background: var(--led-yellow); box-shadow: 0 0 8px var(--led-yellow), inset 0 0 4px rgba(255,255,200,0.5); border-radius: 2px; flex-shrink: 0; }
+        .pixel-empty { width: 1.2vw; height: 1.2vw; flex-shrink: 0; }
+
+        #center-x-overlay { position: absolute; top:0; left:0; width:100%; height:100%; display: none; align-items: center; justify-content: center; z-index: 100; background: rgba(0,0,0,0.6); }
+        .giant-x { font-size: 50vh; color: var(--led-yellow); text-shadow: 0 0 8vh var(--led-yellow); font-family: var(--font-led); animation: wobble 3s ease-in-out; }
+
+        @keyframes wobble {
+            0%, 100% { transform: rotate(-4deg); }
+            20% { transform: rotate(4deg); }
+            40% { transform: rotate(-3deg); }
+            60% { transform: rotate(3deg); }
+            80% { transform: rotate(-2deg); }
+        }
+
+        #final-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 200; display: none; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; background: #000; }
+        #final-screen::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none;
+            background: linear-gradient(105deg, rgba(0, 80, 180, 0.46) 0%, rgba(0, 60, 140, 0.29) 50%, rgba(0,0,0,0.5) 75%),
+                        linear-gradient(255deg, rgba(180, 0, 0, 0.46) 0%, rgba(140, 0, 0, 0.29) 50%, rgba(0,0,0,0.5) 75%);
+            background-size: 120% 100%;
+            animation: introGradientMove 6s ease-in-out infinite; }
+        #final-screen > * { position: relative; z-index: 1; }
+        #final-pixel-title { margin-bottom: 5vh; }
+        #final-pixel-title .pixel-tile { width: 1.5vw; height: 1.5vw; }
+        #final-pixel-title .pixel-letter { gap: 0.4vw; }
+        #final-pixel-title .pixel-row { gap: 0.4vw; }
+        .final-scores { display: flex; gap: 15vw; }
+        .f-team { text-align: center; font-family: var(--font-led); }
+        .f-name { font-size: 4.5vw; color: var(--led-yellow); text-shadow: 0 0 15px var(--led-yellow); margin-bottom: 2vh; text-transform: uppercase; letter-spacing: 3px; }
+        .f-points { font-size: 10vw; font-weight: bold; font-family: var(--font-led); color: var(--led-yellow); text-shadow: 0 0 20px var(--led-yellow); }
+        .f-team.winner .f-name, .f-team.winner .f-points { color: var(--led-yellow); text-shadow: 0 0 25px var(--led-yellow), 0 0 40px rgba(255,224,51,0.5); }
+        .f-team.loser .f-name, .f-team.loser .f-points { opacity: 0.5; }
+
+        @keyframes blinkX { 0% { transform: scale(1.5); opacity:0; } 100% { transform: scale(1); opacity:1; } }
+        @keyframes shake { 0% { transform: translate(2px, 2px); } 50% { transform: translate(-2px, -2px); } 100% { transform: translate(2px, -2px); } }
+
+        #familiada-intro { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 300; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; overflow: hidden; }
+        #familiada-intro::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none;
+            background: linear-gradient(105deg, rgba(0, 80, 180, 0.7) 0%, rgba(0, 60, 140, 0.45) 50%, transparent 75%),
+                        linear-gradient(255deg, rgba(180, 0, 0, 0.7) 0%, rgba(140, 0, 0, 0.45) 50%, transparent 75%);
+            background-size: 120% 100%;
+            animation: introGradientMove 6s ease-in-out infinite; }
+        @keyframes introGradientMove {
+            0%, 100% { opacity: 1; background-position: 0% 0%; }
+            50% { opacity: 0.9; background-position: 10% 0%; }
+        }
+        #familiada-intro.hidden { display: none; }
+        #split-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 350; pointer-events: none; display: none;
+            background: linear-gradient(180deg,
+                #0066dd 0%, #0044aa 45%,
+                #aa0022 55%, #dd2244 100%);
+        }
+        #split-overlay.visible { display: block; }
+        #button-flash-overlay { display: none; flex-direction: column; }
+        #button-flash-overlay.visible { display: flex; }
+        #button-flash-pixel-title .pixel-tile { width: 1.5vw; height: 1.5vw; }
+        #button-flash-pixel-title .pixel-letter { gap: 0.4vw; }
+        #button-flash-pixel-title .pixel-row { gap: 0.4vw; }
+        #familiada-intro > * { position: relative; z-index: 1; }
+        .intro-title { font-size: 2.5rem; font-weight: bold; margin-bottom: 30px; color: var(--led-yellow); }
+        .qr-row { display: flex; align-items: center; justify-content: center; gap: 30px; flex-wrap: wrap; margin-bottom: 20px; }
+        .qr-admin-box { display: flex; flex-direction: column; align-items: center; padding: 30px; background: rgba(255,255,255,0.05); border-radius: 16px; border: 2px solid rgba(255,204,0,0.3); }
+        .qr-admin-box img { width: 180px; height: 180px; border-radius: 12px; border: 4px solid #fff; }
+        .qr-admin-label { font-size: 1rem; font-weight: bold; margin-bottom: 12px; color: #e67e22; }
+        .qr-buttons-label { color: #3498db; }
+        .intro-editor-btn { display: inline-block; padding: 14px 28px; margin: 8px; background: #3498db; color: #fff; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; text-decoration: none; }
+        .intro-editor-btn:hover { background: #2980b9; }
+    </style>
+</head>
+<body>
+    <button id="fs-btn" onclick="toggleFullScreen()">⛶ PEŁNY EKRAN</button>
+
+    <div id="familiada-title-overlay">
+        <div class="pixel-title-wrap" id="pixel-title"></div>
+        <div class="jingle-scores final-scores" id="jingle-scores" style="margin-top: 5vh;">
+            <div class="f-team"><div class="f-name" id="jingle-team-name-1">NIEBIESCY</div><div class="f-points" id="jingle-score-1">0</div></div>
+            <div class="f-team"><div class="f-name" id="jingle-team-name-2">CZERWONI</div><div class="f-points" id="jingle-score-2">0</div></div>
+        </div>
+    </div>
+
+    <div id="familiada-intro">
+        <div class="intro-title">FAMILIADA – Panel pilota</div>
+        <div class="qr-row">
+            <div class="qr-admin-box">
+                <div class="qr-admin-label">Zeskanuj – pilot na telefonie</div>
+                <img id="qr-admin-familiada" src="" alt="QR Admin Familiada">
+                <div id="admin-url-display" style="margin-top:10px; font-size:0.85rem; word-break:break-all; color:#95a5a6;"></div>
+            </div>
+            <div class="qr-admin-box">
+                <div class="qr-admin-label qr-buttons-label">Zeskanuj – przyciski (niebieski/czerwony)</div>
+                <img id="qr-buttons-familiada" src="" alt="QR Przyciski">
+                <div id="buttons-url-display" style="margin-top:10px; font-size:0.85rem; word-break:break-all; color:#95a5a6;"></div>
+            </div>
+        </div>
+        <a href="/familiada/editor.html" target="_blank" class="intro-editor-btn">✏️ Edytor pytań Familiady</a>
+        <button class="intro-editor-btn" style="background:#e67e22; margin-top:12px;" onclick="window.open('/familiada/admin.html','_blank')">Otwórz admin na komputerze</button>
+        <button class="intro-editor-btn" style="background:#27ae60; margin-top:20px;" onclick="startGame()">Rozpocznij grę</button>
+        <a href="/start.html" class="intro-editor-btn" style="background:#555; margin-top:12px; text-decoration:none;">← Cofnij</a>
+    </div>
+
+    <div id="split-overlay"></div>
+    <div id="button-flash-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:400; pointer-events:none; transition:opacity 3s ease-out; align-items:center; justify-content:center;">
+        <div class="pixel-title-wrap" id="button-flash-pixel-title"></div>
+    </div>
+
+    <div id="top-section">
+        <div class="team-score-panel" id="panel-blue"><div class="team-name" id="team-name-1">NIEBIESCY</div><div class="score-display" id="score-1">0</div></div>
+        <div id="question-box">
+            <div id="question-text">OCZEKIWANIE...</div>
+        </div>
+        <div class="team-score-panel" id="panel-red"><div class="team-name" id="team-name-2">CZERWONI</div><div class="score-display" id="score-2">0</div></div>
+    </div>
+    <div id="main-board" class="carbon-bg">
+        <div class="x-zone" id="zone-1"><div class="x-mark" id="x1-1"><span class="x-pixel">X</span></div><div class="x-mark" id="x1-2"><span class="x-pixel">X</span></div><div class="x-mark" id="x1-3"><span class="x-pixel">X</span></div></div>
+        <div id="board-display"><div id="rows-container"></div><div id="total-pot">SUMA: 0</div><div id="center-x-overlay"><div class="giant-x">X</div></div></div>
+        <div class="x-zone" id="zone-2"><div class="x-mark" id="x2-1"><span class="x-pixel">X</span></div><div class="x-mark" id="x2-2"><span class="x-pixel">X</span></div><div class="x-mark" id="x2-3"><span class="x-pixel">X</span></div></div>
+    </div>
+    <div id="final-screen">
+        <div class="pixel-title-wrap" id="final-pixel-title"></div>
+        <div class="final-scores">
+            <div class="f-team" id="final-team-1"><div class="f-name" id="final-team-name-1">NIEBIESCY</div><div class="f-points" id="final-score-1">0</div></div>
+            <div class="f-team" id="final-team-2"><div class="f-name" id="final-team-name-2">CZERWONI</div><div class="f-points" id="final-score-2">0</div></div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let currentPot = 0;
+        const MAX_ROWS = 10;
+
+        const PIXEL_FONT = {
+            F: [[1,1,1,1,1],[1,0,0,0,0],[1,0,0,0,0],[1,1,1,0,0],[1,0,0,0,0],[1,0,0,0,0],[1,0,0,0,0]],
+            A: [[0,0,1,0,0],[0,1,0,1,0],[1,0,0,0,1],[1,1,1,1,1],[1,0,0,0,1],[1,0,0,0,1],[1,0,0,0,1]],
+            M: [[1,0,0,0,1],[1,1,0,1,1],[1,0,1,0,1],[1,0,0,0,1],[1,0,0,0,1],[1,0,0,0,1],[1,0,0,0,1]],
+            I: [[1,1,1,1,1],[0,0,1,0,0],[0,0,1,0,0],[0,0,1,0,0],[0,0,1,0,0],[0,0,1,0,0],[1,1,1,1,1]],
+            L: [[1,0,0,0,0],[1,0,0,0,0],[1,0,0,0,0],[1,0,0,0,0],[1,0,0,0,0],[1,0,0,0,0],[1,1,1,1,1]],
+            D: [[1,1,1,1,0],[1,0,0,0,1],[1,0,0,0,1],[1,0,0,0,1],[1,0,0,0,1],[1,0,0,0,1],[1,1,1,1,0]]
+        };
+        function renderPixelTitle(targetId) {
+            const wrap = document.getElementById(targetId || 'pixel-title');
+            if (!wrap) return;
+            wrap.innerHTML = '';
+            'FAMILIADA'.split('').forEach(c => {
+                const grid = PIXEL_FONT[c] || PIXEL_FONT['I'];
+                const letter = document.createElement('div');
+                letter.className = 'pixel-letter';
+                grid.forEach(row => {
+                    const r = document.createElement('div');
+                    r.className = 'pixel-row';
+                    row.forEach(cell => {
+                        const t = document.createElement('div');
+                        t.className = cell ? 'pixel-tile' : 'pixel-empty';
+                        r.appendChild(t);
+                    });
+                    letter.appendChild(r);
+                });
+                wrap.appendChild(letter);
+            });
+        }
+
+        function startGame() {
+            document.getElementById('familiada-intro').classList.add('hidden');
+            renderPixelTitle();
+            const overlay = document.getElementById('familiada-title-overlay');
+            overlay.classList.add('visible');
+            if (typeof audioFiles !== 'undefined' && audioFiles.intro) {
+                audioFiles.intro.currentTime = 0;
+                audioFiles.intro.play().catch(() => {});
+                audioFiles.intro.onended = () => { overlay.classList.remove('visible'); socket.emit('familiada_intro_state', false); };
+                socket.emit('familiada_intro_state', true);
+            }
+        }
+
+        function initFamiliadaConnection() {
+            socket.emit('register_familiada', { role: 'screen' });
+            socket.emit('familiada_set_mode');
+            socket.emit('familiada_request_team_names');
+            socket.emit('familiada_request_qr_admin');
+        }
+        if (socket.connected) initFamiliadaConnection();
+        else socket.once('connect', initFamiliadaConnection);
+        socket.on('familiada_qr_admin', (data) => {
+            const img = document.getElementById('qr-admin-familiada');
+            const urlEl = document.getElementById('admin-url-display');
+            if (img && data && data.qrCode) img.src = data.qrCode;
+            if (urlEl && data && data.url) urlEl.textContent = data.url;
+        });
+        socket.on('familiada_qr_buttons', (data) => {
+            const img = document.getElementById('qr-buttons-familiada');
+            const urlEl = document.getElementById('buttons-url-display');
+            if (img && data && data.qrCode) img.src = data.qrCode;
+            if (urlEl && data && data.url) urlEl.textContent = data.url;
+        });
+        socket.on('familiada_button_flash', (data) => {
+            const overlay = document.getElementById('button-flash-overlay');
+            if (!overlay) return;
+            document.getElementById('split-overlay').classList.remove('visible');
+            renderPixelTitle('button-flash-pixel-title');
+            overlay.style.transition = 'none';
+            overlay.style.opacity = '1';
+            overlay.style.background = data.team === 1
+                ? 'linear-gradient(180deg, #0044aa 0%, #003380 50%, #002255 100%)'
+                : 'linear-gradient(0deg, #aa0022 0%, #800018 50%, #550010 100%)';
+            overlay.classList.add('visible');
+            overlay.style.display = 'flex';
+            setTimeout(() => {
+                overlay.style.transition = 'opacity 3s ease-out';
+                overlay.style.opacity = '0';
+                setTimeout(() => {
+                    overlay.style.display = 'none';
+                    overlay.classList.remove('visible');
+                }, 3000);
+            }, 5000);
+        });
+
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+                document.getElementById('fs-btn').style.display = 'none';
+                if (audioFiles && audioFiles.intro) {
+                    audioFiles.intro.play().catch(() => {});
+                    setTimeout(() => { audioFiles.intro.pause(); audioFiles.intro.currentTime = 0; }, 100);
+                }
+            }
+        }
+
+        const audioFiles = {
+            intro: new Audio('/familiada/sounds/intro.mp3'),
+            correct: new Audio('/familiada/sounds/correct.mp3'),
+            bad: new Audio('/familiada/sounds/bad.mp3'),
+            win_round: new Audio('/familiada/sounds/win_round.mp3'),
+            jingle: new Audio('/familiada/sounds/jingle.mp3'),
+            outro: new Audio('/familiada/sounds/outro.mp3')
+        };
+        function playSound(name) {
+            if (!audioFiles[name]) return;
+            const a = audioFiles[name];
+            if (name === 'intro' || name === 'outro') {
+                if (!a.paused) {
+                    a.pause(); a.currentTime = 0;
+                    if (name === 'intro') socket.emit('familiada_intro_state', false);
+                } else {
+                    a.currentTime = 0; a.play().catch(() => {});
+                    if (name === 'intro') {
+                        socket.emit('familiada_intro_state', true);
+                        a.onended = () => { socket.emit('familiada_intro_state', false); };
+                    }
+                }
+            } else {
+                a.pause(); a.currentTime = 0; a.play().catch(() => {});
+            }
+            if (name === 'jingle') {
+                const overlay = document.getElementById('familiada-title-overlay');
+                renderPixelTitle();
+                const s1 = document.getElementById('score-1');
+                const s2 = document.getElementById('score-2');
+                const n1 = document.getElementById('team-name-1');
+                const n2 = document.getElementById('team-name-2');
+                const jn1 = document.getElementById('jingle-team-name-1');
+                const jn2 = document.getElementById('jingle-team-name-2');
+                const js1 = document.getElementById('jingle-score-1');
+                const js2 = document.getElementById('jingle-score-2');
+                if (jn1 && n1) jn1.textContent = n1.textContent || 'NIEBIESCY';
+                if (jn2 && n2) jn2.textContent = n2.textContent || 'CZERWONI';
+                if (js1 && s1) js1.textContent = s1.textContent || '0';
+                if (js2 && s2) js2.textContent = s2.textContent || '0';
+                overlay.classList.add('visible');
+                overlay.classList.remove('fade-out');
+                overlay.style.opacity = '1';
+                setTimeout(() => {
+                    overlay.classList.add('fade-out');
+                    setTimeout(() => { overlay.classList.remove('visible', 'fade-out'); overlay.style.opacity = ''; }, 1000);
+                }, 8000);
+            }
+        }
+        socket.on('play_sound_event', (name) => playSound(name));
+        socket.on('familiada_request_intro_state', () => {
+            if (audioFiles && audioFiles.intro && !audioFiles.intro.paused) socket.emit('familiada_intro_state', true);
+        });
+
+        const container = document.getElementById('rows-container');
+        const displayWrapper = document.getElementById('board-display');
+        let roundAwarded = false;
+        let currentAnswerCount = 0;
+
+        /** Skalowanie odpowiedzi: 85% wysokości dla listy, duże czcionki, zmniejszanie tylko przy wielu odpowiedziach */
+        function applyAnswerScaling(count) {
+            if (!displayWrapper) return;
+            currentAnswerCount = count || 0;
+            if (!count) return;
+            const vh = window.innerHeight;
+            const vw = window.innerWidth;
+            const topSectionH = vh * 0.2;
+            const boardAreaH = vh - topSectionH - 100;
+            const targetHeightPct = 0.85;
+            const usableH = boardAreaH * targetHeightPct;
+            const gapTotal = (count - 1) * 0.5 * vh / 100;
+            const rowH = (usableH - gapTotal) / count;
+            const lineH = 1.35;
+            const fontSizePx = rowH / lineH;
+            const fontSizeVw = (fontSizePx / vw) * 100;
+            const fontSizeVh = (fontSizePx / vh) * 100;
+            const minFontVw = count >= 10 ? 1.5 : count >= 8 ? 2 : count >= 6 ? 2.5 : 2.8;
+            const maxFontVw = count <= 3 ? 5.5 : count <= 5 ? 5 : 4.2;
+            const clampedVw = Math.max(minFontVw, Math.min(maxFontVw, fontSizeVw));
+            const clampedVh = Math.max((count >= 9 ? 2.5 : count >= 7 ? 3 : 3.5), Math.min(count <= 3 ? 6 : 5, fontSizeVh));
+            const finalSize = count >= 7 ? `${clampedVw}vw` : `${clampedVh}vh`;
+            displayWrapper.style.setProperty('--answer-font-size', finalSize);
+            displayWrapper.style.setProperty('--answer-spacing', count >= 7 ? '1px' : '2px');
+            displayWrapper.style.setProperty('--row-points-width', count >= 7 ? '60px' : '80px');
+        }
+        for (let i = 1; i <= MAX_ROWS; i++) {
+            container.innerHTML += `<div class="answer-row" id="row-${i}" style="display:none"><div class="row-num">${i}</div><div class="row-text"><span class="hidden-mask">• • • • • • • • • • • • • • • •</span><span class="revealed-text"></span></div><div class="row-points">0</div></div>`;
+        }
+
+        function applyTeamNames(team1, team2) {
+            const n1 = document.getElementById('team-name-1');
+            const n2 = document.getElementById('team-name-2');
+            const fn1 = document.getElementById('final-team-name-1');
+            const fn2 = document.getElementById('final-team-name-2');
+            const t1 = (team1 && String(team1).trim()) || 'Niebiescy';
+            const t2 = (team2 && String(team2).trim()) || 'Czerwoni';
+            if (n1) n1.textContent = t1.toUpperCase();
+            if (n2) n2.textContent = t2.toUpperCase();
+            if (fn1) fn1.textContent = t1.toUpperCase();
+            if (fn2) fn2.textContent = t2.toUpperCase();
+        }
+        socket.on('board_update', (msg) => {
+            if (msg.team1 || msg.team2) applyTeamNames(msg.team1, msg.team2);
+            if (msg.type === 'NEW_ROUND') {
+                roundAwarded = false;
+                document.getElementById('final-screen').style.display = 'none';
+                document.getElementById('familiada-intro').classList.add('hidden');
+                document.getElementById('familiada-title-overlay').classList.remove('visible');
+                socket.emit('familiada_request_team_names');
+                const qEl = document.getElementById('question-text');
+                qEl.innerText = msg.data.question;
+                qEl.classList.toggle('question-long', (msg.data.question || '').length > 35);
+                currentPot = 0;
+                document.getElementById('total-pot').innerText = "SUMA: 0";
+                document.querySelectorAll('.x-mark').forEach(x => x.classList.remove('active'));
+                applyAnswerScaling(msg.data.answers.length);
+                for (let i = 1; i <= MAX_ROWS; i++) {
+                    const el = document.getElementById(`row-${i}`);
+                    el.classList.remove('revealed');
+                    const ans = msg.data.answers[i - 1];
+                    if (ans) {
+                        el.style.display = 'flex';
+                        el.querySelector('.revealed-text').innerText = ans.text;
+                        el.querySelector('.row-points').innerText = ans.points;
+                    } else { el.style.display = 'none'; }
+                }
+            }
+            if (msg.type === 'REVEAL') {
+                const el = document.getElementById(`row-${msg.index}`);
+                if (el && !el.classList.contains('revealed')) {
+                    el.classList.add('revealed');
+                    if (!roundAwarded) {
+                        currentPot += parseInt(el.querySelector('.row-points').innerText);
+                        document.getElementById('total-pot').innerText = "SUMA: " + currentPot;
+                        playSound('correct');
+                    }
+                }
+            }
+            if (msg.type === 'ERROR') {
+                playSound('bad');
+                if (msg.team === 0) {
+                    const overlay = document.getElementById('center-x-overlay');
+                    overlay.style.display = 'flex';
+                    setTimeout(() => { overlay.style.display = 'none'; }, 3000);
+                } else {
+                    const xEl = document.getElementById(`x${msg.team}-${msg.count}`);
+                    if (xEl) xEl.classList.add('active');
+                }
+            }
+            if (msg.type === 'FULL_RESET') {
+                roundAwarded = false;
+                currentAnswerCount = 0;
+                document.getElementById('split-overlay').classList.remove('visible');
+                document.getElementById('familiada-title-overlay').classList.remove('visible');
+                document.getElementById('final-screen').style.display = 'none';
+                document.getElementById('question-text').innerText = 'OCZEKIWANIE...';
+                document.getElementById('question-text').classList.remove('question-long');
+                document.getElementById('total-pot').innerText = 'SUMA: 0';
+                currentPot = 0;
+                document.querySelectorAll('.x-mark').forEach(x => x.classList.remove('active'));
+                document.getElementById('center-x-overlay').style.display = 'none';
+                displayWrapper.style.removeProperty('--answer-font-size');
+                displayWrapper.style.removeProperty('--answer-spacing');
+                displayWrapper.style.removeProperty('--row-points-width');
+                for (let i = 1; i <= MAX_ROWS; i++) {
+                    const el = document.getElementById(`row-${i}`);
+                    el.classList.remove('revealed');
+                    el.style.display = 'none';
+                }
+            }
+            if (msg.type === 'SHOW_FINAL') {
+                document.getElementById('split-overlay').classList.remove('visible');
+                renderPixelTitle('final-pixel-title');
+                document.getElementById('final-screen').style.display = 'flex';
+                document.getElementById('final-score-1').innerText = msg.scores.t1;
+                document.getElementById('final-score-2').innerText = msg.scores.t2;
+                if (msg.scores.team1) document.getElementById('final-team-name-1').innerText = msg.scores.team1.toUpperCase();
+                if (msg.scores.team2) document.getElementById('final-team-name-2').innerText = msg.scores.team2.toUpperCase();
+                document.getElementById('final-team-1').classList.remove('winner', 'loser');
+                document.getElementById('final-team-2').classList.remove('winner', 'loser');
+                if (msg.scores.t1 > msg.scores.t2) {
+                    document.getElementById('final-team-1').classList.add('winner');
+                    document.getElementById('final-team-2').classList.add('loser');
+                } else if (msg.scores.t2 > msg.scores.t1) {
+                    document.getElementById('final-team-2').classList.add('winner');
+                    document.getElementById('final-team-1').classList.add('loser');
+                }
+                if (!audioFiles.outro.paused) {} else playSound('outro');
+            }
+        });
+        socket.on('update_scores', (scores) => {
+            document.getElementById('score-1').innerText = scores.t1;
+            document.getElementById('score-2').innerText = scores.t2;
+            if (scores.roundAwarded !== undefined) roundAwarded = scores.roundAwarded;
+            if (scores.team1 || scores.team2) applyTeamNames(scores.team1, scores.team2);
+        });
+        socket.on('familiada_team_names', (data) => applyTeamNames(data.team1, data.team2));
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') socket.emit('familiada_request_team_names');
+        });
+        window.addEventListener('resize', () => {
+            if (currentAnswerCount > 0) applyAnswerScaling(currentAnswerCount);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,57 @@
+[
+  {
+    "question": "Co zabieramy ze sobą do szkoły?",
+    "answers": [
+      {
+        "text": "Plecak",
+        "points": 40
+      },
+      {
+        "text": "Książki",
+        "points": 20
+      },
+      {
+        "text": "Kanapki",
+        "points": 20
+      },
+      {
+        "text": "Zeszyty",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Podaj tytuły kultowych polskich komedii",
+    "answers": [
+      {
+        "text": "Sami Swoi",
+        "points": 30
+      },
+      {
+        "text": "Seksmisja",
+        "points": 24
+      },
+      {
+        "text": "Miś",
+        "points": 20
+      }
+    ]
+  },
+  {
+    "question": "Europejskie państwo większe od Polski",
+    "answers": [
+      {
+        "text": "Niemcy",
+        "points": 31
+      },
+      {
+        "text": "Francja",
+        "points": 29
+      },
+      {
+        "text": "Wielka Brytania",
+        "points": 18
+      }
+    ]
+  }
+]

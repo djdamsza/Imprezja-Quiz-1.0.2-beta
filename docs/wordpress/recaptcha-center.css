@@ -1,0 +1,25 @@
+/**
+ * Wyśrodkowanie reCAPTCHA v2 na stronie imprezja.pl
+ * 
+ * Instrukcja: Wygląd → Dostosuj → Dodatkowy CSS → wklej poniższy kod
+ */
+
+/* Główny kontener reCAPTCHA v2 – flexbox */
+.g-recaptcha {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  margin: 1rem auto !important;
+  width: 100% !important;
+}
+
+/* Wewnętrzny div z widgetem (iframe) */
+.g-recaptcha > div {
+  margin: 0 auto !important;
+}
+
+/* Wymuszenie wyśrodkowania – gdy flex nie zadziała (np. stary motyw) */
+body .g-recaptcha {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
