@@ -116,11 +116,13 @@ app.post('/create-checkout-session', async (req, res) => {
             sessionConfig.subscription_data = {
                 metadata: { product: 'imprezja-quiz' }
             };
+            // Revolut Pay obsługuje subskrypcje; BLIK – nie
+            sessionConfig.payment_method_types = ['card', 'revolut_pay'];
         } else {
-            // Karta, BLIK, Revolut Pay – Apple Pay/Google Pay pokazują się przy 'card' (wallet)
+            // Płatność jednorazowa: karta, BLIK, Revolut Pay
             sessionConfig.payment_method_types = ['card', 'blik', 'revolut_pay'];
-            sessionConfig.locale = 'pl';
         }
+        sessionConfig.locale = 'pl';
 
         const session = await stripe.checkout.sessions.create(sessionConfig);
         res.json({ url: session.url, sessionId: session.id });
