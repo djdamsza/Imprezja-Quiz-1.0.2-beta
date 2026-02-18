@@ -101,8 +101,9 @@ app.post('/create-checkout-session', async (req, res) => {
         const price = await stripe.prices.retrieve(priceId);
         const isSubscription = price.recurring !== null;
 
+        const useManagedPayments = process.env.MANAGED_PAYMENTS !== 'false';
+
         const sessionConfig = {
-            payment_method_types: ['card', 'p24'],
             line_items: [{ price: priceId, quantity: 1 }],
             mode: isSubscription ? 'subscription' : 'payment',
             success_url: success_url || `${YOUR_DOMAIN}/success.html?session_id={CHECKOUT_SESSION_ID}`,
@@ -110,13 +111,24 @@ app.post('/create-checkout-session', async (req, res) => {
             metadata: { product: 'imprezja-quiz' }
         };
 
+        if (useManagedPayments) {
+            sessionConfig.managed_payments = { enabled: true };
+        } else {
+            // Nie ustawiamy payment_method_types – Stripe pokaże wszystkie włączone w Dashboard
+            // (card, blik, klarna itd.) zgodne z walutą i typem płatności
+        }
+
         if (isSubscription) {
             sessionConfig.subscription_data = {
                 metadata: { product: 'imprezja-quiz' }
             };
         }
 
-        const session = await stripe.checkout.sessions.create(sessionConfig);
+        const createOptions = useManagedPayments
+            ? { apiVersion: '2025-03-31.basil; managed_payments_preview=v1' }
+            : {};
+
+        const session = await stripe.checkout.sessions.create(sessionConfig, createOptions);
         res.json({ url: session.url, sessionId: session.id });
     } catch (err) {
         console.error('Stripe Checkout error:', err);
