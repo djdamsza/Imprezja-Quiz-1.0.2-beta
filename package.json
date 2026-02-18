@@ -1,7 +1,7 @@
 {
   "name": "votebattle",
   "description": "Imprezja Quiz – quiz i głosowanie w sieci lokalnej (działa offline)",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "author": "Damian Nowaczyk",
   "main": "electron-main.js",
   "scripts": {
@@ -85,10 +85,7 @@
       "category": "public.app-category.entertainment",
       "target": [
         {
-          "target": "dmg",
-          "arch": [
-            "arm64"
-          ]
+          "target": "dmg"
         }
       ],
       "minimumSystemVersion": "10.13",
