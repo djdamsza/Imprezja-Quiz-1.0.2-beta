@@ -18,16 +18,26 @@ Kolejność kroków, aby uruchomić stronę z płatnościami na nowajakoscrozryw
 
 | Plan | Lookup key | Typ | Cena | Interwał |
 |------|------------|-----|------|----------|
-| 1 miesiąc | `imprezja-1m` | Recurring | 29 PLN | Monthly |
-| 3 miesiące | `imprezja-3m` | Recurring | 74 PLN | Every 3 months |
-| 12 miesięcy | `imprezja-12m` | Recurring | 249 PLN | Yearly |
-| Dożywotnia | `imprezja-lifetime` | One-time | 399 PLN | — |
+| 1 miesiąc | `imprezja-1m` | Recurring | 30 PLN | Monthly |
+| 3 miesiące | `imprezja-3m` | Recurring | 80 PLN | Every 3 months |
+| 12 miesięcy | `imprezja-12m` | Recurring | 290 PLN | Yearly |
+| Dożywotnia | `imprezja-lifetime` | One-time | 500 PLN | — |
 
 - [ ] Dla każdej ceny: **Additional options** → **Lookup key** → wpisz dokładnie jak w tabeli
 
 ### 1.3 Klucze API
 - [ ] **Developers** → **API keys**
 - [ ] Skopiuj **Secret key** (`sk_test_...`) – przyda się w Kroku 2.3
+
+### 1.4 Metody płatności
+- [ ] **Settings** → [Payment methods](https://dashboard.stripe.com/settings/payment_methods) → włącz **Cards** i **Przelewy24** (jeśli chcesz P24)
+
+### 1.5 Managed Payments (opcjonalnie)
+Stripe Shop domyślnie używa **Managed Payments**. Jeśli są błędy – wyłącz: Railway → Variables → `MANAGED_PAYMENTS=false`
+- [ ] **Settings** → [Managed Payments](https://dashboard.stripe.com/settings/managed-payments) → zaakceptuj regulamin (jeśli włączone)
+- [ ] Produkty muszą mieć **Product tax code** (np. `txcd_10103001` dla oprogramowania)
+
+**Gdy nie działa:** [STRIPE_USTAWIENIA_DASHBOARD.md](STRIPE_USTAWIENIA_DASHBOARD.md) – lista ustawień Stripe do sprawdzenia
 
 ---
 

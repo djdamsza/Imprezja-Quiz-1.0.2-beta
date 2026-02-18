@@ -21,10 +21,10 @@ Integracja z [Stripe Billing](https://docs.stripe.com/billing/quickstart) dla mo
 
 | Plan | Lookup key | Typ | Cena | Interwał |
 |------|------------|-----|------|----------|
-| 1 miesiąc | `imprezja-1m` | Recurring | np. 29 PLN | monthly |
-| 3 miesiące | `imprezja-3m` | Recurring | np. 74 PLN | every 3 months |
-| 12 miesięcy | `imprezja-12m` | Recurring | np. 249 PLN | yearly |
-| Dożywotnia | `imprezja-lifetime` | One-time | np. 399 PLN | — |
+| 1 miesiąc | `imprezja-1m` | Recurring | 30 PLN | monthly |
+| 3 miesiące | `imprezja-3m` | Recurring | 80 PLN | every 3 months |
+| 12 miesięcy | `imprezja-12m` | Recurring | 290 PLN | yearly |
+| Dożywotnia | `imprezja-lifetime` | One-time | 500 PLN | — |
 
 **Lookup key** ustaw w Price → **Additional options** → **Lookup key**.
 
@@ -95,7 +95,7 @@ Np. `shop.nowajakoscrozrywki.pl` – wtedy ustaw `STRIPE_DOMAIN` i `success_url`
 Wstaw przyciski z `data-lookup` i skrypt:
 
 ```html
-<button onclick="checkout('imprezja-1m')">1 miesiąc – 29 PLN</button>
+<button onclick="checkout('imprezja-1m')">1 miesiąc – 30 PLN</button>
 <script>
 async function checkout(lookup) {
   const res = await fetch('https://twoja-api.pl/create-checkout-session', {
