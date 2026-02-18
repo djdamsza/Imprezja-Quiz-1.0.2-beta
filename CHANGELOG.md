@@ -1,5 +1,39 @@
 # Changelog – Imprezja Quiz
 
+## v1.0.4 (2026-02-18)
+
+### Tryb Familiady
+
+- **Nowy tryb gry** – Familiada: gra drużynowa z tablicą odpowiedzi, pilot na telefonie, ekran na TV
+- **Strona startowa** (`/` lub `/start.html`) – wybór między Imprezja Quiz a Familiada
+- **Ekran TV** – `/familiada/screen.html` – tabela z pytaniami i odpowiedziami (odkrywanymi przez admina)
+- **Panel admina** – `/familiada/admin.html` – sterowanie rundą, przyznawanie punktów, odsłanianie odpowiedzi
+- **Przyciski graczy** – `/familiada/buttons.html` – dwa pola (niebieskie/czerwone), kto pierwszy naciśnie – odpowiada
+- **Złota Lista** – max 10 ulubionych pytań (☆)
+- **API** – `/api/familiada/*` – pliki, dane, zapis, złota lista
+
+### Edytor Familiady – parser tekstu
+
+- **Format „Pytanie? + lista odpowiedzi”** – wklej tekst w formacie: linia z `?` = pytanie, kolejne linie = odpowiedzi (punkty rozdzielane automatycznie)
+- Obsługa: `Pytanie 1: ...`, `Odpowiedź - 40`, JSON, XML
+- Przycisk „Wklej JSON” – rozpoznawanie formatu po pytajniku lub „Pytanie N:”
+
+### Materiały marketingowe
+
+- **`docs/marketing/`** – logo, badge „14 DNI ZA DARMO”, grafiki 1:1, 16:9, 9:16 (Quiz + Familiada + Statki)
+- **`docs/marketing/SOCIAL_MEDIA_POSTY.md`** – gotowe posty na social media
+
+### Dokumentacja
+
+- **`docs/FAMILIADA_QUIZ_KONFLIKTY.md`** – analiza: brak konfliktów między trybem Quiz a Familiada
+
+### Buildy
+
+- **Wersja 1.0.4** – tylko DMG (macOS), bez ZIP
+- **3 pliki:** Windows (exe), macOS ARM64 (dmg), macOS Intel (dmg)
+
+---
+
 ## v1.0.3 (2026-02-11)
 
 ### Naprawa menu kontekstowego w panelu admina
