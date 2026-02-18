@@ -4,11 +4,11 @@ Quiz i głosowanie na imprezach – działa offline w sieci lokalnej.
 
 ## Pobierz
 
-**Wersja 1.0.3** (najnowsza):
+**Wersja 1.0.4** (najnowsza):
 
-- [Windows](https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.0.3/Imprezja-Quiz-Setup-1.0.3.exe) – Imprezja Quiz Setup 1.0.3.exe
-- [macOS Apple Silicon (M1/M2/M3)](https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.0.3/Imprezja-Quiz-1.0.3-arm64.dmg) – Imprezja Quiz-1.0.3-arm64.dmg
-- [macOS Intel](https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.0.3/Imprezja-Quiz-1.0.3.dmg) – Imprezja Quiz-1.0.3.dmg
+- [Windows](https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.0.4/Imprezja-Quiz-Setup-1.0.4.exe) – Imprezja Quiz Setup 1.0.4.exe
+- [macOS Apple Silicon (M1/M2/M3)](https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.0.4/Imprezja-Quiz-1.0.4-arm64.dmg) – Imprezja Quiz-1.0.4-arm64.dmg
+- [macOS Intel](https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.0.4/Imprezja-Quiz-1.0.4.dmg) – Imprezja Quiz-1.0.4.dmg
 
 Wszystkie wersje: [Releases](https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases)
 
@@ -18,6 +18,13 @@ Wszystkie wersje: [Releases](https://github.com/djdamsza/Imprezja-Quiz-1.0.2-bet
 - **macOS:** 10.13 lub nowszy
 
 ## Changelog
+
+### v1.0.4 (2026-02-18)
+
+**Tryb Familiady**
+- Nowy tryb gry: Familiada – gra drużynowa z tablicą odpowiedzi
+- Strona startowa: wybór Quiz / Familiada
+- Edytor Familiady: parser formatu „Pytanie? + lista odpowiedzi”
 
 ### v1.0.3 (2026-02-11)
 
