@@ -137,7 +137,7 @@
 <div id="pasteModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center;" class="modal-overlay">
     <div class="modal" style="background: rgba(26,26,46,0.98); padding: 25px; border-radius: 12px; border: 1px solid var(--glass-border); max-width: 600px;">
         <h3 style="margin-top:0; color: var(--accent-gold);">Wklej JSON, XML lub tekst</h3>
-        <p style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 10px;">Wklej treść pliku JSON, XML lub tekstu (Pytanie 1: ... / Odpowiedź - 40).</p>
+        <p style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 10px;">Wklej treść: JSON, XML lub tekst. Obsługiwane formaty:<br>• Pytanie 1: ... / Odpowiedź - 40<br>• Pytanie? + lista odpowiedzi (każda w nowej linii)</p>
         <textarea id="pasteArea" style="width:100%; height:250px; font-family:monospace; padding:10px; border:1px solid var(--glass-border); border-radius:6px; background:rgba(0,0,0,0.3); color:var(--text-white); resize:vertical;"></textarea>
         <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px;">
             <button class="btn btn-secondary" onclick="document.getElementById('pasteModal').style.display='none'">Anuluj</button>
@@ -616,7 +616,8 @@
         if (!raw) return showStatus('Wklej treść JSON lub XML', 'error');
         let arr = [];
         const looksLikeXml = raw.startsWith('<?xml') || raw.startsWith('<familiada');
-        const looksLikeText = /Pytanie\s+\d+\s*:/i.test(raw) && !raw.trim().startsWith('{') && !raw.trim().startsWith('[');
+        const looksLikeText = (!raw.trim().startsWith('{') && !raw.trim().startsWith('[')) &&
+            (/Pytanie\s+\d+\s*:/i.test(raw) || /^.+\?[\s\n]/m.test(raw) || /^.+\?$/m.test(raw));
         try {
             if (looksLikeXml) {
                 arr = parseXmlFamiliada(raw);
@@ -681,7 +682,10 @@
         input.value = '';
     }
 
-    /** Konwersja z formatu tekstowego: Pytanie 1: / 1. Treść | Odpowiedź - 40 lub Odpowiedź (bez punktów – przydziela auto) */
+    /** Konwersja z formatu tekstowego:
+     * - Pytanie 1: ... / Odpowiedź - 40
+     * - Pytanie? + lista odpowiedzi (każda w nowej linii) – punkty rozdzielane automatycznie
+     */
     function parseTextFamiliada(text) {
         const questions = [];
         const lines = (text || '').split(/\r?\n/);
@@ -689,6 +693,7 @@
         const answerWithPointsRegex = /^(?:(?:[-–—•*·)）]|\d+\.)\s*)?(.+?)\s*[-–—]\s*(\d+)\s*$/;
         const answerNoPointsRegex = /^(?:(?:[-–—•*·)）]|\d+\.)\s*)?(.+)$/;
         const questionRegex = /^(?:Pytanie\s+\d+\s*:\s*|\d+\s*\.\s*)(.+)$/i;
+        const questionEndsWithMark = (s) => /[?!]$/.test(s);
 
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
@@ -703,12 +708,13 @@
             }
 
             const qMatch = trimmed.match(questionRegex);
-            const isLikelyQuestion = trimmed.endsWith('?') || trimmed.endsWith('!') || /^Pytanie\s+\d+\s*:/i.test(trimmed);
-            if (qMatch && (isLikelyQuestion || !currentQuestion)) {
+            const isQuestionByMark = questionEndsWithMark(trimmed) && trimmed.length > 2;
+            if ((qMatch || isQuestionByMark) && (qMatch || !currentQuestion || currentQuestion.answers.length > 0)) {
                 if (currentQuestion && (currentQuestion.question || currentQuestion.answers.length)) {
                     questions.push(currentQuestion);
                 }
-                currentQuestion = { question: qMatch[1].trim(), answers: [] };
+                const qText = qMatch ? qMatch[1].trim() : trimmed;
+                currentQuestion = { question: qText, answers: [] };
                 continue;
             }
 
@@ -771,7 +777,8 @@
                 let arr;
                 const content = r.result;
                 const looksLikeXml = typeof content === 'string' && (content.trim().startsWith('<?xml') || content.trim().startsWith('<familiada'));
-                const looksLikeText = typeof content === 'string' && /Pytanie\s+\d+\s*:/i.test(content) && !content.trim().startsWith('{') && !content.trim().startsWith('[');
+                const looksLikeText = typeof content === 'string' && !content.trim().startsWith('{') && !content.trim().startsWith('[') &&
+                    (/Pytanie\s+\d+\s*:/i.test(content) || /^.+\?[\s\n]/m.test(content) || /^.+\?$/m.test(content));
                 const useXml = forceXml || (!forceJson && looksLikeXml);
                 const useText = !forceJson && !useXml && looksLikeText;
                 if (useXml) {
