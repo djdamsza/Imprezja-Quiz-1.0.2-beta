@@ -74,7 +74,7 @@ app.use(express.json());
 
 /** Tworzy sesję Checkout – subskrypcja (1m, 3m, 12m) lub płatność jednorazowa (lifetime) */
 app.post('/create-checkout-session', async (req, res) => {
-    const { lookup_key, price_id, success_url, cancel_url } = req.body;
+    const { lookup_key, price_id, success_url, cancel_url } = req.body || {};
 
     if (!process.env.STRIPE_SECRET_KEY) {
         return res.status(500).json({ error: 'Stripe nie jest skonfigurowany (STRIPE_SECRET_KEY)' });
@@ -101,34 +101,28 @@ app.post('/create-checkout-session', async (req, res) => {
         const price = await stripe.prices.retrieve(priceId);
         const isSubscription = price.recurring !== null;
 
-        const useManagedPayments = process.env.MANAGED_PAYMENTS !== 'false';
+        const successUrl = typeof success_url === 'string' ? success_url : `${YOUR_DOMAIN}/success.html?session_id={CHECKOUT_SESSION_ID}`;
+        const cancelUrl = typeof cancel_url === 'string' ? cancel_url : `${YOUR_DOMAIN}/checkout.html`;
 
         const sessionConfig = {
-            line_items: [{ price: priceId, quantity: 1 }],
+            line_items: [{ price: String(priceId), quantity: 1 }],
             mode: isSubscription ? 'subscription' : 'payment',
-            success_url: success_url || `${YOUR_DOMAIN}/success.html?session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: cancel_url || `${YOUR_DOMAIN}/checkout.html`,
+            success_url: String(successUrl),
+            cancel_url: String(cancelUrl),
             metadata: { product: 'imprezja-quiz' }
         };
-
-        if (useManagedPayments) {
-            sessionConfig.managed_payments = { enabled: true };
-        } else {
-            // Nie ustawiamy payment_method_types – Stripe pokaże wszystkie włączone w Dashboard
-            // (card, blik, klarna itd.) zgodne z walutą i typem płatności
-        }
 
         if (isSubscription) {
             sessionConfig.subscription_data = {
                 metadata: { product: 'imprezja-quiz' }
             };
+        } else {
+            // Karta, BLIK, Revolut Pay – Apple Pay/Google Pay pokazują się przy 'card' (wallet)
+            sessionConfig.payment_method_types = ['card', 'blik', 'revolut_pay'];
+            sessionConfig.locale = 'pl';
         }
 
-        const createOptions = useManagedPayments
-            ? { apiVersion: '2025-03-31.basil; managed_payments_preview=v1' }
-            : {};
-
-        const session = await stripe.checkout.sessions.create(sessionConfig, createOptions);
+        const session = await stripe.checkout.sessions.create(sessionConfig);
         res.json({ url: session.url, sessionId: session.id });
     } catch (err) {
         console.error('Stripe Checkout error:', err);
