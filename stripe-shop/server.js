@@ -208,21 +208,67 @@ app.post('/api/license/deliver', async (req, res) => {
         }
 
         const emailFrom = process.env.LICENSE_EMAIL_FROM || 'licencje@nowajakoscrozrywki.pl';
+        const emailSubject = 'Imprezja Quiz – potwierdzenie zakupu i klucz licencyjny';
         const emailHtml = `
-<p>Dziękujemy za zakup Imprezja Quiz!</p>
-<p><strong>Twój klucz licencyjny:</strong></p>
-<p style="font-family: monospace; background: #f5f5f5; padding: 12px; border-radius: 6px; word-break: break-all;">${licenseKey}</p>
-<p>Wklej ten klucz w programie (ekran aktywacji) i kliknij <strong>Aktywuj</strong>.</p>
-<p>W razie pytań skontaktuj się z nami.</p>
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Potwierdzenie zakupu Imprezja Quiz</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; font-size: 16px; line-height: 1.5; color: #333; background-color: #f4f4f4;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f4f4f4; padding: 24px 0;">
+<tr><td align="center">
+<table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); overflow: hidden;">
+<tr><td style="padding: 32px 40px;">
+<h1 style="margin: 0 0 24px 0; font-size: 22px; color: #27ae60;">Potwierdzenie zakupu Imprezja Quiz</h1>
+<p style="margin: 0 0 20px 0;">Dziękujemy za zakup licencji Imprezja Quiz. Płatność została pomyślnie zrealizowana.</p>
+<p style="margin: 0 0 16px 0;"><strong>Twój klucz licencyjny:</strong></p>
+<div style="font-family: 'Courier New', monospace; font-size: 14px; background-color: #f8f9fa; padding: 16px; border-radius: 6px; border: 1px solid #e0e0e0; word-break: break-all; margin-bottom: 24px;">${licenseKey}</div>
+<h2 style="margin: 0 0 12px 0; font-size: 16px;">Instrukcja aktywacji</h2>
+<ol style="margin: 0 0 24px 0; padding-left: 20px;">
+<li>Uruchom program Imprezja Quiz na swoim komputerze.</li>
+<li>Na ekranie aktywacji skopiuj powyższy klucz i wklej go w pole „Klucz licencyjny”.</li>
+<li>Kliknij przycisk <strong>Aktywuj</strong>.</li>
+</ol>
+<p style="margin: 0 0 24px 0; color: #666;">Zachowaj ten e-mail – klucz może się przydać przy ponownej instalacji programu.</p>
+<hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;">
+<p style="margin: 0; font-size: 14px; color: #666;">Nowa Jakość Rozrywki · <a href="https://nowajakoscrozrywki.pl" style="color: #0073aa;">nowajakoscrozrywki.pl</a></p>
+<p style="margin: 8px 0 0 0; font-size: 13px; color: #999;">Ten e-mail został wysłany w odpowiedzi na Twoje zamówienie. Nie odpowiadaj na tę wiadomość – w razie pytań skontaktuj się przez formularz na stronie.</p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>
         `.trim();
-        const emailText = `Dziękujemy za zakup Imprezja Quiz!\n\nTwój klucz licencyjny:\n\n${licenseKey}\n\nWklej ten klucz w programie (ekran aktywacji) i kliknij Aktywuj.\n\nW razie pytań skontaktuj się z nami.`;
+        const emailText = `Potwierdzenie zakupu Imprezja Quiz
+
+Dziękujemy za zakup licencji Imprezja Quiz. Płatność została pomyślnie zrealizowana.
+
+Twój klucz licencyjny:
+${licenseKey}
+
+Instrukcja aktywacji:
+1. Uruchom program Imprezja Quiz na swoim komputerze.
+2. Na ekranie aktywacji skopiuj powyższy klucz i wklej go w pole "Klucz licencyjny".
+3. Kliknij przycisk Aktywuj.
+
+Zachowaj ten e-mail – klucz może się przydać przy ponownej instalacji programu.
+
+---
+Nowa Jakość Rozrywki
+https://nowajakoscrozrywki.pl
+
+Ten e-mail został wysłany w odpowiedzi na Twoje zamówienie.`;
 
         if (process.env.RESEND_API_KEY) {
             const resend = new Resend(process.env.RESEND_API_KEY);
             const { error } = await resend.emails.send({
                 from: emailFrom,
                 to: customerEmail,
-                subject: 'Imprezja Quiz – klucz licencyjny',
+                subject: emailSubject,
                 html: emailHtml,
                 text: emailText
             });
@@ -240,7 +286,7 @@ app.post('/api/license/deliver', async (req, res) => {
             await transporter.sendMail({
                 from: emailFrom,
                 to: customerEmail,
-                subject: 'Imprezja Quiz – klucz licencyjny',
+                subject: emailSubject,
                 text: emailText,
                 html: emailHtml
             });

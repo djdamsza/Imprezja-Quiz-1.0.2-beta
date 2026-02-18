@@ -30,16 +30,16 @@ Te ustawienia zwykle **nie blokują** płatności. Możesz zostawić domyślne:
 
 ---
 
-## 3. Managed Payments – wyłącz jeśli są błędy
+## 3. Managed Payments – wyłącz dla BLIK/Klarna
 
-Stripe Shop domyślnie używa Managed Payments. Jeśli dostajesz błędy (np. o tax code, regulaminie):
+Aby BLIK i Klarna były widoczne w Checkout:
 
-**Railway** → **Variables** → dodaj:
+**Render** (lub Railway) → **Environment** → dodaj:
 ```
 MANAGED_PAYMENTS=false
 ```
 
-To przełączy na zwykły Checkout (card + p24).
+Stripe Shop wtedy jawnie oferuje: card, BLIK, Klarna.
 
 ---
 

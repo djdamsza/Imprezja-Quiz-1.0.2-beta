@@ -47,13 +47,15 @@ Zamień na **URL stripe-shop z Railway** (np. `https://votebattle-stripe-product
 
 ---
 
-## Krok 6: Opcjonalnie – strona sukcesu
+## Krok 6: Strona podziękowania (wymagana)
 
-Strona sukcesu pokazuje się po udanej płatności. Możesz:
+Po płatności użytkownik trafia na `/sukces/`. **Musisz utworzyć tę stronę**, inaczej pojawi się błąd 404.
 
-**Opcja A:** Zostaw domyślnie – skrypt użyje `window.location.origin + '/sukces/'`, więc utwórz stronę o adresie **/sukces/** z treścią np. „Dziękujemy za zakup. Klucz licencyjny zostanie wysłany na Twój e-mail.”
-
-**Opcja B:** Zmień w kodzie `success_url` na konkretny adres, np. `'https://nowajakoscrozrywki.pl/dziekujemy/'`
+1. **Strony** → **Dodaj nową**
+2. **Tytuł:** np. „Dziękujemy” lub „Sukces”
+3. **Slug (adres):** wpisz `sukces` – strona będzie pod `nowajakoscrozrywki.pl/sukces/`
+4. Wklej treść z pliku **`docs/wordpress/stripe-sukces.html`** (blok Własny HTML lub zwykły blok)
+5. Opublikuj
 
 ---
 

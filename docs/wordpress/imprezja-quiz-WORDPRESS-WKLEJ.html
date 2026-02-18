@@ -1,9 +1,18 @@
-<!-- Wklej jako blok Własny HTML w WordPress – strona cennika Imprezja Quiz -->
-<!-- Wymaga: stripe-shop uruchomiony na serwerze, API dostępne pod STRIPE_API_URL -->
-<div class="imprezja-cennik" style="max-width: 1100px; margin: 0 auto; padding: 32px 20px; background: #fff;">
+<!-- ========== PEŁNA TREŚĆ DO WKLEJENIA W WORDPRESS (blok Własny HTML) ========== -->
+<!-- Skopiuj całość i wklej jako JEDEN blok. Usuń stare bloki przed wklejeniem. -->
+
+<div style="text-align: center; margin-bottom: 32px;">
+    <a href="#" id="imprezja-btn-pobierz" style="display: inline-block; padding: 14px 28px; background: #27ae60; color: white !important; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 1.1rem;">⬇️ Pobierz 14-dniową wersję testową</a>
+</div>
+
+<div>
+<h1 style="text-align: center;">Imprezja Quiz - 14 dni bezpłatnych testów!</h1>
+<h2 style="text-align: center;"><strong>Imprezja Quiz – system quizów i głosowań na imprezach. Gracze łączą się telefonami przez WiFi, odpowiadają na pytania, zdobywają punkty. Działa offline.</strong></h2>
+</div>
+
+<div class="imprezja-cennik" style="max-width: 1100px; margin: 0 auto 48px; padding: 32px 20px; background: #fff;">
     <h2 style="text-align: center; margin-bottom: 12px; font-size: 1.75rem; font-weight: 600; color: #1a1a1a;">Prosty cennik</h2>
     <p style="text-align: center; margin-bottom: 32px; color: #64748b; font-size: 1rem;">Wybierz plan, który najlepiej Ci odpowiada. Wszystkie plany obejmują pełną funkcjonalność Imprezja Quiz.</p>
-
     <div class="imprezja-cennik-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; align-items: stretch;">
         <div style="background: #fff; border-radius: 16px; padding: 28px; text-align: center; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
             <h3 style="color: #1e293b; margin-bottom: 8px; font-size: 1.1rem; font-weight: 600;">1 miesiąc</h3>
@@ -12,7 +21,6 @@
             <p style="color: #94a3b8; font-size: 0.8rem; margin-bottom: 24px;">/mies.</p>
             <button type="button" data-plan="imprezja-1m" class="imprezja-btn-checkout" style="width: 100%; padding: 14px 24px; background: #1e293b; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 0.95rem;">Wybierz</button>
         </div>
-
         <div class="imprezja-cennik-popular" style="background: #fff; border-radius: 16px; padding: 28px; text-align: center; border: 2px solid #3b82f6; box-shadow: 0 4px 16px rgba(59,130,246,0.15); position: relative;">
             <span style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: #3b82f6; color: white; font-size: 0.7rem; padding: 4px 12px; border-radius: 20px; font-weight: 600;">Popularny</span>
             <h3 style="color: #1e293b; margin-bottom: 8px; margin-top: 8px; font-size: 1.1rem; font-weight: 600;">3 miesiące</h3>
@@ -21,7 +29,6 @@
             <p style="color: #94a3b8; font-size: 0.8rem; margin-bottom: 24px;">26,67 PLN/mies.</p>
             <button type="button" data-plan="imprezja-3m" class="imprezja-btn-checkout" style="width: 100%; padding: 14px 24px; background: #3b82f6; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 0.95rem;">Wybierz</button>
         </div>
-
         <div style="background: #fff; border-radius: 16px; padding: 28px; text-align: center; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
             <h3 style="color: #1e293b; margin-bottom: 8px; font-size: 1.1rem; font-weight: 600;">12 miesięcy</h3>
             <p style="color: #64748b; font-size: 0.85rem; margin-bottom: 16px; min-height: 36px;">Najlepsza wartość</p>
@@ -29,7 +36,6 @@
             <p style="color: #94a3b8; font-size: 0.8rem; margin-bottom: 24px;">24,17 PLN/mies.</p>
             <button type="button" data-plan="imprezja-12m" class="imprezja-btn-checkout" style="width: 100%; padding: 14px 24px; background: #1e293b; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 0.95rem;">Wybierz</button>
         </div>
-
         <div style="background: #fff; border-radius: 16px; padding: 28px; text-align: center; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
             <h3 style="color: #1e293b; margin-bottom: 8px; font-size: 1.1rem; font-weight: 600;">Dożywotnia</h3>
             <p style="color: #64748b; font-size: 0.85rem; margin-bottom: 16px; min-height: 36px;">Jednorazowa płatność</p>
@@ -38,55 +44,62 @@
             <button type="button" data-plan="imprezja-lifetime" class="imprezja-btn-checkout" style="width: 100%; padding: 14px 24px; background: #059669; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 0.95rem;">Kup</button>
         </div>
     </div>
-
     <p id="imprezja-error" style="color: #dc2626; margin-top: 20px; text-align: center; display: none;"></p>
 </div>
 
 <style>
-@media (max-width: 900px) {
-    .imprezja-cennik-grid { grid-template-columns: repeat(2, 1fr) !important; }
-}
-@media (max-width: 500px) {
-    .imprezja-cennik-grid { grid-template-columns: 1fr !important; }
-}
+@media (max-width: 900px) { .imprezja-cennik-grid { grid-template-columns: repeat(2, 1fr) !important; } }
+@media (max-width: 500px) { .imprezja-cennik-grid { grid-template-columns: 1fr !important; } }
 .imprezja-cennik button:hover { opacity: 0.9; }
 .imprezja-cennik button:disabled { opacity: 0.6; cursor: not-allowed; }
 </style>
 
 <script>
-(function() {
-    var STRIPE_API_URL = 'https://imprezja-quiz-1-0-2-beta.onrender.com';
-    window.imprezjaCheckout = async function(lookupKey, btn) {
-        btn.disabled = true;
-        var errEl = document.getElementById('imprezja-error');
-        if (errEl) errEl.style.display = 'none';
-        try {
-            var res = await fetch(STRIPE_API_URL + '/create-checkout-session', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    lookup_key: lookupKey,
-                    success_url: window.location.origin + '/sukces/?session_id={CHECKOUT_SESSION_ID}',
-                    cancel_url: window.location.href
-                })
-            });
-            var data = await res.json();
-            if (data.url) { window.location.href = data.url; }
-            else { throw new Error(data.error || 'Błąd serwera'); }
-        } catch (err) {
-            if (errEl) { errEl.textContent = err.message || 'Błąd połączenia'; errEl.style.display = 'block'; btn.disabled = false; }
-        }
-    };
-    document.addEventListener('DOMContentLoaded', function() {
-        document.querySelectorAll('.imprezja-cennik').forEach(function(container) {
-            container.addEventListener('click', function(e) {
-                var btn = e.target.closest('.imprezja-btn-checkout');
-                if (btn && btn.dataset.plan) {
-                    e.preventDefault();
-                    imprezjaCheckout(btn.dataset.plan, btn);
-                }
-            });
-        });
+(function(){
+    document.getElementById('imprezja-btn-pobierz')&&document.getElementById('imprezja-btn-pobierz').addEventListener('click',function(e){
+        e.preventDefault();
+        var el=document.getElementById('imprezja-pobierz')||document.querySelector('.imprezja-pobierz');
+        if(el)el.scrollIntoView({behavior:'smooth',block:'start'});
     });
 })();
+(function(){
+    var STRIPE_API_URL='https://imprezja-quiz-1-0-2-beta.onrender.com';
+    window.imprezjaCheckout=async function(lookupKey,btn){
+        btn.disabled=true;
+        var errEl=document.getElementById('imprezja-error');
+        if(errEl)errEl.style.display='none';
+        try{
+            var res=await fetch(STRIPE_API_URL+'/create-checkout-session',{
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({
+                    lookup_key:lookupKey,
+                    success_url:window.location.origin+'/sukces/?session_id={CHECKOUT_SESSION_ID}',
+                    cancel_url:window.location.href
+                })
+            });
+            var data=await res.json();
+            if(data.url){window.location.href=data.url;}
+            else{throw new Error(data.error||'Błąd serwera');}
+        }catch(err){
+            if(errEl){errEl.textContent=err.message||'Błąd połączenia';errEl.style.display='block';btn.disabled=false;}
+        }
+    };
+    function init(){document.querySelectorAll('.imprezja-cennik').forEach(function(c){c.addEventListener('click',function(e){var b=e.target.closest('.imprezja-btn-checkout');if(b&&b.dataset.plan){e.preventDefault();imprezjaCheckout(b.dataset.plan,b);}});});}
+    if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',init);}else{init();}
+})();
 </script>
+
+<hr style="border:0;height:1px;background:#e2e8f0;margin:24px 0;" />
+
+<div class="imprezja-pobierz">
+<h2 style="text-align: center;"><strong>Download</strong></h2>
+<p style="text-align: center;">Imprezja Quiz – quiz i głosowanie na imprezach. Działa offline w sieci lokalnej. <strong>14 dni trial</strong> – pełna funkcjonalność.</p>
+<p style="text-align: center;"><strong>Wymagania:</strong> Windows 10/11 (64-bit) lub macOS 10.13+</p>
+<ul style="list-style: none; padding-left: 0;">
+<li style="margin-bottom: 12px; text-align: center;"><a style="display: inline-block; padding: 12px 24px; background: #0073aa; color: white; text-decoration: none; border-radius: 4px;" href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.0.3/Imprezja-Quiz-Setup-1.0.3.exe">⬇️ Windows – Imprezja Quiz Setup 1.0.3.exe</a></li>
+<li style="margin-bottom: 12px; text-align: center;"><a style="display: inline-block; padding: 12px 24px; background: #0073aa; color: white; text-decoration: none; border-radius: 4px;" href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.0.3/Imprezja-Quiz-1.0.3-arm64.dmg">⬇️ macOS Apple Silicon (M1/M2/M3) – Imprezja Quiz 1.0.3</a></li>
+<li style="margin-bottom: 12px; text-align: center;"><a style="display: inline-block; padding: 12px 24px; background: #0073aa; color: white; text-decoration: none; border-radius: 4px;" href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.0.3/Imprezja-Quiz-1.0.3.dmg">⬇️ macOS Intel – Imprezja Quiz 1.0.3</a></li>
+</ul>
+<p style="text-align: center;"><em>To wersje testowe (beta). Instalator Windows może być oznaczony przez antywirus – zobacz <a href="https://nowajakoscrozrywki.pl/faq-imprezja-quiz/">FAQ</a>.</em></p>
+</div>
