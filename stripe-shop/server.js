@@ -11,6 +11,9 @@ require('dotenv').config();
 const express = require('express');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const path = require('path');
+const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
+const { generateLicenseKey, LOOKUP_TO_TYPE } = require('./license-keygen');
 
 const app = express();
 const PORT = process.env.PORT || process.env.STRIPE_PORT || 4242;
@@ -109,12 +112,12 @@ app.post('/create-checkout-session', async (req, res) => {
             mode: isSubscription ? 'subscription' : 'payment',
             success_url: String(successUrl),
             cancel_url: String(cancelUrl),
-            metadata: { product: 'imprezja-quiz' }
+            metadata: { product: 'imprezja-quiz', lookup_key: lookup_key || '' }
         };
 
         if (isSubscription) {
             sessionConfig.subscription_data = {
-                metadata: { product: 'imprezja-quiz' }
+                metadata: { product: 'imprezja-quiz', lookup_key: lookup_key || '' }
             };
             // Revolut Pay obsługuje subskrypcje; BLIK – nie
             sessionConfig.payment_method_types = ['card', 'revolut_pay'];
@@ -153,6 +156,106 @@ app.post('/create-portal-session', async (req, res) => {
     } catch (err) {
         console.error('Portal error:', err);
         res.status(500).json({ error: err.message });
+    }
+});
+
+/** Wysyłka klucza licencyjnego po płatności – wymaga Machine ID od użytkownika */
+app.post('/api/license/deliver', async (req, res) => {
+    const { session_id, machine_id } = req.body || {};
+
+    if (!session_id || !machine_id) {
+        return res.status(400).json({ error: 'Wymagane: session_id i machine_id' });
+    }
+
+    const machineId = String(machine_id).trim();
+    if (machineId.length < 8) {
+        return res.status(400).json({ error: 'Machine ID musi mieć co najmniej 8 znaków' });
+    }
+
+    if (!process.env.STRIPE_SECRET_KEY) {
+        return res.status(500).json({ error: 'Stripe nie jest skonfigurowany' });
+    }
+
+    if (!process.env.IMPREZJA_LICENSE_PRIVATE_KEY) {
+        return res.status(500).json({ error: 'Klucz licencyjny nie jest skonfigurowany (IMPREZJA_LICENSE_PRIVATE_KEY)' });
+    }
+
+    try {
+        const session = await stripe.checkout.sessions.retrieve(session_id, {
+            expand: ['line_items.data.price']
+        });
+
+        if (session.status !== 'complete' || session.payment_status !== 'paid') {
+            return res.status(400).json({ error: 'Sesja nie została opłacona' });
+        }
+
+        let lookupKey = session.metadata?.lookup_key || '';
+        if (!lookupKey && session.line_items?.data?.[0]?.price?.lookup_key) {
+            lookupKey = session.line_items.data[0].price.lookup_key;
+        }
+        if (!lookupKey && session.line_items?.data?.[0]?.price?.id) {
+            const prices = await stripe.prices.list({ active: true });
+            const match = prices.data.find(p => p.id === session.line_items.data[0].price.id);
+            if (match) lookupKey = match.lookup_key || '';
+        }
+
+        const licenseType = LOOKUP_TO_TYPE[lookupKey] || 'LT';
+        const licenseKey = generateLicenseKey(machineId, licenseType);
+
+        const customerEmail = session.customer_email || session.customer_details?.email;
+        if (!customerEmail) {
+            return res.status(400).json({ error: 'Brak adresu e-mail w sesji płatności' });
+        }
+
+        const emailFrom = process.env.LICENSE_EMAIL_FROM || 'licencje@nowajakoscrozrywki.pl';
+        const emailHtml = `
+<p>Dziękujemy za zakup Imprezja Quiz!</p>
+<p><strong>Twój klucz licencyjny:</strong></p>
+<p style="font-family: monospace; background: #f5f5f5; padding: 12px; border-radius: 6px; word-break: break-all;">${licenseKey}</p>
+<p>Wklej ten klucz w programie (ekran aktywacji) i kliknij <strong>Aktywuj</strong>.</p>
+<p>W razie pytań skontaktuj się z nami.</p>
+        `.trim();
+        const emailText = `Dziękujemy za zakup Imprezja Quiz!\n\nTwój klucz licencyjny:\n\n${licenseKey}\n\nWklej ten klucz w programie (ekran aktywacji) i kliknij Aktywuj.\n\nW razie pytań skontaktuj się z nami.`;
+
+        if (process.env.RESEND_API_KEY) {
+            const resend = new Resend(process.env.RESEND_API_KEY);
+            const { error } = await resend.emails.send({
+                from: emailFrom,
+                to: customerEmail,
+                subject: 'Imprezja Quiz – klucz licencyjny',
+                html: emailHtml,
+                text: emailText
+            });
+            if (error) throw new Error(error.message);
+        } else if (process.env.SMTP_HOST) {
+            const transporter = nodemailer.createTransport({
+                host: process.env.SMTP_HOST,
+                port: parseInt(process.env.SMTP_PORT || '587', 10),
+                secure: process.env.SMTP_SECURE === 'true',
+                auth: process.env.SMTP_USER ? {
+                    user: process.env.SMTP_USER,
+                    pass: process.env.SMTP_PASS
+                } : undefined
+            });
+            await transporter.sendMail({
+                from: emailFrom,
+                to: customerEmail,
+                subject: 'Imprezja Quiz – klucz licencyjny',
+                text: emailText,
+                html: emailHtml
+            });
+        } else {
+            return res.status(500).json({ error: 'E-mail nie skonfigurowany. Ustaw RESEND_API_KEY lub SMTP_HOST. Skontaktuj się z obsługą.' });
+        }
+
+        console.log('✅ Klucz wysłany:', customerEmail, 'typ:', licenseType);
+        res.json({ success: true, message: 'Klucz został wysłany na adres e-mail' });
+    } catch (err) {
+        console.error('License delivery error:', err);
+        if (err.code === 'ENOTFOUND' || err.code === 'ECONNREFUSED') {
+            return res.status(500).json({ error: 'Błąd konfiguracji e-mail (SMTP). Skontaktuj się z obsługą.' });
+        }
+        res.status(500).json({ error: err.message || 'Błąd wysyłki klucza' });
     }
 });
 
