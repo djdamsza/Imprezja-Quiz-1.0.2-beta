@@ -6,9 +6,9 @@ Quiz i głosowanie na imprezach – działa offline w sieci lokalnej.
 
 **Wersja 1.0.4** (najnowsza):
 
-- [Windows](https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.0.4/Imprezja-Quiz-Setup-1.0.4.exe) – Imprezja Quiz Setup 1.0.4.exe
-- [macOS Apple Silicon (M1/M2/M3)](https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.0.4/Imprezja-Quiz-1.0.4-arm64.dmg) – Imprezja Quiz-1.0.4-arm64.dmg
-- [macOS Intel](https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.0.4/Imprezja-Quiz-1.0.4.dmg) – Imprezja Quiz-1.0.4.dmg
+- [Windows](https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.0.4/Imprezja.Quiz.Setup.1.0.4.exe) – Imprezja Quiz Setup 1.0.4.exe
+- [macOS Apple Silicon (M1/M2/M3)](https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.0.4/Imprezja.Quiz-1.0.4-arm64.dmg) – Imprezja Quiz-1.0.4-arm64.dmg
+- [macOS Intel](https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.0.4/Imprezja.Quiz-1.0.4.dmg) – Imprezja Quiz-1.0.4.dmg
 
 Wszystkie wersje: [Releases](https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases)
 

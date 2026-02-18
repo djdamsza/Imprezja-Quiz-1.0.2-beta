@@ -2,16 +2,13 @@
 
 **Data:** 2026-02-18
 
-## Pliki do wrzucenia na GitHub Releases
+## Pliki na GitHub Releases (już opublikowane)
 
-1. **Imprezja Quiz Setup 1.0.4.exe** – Windows (x64)  
-   Ścieżka: `dist/Imprezja Quiz Setup 1.0.4.exe`
-
-2. **Imprezja Quiz-1.0.4-arm64.dmg** – macOS Apple Silicon (M1/M2/M3)  
-   Ścieżka: `dist/Imprezja Quiz-1.0.4-arm64.dmg`
-
-3. **Imprezja Quiz-1.0.4.dmg** – macOS Intel  
-   Ścieżka: `dist/Imprezja Quiz-1.0.4.dmg`
+| Platforma | Link |
+|------------|------|
+| **Windows** | [Imprezja.Quiz.Setup.1.0.4.exe](https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.0.4/Imprezja.Quiz.Setup.1.0.4.exe) |
+| **macOS Apple Silicon** | [Imprezja.Quiz-1.0.4-arm64.dmg](https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.0.4/Imprezja.Quiz-1.0.4-arm64.dmg) |
+| **macOS Intel** | [Imprezja.Quiz-1.0.4.dmg](https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.0.4/Imprezja.Quiz-1.0.4.dmg) |
 
 ## Opis release (do wklejenia na GitHub)
 
@@ -23,10 +20,10 @@
 - **Strona startowa** – wybór między Quiz a Familiada
 - **Edytor Familiady** – parser formatu „Pytanie? + lista odpowiedzi” (wklej tekst, punkty auto)
 
-### Pliki
-- **Windows:** Imprezja Quiz Setup 1.0.4.exe
-- **macOS Apple Silicon:** Imprezja Quiz-1.0.4-arm64.dmg
-- **macOS Intel:** Imprezja Quiz-1.0.4.dmg
+### Pobierz
+- [Windows – Imprezja.Quiz.Setup.1.0.4.exe](https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.0.4/Imprezja.Quiz.Setup.1.0.4.exe)
+- [macOS Apple Silicon – Imprezja.Quiz-1.0.4-arm64.dmg](https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.0.4/Imprezja.Quiz-1.0.4-arm64.dmg)
+- [macOS Intel – Imprezja.Quiz-1.0.4.dmg](https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.0.4/Imprezja.Quiz-1.0.4.dmg)
 
 ### Wymagania
 - Windows 10/11 (64-bit) lub macOS 10.13+
