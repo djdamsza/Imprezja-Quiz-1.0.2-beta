@@ -1,47 +1,53 @@
-<!-- Wklej jako blok Własny HTML w WordPress – strona cennika Imprezja Quiz -->
-<!-- Wymaga: stripe-shop uruchomiony na serwerze, API dostępne pod STRIPE_API_URL -->
-<div class="imprezja-cennik" style="max-width: 1100px; margin: 0 auto; padding: 32px 20px; background: #fff;">
+<!-- ========== BLOK 1: Wklej NA POCZĄTKU treści produktu (blok Własny HTML) ========== -->
+<div style="text-align: center; margin-bottom: 32px;">
+    <a href="#" id="imprezja-btn-pobierz" style="display: inline-block; padding: 14px 28px; background: #27ae60; color: white !important; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 1.1rem;">⬇️ Pobierz 14-dniową wersję testową</a>
+</div>
+<script>
+(function(){
+    document.getElementById('imprezja-btn-pobierz')?.addEventListener('click', function(e) {
+        e.preventDefault();
+        var el = document.getElementById('imprezja-pobierz') || document.querySelector('.imprezja-pobierz');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+})();
+</script>
+
+<div class="imprezja-cennik" style="max-width: 1100px; margin: 0 auto 48px; padding: 32px 20px; background: #fff;">
     <h2 style="text-align: center; margin-bottom: 12px; font-size: 1.75rem; font-weight: 600; color: #1a1a1a;">Prosty cennik</h2>
     <p style="text-align: center; margin-bottom: 32px; color: #64748b; font-size: 1rem;">Wybierz plan, który najlepiej Ci odpowiada. Wszystkie plany obejmują pełną funkcjonalność Imprezja Quiz.</p>
-
     <div class="imprezja-cennik-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; align-items: stretch;">
-        <div style="background: #fff; border-radius: 16px; padding: 28px; text-align: center; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+        <div style="background: #fff; border-radius: 16px; padding: 28px; text-align: center; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.04); transition: box-shadow 0.2s, border-color 0.2s; position: relative;">
             <h3 style="color: #1e293b; margin-bottom: 8px; font-size: 1.1rem; font-weight: 600;">1 miesiąc</h3>
             <p style="color: #64748b; font-size: 0.85rem; margin-bottom: 16px; min-height: 36px;">Subskrypcja miesięczna</p>
             <p style="font-size: 1.75rem; font-weight: 700; color: #1e293b; margin-bottom: 4px;">30 PLN</p>
             <p style="color: #94a3b8; font-size: 0.8rem; margin-bottom: 24px;">/mies.</p>
-            <button type="button" data-plan="imprezja-1m" class="imprezja-btn-checkout" style="width: 100%; padding: 14px 24px; background: #1e293b; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 0.95rem;">Wybierz</button>
+            <button type="button" data-plan="imprezja-1m" class="imprezja-btn-checkout" style="width: 100%; padding: 14px 24px; background: #1e293b; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: background 0.2s;">Wybierz</button>
         </div>
-
         <div class="imprezja-cennik-popular" style="background: #fff; border-radius: 16px; padding: 28px; text-align: center; border: 2px solid #3b82f6; box-shadow: 0 4px 16px rgba(59,130,246,0.15); position: relative;">
             <span style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: #3b82f6; color: white; font-size: 0.7rem; padding: 4px 12px; border-radius: 20px; font-weight: 600;">Popularny</span>
             <h3 style="color: #1e293b; margin-bottom: 8px; margin-top: 8px; font-size: 1.1rem; font-weight: 600;">3 miesiące</h3>
             <p style="color: #64748b; font-size: 0.85rem; margin-bottom: 16px; min-height: 36px;">Oszczędność ~15%</p>
             <p style="font-size: 1.75rem; font-weight: 700; color: #1e293b; margin-bottom: 4px;">80 PLN</p>
             <p style="color: #94a3b8; font-size: 0.8rem; margin-bottom: 24px;">26,67 PLN/mies.</p>
-            <button type="button" data-plan="imprezja-3m" class="imprezja-btn-checkout" style="width: 100%; padding: 14px 24px; background: #3b82f6; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 0.95rem;">Wybierz</button>
+            <button type="button" data-plan="imprezja-3m" class="imprezja-btn-checkout" style="width: 100%; padding: 14px 24px; background: #3b82f6; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: background 0.2s;">Wybierz</button>
         </div>
-
-        <div style="background: #fff; border-radius: 16px; padding: 28px; text-align: center; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+        <div style="background: #fff; border-radius: 16px; padding: 28px; text-align: center; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.04); transition: box-shadow 0.2s, border-color 0.2s;">
             <h3 style="color: #1e293b; margin-bottom: 8px; font-size: 1.1rem; font-weight: 600;">12 miesięcy</h3>
             <p style="color: #64748b; font-size: 0.85rem; margin-bottom: 16px; min-height: 36px;">Najlepsza wartość</p>
             <p style="font-size: 1.75rem; font-weight: 700; color: #1e293b; margin-bottom: 4px;">290 PLN</p>
             <p style="color: #94a3b8; font-size: 0.8rem; margin-bottom: 24px;">24,17 PLN/mies.</p>
-            <button type="button" data-plan="imprezja-12m" class="imprezja-btn-checkout" style="width: 100%; padding: 14px 24px; background: #1e293b; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 0.95rem;">Wybierz</button>
+            <button type="button" data-plan="imprezja-12m" class="imprezja-btn-checkout" style="width: 100%; padding: 14px 24px; background: #1e293b; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: background 0.2s;">Wybierz</button>
         </div>
-
-        <div style="background: #fff; border-radius: 16px; padding: 28px; text-align: center; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+        <div style="background: #fff; border-radius: 16px; padding: 28px; text-align: center; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.04); transition: box-shadow 0.2s, border-color 0.2s;">
             <h3 style="color: #1e293b; margin-bottom: 8px; font-size: 1.1rem; font-weight: 600;">Dożywotnia</h3>
             <p style="color: #64748b; font-size: 0.85rem; margin-bottom: 16px; min-height: 36px;">Jednorazowa płatność</p>
             <p style="font-size: 1.75rem; font-weight: 700; color: #1e293b; margin-bottom: 4px;">500 PLN</p>
             <p style="color: #94a3b8; font-size: 0.8rem; margin-bottom: 24px;">na zawsze</p>
-            <button type="button" data-plan="imprezja-lifetime" class="imprezja-btn-checkout" style="width: 100%; padding: 14px 24px; background: #059669; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 0.95rem;">Kup</button>
+            <button type="button" data-plan="imprezja-lifetime" class="imprezja-btn-checkout" style="width: 100%; padding: 14px 24px; background: #059669; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: background 0.2s;">Kup</button>
         </div>
     </div>
-
     <p id="imprezja-error" style="color: #dc2626; margin-top: 20px; text-align: center; display: none;"></p>
 </div>
-
 <style>
 @media (max-width: 900px) {
     .imprezja-cennik-grid { grid-template-columns: repeat(2, 1fr) !important; }
@@ -74,7 +80,8 @@
             if (data.url) { window.location.href = data.url; }
             else { throw new Error(data.error || 'Błąd serwera'); }
         } catch (err) {
-            if (errEl) { errEl.textContent = err.message || 'Błąd połączenia'; errEl.style.display = 'block'; btn.disabled = false; }
+            if (errEl) { errEl.textContent = err.message || 'Błąd połączenia'; errEl.style.display = 'block'; }
+            btn.disabled = false;
         }
     };
     document.addEventListener('DOMContentLoaded', function() {
@@ -90,3 +97,5 @@
     });
 })();
 </script>
+
+<hr class="bg-subtle h-px border-0" />
