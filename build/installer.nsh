@@ -13,8 +13,12 @@
 !macro preInit
   ; Usuń zły InstallLocation z rejestru (ścieżka IMPREZJA.exe z dawnych wersji)
   DeleteRegValue HKCU "${IMPREZJA_INSTALL_KEY}" "InstallLocation"
-  ; NIE używamy taskkill – na systemach domenowych wywołuje monit o hasło (Dom\Yoga)
-  ; Użytkownik musi ręcznie zamknąć Imprezja Quiz przed instalacją
+  ; Zabij procesy przed instalacją – zapobiega fałszywemu „zamknij aplikację” przy kopiowaniu plików
+  nsExec::ExecToLog 'taskkill /F /IM ImprezjaQuiz.exe'
+  Pop $0
+  nsExec::ExecToLog 'taskkill /F /IM IMPREZJA.exe'
+  Pop $0
+  Sleep 500
 !macroend
 
 !macro customCheckAppRunning

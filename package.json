@@ -115,7 +115,7 @@
       "allowToChangeInstallationDirectory": false,
       "runAfterFinish": false,
       "deleteAppDataOnUninstall": false,
-      "allowElevation": false,
+      "allowElevation": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Imprezja Quiz",

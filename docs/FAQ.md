@@ -42,7 +42,7 @@ To identyfikator Twojego komputera, używany do powiązania licencji z urządzen
 
 ### Czy mogę używać jednej licencji na wielu komputerach?
 
-Nie. Standardowa licencja uprawnia do użytkowania na **jednym komputerze**. W przypadku zmiany komputera można skontaktować się z wydawcą (biuro@imprezja.pl) w sprawie przeniesienia licencji.
+Nie. Standardowa licencja uprawnia do użytkowania na **jednym komputerze**. W przypadku zmiany komputera (sprzedaż, wymiana, awaria) możesz poprosić o **przeniesienie licencji** na nowy sprzęt. Napisz na biuro@imprezja.pl z adresu użytego przy zakupie, podaj nowy Machine ID (panel admina → Licencja). Otrzymasz nowy klucz w ciągu 2 dni roboczych. Limit: **2 przeniesienia** na klienta. Po przeniesieniu stara licencja na poprzednim komputerze zostaje unieważniona.
 
 ### Zgubiłem klucz licencyjny – co mam zrobić?
 
@@ -70,6 +70,14 @@ Aby zresetować trial i uruchomić program od nowa (14 dni próbnych):
 2. Uruchom `napraw-uninstaller.bat` (PPK → **Uruchom jako administrator**).
 3. Poczekaj na zakończenie skryptu.
 4. Uruchom instalator ponownie.
+
+### Instalator 1.0.3 / 1.0.4 – komunikat „zamknij aplikację” mimo że nie działa
+
+1. Uruchom **`napraw-uninstaller.bat`** (prawy przycisk → **Uruchom jako administrator**).
+2. Poczekaj na zakończenie – skrypt usuwa stare pliki i wpisy rejestru.
+3. Uruchom instalator (prawy przycisk → **Uruchom jako administrator**).
+4. **Nowe buildy (1.0.4+)** – instalator sam zamyka procesy przed instalacją.
+5. Jeśli nadal się nie udaje – wyłącz tymczasowo antywirus (np. Windows Defender) na czas instalacji.
 
 ### Antywirus blokuje instalator (Windows) – co robić?
 
@@ -121,6 +129,7 @@ Wewnątrz: `quizzes/` (pliki quizów), `uploads/` (obrazy, dźwięki).
 2. **Tunel wyłączony** – Jeśli testujesz WiFi, zatrzymaj tunel w panelu admina („Zatrzymaj tunel”).
 3. **Firewall** – dodaj Imprezja Quiz do dozwolonych (macOS: Zapora → Opcje; Windows: Zapora → Zezwól).
 4. **AP Isolation** – w routerze wyłącz „AP Isolation” / „Client Isolation” (blokuje komunikację między urządzeniami).
+5. **Router Xiaomi** – niektóre routery Xiaomi mają problemy z QR kodem WiFi. Gracze mogą połączyć się ręcznie (wpisać hasło sieci) lub użyć innego routera.
 
 ### Jak grać bez WiFi (gracze mają tylko LTE)?
 
@@ -172,7 +181,11 @@ Pliki muszą być w folderze `uploads/` (lub w katalogu danych aplikacji). W edy
 
 ### Uninstaller (Windows) nie działa – błąd NSIS
 
-To znany problem ze starszymi instalacjami. Użyj instrukcji z pliku **NAPRAW_UNINSTALLER_WINDOWS.md** – ręczne usunięcie folderów i ponowna instalacja.
+1. Zamknij Imprezja Quiz.
+2. Uruchom **`napraw-uninstaller.bat`** (prawy przycisk → Uruchom jako administrator) – w folderze z aplikacją.
+3. Poczekaj na zakończenie, potem uruchom instalator ponownie.
+
+Jeśli nadal nie działa: usuń ręcznie foldery `%APPDATA%\Imprezja Quiz` i `%LOCALAPPDATA%\Programs\Imprezja Quiz`, potem zainstaluj od nowa.
 
 ### Gdzie są logi przy błędach?
 
