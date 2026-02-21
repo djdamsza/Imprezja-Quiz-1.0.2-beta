@@ -1,5 +1,8 @@
 <!-- ========== PEŁNA TREŚĆ DO WKLEJENIA W WORDPRESS (blok Własny HTML) ========== -->
 <!-- Skopiuj całość i wklej jako JEDEN blok. Usuń stare bloki przed wklejeniem. -->
+<!-- Preconnect: szybsze pierwsze kliknięcie – połączenie z API nawiązywane wcześniej -->
+<link rel="preconnect" href="https://imprezja-quiz-1-0-2-beta.onrender.com" crossorigin>
+<link rel="dns-prefetch" href="https://imprezja-quiz-1-0-2-beta.onrender.com">
 
 <div style="text-align: center; margin-bottom: 32px;">
     <a href="#" id="imprezja-btn-pobierz" style="display: inline-block; padding: 14px 28px; background: #27ae60; color: white !important; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 1.1rem;">⬇️ Pobierz 14-dniową wersję testową</a>
@@ -10,10 +13,10 @@
 <h2 style="text-align: center;"><strong>Imprezja Quiz – system quizów i głosowań na imprezach. Gracze łączą się telefonami przez WiFi, odpowiadają na pytania, zdobywają punkty. Działa offline.</strong></h2>
 </div>
 
-<div class="imprezja-cennik" style="max-width: 1100px; margin: 0 auto 48px; padding: 32px 20px; background: #fff;">
+<div id="imprezja-cennik-stripe" class="imprezja-cennik" style="max-width: 1100px; width: 100%; margin: 0 auto 48px; padding: 16px 12px 32px; background: #fff; box-sizing: border-box; overflow: visible;">
     <h2 style="text-align: center; margin-bottom: 12px; font-size: 1.75rem; font-weight: 600; color: #1a1a1a;">Prosty cennik</h2>
     <p style="text-align: center; margin-bottom: 32px; color: #64748b; font-size: 1rem;">Wybierz plan, który najlepiej Ci odpowiada. Wszystkie plany obejmują pełną funkcjonalność Imprezja Quiz.</p>
-    <div class="imprezja-cennik-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; align-items: stretch;">
+    <div class="imprezja-cennik-grid imprezja-cennik-scroll" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; align-items: stretch; min-width: 0;">
         <div style="background: #fff; border-radius: 16px; padding: 28px; text-align: center; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
             <h3 style="color: #1e293b; margin-bottom: 8px; font-size: 1.1rem; font-weight: 600;">1 miesiąc</h3>
             <p style="color: #64748b; font-size: 0.85rem; margin-bottom: 16px; min-height: 36px;">Subskrypcja miesięczna</p>
@@ -47,12 +50,7 @@
     <p id="imprezja-error" style="color: #dc2626; margin-top: 20px; text-align: center; display: none;"></p>
 </div>
 
-<style>
-@media (max-width: 900px) { .imprezja-cennik-grid { grid-template-columns: repeat(2, 1fr) !important; } }
-@media (max-width: 500px) { .imprezja-cennik-grid { grid-template-columns: 1fr !important; } }
-.imprezja-cennik button:hover { opacity: 0.9; }
-.imprezja-cennik button:disabled { opacity: 0.6; cursor: not-allowed; }
-</style>
+<style>#imprezja-cennik-stripe{-webkit-overflow-scrolling:touch}#imprezja-cennik-stripe .imprezja-cennik-grid>*{min-width:0}@media(min-width:901px){#imprezja-cennik-stripe .imprezja-cennik-grid{display:grid!important;grid-template-columns:repeat(4,1fr)!important}}@media(max-width:900px) and (min-width:601px){#imprezja-cennik-stripe .imprezja-cennik-grid{display:grid!important;grid-template-columns:repeat(2,1fr)!important;gap:16px!important}}@media(max-width:600px){#imprezja-cennik-stripe{padding:12px 8px 24px!important;overflow-x:auto!important;overflow-y:visible!important;-webkit-overflow-scrolling:touch!important}#imprezja-cennik-stripe .imprezja-cennik-grid{display:flex!important;flex-wrap:nowrap!important;gap:16px!important;overflow-x:auto!important;overflow-y:visible!important;-webkit-overflow-scrolling:touch!important;scroll-snap-type:x mandatory!important;padding:8px 4px 16px!important;margin:0 -8px!important}#imprezja-cennik-stripe .imprezja-cennik-grid>div{flex:0 0 78%!important;min-width:260px!important;max-width:320px!important;scroll-snap-align:start!important;scroll-snap-stop:always!important;padding:22px 18px!important}#imprezja-cennik-stripe .imprezja-cennik-grid h3{font-size:1.15rem!important}#imprezja-cennik-stripe .imprezja-cennik-grid p{font-size:0.95rem!important}#imprezja-cennik-stripe .imprezja-cennik-grid button{padding:14px 18px!important;font-size:1rem!important}}#imprezja-cennik-stripe button:hover{opacity:.9}#imprezja-cennik-stripe button:disabled{opacity:.6;cursor:not-allowed}#imprezja-cennik-stripe button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}</style>
 
 <script>
 (function(){
@@ -92,14 +90,20 @@
 
 <hr style="border:0;height:1px;background:#e2e8f0;margin:24px 0;" />
 
-<div class="imprezja-pobierz">
-<h2 style="text-align: center;"><strong>Download</strong></h2>
+<div class="imprezja-pobierz" id="imprezja-pobierz">
+<h2 style="text-align: center;"><strong>Pobierz Imprezja Quiz 1.0.4</strong></h2>
 <p style="text-align: center;">Imprezja Quiz – quiz i głosowanie na imprezach. Działa offline w sieci lokalnej. <strong>14 dni trial</strong> – pełna funkcjonalność.</p>
 <p style="text-align: center;"><strong>Wymagania:</strong> Windows 10/11 (64-bit) lub macOS 10.13+</p>
 <ul style="list-style: none; padding-left: 0;">
-<li style="margin-bottom: 12px; text-align: center;"><a style="display: inline-block; padding: 12px 24px; background: #0073aa; color: white; text-decoration: none; border-radius: 4px;" href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.0.3/Imprezja-Quiz-Setup-1.0.3.exe">⬇️ Windows – Imprezja Quiz Setup 1.0.3.exe</a></li>
-<li style="margin-bottom: 12px; text-align: center;"><a style="display: inline-block; padding: 12px 24px; background: #0073aa; color: white; text-decoration: none; border-radius: 4px;" href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.0.3/Imprezja-Quiz-1.0.3-arm64.dmg">⬇️ macOS Apple Silicon (M1/M2/M3) – Imprezja Quiz 1.0.3</a></li>
-<li style="margin-bottom: 12px; text-align: center;"><a style="display: inline-block; padding: 12px 24px; background: #0073aa; color: white; text-decoration: none; border-radius: 4px;" href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.0.3/Imprezja-Quiz-1.0.3.dmg">⬇️ macOS Intel – Imprezja Quiz 1.0.3</a></li>
+<li style="margin-bottom: 12px; text-align: center;"><a style="display: inline-block; padding: 12px 24px; background: #0073aa; color: white; text-decoration: none; border-radius: 4px;" href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.0.4/Imprezja%20Quiz%20Setup%201.0.4.exe">⬇️ Windows – Imprezja Quiz Setup 1.0.4.exe</a></li>
+<li style="margin-bottom: 12px; text-align: center;"><a style="display: inline-block; padding: 12px 24px; background: #0073aa; color: white; text-decoration: none; border-radius: 4px;" href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.0.4/Imprezja%20Quiz-1.0.4-arm64.dmg">⬇️ macOS Apple Silicon (M1/M2/M3) – Imprezja Quiz 1.0.4</a></li>
+<li style="margin-bottom: 12px; text-align: center;"><a style="display: inline-block; padding: 12px 24px; background: #0073aa; color: white; text-decoration: none; border-radius: 4px;" href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.0.4/Imprezja%20Quiz-1.0.4.dmg">⬇️ macOS Intel – Imprezja Quiz 1.0.4</a></li>
 </ul>
-<p style="text-align: center;"><em>To wersje testowe (beta). Instalator Windows może być oznaczony przez antywirus – zobacz <a href="https://nowajakoscrozrywki.pl/faq-imprezja-quiz/">FAQ</a>.</em></p>
+<div style="background:#f8f9fa;padding:16px;border-radius:8px;margin:20px 0;font-size:0.95rem;">
+<p style="margin:0;"><strong>Instalacja:</strong> Program instaluje się na komputerze. Po instalacji znajdziesz go w <strong>menu Start</strong> (Windows) lub <strong>Launchpad / Aplikacje</strong> (macOS). Skrót na pulpicie (Windows) tworzony automatycznie.</p>
+</div>
+<div style="background:#fff3cd;padding:16px;border-radius:8px;margin:20px 0;font-size:0.95rem;border-left:4px solid #ffc107;">
+<p style="margin:0;"><strong>Problem z odinstalowaniem na Windows?</strong> Pobierz <a href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/raw/main/napraw-uninstaller.bat">napraw-uninstaller.bat</a> i uruchom jako administrator.</p>
+</div>
+<p style="text-align: center;"><em>Instalator Windows może być oznaczony przez antywirus – zobacz <a href="https://nowajakoscrozrywki.pl/faq-imprezja-quiz/">FAQ</a>.</em></p>
 </div>
