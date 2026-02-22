@@ -18,6 +18,27 @@ const { generateLicenseKey, LOOKUP_TO_TYPE } = require('./license-keygen');
 const app = express();
 const PORT = process.env.PORT || process.env.STRIPE_PORT || 4242;
 const YOUR_DOMAIN = process.env.STRIPE_DOMAIN || `http://localhost:${PORT}`;
+const SUCCESS_PAGE_URL = process.env.SUCCESS_PAGE_URL || (YOUR_DOMAIN + '/success.html');
+
+/** Wysyła e-mail (Resend lub SMTP). Nie rzuca przy braku konfiguracji. */
+async function sendEmail({ to, subject, html, text }) {
+    const from = process.env.LICENSE_EMAIL_FROM || 'licencje@nowajakoscrozrywki.pl';
+    if (process.env.RESEND_API_KEY) {
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        const { error } = await resend.emails.send({ from, to, subject, html, text });
+        if (error) throw new Error(error.message);
+    } else if (process.env.SMTP_HOST) {
+        const transporter = nodemailer.createTransport({
+            host: process.env.SMTP_HOST,
+            port: parseInt(process.env.SMTP_PORT || '587', 10),
+            secure: process.env.SMTP_SECURE === 'true',
+            auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined
+        });
+        await transporter.sendMail({ from, to, subject, text: text || html, html });
+    } else {
+        throw new Error('E-mail nie skonfigurowany (RESEND_API_KEY lub SMTP_HOST)');
+    }
+}
 
 // Webhook MUSI mieć raw body – rejestruj przed express.json()
 app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
@@ -41,6 +62,36 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
         case 'checkout.session.completed': {
             const session = event.data.object;
             console.log('✅ Płatność zakończona:', session.id, 'customer:', session.customer);
+
+            const email = session.customer_email || session.customer_details?.email;
+            if (email && (process.env.RESEND_API_KEY || process.env.SMTP_HOST)) {
+                const link = `${SUCCESS_PAGE_URL.replace(/\/$/, '')}?session_id=${session.id}`;
+                const html = `
+<!DOCTYPE html>
+<html lang="pl">
+<head><meta charset="UTF-8"><title>Potwierdzenie zakupu</title></head>
+<body style="font-family: Arial,sans-serif; line-height: 1.6; color: #333;">
+<h2 style="color: #27ae60;">Dziękujemy za zakup Imprezja Quiz!</h2>
+<p>Płatność została pomyślnie zrealizowana.</p>
+<p><strong>Aby otrzymać klucz licencyjny:</strong></p>
+<ol>
+<li>Uruchom program Imprezja Quiz – na ekranie aktywacji zobaczysz <strong>ID komputera</strong> (Machine ID).</li>
+<li>Wejdź na stronę i podaj to ID: <a href="${link}">${link}</a></li>
+<li>Klucz zostanie wysłany na ten adres e-mail w ciągu kilku minut.</li>
+</ol>
+<p style="color: #666;">Zachowaj ten e-mail – link jest ważny do odebrania klucza.</p>
+<hr style="border: none; border-top: 1px solid #eee;">
+<p style="font-size: 13px; color: #999;">Nowa Jakość Rozrywki · nowajakoscrozrywki.pl</p>
+</body>
+</html>`;
+                const text = `Dziękujemy za zakup Imprezja Quiz!\n\nAby otrzymać klucz licencyjny:\n1. Uruchom program – zobaczysz ID komputera (Machine ID).\n2. Wejdź na stronę i podaj to ID: ${link}\n3. Klucz zostanie wysłany na ten adres e-mail.\n\nZachowaj ten e-mail.`;
+                try {
+                    await sendEmail({ to: email, subject: 'Imprezja Quiz – potwierdzenie zakupu i odbiór klucza', html, text });
+                    console.log('📧 E-mail z instrukcją wysłany:', email);
+                } catch (err) {
+                    console.error('⚠️ Błąd wysyłki e-mailu po płatności:', err.message);
+                }
+            }
             break;
         }
         case 'customer.subscription.created':
@@ -74,6 +125,9 @@ app.use((req, res, next) => {
 });
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
+
+/** Endpoint do pingowania (UptimeRobot, cron) – zapobiega cold start na Render */
+app.get('/health', (req, res) => res.sendStatus(200));
 
 /** Tworzy sesję Checkout – subskrypcja (1m, 3m, 12m) lub płatność jednorazowa (lifetime) */
 app.post('/create-checkout-session', async (req, res) => {
