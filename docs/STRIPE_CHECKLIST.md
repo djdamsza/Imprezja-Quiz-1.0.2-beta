@@ -126,11 +126,15 @@ Railway pobiera kod z GitHuba. Musisz mieć projekt VoteBattle w repozytorium na
 - [ ] Wklej do bloku HTML w WordPress
 - [ ] Opublikuj stronę
 
-### 3.2 Strona sukcesu (opcjonalnie)
-- [ ] Utwórz stronę „Sukces” lub „Dziękujemy”
-- [ ] Treść np.: „Płatność zakończona. Klucz licencyjny zostanie wysłany na Twój adres e-mail.”
-- [ ] Zapisz jej adres (np. `https://nowajakoscrozrywki.pl/sukces/`)
-- [ ] W pliku stripe-cennik.html zmień `success_url` w skrypcie na ten adres (domyślnie używa `window.location.origin + '/sukces/'` – upewnij się, że taka strona istnieje)
+### 3.2 Strona sukcesu (wymagana)
+- [ ] Utwórz stronę „Sukces” (slug: `sukces`) – adres: `https://nowajakoscrozrywki.pl/sukces/`
+- [ ] Otwórz plik `docs/wordpress/stripe-sukces.html` – skopiuj całą zawartość do bloku **Własny HTML**
+- [ ] W stripe-sukces.html zmień `STRIPE_API_URL` na URL stripe-shop (Railway)
+- [ ] W pliku stripe-cennik.html upewnij się, że `success_url` to `window.location.origin + '/sukces/?session_id={CHECKOUT_SESSION_ID}'`
+- [ ] Railway → **Variables** → dodaj:
+  - `SUCCESS_PAGE_URL` = `https://nowajakoscrozrywki.pl/sukces/` (link w e-mailu po płatności)
+  - `RESEND_API_KEY` = klucz z [resend.com](https://resend.com) (e-maile po płatności i z kluczem)
+  - `IMPREZJA_LICENSE_PRIVATE_KEY` = klucz do generowania licencji
 
 ---
 
@@ -149,6 +153,10 @@ Railway pobiera kod z GitHuba. Musisz mieć projekt VoteBattle w repozytorium na
 - [ ] Stripe Dashboard → **Webhooks** → kliknij swój endpoint
 - [ ] **Send test webhook** → wybierz `checkout.session.completed` → **Send**
 - [ ] Railway → **Deployments** → **View Logs** – powinna być linia „✅ Płatność zakończona”
+
+---
+
+**Zarządzanie zamówieniami:** [STRIPE_ZARZADZANIE_ZAMOWIENIAMI.md](STRIPE_ZARZADZANIE_ZAMOWIENIAMI.md)
 
 ---
 
