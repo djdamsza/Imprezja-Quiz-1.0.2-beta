@@ -4,17 +4,16 @@
 
 ---
 
-## v1.1.5-beta (marzec 2026)
+## v1.1.5-beta (19 marca 2026)
 
-### Tunel LTE
-- Nowy tunel: Cloudflare – działa na Mac i Windows jednym kliknięciem.
-- Bezpłatny, bez hasła, bez limitu czasu.
-- Panel admina prawidłowo pokazuje stan tunelu po jego zakończeniu.
+### Tunel LTE (Cloudflare)
+- Nowy tunel: Cloudflare – działa na Mac i Windows jednym kliknięciem, bez hasła, bez limitu czasu.
+- Panel admina poprawnie reaguje na zatrzymanie tunelu.
 
 ### Gry muzyczne
-- Sampler: dodano banki „Odpowiedzi" i „Prezentacja".
-- Bitwa Wokalna: dodano bank „Panie VS Panowie".
-- Wszystkie zestawy piosenek dostępne od razu po instalacji.
+- Sampler: banki „Odpowiedzi" i „Prezentacja" dostępne od razu.
+- Bitwa Wokalna: bank „Panie VS Panowie" (18 piosenek).
+- Wszystkie zestawy piosenek wbudowane w instalator.
 
 ---
 
