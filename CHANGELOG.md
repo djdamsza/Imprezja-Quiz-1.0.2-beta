@@ -4,6 +4,20 @@
 
 ---
 
+## v1.1.5-beta (marzec 2026)
+
+### Tunel LTE
+- Nowy tunel: Cloudflare – działa na Mac i Windows jednym kliknięciem.
+- Bezpłatny, bez hasła, bez limitu czasu.
+- Panel admina prawidłowo pokazuje stan tunelu po jego zakończeniu.
+
+### Gry muzyczne
+- Sampler: dodano banki „Odpowiedzi" i „Prezentacja".
+- Bitwa Wokalna: dodano bank „Panie VS Panowie".
+- Wszystkie zestawy piosenek dostępne od razu po instalacji.
+
+---
+
 ## v1.1.1-beta (luty 2026)
 
 ### Familiada
