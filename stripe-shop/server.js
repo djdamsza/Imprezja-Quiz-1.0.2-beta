@@ -123,6 +123,14 @@ app.use((req, res, next) => {
     if (req.method === 'OPTIONS') return res.sendStatus(200);
     next();
 });
+
+// Log każdego żądania – w logach Render widać, czy klik w sklepie dociera do serwera
+app.use((req, res, next) => {
+    const ts = new Date().toISOString();
+    console.log(`[${ts}] ${req.method} ${req.path} ${req.get('origin') || '-'}`);
+    next();
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
@@ -132,6 +140,7 @@ app.get('/health', (req, res) => res.sendStatus(200));
 /** Tworzy sesję Checkout – subskrypcja (1m, 3m, 12m) lub płatność jednorazowa (lifetime) */
 app.post('/create-checkout-session', async (req, res) => {
     const { lookup_key, price_id, success_url, cancel_url } = req.body || {};
+    console.log('Checkout request:', { lookup_key: lookup_key || '(brak)', price_id: price_id || '(brak)', origin: req.get('origin') });
 
     if (!process.env.STRIPE_SECRET_KEY) {
         return res.status(500).json({ error: 'Stripe nie jest skonfigurowany (STRIPE_SECRET_KEY)' });

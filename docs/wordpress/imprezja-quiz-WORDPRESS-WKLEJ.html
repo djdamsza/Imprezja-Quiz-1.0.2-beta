@@ -62,12 +62,19 @@
 })();
 (function(){
     var STRIPE_API_URL='https://imprezja-quiz-1-0-2-beta.onrender.com';
+    function showErr(msg){
+        var errEl=document.getElementById('imprezja-error');
+        if(errEl){ errEl.textContent=msg; errEl.style.display='block'; }
+        else{ console.error('Imprezja checkout:', msg); }
+    }
     window.imprezjaCheckout=async function(lookupKey,btn){
+        if(!btn||!lookupKey)return;
         btn.disabled=true;
         var errEl=document.getElementById('imprezja-error');
         if(errEl)errEl.style.display='none';
         try{
-            var res=await fetch(STRIPE_API_URL+'/create-checkout-session',{
+            var url=STRIPE_API_URL+'/create-checkout-session';
+            var res=await fetch(url,{
                 method:'POST',
                 headers:{'Content-Type':'application/json'},
                 body:JSON.stringify({
@@ -76,15 +83,23 @@
                     cancel_url:window.location.href
                 })
             });
-            var data=await res.json();
-            if(data.url){window.location.href=data.url;}
-            else{throw new Error(data.error||'Błąd serwera');}
+            var text=await res.text();
+            var data=null;
+            try{ data=text?JSON.parse(text):{}; }catch(_){}
+            if(res.ok&&data&&data.url){ window.location.href=data.url; return; }
+            var msg=(data&&data.error)||(!res.ok?'Serwer: '+res.status+' '+res.statusText:'Błąd serwera')||'Błąd połączenia';
+            throw new Error(msg);
         }catch(err){
-            if(errEl){errEl.textContent=err.message||'Błąd połączenia';errEl.style.display='block';btn.disabled=false;}
+            var msg=err.message||'Błąd połączenia (sprawdź F12 → Konsola)';
+            showErr(msg);
+            btn.disabled=false;
         }
     };
-    function init(){document.querySelectorAll('.imprezja-cennik').forEach(function(c){c.addEventListener('click',function(e){var b=e.target.closest('.imprezja-btn-checkout');if(b&&b.dataset.plan){e.preventDefault();imprezjaCheckout(b.dataset.plan,b);}});});}
-    if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',init);}else{init();}
+    function onBtnClick(e){
+        var b=e.target.closest('.imprezja-btn-checkout');
+        if(b&&b.dataset.plan){ e.preventDefault(); e.stopPropagation(); imprezjaCheckout(b.dataset.plan,b); }
+    }
+    document.addEventListener('click',onBtnClick,true);
 })();
 </script>
 
@@ -103,7 +118,7 @@
 <p style="margin:0;"><strong>Instalacja:</strong> Program instaluje się na komputerze. Po instalacji znajdziesz go w <strong>menu Start</strong> (Windows) lub <strong>Launchpad / Aplikacje</strong> (macOS). Skrót na pulpicie (Windows) tworzony automatycznie.</p>
 </div>
 <div style="background:#fff3cd;padding:16px;border-radius:8px;margin:20px 0;font-size:0.95rem;border-left:4px solid #ffc107;">
-<p style="margin:0;"><strong>Problem z odinstalowaniem na Windows?</strong> Pobierz <a href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/raw/main/napraw-uninstaller.bat">napraw-uninstaller.bat</a> i uruchom jako administrator.</p>
+<p style="margin:0;"><strong>Problem z odinstalowaniem na Windows?</strong> Pobierz <a href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.0.4/napraw-uninstaller.bat">napraw-uninstaller.bat</a> i uruchom jako administrator.</p>
 </div>
 <p style="text-align: center;"><em>Instalator Windows może być oznaczony przez antywirus – zobacz <a href="https://nowajakoscrozrywki.pl/faq-imprezja-quiz/">FAQ</a>.</em></p>
 </div>
