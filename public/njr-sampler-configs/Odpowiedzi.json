@@ -1,0 +1,99 @@
+{
+  "tileCount": 8,
+  "banks": [
+    {
+      "id": "b1",
+      "name": "Bank 1",
+      "tiles": [
+        {
+          "id": "t0",
+          "color": "#ffffff",
+          "label": "Czas pokaże",
+          "image": "🎤",
+          "audio": "/uploads/1772637288818-czas-pokaze.mp3",
+          "volume": 100,
+          "isBackground": false,
+          "loop": false,
+          "fadeOut": false
+        },
+        {
+          "id": "t1",
+          "color": "#000000",
+          "label": "ZZZZZZZZZ",
+          "image": "😴",
+          "audio": "/uploads/1772637350219-a-few-moments-later-hd.mp3",
+          "volume": 100,
+          "isBackground": false,
+          "loop": false,
+          "fadeOut": false
+        },
+        {
+          "id": "t2",
+          "color": "#ff0000",
+          "label": "Piękny jesteś",
+          "image": "",
+          "audio": "/uploads/1772637400340-dario-piekny-jestes-mp3cut.mp3",
+          "volume": 100,
+          "isBackground": false,
+          "loop": false,
+          "fadeOut": false
+        },
+        {
+          "id": "t3",
+          "color": "#808080",
+          "label": "MODEM",
+          "image": "🤫",
+          "audio": "/uploads/1772637435757-loading-lost-connection-green-screen-with-sound-effect-2_K8HORkT.mp3",
+          "volume": 100,
+          "isBackground": false,
+          "loop": false,
+          "fadeOut": false
+        },
+        {
+          "id": "t4",
+          "color": "#008080",
+          "label": "PEDAŁ",
+          "image": "",
+          "audio": "/uploads/1772637473267-greckim-jestem-p.mp3",
+          "volume": 100,
+          "isBackground": false,
+          "loop": false,
+          "fadeOut": false
+        },
+        {
+          "id": "t5",
+          "color": "#808000",
+          "label": "HOP HOP",
+          "image": "⚡",
+          "audio": "/uploads/1772637511609-gruby-hop-full.mp3",
+          "volume": 100,
+          "isBackground": false,
+          "loop": false,
+          "fadeOut": false
+        },
+        {
+          "id": "t6",
+          "color": "#ff00ff",
+          "label": "ALE BYM CIE",
+          "image": "❤️",
+          "audio": "/uploads/1772637562821-dawid-jasper-ale-bym-cie.mp3",
+          "volume": 100,
+          "isBackground": false,
+          "loop": false,
+          "fadeOut": false
+        },
+        {
+          "id": "t7",
+          "color": "#ff00ff",
+          "label": "Born to be wild",
+          "image": "❤️",
+          "audio": "/uploads/1772637586788-bad-to-the-bone-meme.mp3",
+          "volume": 100,
+          "isBackground": false,
+          "loop": false,
+          "fadeOut": false
+        }
+      ]
+    }
+  ]
+}

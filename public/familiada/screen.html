@@ -11,6 +11,7 @@
             --led-yellow: #ffe033;
             --led-off: #443300;
             --font-led: 'Pixelify Sans', monospace;
+            --font-digits: 'Segoe UI', 'Roboto', 'Arial', sans-serif;
         }
         body { background: #000; font-family: var(--font-led); margin: 0; overflow: hidden; height: 100vh; display: flex; flex-direction: column; color: var(--led-yellow); position: relative; }
         body::before { content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none;
@@ -20,13 +21,15 @@
 
         #fs-btn { position: fixed; bottom: 20px; right: 20px; background: rgba(50, 50, 50, 0.5); color: #fff; border: 1px solid #777; padding: 10px 20px; border-radius: 5px; cursor: pointer; z-index: 9999; font-family: sans-serif; font-size: 12px; text-transform: uppercase; }
         #fs-btn:hover { opacity: 1; background: #444; }
+        .logo-footer { position: fixed; bottom: 58px; right: 20px; z-index: 50; height: 32px; width: auto; opacity: 0.75; pointer-events: none; }
+        .logo-footer img { height: 100%; width: auto; object-fit: contain; }
 
         #top-section { height: 20vh; display: flex; z-index: 10; position: relative; }
         .team-score-panel { width: 28%; min-width: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; z-index: 1; }
         #panel-blue { background: linear-gradient(135deg, rgba(0, 40, 100, 0.3) 0%, transparent 70%); }
         #panel-red { background: linear-gradient(225deg, rgba(100, 0, 0, 0.3) 0%, transparent 70%); }
         .team-name { font-family: var(--font-led); font-size: 1.8vw; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px; color: var(--led-yellow); text-shadow: 0 0 8px var(--led-yellow); line-height: 1.4; }
-        .score-display { background: transparent; color: var(--led-yellow); font-family: var(--font-led); font-size: 4vw; padding: 2px 8px; min-width: 50px; text-align: center; text-shadow: 0 0 10px var(--led-yellow); }
+        .score-display { background: transparent; color: var(--led-yellow); font-family: var(--font-digits); font-size: 4vw; padding: 2px 8px; min-width: 50px; text-align: center; text-shadow: 0 0 10px var(--led-yellow); font-variant-numeric: tabular-nums; }
         #question-box { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 15px; text-align: center; position: relative; z-index: 2; }
         #question-text { color: var(--led-yellow); font-family: var(--font-led); font-size: 3vw; text-transform: uppercase; text-shadow: 0 0 8px var(--led-yellow); line-height: 1.35; letter-spacing: 1px; max-width: 95%; white-space: normal; word-wrap: break-word; }
         #question-text.question-long { font-size: 2.4vw; line-height: 1.3; }
@@ -43,16 +46,16 @@
         #rows-container { flex: 1; display: flex; flex-direction: column; justify-content: space-evenly; gap: 0.5vh; min-height: 0; }
         .answer-row { display: flex; align-items: center; margin-bottom: 0; padding: 0.2vh 0; font-size: var(--answer-font-size, 3vw); transition: all 0.5s; line-height: 1.35; flex: 1; min-height: 0; }
 
-        .row-num { width: 50px; min-width: 50px; text-align: center; color: var(--led-yellow); font-family: var(--font-led); margin-right: 15px; text-shadow: 0 0 5px var(--led-yellow); flex-shrink: 0; }
+        .row-num { width: 50px; min-width: 50px; text-align: center; color: var(--led-yellow); font-family: var(--font-digits); margin-right: 15px; text-shadow: 0 0 5px var(--led-yellow); flex-shrink: 0; font-variant-numeric: tabular-nums; }
         .row-text { flex: 1; text-transform: uppercase; letter-spacing: var(--answer-spacing, 2px); position: relative; white-space: nowrap; overflow: hidden; font-family: var(--font-led); }
         .hidden-mask { display: block; color: var(--led-off); font-family: var(--font-led); letter-spacing: 3px; }
         .revealed-text { display: none; color: var(--led-yellow); text-shadow: 0 0 8px var(--led-yellow); font-family: var(--font-led); }
         .revealed .hidden-mask { display: none; }
         .revealed .revealed-text { display: block; }
-        .row-points { width: var(--row-points-width, 80px); min-width: 50px; text-align: right; padding-right: 10px; color: var(--led-yellow); font-family: var(--font-led); text-shadow: 0 0 5px var(--led-yellow); visibility: hidden; flex-shrink: 0; }
+        .row-points { width: var(--row-points-width, 80px); min-width: 50px; text-align: right; padding-right: 10px; color: var(--led-yellow); font-family: var(--font-digits); text-shadow: 0 0 5px var(--led-yellow); visibility: hidden; flex-shrink: 0; font-variant-numeric: tabular-nums; }
         .revealed .row-points { visibility: visible; }
 
-        #total-pot { text-align: right; font-size: 2.5vw; padding-top: 10px; color: var(--led-yellow); text-shadow: 0 0 10px var(--led-yellow); margin-top: 10px; font-family: var(--font-led); }
+        #total-pot { text-align: right; font-size: 2.5vw; padding-top: 10px; color: var(--led-yellow); text-shadow: 0 0 10px var(--led-yellow); margin-top: 10px; font-family: var(--font-digits); font-variant-numeric: tabular-nums; }
 
         #familiada-title-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 250; background: #000; pointer-events: none; overflow: hidden; }
         #familiada-title-overlay::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0;
@@ -77,6 +80,11 @@
         #familiada-title-overlay.fade-out { animation: overlayFadeOut 1s ease-out forwards; }
         @keyframes overlayFadeOut { to { opacity: 0; } }
         #familiada-title-overlay .pixel-title-wrap { position: relative; z-index: 1; }
+        #familiada-jingle-scores { display: none; position: relative; z-index: 1; margin-top: 3vh; flex-direction: row; gap: 15vw; align-items: center; justify-content: center; }
+        #familiada-jingle-scores.visible { display: flex; }
+        .jingle-team { text-align: center; font-family: var(--font-led); }
+        .jingle-team .jingle-name { font-size: 3.5vw; color: var(--led-yellow); text-shadow: 0 0 12px var(--led-yellow); margin-bottom: 1vh; text-transform: uppercase; letter-spacing: 2px; display: block; }
+        .jingle-team .jingle-points { font-size: 6vw; font-weight: bold; font-family: var(--font-digits); color: var(--led-yellow); text-shadow: 0 0 15px var(--led-yellow); font-variant-numeric: tabular-nums; }
         .pixel-title-wrap { display: flex; gap: 1.2vw; justify-content: center; align-items: center; flex-wrap: nowrap; max-width: 90vw; }
         .pixel-letter { display: flex; flex-direction: column; gap: 0.35vw; }
         .pixel-row { display: flex; gap: 0.35vw; }
@@ -108,14 +116,14 @@
         .final-scores { display: flex; gap: 15vw; }
         .f-team { text-align: center; font-family: var(--font-led); }
         .f-name { font-size: 4.5vw; color: var(--led-yellow); text-shadow: 0 0 15px var(--led-yellow); margin-bottom: 2vh; text-transform: uppercase; letter-spacing: 3px; }
-        .f-points { font-size: 10vw; font-weight: bold; font-family: var(--font-led); color: var(--led-yellow); text-shadow: 0 0 20px var(--led-yellow); }
+        .f-points { font-size: 10vw; font-weight: bold; font-family: var(--font-digits); color: var(--led-yellow); text-shadow: 0 0 20px var(--led-yellow); font-variant-numeric: tabular-nums; }
         .f-team.winner .f-name, .f-team.winner .f-points { color: var(--led-yellow); text-shadow: 0 0 25px var(--led-yellow), 0 0 40px rgba(255,224,51,0.5); }
         .f-team.loser .f-name, .f-team.loser .f-points { opacity: 0.5; }
 
         @keyframes blinkX { 0% { transform: scale(1.5); opacity:0; } 100% { transform: scale(1); opacity:1; } }
         @keyframes shake { 0% { transform: translate(2px, 2px); } 50% { transform: translate(-2px, -2px); } 100% { transform: translate(2px, -2px); } }
 
-        #familiada-intro { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 300; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; overflow: hidden; }
+        #familiada-intro { position: fixed; top: 0; left: 0; width: 100%; height: 100%; max-height: 100dvh; background: #000; z-index: 300; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: clamp(12px, 2vh, 24px) 16px; overflow-y: auto; overflow-x: hidden; box-sizing: border-box; }
         #familiada-intro::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none;
             background: linear-gradient(105deg, rgba(0, 80, 180, 0.7) 0%, rgba(0, 60, 140, 0.45) 50%, transparent 75%),
                         linear-gradient(255deg, rgba(180, 0, 0, 0.7) 0%, rgba(140, 0, 0, 0.45) 50%, transparent 75%);
@@ -140,24 +148,34 @@
         #button-flash-pixel-title .pixel-letter { gap: 0.4vw; }
         #button-flash-pixel-title .pixel-row { gap: 0.4vw; }
         #familiada-intro > * { position: relative; z-index: 1; }
-        .intro-title { font-size: 2.5rem; font-weight: bold; margin-bottom: 30px; color: var(--led-yellow); }
-        .qr-row { display: flex; align-items: center; justify-content: center; gap: 30px; flex-wrap: wrap; margin-bottom: 20px; }
-        .qr-admin-box { display: flex; flex-direction: column; align-items: center; padding: 30px; background: rgba(255,255,255,0.05); border-radius: 16px; border: 2px solid rgba(255,204,0,0.3); }
-        .qr-admin-box img { width: 180px; height: 180px; border-radius: 12px; border: 4px solid #fff; }
-        .qr-admin-label { font-size: 1rem; font-weight: bold; margin-bottom: 12px; color: #e67e22; }
-        .qr-buttons-label { color: #3498db; }
-        .intro-editor-btn { display: inline-block; padding: 14px 28px; margin: 8px; background: #3498db; color: #fff; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; text-decoration: none; }
-        .intro-editor-btn:hover { background: #2980b9; }
+        #familiada-intro .intro-title { font-size: clamp(1.4rem, 4vw, 2rem); font-weight: bold; margin-bottom: 16px; color: var(--led-yellow); }
+        #familiada-intro .qr-row { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; align-items: flex-start; max-width: 100%; margin-bottom: 16px; }
+        #familiada-intro .qr-admin-box { flex: 1 1 240px; min-width: 200px; max-width: 340px; display: flex; flex-direction: column; align-items: center; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 12px; border: 1px solid rgba(255,204,0,0.35); }
+        #familiada-intro .qr-admin-box img { width: clamp(140px, 14vw, 200px); height: clamp(140px, 14vw, 200px); object-fit: contain; border-radius: 10px; border: 4px solid #fff; padding: 8px; margin: 8px 0; background: #fff; }
+        #familiada-intro .qr-admin-label { font-size: 0.95rem; font-weight: 700; margin-bottom: 4px; color: #e67e22; }
+        #familiada-intro .qr-buttons-label { color: #3498db; }
+        #familiada-intro .intro-btn-row { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; align-items: center; margin-top: 20px; }
+        #familiada-intro .intro-editor-btn { display: inline-block; padding: 12px 24px; font-size: 0.95rem; font-weight: 600; border-radius: 10px; border: none; cursor: pointer; text-decoration: none; transition: all 0.2s; margin: 0; }
+        #familiada-intro .intro-editor-btn:hover { transform: scale(1.05); }
+        #familiada-intro .intro-editor-btn[href="/familiada/editor.html"] { background: #3498db; color: #fff; }
+        #familiada-intro .intro-editor-btn[href="/familiada/editor.html"]:hover { background: #2980b9 !important; }
+        #familiada-intro .intro-admin-btn { background: #e67e22 !important; color: #fff !important; }
+        #familiada-intro .intro-admin-btn:hover { background: #d35400 !important; }
+        #familiada-intro .intro-start-btn { background: #2ecc71 !important; color: #000 !important; }
+        #familiada-intro .intro-start-btn:hover { background: #27ae60 !important; color: #fff !important; }
+        #familiada-intro .intro-back-btn { background: #f1c40f !important; color: #000 !important; }
+        #familiada-intro .intro-back-btn:hover { background: #f39c12 !important; color: #000 !important; }
     </style>
 </head>
 <body>
+    <div class="logo-footer" aria-hidden="true"><img src="/img/logo_imprezja_mini.png" alt="Imprezja Quiz"></div>
     <button id="fs-btn" onclick="toggleFullScreen()">⛶ PEŁNY EKRAN</button>
 
     <div id="familiada-title-overlay">
         <div class="pixel-title-wrap" id="pixel-title"></div>
-        <div class="jingle-scores final-scores" id="jingle-scores" style="margin-top: 5vh;">
-            <div class="f-team"><div class="f-name" id="jingle-team-name-1">NIEBIESCY</div><div class="f-points" id="jingle-score-1">0</div></div>
-            <div class="f-team"><div class="f-name" id="jingle-team-name-2">CZERWONI</div><div class="f-points" id="jingle-score-2">0</div></div>
+        <div id="familiada-jingle-scores">
+            <div class="jingle-team"><span class="jingle-name" id="jingle-team-name-1">NIEBIESCY</span><span class="jingle-points" id="jingle-score-1">0</span></div>
+            <div class="jingle-team"><span class="jingle-name" id="jingle-team-name-2">CZERWONI</span><span class="jingle-points" id="jingle-score-2">0</span></div>
         </div>
     </div>
 
@@ -175,11 +193,16 @@
                 <div id="buttons-url-display" style="margin-top:10px; font-size:0.85rem; word-break:break-all; color:#95a5a6;"></div>
             </div>
         </div>
-        <a href="/familiada/editor.html" target="_blank" class="intro-editor-btn">✏️ Edytor pytań Familiady</a>
-        <button class="intro-editor-btn" style="background:#e67e22; margin-top:12px;" onclick="window.open('/familiada/admin.html','_blank')">Otwórz admin na komputerze</button>
-        <button class="intro-editor-btn" style="background:#27ae60; margin-top:20px;" onclick="startGame()">Rozpocznij grę</button>
-        <a href="/start.html" class="intro-editor-btn" style="background:#555; margin-top:12px; text-decoration:none;">← Cofnij</a>
+        <div class="intro-btn-row">
+            <a href="/familiada/editor.html" target="_blank" class="intro-editor-btn">✏️ Edytor</a>
+            <button type="button" class="intro-editor-btn intro-admin-btn" onclick="window.open('/familiada/admin.html','_blank')">Admin na komputerze</button>
+            <button type="button" class="intro-editor-btn intro-start-btn" onclick="startGame()">▶️ Rozpocznij grę</button>
+            <button type="button" class="intro-editor-btn intro-back-btn" id="btn-familiada-zakoncz">Zakończ</button>
+            <a href="/start.html" class="intro-editor-btn intro-back-btn" style="text-decoration:none;">← Cofnij</a>
+        </div>
     </div>
+
+    <button type="button" id="btn-familiada-zakoncz-float" class="intro-editor-btn intro-back-btn" style="display:none; position:fixed; bottom:16px; right:16px; z-index:350;">Zakończ</button>
 
     <div id="split-overlay"></div>
     <div id="button-flash-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:400; pointer-events:none; transition:opacity 3s ease-out; align-items:center; justify-content:center;">
@@ -241,8 +264,23 @@
             });
         }
 
+        function endGameShowIntro() {
+            if (typeof socket !== 'undefined') socket.emit('familiada_screen_reset');
+            const intro = document.getElementById('familiada-intro');
+            if (intro) intro.classList.remove('hidden');
+            const overlay = document.getElementById('familiada-title-overlay');
+            if (overlay) overlay.classList.remove('visible');
+            const final = document.getElementById('final-screen');
+            if (final) final.style.display = 'none';
+            const fl = document.getElementById('btn-familiada-zakoncz-float');
+            if (fl) fl.style.display = 'none';
+        }
         function startGame() {
             document.getElementById('familiada-intro').classList.add('hidden');
+            const fl = document.getElementById('btn-familiada-zakoncz-float');
+            if (fl) fl.style.display = 'block';
+            const jingleScores = document.getElementById('familiada-jingle-scores');
+            if (jingleScores) jingleScores.classList.remove('visible');
             renderPixelTitle();
             const overlay = document.getElementById('familiada-title-overlay');
             overlay.classList.add('visible');
@@ -262,6 +300,8 @@
         }
         if (socket.connected) initFamiliadaConnection();
         else socket.once('connect', initFamiliadaConnection);
+        document.getElementById('btn-familiada-zakoncz')?.addEventListener('click', endGameShowIntro);
+        document.getElementById('btn-familiada-zakoncz-float')?.addEventListener('click', endGameShowIntro);
         socket.on('familiada_qr_admin', (data) => {
             const img = document.getElementById('qr-admin-familiada');
             const urlEl = document.getElementById('admin-url-display');
@@ -300,12 +340,27 @@
             if (!document.fullscreenElement) {
                 document.documentElement.requestFullscreen().catch(() => {});
                 document.getElementById('fs-btn').style.display = 'none';
-                if (audioFiles && audioFiles.intro) {
-                    audioFiles.intro.play().catch(() => {});
-                    setTimeout(() => { audioFiles.intro.pause(); audioFiles.intro.currentTime = 0; }, 100);
-                }
+            } else {
+                document.exitFullscreen();
             }
         }
+        document.addEventListener('fullscreenchange', () => {
+            const btn = document.getElementById('fs-btn');
+            if (btn) btn.style.display = document.fullscreenElement ? 'none' : '';
+            if (document.fullscreenElement) requestWakeLock();
+        });
+
+        let screenWakeLock = null;
+        async function requestWakeLock() {
+            if (!('wakeLock' in navigator) || document.visibilityState !== 'visible') return;
+            try {
+                if (screenWakeLock) { try { await screenWakeLock.release(); } catch (e) {} screenWakeLock = null; }
+                screenWakeLock = await navigator.wakeLock.request('screen');
+                if (screenWakeLock) screenWakeLock.addEventListener('release', () => { screenWakeLock = null; });
+            } catch (e) {}
+        }
+        document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') requestWakeLock(); });
+        if (document.visibilityState === 'visible') requestWakeLock();
 
         const audioFiles = {
             intro: new Audio('/familiada/sounds/intro.mp3'),
@@ -334,25 +389,33 @@
             }
             if (name === 'jingle') {
                 const overlay = document.getElementById('familiada-title-overlay');
+                const jingleScores = document.getElementById('familiada-jingle-scores');
                 renderPixelTitle();
-                const s1 = document.getElementById('score-1');
-                const s2 = document.getElementById('score-2');
                 const n1 = document.getElementById('team-name-1');
                 const n2 = document.getElementById('team-name-2');
-                const jn1 = document.getElementById('jingle-team-name-1');
-                const jn2 = document.getElementById('jingle-team-name-2');
-                const js1 = document.getElementById('jingle-score-1');
-                const js2 = document.getElementById('jingle-score-2');
-                if (jn1 && n1) jn1.textContent = n1.textContent || 'NIEBIESCY';
-                if (jn2 && n2) jn2.textContent = n2.textContent || 'CZERWONI';
-                if (js1 && s1) js1.textContent = s1.textContent || '0';
-                if (js2 && s2) js2.textContent = s2.textContent || '0';
+                const s1 = document.getElementById('score-1');
+                const s2 = document.getElementById('score-2');
+                if (jingleScores) {
+                    const jn1 = document.getElementById('jingle-team-name-1');
+                    const jn2 = document.getElementById('jingle-team-name-2');
+                    const js1 = document.getElementById('jingle-score-1');
+                    const js2 = document.getElementById('jingle-score-2');
+                    if (jn1 && n1) jn1.textContent = n1.textContent || 'NIEBIESCY';
+                    if (jn2 && n2) jn2.textContent = n2.textContent || 'CZERWONI';
+                    if (js1 && s1) js1.textContent = s1.textContent || '0';
+                    if (js2 && s2) js2.textContent = s2.textContent || '0';
+                    jingleScores.classList.add('visible');
+                }
                 overlay.classList.add('visible');
                 overlay.classList.remove('fade-out');
                 overlay.style.opacity = '1';
                 setTimeout(() => {
                     overlay.classList.add('fade-out');
-                    setTimeout(() => { overlay.classList.remove('visible', 'fade-out'); overlay.style.opacity = ''; }, 1000);
+                    setTimeout(() => {
+                        overlay.classList.remove('visible', 'fade-out');
+                        overlay.style.opacity = '';
+                        if (jingleScores) jingleScores.classList.remove('visible');
+                    }, 1000);
                 }, 8000);
             }
         }
@@ -441,8 +504,8 @@
                     if (!roundAwarded) {
                         currentPot += parseInt(el.querySelector('.row-points').innerText);
                         document.getElementById('total-pot').innerText = "SUMA: " + currentPot;
-                        playSound('correct');
                     }
+                    playSound('correct');
                 }
             }
             if (msg.type === 'ERROR') {
@@ -481,10 +544,14 @@
                 document.getElementById('split-overlay').classList.remove('visible');
                 renderPixelTitle('final-pixel-title');
                 document.getElementById('final-screen').style.display = 'flex';
-                document.getElementById('final-score-1').innerText = msg.scores.t1;
-                document.getElementById('final-score-2').innerText = msg.scores.t2;
-                if (msg.scores.team1) document.getElementById('final-team-name-1').innerText = msg.scores.team1.toUpperCase();
-                if (msg.scores.team2) document.getElementById('final-team-name-2').innerText = msg.scores.team2.toUpperCase();
+                const s1 = document.getElementById('final-score-1');
+                const s2 = document.getElementById('final-score-2');
+                const n1 = document.getElementById('final-team-name-1');
+                const n2 = document.getElementById('final-team-name-2');
+                if (s1) s1.innerText = msg.scores.t1 != null ? msg.scores.t1 : (document.getElementById('score-1')?.textContent || '0');
+                if (s2) s2.innerText = msg.scores.t2 != null ? msg.scores.t2 : (document.getElementById('score-2')?.textContent || '0');
+                if (n1) n1.innerText = (msg.scores.team1 || document.getElementById('team-name-1')?.textContent || 'NIEBIESCY').toUpperCase();
+                if (n2) n2.innerText = (msg.scores.team2 || document.getElementById('team-name-2')?.textContent || 'CZERWONI').toUpperCase();
                 document.getElementById('final-team-1').classList.remove('winner', 'loser');
                 document.getElementById('final-team-2').classList.remove('winner', 'loser');
                 if (msg.scores.t1 > msg.scores.t2) {

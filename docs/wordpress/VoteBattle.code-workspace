@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "../.."
+		},
+		{
+			"path": "../../../familiade imprezja"
+		}
+	],
+	"settings": {
+		"git.ignoreLimitWarning": true
+	}
+}

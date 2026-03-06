@@ -18,3 +18,7 @@ certs/
 
 # Klucz prywatny licencji (TYLKO do generowania kluczy – nie w repozytorium!)
 license-private.pem
+
+# Cursor IDE – konfiguracja lokalna, nie do repo
+.cursor/
+.cursorignore

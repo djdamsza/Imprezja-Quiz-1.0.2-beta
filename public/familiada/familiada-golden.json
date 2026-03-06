@@ -23,5 +23,32 @@
       { "text": "Francja", "points": 29 },
       { "text": "Wielka Brytania", "points": 18 }
     ]
+  },
+  {
+    "question": "Jakie zwierzęta mają więcej niż jedną nogę?",
+    "answers": [
+      { "text": "Świnia", "points": 25 },
+      { "text": "Krowa", "points": 25 },
+      { "text": "Koń", "points": 25 },
+      { "text": "Kura", "points": 25 }
+    ]
+  },
+  {
+    "question": "Co Polak robi, gdy się zgubi?",
+    "answers": [
+      { "text": "Pyta o drogę", "points": 40 },
+      { "text": "Dzwoni do mamy", "points": 30 },
+      { "text": "Włącza GPS", "points": 20 },
+      { "text": "Idzie w przeciwną stronę", "points": 10 }
+    ]
+  },
+  {
+    "question": "Gdzie nie warto szukać skarbu?",
+    "answers": [
+      { "text": "W piwnicy teściowej", "points": 35 },
+      { "text": "W starym aucie", "points": 25 },
+      { "text": "W portfelu", "points": 20 },
+      { "text": "W lodówce", "points": 20 }
+    ]
   }
 ]

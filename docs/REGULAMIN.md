@@ -28,20 +28,24 @@
 
 ## § 3. Zakres licencji
 
-1. Licencja uprawnia do nieograniczonego w czasie i ilości użytkowania Programu na **jednym komputerze** (zgodnie z Machine ID powiązanym z kluczem).
+1. Licencja uprawnia do użytkowania Programu na **jednym komputerze** (zgodnie z Machine ID powiązanym z kluczem). **Licencja dożywotnia** – bezterminowo. **Licencja czasowa** (1 miesiąc, 3 miesiące, 12 miesięcy) – na okres opłacony przy zakupie; po upływie tego okresu wymagana jest aktywacja nowego klucza (odnowienie subskrypcji lub zakup innego planu).
 2. Zakazane jest:
    - udostępnianie klucza licencyjnego osobom trzecim,
    - kopiowanie, modyfikowanie lub rozpowszechnianie Programu bez zgody Wydawcy,
    - obchodzenie zabezpieczeń licencji.
-3. W przypadku zmiany komputera Klient może skontaktować się ze Sprzedawcą w celu przeniesienia licencji (na zasadach określonych przez Sprzedawcę).
+3. W przypadku zmiany komputera Klient może skontaktować się ze Sprzedawcą w celu **przeniesienia licencji** na nowy sprzęt. Warunki:
+   - Wymagane: adres e-mail z zakupu oraz nowy Machine ID (z panelu admina w nowym komputerze).
+   - Limit: **2 przeniesienia** na jednego klienta (na adres e-mail z zakupu) w całym okresie obowiązywania licencji.
+   - Po przeniesieniu **poprzednia licencja na stary sprzęt zostaje unieważniona** – klucz przestaje być ważny na poprzednim komputerze.
+   - Przeniesienie realizowane w ciągu 2 dni roboczych od zgłoszenia.
 
 ---
 
 ## § 4. Zamówienia i płatności
 
-1. Zamówienie składa się przez formularz na stronie, e-mail lub inne kanały wskazane przez Sprzedawcę.
+1. Zamówienie składa się przez stronę internetową Wydawcy (np. przyciski płatności Stripe), formularz, e-mail lub inne kanały wskazane przez Sprzedawcę.
 2. Do realizacji zamówienia wymagane są: adres e-mail, Machine ID (jeśli dotyczy) oraz dane niezbędne do płatności.
-3. Sprzedawca potwierdza przyjęcie zamówienia i przekazuje klucz licencyjny w ciągu **2 dni roboczych** od zaksięgowania płatności (lub automatycznie, jeśli system to przewiduje).
+3. Klucz licencyjny jest przekazywany **automatycznie** po zaksięgowaniu płatności (e-mail z kluczem) lub w ciągu **2 dni roboczych**, jeśli wymagane jest ręczne przetworzenie zamówienia.
 4. Ceny podane są w złotych (PLN) i zawierają podatek VAT, o ile jest wymagany.
 
 ---
@@ -66,7 +70,7 @@
 ## § 7. Aktualizacje
 
 1. Wydawca może udostępniać aktualizacje Programu (poprawki błędów, nowe funkcje). Zakres aktualizacji zależy od typu licencji.
-2. Aktualizacje są udostępniane poprzez pobranie nowej wersji ze strony Wydawcy.
+2. Aktualizacje są udostępniane poprzez pobranie nowej wersji ze strony Wydawcy lub z oficjalnego źródła dystrybucji (np. GitHub Releases). Aplikacja może informować o dostępnych aktualizacjach.
 3. Wydawca nie gwarantuje ciągłej dostępności aktualizacji.
 
 ---
@@ -81,6 +85,6 @@
 
 ---
 
-*Ostatnia aktualizacja: 11 lutego 2026 r.*
+*Ostatnia aktualizacja: 18 lutego 2026 r.*
 
 © Damian Nowaczyk. Wszelkie prawa zastrzeżone.

@@ -74,15 +74,15 @@
         }
         .new-question-pulse { animation: bgPulse 0.5s ease-out; }
 
-        /* Przycisk pełnego ekranu – prawy dolny róg, znika w fullscreen */
+        /* Przycisk pełnego ekranu – jak Familiada: prostokąt, „⛶ PEŁNY EKRAN” */
         #btn-fullscreen-screen {
             position: fixed; bottom: 20px; right: 20px; z-index: 10001;
-            width: 52px; height: 52px; border-radius: 50%;
-            background: rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.35);
-            color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center;
-            font-size: 26px; transition: opacity 0.2s, transform 0.2s; backdrop-filter: blur(8px);
+            padding: 10px 20px; border-radius: 5px;
+            background: rgba(50,50,50,0.5); border: 1px solid #777;
+            color: #fff; font-size: 12px; text-transform: uppercase; font-family: inherit;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
         }
-        #btn-fullscreen-screen:hover { background: rgba(0,0,0,0.7); transform: scale(1.08); opacity: 1; }
+        #btn-fullscreen-screen:hover { background: rgba(70,70,70,0.7); }
         #btn-fullscreen-screen:active { transform: scale(0.98); }
 
         #main-content {
@@ -620,11 +620,17 @@
             gap: 40px;
         }
         
-        /* Układ pionowy - dwa obrazki jeden pod drugim */
+        /* Układ pionowy - dwa obrazki jeden pod drugim (dla zdjęć pionowych) */
         .grid-hot-or-not.layout-vertical {
             grid-template-columns: 1fr;
             grid-template-rows: 1fr 1fr;
             gap: 40px;
+        }
+        /* Dla zdjęć pionowych: karty węższe, wyśrodkowane – mniej pustej przestrzeni */
+        .grid-hot-or-not.layout-vertical .hot-image-card {
+            max-width: min(90vw, 45vh);
+            margin-left: auto;
+            margin-right: auto;
         }
         
         /* Układ mieszany - jeden pionowy, drugi poziomy (kwadratowy układ) */
@@ -927,23 +933,33 @@
         .score-a { left: 20px; color: #fff; }
         .score-b { right: 20px; color: #fff; }
 
-        /* OVERLAYS – przejście przy pokazywaniu */
+        /* OVERLAYS – pełen dostępny ekran (100dvh), przewijanie gdy potrzeba */
         .overlay-screen {
-            position: absolute; top:0; left:0; width:100%; height:100%; z-index: 100;
-            display: none; flex-direction: column; align-items: center; justify-content: center;
+            position: absolute; top:0; left:0; width:100%; min-height: 100%; height: 100dvh; max-height: 100dvh; z-index: 100;
+            display: none; flex-direction: column; align-items: center; justify-content: flex-start;
             background: radial-gradient(circle at bottom, #2c3e50, #000);
+            overflow-y: auto; overflow-x: hidden;
+            box-sizing: border-box; padding: clamp(12px, 2vh, 24px) 16px;
         }
         .overlay-screen[style*="display: flex"],
         .overlay-screen.overlay-visible {
             animation: overlayFadeIn 0.4s ease-out;
         }
+        #intro-screen { justify-content: center; }
         @keyframes overlayFadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
         }
+        .logo-imprezja { max-width: 140px; width: min(28vw, 140px); height: auto; margin-bottom: 8px; flex-shrink: 0; }
+        .logo-imprezja-large { max-width: 280px; width: 50vw; height: auto; margin-bottom: 24px; }
+        /* Intro w poziomie jak gry muzyczne: nagłówek w jednej linii, QR w jednym rzędzie, przyciski w jednym rzędzie */
+        #intro-screen .intro-header { display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 12px 20px; flex-wrap: wrap; margin-bottom: 8px; }
+        #intro-screen .intro-header .logo-imprezja { margin-bottom: 0; max-width: 100px; width: min(22vw, 100px); }
+        #intro-screen .intro-header .intro-title { margin-bottom: 0; font-size: clamp(1.25rem, 3.5vw, 2rem); }
+        #intro-screen .intro-btn-row { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; align-items: center; margin-top: 16px; }
         .intro-title {
-            font-size: 6vw; font-weight: 900; background: -webkit-linear-gradient(#f1c40f, #e67e22);
-            background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 40px;
+            font-size: clamp(1.5rem, 4vw, 2.5rem); font-weight: 900; background: -webkit-linear-gradient(#f1c40f, #e67e22);
+            background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 12px;
             filter: drop-shadow(0 10px 20px rgba(0,0,0,0.5));
             text-shadow: 0 2px 8px rgba(0,0,0,0.4);
             animation: introTitlePulse 3s ease-in-out infinite;
@@ -964,45 +980,54 @@
         .lb-row:nth-child(2) { border-color: #c0c0c0; }
         .lb-row:nth-child(3) { border-color: #cd7f32; }
 
-        /* QR */
-        .qr-container { display: flex; flex-direction: row; flex-wrap: wrap; gap: 24px; align-items: center; justify-content: center; margin-top: 20px; }
-        .qr-wrapper { display: flex; flex-direction: row; gap: 40px; align-items: center; justify-content: center; flex-wrap: wrap;
-            background: rgba(52, 152, 219, 0.2); padding: 30px 40px; border-radius: 20px;
+        /* QR – skalowanie na pełen dostępny ekran, bez ucinania */
+        .qr-container { display: flex; flex-direction: row; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: center; margin-top: 12px; padding: 0 12px; max-width: 100%; }
+        .qr-wrapper { display: flex; flex-direction: row; gap: 16px; align-items: center; justify-content: center; flex-wrap: wrap;
+            background: rgba(52, 152, 219, 0.2); padding: clamp(12px, 2vw, 24px); border-radius: 16px;
             backdrop-filter: blur(10px); border: 2px solid rgba(52, 152, 219, 0.4);
             box-shadow: 0 20px 50px rgba(0,0,0,0.5);
         }
-        .qr-lub { font-size: 2.5vw; font-weight: 900; color: rgba(255,255,255,0.9); text-transform: uppercase; letter-spacing: 4px; margin: 8px 0; }
+        .qr-lub { font-size: clamp(0.9rem, 1.5vw, 1.2rem); font-weight: 900; color: rgba(255,255,255,0.9); text-transform: uppercase; letter-spacing: 2px; margin: 4px 0; align-self: center; }
         .qr-box {
             display: flex; flex-direction: column; align-items: center;
-            background: rgba(255, 255, 255, 0.08); padding: 24px; border-radius: 16px;
+            background: rgba(255, 255, 255, 0.08); padding: clamp(10px, 1.5vw, 16px); border-radius: 12px;
             border: 1px solid rgba(255, 255, 255, 0.15);
+            min-width: min(200px, 45vw); max-width: 260px;
         }
+        #intro-screen .qr-box-admin-h { flex-direction: row; flex-wrap: wrap; max-width: 100%; min-width: 0; justify-content: center; gap: 20px; }
+        #intro-screen .qr-box-admin-h .qr-admin-qr { display: flex; flex-direction: column; align-items: center; }
+        #intro-screen .qr-box-admin-h .qr-admin-actions { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 200px; }
         .qr-num { display: inline-block; width: 1.4em; height: 1.4em; line-height: 1.3; text-align: center; background: rgba(255,255,255,0.3); border-radius: 50%; margin-right: 6px; font-size: 0.9em; }
         .qr-label {
-            font-size: 2vw; font-weight: 700; text-transform: uppercase; margin-bottom: 15px; letter-spacing: 2px;
+            font-size: clamp(0.9rem, 1.8vw, 1.2rem); font-weight: 700; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 2px;
         }
         .qr-label.wifi { color: #3498db; text-shadow: 0 0 20px rgba(52, 152, 219, 0.8); }
         .qr-label.local { color: #2ecc71; text-shadow: 0 0 20px rgba(46, 204, 113, 0.8); }
         .qr-label.tunnel { color: #9b59b6; text-shadow: 0 0 20px rgba(155, 89, 182, 0.8); }
         .qr-label.admin { color: #e67e22; text-shadow: 0 0 20px rgba(230, 126, 34, 0.8); }
-        .qr-box-lte-info { background: rgba(231, 76, 60, 0.25); border: 2px solid rgba(231, 76, 60, 0.5); color: #ecf0f1; padding: 20px; border-radius: 12px; text-align: center; font-size: 1.1rem; }
-        .intro-editor-btn {
-            display: inline-block; flex-shrink: 0; margin-top: 16px; padding: 14px 28px;
-            background: #3498db; color: #fff !important; text-decoration: none; font-weight: bold;
-            border-radius: 12px; font-size: clamp(1rem, 2vw, 1.3rem); box-shadow: 0 4px 15px rgba(52, 152, 219, 0.5);
-            transition: background 0.2s, transform 0.2s; border: 2px solid rgba(255,255,255,0.4);
+        .qr-box-lte-info { background: rgba(231, 76, 60, 0.25); border: 2px solid rgba(231, 76, 60, 0.5); color: #ecf0f1; padding: 20px; border-radius: 12px; text-align: center; font-size: clamp(0.9rem, 1.1vw, 1.3rem); }
+        /* Przyciski intro – jak wszędzie: Edytor niebieski, Włącz/Rozpocznij zielony, Cofnij żółty, efekt najazdu */
+        #intro-screen .intro-editor-btn, #intro-screen .intro-admin-btn, #intro-screen .intro-start-btn, #intro-screen .intro-back-btn {
+            display: inline-block; flex-shrink: 0; margin: 0; padding: 12px 24px;
+            border-radius: 10px; font-size: 1rem; font-weight: 600; text-decoration: none;
+            border: none; cursor: pointer; transition: background 0.2s, transform 0.2s;
         }
-        .intro-editor-btn:hover { background: #2980b9; transform: scale(1.05); color: #fff !important; }
-        .intro-admin-btn { background: #e67e22 !important; box-shadow: 0 4px 15px rgba(230, 126, 34, 0.5); }
-        .intro-admin-btn:hover { background: #d35400 !important; color: #fff !important; }
-        .intro-start-btn { background: #2ecc71 !important; box-shadow: 0 4px 15px rgba(46, 204, 113, 0.5); border: 2px solid rgba(255,255,255,0.4); cursor: pointer; font: inherit; }
-        .intro-start-btn:hover { background: #27ae60 !important; color: #fff !important; transform: scale(1.05); }
+        #intro-screen .intro-editor-btn:hover, #intro-screen .intro-admin-btn:hover, #intro-screen .intro-start-btn:hover, #intro-screen .intro-back-btn:hover { transform: scale(1.05); }
+        #intro-screen .intro-editor-btn { background: #3498db; color: #fff !important; }
+        #intro-screen .intro-editor-btn:hover { background: #2980b9; color: #fff !important; }
+        #intro-screen .intro-admin-btn { background: #e67e22; color: #fff !important; }
+        #intro-screen .intro-admin-btn:hover { background: #d35400; color: #fff !important; }
+        #intro-screen .intro-start-btn { background: #2ecc71; color: #000 !important; cursor: pointer; font: inherit; }
+        #intro-screen .intro-start-btn:hover { background: #27ae60; color: #fff !important; }
+        #intro-screen .intro-back-btn { background: #f1c40f; color: #000 !important; }
+        #intro-screen .intro-back-btn:hover { background: #f39c12; color: #000 !important; }
         .qr-image {
-            width: 250px; height: 250px; border-radius: 15px; border: 5px solid white;
+            width: clamp(120px, 14vw, 200px); height: clamp(120px, 14vw, 200px);
+            object-fit: contain; border-radius: 12px; border: 4px solid white;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
         }
-        .qr-wifi-info { margin-top: 15px; text-align: center; font-size: 1.2vw; color: rgba(255, 255, 255, 0.7); }
-        .qr-wifi-info strong { color: #3498db; font-size: 1.4vw; }
+        .qr-wifi-info { margin-top: 15px; text-align: center; font-size: clamp(0.85rem, 1.2vw, 1.1rem); color: rgba(255, 255, 255, 0.7); }
+        .qr-wifi-info strong { color: #3498db; font-size: clamp(1rem, 1.4vw, 1.2rem); }
 
         /* PODIUM */
         .pod-column {
@@ -1230,6 +1255,22 @@
             box-shadow: 0 0 8px #0f0;
             animation: dotPulse 1s infinite;
         }
+
+        /* Ekran QR + latające nicki */
+        #players-qr-screen { justify-content: center; }
+        #players-qr-float-container {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 1; overflow: hidden;
+        }
+        #players-qr-content { position: relative; z-index: 2; text-align: center; }
+        .float-nick {
+            position: absolute;
+            white-space: nowrap;
+            font-weight: 700;
+            color: rgba(255,255,255,0.85);
+            text-shadow: 0 2px 8px rgba(0,0,0,0.8), 0 0 20px rgba(241,196,15,0.4);
+            will-change: transform, left, top;
+        }
         
         @keyframes dotPulse {
             0% { opacity: 1; }
@@ -1302,21 +1343,23 @@
 
     <div id="confetti-container"></div>
 
-    <button type="button" id="btn-fullscreen-screen" title="Pełny ekran" aria-label="Pełny ekran">⛶</button>
+    <button type="button" id="btn-fullscreen-screen" title="Pełny ekran" aria-label="Pełny ekran">⛶ PEŁNY EKRAN</button>
 
     <div id="intro-screen" class="overlay-screen">
-        <div class="intro-title" id="intro-txt">Imprezja Quiz</div>
-        <div id="qr-box-admin-wrap" class="qr-container" style="margin-bottom: 20px; display: none;">
-            <div id="qr-box-admin" class="qr-box">
-                <div class="qr-label admin">PANEL ADMINA</div>
-                <img id="qr-admin" class="qr-image" src="" alt="QR Admin">
-                <div id="qr-admin-url" class="qr-wifi-info" style="margin-top: 8px; font-size: 0.85rem; word-break: break-all; color: #95a5a6;"></div>
-                <a href="/editor.html" target="_blank" rel="noopener" id="btn-editor-intro" class="intro-editor-btn">✏️ Edytor pytań</a>
-                <div class="qr-wifi-info" style="margin-top: 12px;"><strong>Zeskanuj telefonem/tabletem – zniknie po wejściu</strong></div>
-                <div class="qr-wifi-info" style="margin-top: 8px;">Telefon i komputer w tej samej sieci WiFi.</div>
-                <div style="margin-top: 16px; display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; align-items: center;">
-                    <a href="/admin.html" target="_blank" rel="noopener" id="btn-admin-intro" class="intro-editor-btn intro-admin-btn">Panel admina na tym komputerze</a>
-                    <button type="button" id="btn-rozpocznij-intro" class="intro-editor-btn intro-start-btn">Rozpocznij</button>
+        <div class="intro-header">
+            <img src="/img/logo_imprezja.png" alt="Imprezja Quiz" class="logo-imprezja">
+            <div class="intro-title" id="intro-txt">Imprezja Quiz</div>
+        </div>
+        <div id="qr-box-admin-wrap" class="qr-container" style="margin-bottom: 12px; display: none;">
+            <div id="qr-box-admin" class="qr-box qr-box-admin-h">
+                <div class="qr-admin-qr">
+                    <div class="qr-label admin">PANEL ADMINA</div>
+                    <img id="qr-admin" class="qr-image" src="" alt="QR Admin">
+                    <div id="qr-admin-url" class="qr-wifi-info" style="margin-top: 8px; font-size: 0.85rem; word-break: break-all; color: #95a5a6;"></div>
+                </div>
+                <div class="qr-admin-actions">
+                    <div class="qr-wifi-info" style="margin-top: 8px;"><strong>Zeskanuj telefonem/tabletem – zniknie po wejściu</strong></div>
+                    <div class="qr-wifi-info" style="margin-top: 4px;">Telefon i komputer w tej samej sieci WiFi.</div>
                 </div>
             </div>
         </div>
@@ -1344,15 +1387,20 @@
                 Organizator musi kliknąć <strong style="color: #e74c3c;">czerwony przycisk</strong> „Uruchom tunel" w panelu admina.
             </div>
         </div>
-        <div style="margin-top: 24px;">
-            <a href="/start.html" class="intro-editor-btn" style="background:#555; color:#fff;">← Cofnij</a>
+        <div class="intro-btn-row">
+            <a href="/editor.html" target="_blank" rel="noopener" id="btn-editor-intro" class="intro-editor-btn">✏️ Edytor</a>
+            <a href="/admin.html" target="_blank" rel="noopener" id="btn-admin-intro" class="intro-editor-btn intro-admin-btn" style="display:none;">Admin na komputerze</a>
+            <button type="button" id="btn-rozpocznij-intro" class="intro-editor-btn intro-start-btn" style="display:none;">▶️ Rozpocznij</button>
+            <button type="button" id="btn-zakoncz-intro" class="intro-editor-btn intro-back-btn">Zakończ</button>
+            <a href="/start.html" class="intro-editor-btn intro-back-btn">← Cofnij</a>
         </div>
     </div>
 
     <!-- Ekran "Zaraz zaczynamy" – pokazywany po kliknięciu Rozpocznij; zawiera QR kody jeśli były wcześniej wygenerowane -->
     <div id="zaraz-zaczynamy-overlay" class="overlay-screen" style="display: none; z-index: 9999;">
+        <img src="/img/logo_imprezja.png" alt="Imprezja Quiz" class="logo-imprezja-large">
         <div class="intro-title" style="font-size: clamp(2rem, 10vw, 6rem); margin-bottom: 20px;">Zaraz zaczynamy</div>
-        <div id="zaraz-qr-container" class="qr-container" style="display: none; flex-wrap: wrap; justify-content: center; gap: 20px;">
+        <div id="zaraz-qr-container" class="qr-container" style="display: none;">
             <div id="zaraz-qr-wrapper" class="qr-wrapper" style="display: none;">
                 <div id="zaraz-qr-wifi" class="qr-box" style="display: none;">
                     <div class="qr-label wifi"><span class="qr-num">1</span> SIEĆ Wi-Fi</div>
@@ -1376,6 +1424,40 @@
                 Organizator musi kliknąć <strong style="color: #e74c3c;">czerwony przycisk</strong> „Uruchom tunel" w panelu admina.
             </div>
         </div>
+        <div class="intro-btn-row" style="margin-top: 24px;">
+            <button type="button" id="btn-zakoncz-zaraz" class="intro-editor-btn intro-back-btn">Zakończ</button>
+        </div>
+    </div>
+
+    <!-- Ekran: QR + latające nicki zalogowanych graczy (przycisk w adminie) -->
+    <div id="players-qr-screen" class="overlay-screen" style="display: none; z-index: 101;">
+        <div id="players-qr-float-container" aria-hidden="true"></div>
+        <div id="players-qr-content" class="players-qr-content">
+            <div class="intro-header" style="margin-bottom: 12px;">
+                <img src="/img/logo_imprezja.png" alt="Imprezja Quiz" class="logo-imprezja">
+                <div class="intro-title">Dołącz do gry</div>
+            </div>
+            <div id="players-qr-container" class="qr-container">
+                <div id="players-qr-wrapper" class="qr-wrapper" style="display: none;">
+                    <div id="players-qr-box-wifi" class="qr-box" style="display: none;">
+                        <div class="qr-label wifi"><span class="qr-num">1</span> SIEĆ Wi-Fi</div>
+                        <img id="players-qr-wifi-img" class="qr-image" src="" alt="QR WiFi">
+                        <div class="qr-wifi-info"><strong>Zeskanuj aby połączyć</strong></div>
+                    </div>
+                    <div id="players-qr-box-local" class="qr-box" style="display: none;">
+                        <div class="qr-label local"><span class="qr-num">2</span> GRA (Wi‑Fi)</div>
+                        <img id="players-qr-local-img" class="qr-image" src="" alt="QR Gra">
+                        <div class="qr-wifi-info"><strong>Zeskanuj – sieć lokalna</strong></div>
+                    </div>
+                </div>
+                <div id="players-qr-lub" class="qr-lub" style="display: none;">LUB</div>
+                <div id="players-qr-box-tunnel" class="qr-box" style="display: none;">
+                    <div class="qr-label tunnel">GRA (LTE)</div>
+                    <img id="players-qr-tunnel-img" class="qr-image" src="" alt="QR Tunel">
+                    <div class="qr-wifi-info"><strong>Alternatywa – sieć komórkowa</strong></div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="leaderboard" class="overlay-screen">
@@ -1397,6 +1479,7 @@
     </div>
 
     <div id="podium" class="overlay-screen" style="flex-direction:column; align-items:center; justify-content:center; padding-bottom:10vh;">
+        <img src="/img/logo_imprezja.png" alt="Imprezja Quiz" class="logo-imprezja-large" style="margin-bottom: 16px;">
         <!-- Nagłówek PODIUM -->
         <div id="podium-title-header" class="podium-title" style="display: block; visibility: visible; opacity: 1; text-align: center; font-size: 6vw; font-weight: 900; margin-bottom: 20px; background: -webkit-linear-gradient(#f1c40f, #e67e22); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
             🏆 PODIUM
@@ -1443,6 +1526,7 @@
 
     <!-- EKRAN PODZIĘKOWAŃ -->
     <div id="thanks" class="overlay-screen" style="display: none;">
+        <img src="/img/logo_imprezja.png" alt="Imprezja Quiz" class="logo-imprezja-large" style="margin-bottom: 24px;">
         <div class="thanks-title-screen" id="thanks-title-screen" style="font-size: clamp(3rem, 10vw, 6rem); font-weight: 900; margin-bottom: 40px; text-align: center; background: -webkit-linear-gradient(#f1c40f, #e67e22); -webkit-background-clip: text; -webkit-text-fill-color: transparent; line-height: 1.2;">Imprezja Quiz</div>
         <div class="thanks-content-screen" id="thanks-content-screen" style="font-size: clamp(1.5rem, 5vw, 3rem); color: rgba(255, 255, 255, 0.9); margin-bottom: 40px; line-height: 1.6; max-width: 1200px; margin-left: auto; margin-right: auto; text-align: center;">Dziękuję za udział w zabawie</div>
         <div class="thanks-image-container-screen" id="thanks-image-container-screen" style="display: none; text-align: center; margin-top: 40px;">
@@ -1468,6 +1552,7 @@
     <audio id="audio-sfx"></audio>
     <audio id="audio-clock" loop></audio>
     <audio id="audio-podium" loop></audio>
+    <audio id="audio-ships-bg" loop></audio>
 
     <div id="main-content">
         <div class="header">
@@ -1499,6 +1584,8 @@
     </div>
 
     <script>
+        const DEBUG = false; // Ustaw true dla diagnostyki
+        const log = (...a) => DEBUG && log(...a);
         const socket = io();
         let timerInt;
         let timerBadgeInterval = null;
@@ -1517,21 +1604,25 @@
         const sfxPlayer = document.getElementById('audio-sfx');
         const clockPlayer = document.getElementById('audio-clock');
         const podiumPlayer = document.getElementById('audio-podium');
+        const shipsBGPlayer = document.getElementById('audio-ships-bg');
         let audioEnabled = false;
+        var lastMasterVolume = 80;
         let currentPodiumStep = -1;
         let wakeLock = null;
         let lastStateType = null;
         let lastQuestionId = null;
 
-        // Wake Lock – ekran prowadzącego nie gaśnie w trakcie rozgrywki
+        // Wake Lock – ekran (TV/projektor) nie gaśnie w trybie pełnoekranowym
         async function requestWakeLock() {
             if (!('wakeLock' in navigator) || document.visibilityState !== 'visible') return;
             try {
-                if (wakeLock) try { wakeLock.release(); } catch (e) {}
+                if (wakeLock) { try { await wakeLock.release(); } catch (e) {} wakeLock = null; }
                 wakeLock = await navigator.wakeLock.request('screen');
+                if (wakeLock) wakeLock.addEventListener('release', () => { wakeLock = null; });
             } catch (e) {}
         }
         document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') requestWakeLock(); });
+        document.addEventListener('fullscreenchange', () => { if (document.fullscreenElement) requestWakeLock(); });
         if (document.visibilityState === 'visible') requestWakeLock();
 
         // ========================
@@ -1551,6 +1642,7 @@
             unlock(musicPlayer);
             unlock(clockPlayer);
             if(podiumPlayer) unlock(podiumPlayer);
+            if(shipsBGPlayer) unlock(shipsBGPlayer);
             try { document.documentElement.requestFullscreen().catch(()=>{}); } catch(e){}
             requestWakeLock();
             // Ponów żądanie QR
@@ -1637,6 +1729,88 @@
             }
             if (zarazContainer) zarazContainer.style.display = hasAny ? 'flex' : 'none';
         }
+
+        var DEMO_NICKS = ['Ania', 'Bartek', 'Kasia', 'Michał', 'Ola', 'Piotr', 'Magda', 'Tomek', 'Natalia', 'Kamil', 'Julia', 'Adam', 'Zuzia', 'Jakub', 'Weronika', 'Filip', 'Martyna', 'Kacper', 'Lena', 'Mikołaj'];
+
+        function syncPlayersQRCodes(state) {
+            var s = state || currentGameState;
+            var wifiImg = document.getElementById('qr-wifi');
+            var localImg = document.getElementById('qr-local');
+            var tunnelImg = document.getElementById('qr-tunnel');
+            var wrap = document.getElementById('players-qr-wrapper');
+            var lub = document.getElementById('players-qr-lub');
+            var boxWifi = document.getElementById('players-qr-box-wifi');
+            var boxLocal = document.getElementById('players-qr-box-local');
+            var boxTunnel = document.getElementById('players-qr-box-tunnel');
+            var wifiDst = document.getElementById('players-qr-wifi-img');
+            var localDst = document.getElementById('players-qr-local-img');
+            var tunnelDst = document.getElementById('players-qr-tunnel-img');
+            var hasWifiOrLocal = s && (s.hasWifi || s.showLocalGameQR);
+            if (wrap) wrap.style.display = hasWifiOrLocal ? 'flex' : 'none';
+            if (lub) lub.style.display = hasWifiOrLocal ? 'block' : 'none';
+            if (wifiImg && wifiImg.src && boxWifi && wifiDst) { wifiDst.src = wifiImg.src; boxWifi.style.display = (s && s.hasWifi) ? 'flex' : 'none'; }
+            if (localImg && localImg.src && boxLocal && localDst) { localDst.src = localImg.src; boxLocal.style.display = (s && s.showLocalGameQR) ? 'flex' : 'none'; }
+            if (tunnelImg && tunnelImg.src && boxTunnel && tunnelDst) { tunnelDst.src = tunnelImg.src; boxTunnel.style.display = (s && s.tunnelUrl) ? 'flex' : 'none'; }
+        }
+
+        var floatingNicksRAF = null;
+        var floatingNicksData = [];
+
+        function stopFloatingNicks() {
+            if (floatingNicksRAF) { cancelAnimationFrame(floatingNicksRAF); floatingNicksRAF = null; }
+        }
+
+        function updateFloatingNicks(state) {
+            var container = document.getElementById('players-qr-float-container');
+            if (!container) return;
+            var nicks = (state && state.playerNicks && state.playerNicks.length > 0) ? state.playerNicks : DEMO_NICKS;
+            container.innerHTML = '';
+            floatingNicksData = [];
+            var box = container.getBoundingClientRect();
+            for (var i = 0; i < nicks.length; i++) {
+                var nick = String(nicks[i] || '').trim() || DEMO_NICKS[i % DEMO_NICKS.length];
+                var el = document.createElement('span');
+                el.className = 'float-nick';
+                el.textContent = nick;
+                var w = container.offsetWidth || 800;
+                var h = container.offsetHeight || 600;
+                var x = Math.random() * Math.max(0, w - 120);
+                var y = Math.random() * Math.max(0, h - 40);
+                var vx = (Math.random() - 0.5) * 1.2;
+                var vy = (Math.random() - 0.5) * 1.2;
+                var scale = 0.7 + Math.random() * 0.8;
+                var scaleDir = Math.random() > 0.5 ? 1 : -1;
+                el.style.left = x + 'px';
+                el.style.top = y + 'px';
+                el.style.fontSize = (14 + scale * 12) + 'px';
+                container.appendChild(el);
+                floatingNicksData.push({ el: el, x: x, y: y, vx: vx, vy: vy, scale: scale, scaleDir: scaleDir, w: w, h: h });
+            }
+            stopFloatingNicks();
+            function tick() {
+                var cw = container.offsetWidth || 800;
+                var ch = container.offsetHeight || 600;
+                for (var j = 0; j < floatingNicksData.length; j++) {
+                    var d = floatingNicksData[j];
+                    d.w = cw; d.h = ch;
+                    d.x += d.vx; d.y += d.vy;
+                    if (d.x <= 0 || d.x >= cw - 100) d.vx *= -1;
+                    if (d.y <= 0 || d.y >= ch - 30) d.vy *= -1;
+                    d.x = Math.max(0, Math.min(cw - 100, d.x));
+                    d.y = Math.max(0, Math.min(ch - 30, d.y));
+                    d.scale += 0.003 * d.scaleDir;
+                    if (d.scale >= 1.4) d.scaleDir = -1;
+                    if (d.scale <= 0.6) d.scaleDir = 1;
+                    d.el.style.left = d.x + 'px';
+                    d.el.style.top = d.y + 'px';
+                    d.el.style.transform = 'scale(' + d.scale + ')';
+                    d.el.style.fontSize = (12 + d.scale * 14) + 'px';
+                }
+                floatingNicksRAF = requestAnimationFrame(tick);
+            }
+            tick();
+        }
+
         document.getElementById('btn-rozpocznij-intro')?.addEventListener('click', function() {
             window._adminOpenedFromScreen = false;
             const wrap = document.getElementById('qr-box-admin-wrap');
@@ -1645,12 +1819,36 @@
             syncZarazQRCodes();
             if (el) el.style.display = 'flex';
         });
+        document.getElementById('btn-zakoncz-intro')?.addEventListener('click', function() {
+            if (typeof socket !== 'undefined') socket.emit('admin_reset_game');
+            const intro = document.getElementById('intro-screen');
+            if (intro) intro.style.display = 'flex';
+        });
+        document.getElementById('btn-zakoncz-zaraz')?.addEventListener('click', function() {
+            if (typeof socket !== 'undefined') socket.emit('admin_reset_game');
+            const zaraz = document.getElementById('zaraz-zaczynamy-overlay');
+            const intro = document.getElementById('intro-screen');
+            if (zaraz) zaraz.style.display = 'none';
+            if (intro) intro.style.display = 'flex';
+        });
 
         function stopAllAudio() {
             musicPlayer.pause(); musicPlayer.currentTime=0;
             sfxPlayer.pause(); sfxPlayer.currentTime=0;
             clockPlayer.pause(); clockPlayer.currentTime=0;
             if(podiumPlayer) { podiumPlayer.pause(); podiumPlayer.currentTime=0; }
+            if (currentMode !== 'SHIPS' && shipsBGPlayer) { shipsBGPlayer.pause(); shipsBGPlayer.currentTime=0; }
+        }
+        function startShipsBG() {
+            if (!audioEnabled || !shipsBGPlayer) return;
+            if (!shipsBGPlayer.paused && shipsBGPlayer.src && shipsBGPlayer.src.includes('seabattle')) return;
+            shipsBGPlayer.src = '/uploads/sfx/seabattle.mp3';
+            shipsBGPlayer.volume = 0.65;
+            shipsBGPlayer.loop = true;
+            shipsBGPlayer.play().catch(e => console.error('Ships BG Error:', e));
+        }
+        function stopShipsBG() {
+            if (shipsBGPlayer) { shipsBGPlayer.pause(); shipsBGPlayer.currentTime=0; }
         }
         function playPodiumMusic() {
             if(!audioEnabled || !podiumPlayer) return;
@@ -1699,34 +1897,18 @@
         }
 
         function playMusic(url) {
-            console.log('🎵 playMusic wywołane:', {
-                url: url,
-                audioEnabled: audioEnabled,
-                currentSrc: musicPlayer.src,
-                isPaused: musicPlayer.paused
-            });
+            if(!audioEnabled) return;
             
-            if(!audioEnabled) {
-                console.log('🔇 playMusic - audio wyłączone, pomijam');
-                return;
-            }
-            
-            // WAŻNE: Popraw ścieżkę jeśli potrzeba (dodaj /uploads/ jeśli brakuje)
             let fullUrl = url;
             if(url && !url.startsWith('/') && !url.startsWith('http')) {
                 fullUrl = '/uploads/' + url;
             }
             
-            // Sprawdź czy to ten sam plik i czy już gra
             const currentSrc = musicPlayer.src;
             const isSameFile = currentSrc && (currentSrc.includes(url) || currentSrc.includes(fullUrl));
-            if(isSameFile && !musicPlayer.paused) {
-                console.log('🔇 playMusic - ten sam plik już gra, pomijam:', url);
-                return;
-            }
-            
-            console.log('🎵 playMusic - zatrzymuję wszystkie dźwięki i odtwarzam:', fullUrl);
+            if(isSameFile && !musicPlayer.paused) return;
             stopAllAudio();
+            musicPlayer.volume = Math.min(1, Math.max(0, lastMasterVolume / 100));
             musicPlayer.src = fullUrl;
             musicPlayer.play().catch((e) => {
                 console.error('❌ Błąd odtwarzania muzyki:', e, 'URL:', fullUrl);
@@ -1761,6 +1943,25 @@
             if (el && el.style.display === 'flex') syncZarazQRCodes();
         });
 
+        socket.on('admin_play_intro_music', (data) => {
+            if (!musicPlayer || !audioEnabled) return;
+            const vol = (data && data.volume != null) ? Math.min(1, Math.max(0, data.volume / 100)) : 0.7;
+            musicPlayer.volume = vol;
+            musicPlayer.loop = true;
+            const introUrl = (data && data.url) ? data.url : '/uploads/sfx/intro_loop.mp3';
+            if (musicPlayer.src && (musicPlayer.src.endsWith('intro_loop.mp3') || (data.url && musicPlayer.src.includes(data.url))) && !musicPlayer.paused) return;
+            stopAllAudio();
+            musicPlayer.src = introUrl.startsWith('/') || introUrl.startsWith('http') ? introUrl : '/uploads/' + introUrl;
+            musicPlayer.loop = true;
+            musicPlayer.play().catch(function(e) { console.warn('Intro muzyka:', e.message || e); });
+        });
+        socket.on('admin_master_volume', (vol) => {
+            var v = parseInt(vol, 10);
+            if (isNaN(v)) v = 80;
+            lastMasterVolume = Math.min(100, Math.max(0, v));
+            if (musicPlayer) musicPlayer.volume = lastMasterVolume / 100;
+        });
+
         socket.on('qr_admin', (data) => {
             const wrap = document.getElementById('qr-box-admin-wrap');
             const img = document.getElementById('qr-admin');
@@ -1773,18 +1974,34 @@
                     urlDisplay.style.display = 'block';
                 }
                 if (wrap) wrap.style.display = 'flex';
-                console.log('✅ QR admin otrzymany, URL:', data.url);
+                const ba = document.getElementById('btn-admin-intro');
+                const br = document.getElementById('btn-rozpocznij-intro');
+                if (ba) ba.style.display = '';
+                if (br) br.style.display = '';
+                log('✅ QR admin otrzymany, URL:', data.url);
             } else {
                 if (img) img.src = '';
                 if (urlDisplay) urlDisplay.textContent = '';
                 if (wrap) wrap.style.display = 'none';
-                console.warn('⚠️ QR admin nie został wygenerowany');
+                const ba = document.getElementById('btn-admin-intro');
+                const br = document.getElementById('btn-rozpocznij-intro');
+                if (ba) ba.style.display = 'none';
+                if (br) br.style.display = 'none';
+                if(DEBUG) console.warn('⚠️ QR admin nie został wygenerowany');
             }
         });
         socket.on('hide_admin_qr', () => {
-            if (window._adminOpenedFromScreen) return;
             const wrap = document.getElementById('qr-box-admin-wrap');
             if (wrap) wrap.style.display = 'none';
+            const ba = document.getElementById('btn-admin-intro');
+            const br = document.getElementById('btn-rozpocznij-intro');
+            if (ba) ba.style.display = 'none';
+            if (br) br.style.display = 'none';
+        });
+        socket.on('admin_repeat_music', (audioUrl) => {
+            if (audioUrl && typeof playMusic === 'function') {
+                playMusic(audioUrl);
+            }
         });
 
         socket.on('qr_wifi', (data) => {
@@ -1797,7 +2014,7 @@
         });
 
         socket.on('connect', () => {
-            console.log("Connected");
+            log("Connected");
             socket.emit('set_game_mode', 'quiz');
             socket.emit('request_qr');
             socket.emit('request_qr_wifi');
@@ -1848,10 +2065,11 @@
         // UPDATE STATE
         // ========================
         socket.on('update_state', (state) => {
-            console.log("State update:", state.type);
+            log("State update:", state.type);
             
             // Zaktualizuj currentGameState dla użycia w innych miejscach (np. ships_game_update)
             currentGameState = state;
+            if (state.type !== 'GAME' && state.type !== 'GAME_STATS') stopShipsBG();
             
             // Zaktualizuj śledzenie typu stanu (przed sprawdzeniem nowego pytania)
             const previousStateType = lastStateType;
@@ -1865,9 +2083,14 @@
             const zarazOverlay = document.getElementById('zaraz-zaczynamy-overlay');
             if (zarazOverlay && (state.type === 'IDLE' || state.type === 'GAME' || state.type === 'GAME_STATS')) zarazOverlay.style.display = 'none';
 
-            // Widoczność QR admina: pokazuj jeśli serwer każe LUB admin otwarty z komputera (nie zamykaj – komp+telefon jednocześnie). Zamyka dopiero przycisk Rozpocznij.
+            // Widoczność QR admina: tylko gdy serwer każe (brak zalogowanego admina). Po zalogowaniu admina panel znika – bezpieczeństwo.
             const qrBoxAdminWrap = document.getElementById('qr-box-admin-wrap');
-            if (qrBoxAdminWrap) qrBoxAdminWrap.style.display = (state.showAdminQR || window._adminOpenedFromScreen) ? 'flex' : 'none';
+            const showAdmin = !!state.showAdminQR;
+            if (qrBoxAdminWrap) qrBoxAdminWrap.style.display = showAdmin ? 'flex' : 'none';
+            const btnAdminIntro = document.getElementById('btn-admin-intro');
+            const btnRozpocznijIntro = document.getElementById('btn-rozpocznij-intro');
+            if (btnAdminIntro) btnAdminIntro.style.display = showAdmin ? '' : 'none';
+            if (btnRozpocznijIntro) btnRozpocznijIntro.style.display = showAdmin ? '' : 'none';
             // Widoczność QR: pole jednego koloru (1-WiFi, 2-Gra) → LUB → LTE (bez nr) lub info
             const qrWrapper = document.getElementById('qr-wrapper');
             const qrLub = document.getElementById('qr-lub');
@@ -1899,29 +2122,33 @@
                 const lg = state.letterGame;
                 const letterGameStarted = !!(lg && lg.gameStarted);
                 if (letterGameStarted) {
-                    console.log('🔤 [LETTER screen] OK: letterGame otrzymany, gameStarted=true');
+                    log('🔤 [LETTER screen] OK: letterGame otrzymany, gameStarted=true');
                 } else {
                     const missing = [];
                     if (!lg) missing.push('brak state.letterGame');
                     else if (lg.questionId !== state.activeQuestion.id) missing.push('letterGame.questionId!==activeQuestion.id');
                     else if (!lg.gameStarted) missing.push('letterGame.gameStarted=false');
-                    console.log('🔤 [LETTER screen] Czego brakuje:', missing.join(', '), '| state.letterGame=', lg);
+                    log('🔤 [LETTER screen] Czego brakuje:', missing.join(', '), '| state.letterGame=', lg);
                 }
             }
 
-            if(state.type==='IDLE') {
+            if(state.type==='IDLE' || state.type==='LOGIN') {
                 stopAllAudio();
+                const pqScreen = document.getElementById('players-qr-screen');
+                if (pqScreen) pqScreen.style.display = 'none';
+                if (typeof stopFloatingNicks === 'function') stopFloatingNicks();
                 intro.style.display='flex';
-                document.getElementById('intro-txt').innerText='Zaraz zaczynamy';
+                document.getElementById('intro-txt').innerText = state.type==='LOGIN' ? (state.quizTitle || 'Imprezja Quiz') : 'Zaraz zaczynamy';
                 pod.style.display='none';
                 lb.style.display='none';
                 main.style.display='none';
-                // schowaj timer na pauzie
+                if (zarazOverlay) zarazOverlay.style.display='none';
+                const thanksEl2 = document.getElementById('thanks');
+                if (thanksEl2) thanksEl2.style.display='none';
                 clearInterval(timerInt);
                 clearInterval(timerBadgeInterval);
                 document.getElementById('timer-circle').style.display='none';
                 document.getElementById('timer-badge').style.display='none';
-                // Ukryj stary timer całkowicie
                 const oldTimer = document.getElementById('timer-circle');
                 if(oldTimer) {
                     oldTimer.style.display = 'none';
@@ -1931,12 +2158,32 @@
                 return;
             }
 
-            intro.style.display = state.type==='INTRO' ? 'flex':'none';
-            pod.style.display = state.type==='PODIUM' ? 'flex':'none';
-            lb.style.display = state.type==='LEADERBOARD' ? 'flex':'none';
+            // Ekran „QR + latające nicki” (priorytet – przycisk w adminie)
+            const playersQrScreen = document.getElementById('players-qr-screen');
+            if (playersQrScreen) {
+                if (state.showPlayersWithQR) {
+                    playersQrScreen.style.display = 'flex';
+                    intro.style.display = 'none';
+                    pod.style.display = 'none';
+                    lb.style.display = 'none';
+                    main.style.display = 'none';
+                    if (zarazOverlay) zarazOverlay.style.display = 'none';
+                    if (typeof syncPlayersQRCodes === 'function') syncPlayersQRCodes(state);
+                    if (typeof updateFloatingNicks === 'function') updateFloatingNicks(state);
+                } else {
+                    playersQrScreen.style.display = 'none';
+                    if (typeof stopFloatingNicks === 'function') stopFloatingNicks();
+                }
+            }
+
+            intro.style.display = state.showPlayersWithQR ? 'none' : (state.type==='INTRO' ? 'flex':'none');
+            pod.style.display = state.showPlayersWithQR ? 'none' : (state.type==='PODIUM' ? 'flex':'none');
+            lb.style.display = state.showPlayersWithQR ? 'none' : (state.type==='LEADERBOARD' ? 'flex':'none');
             const thanksEl = document.getElementById('thanks');
-            if (thanksEl) thanksEl.style.display = state.type==='THANKS' ? 'flex':'none';
-            main.style.display = (state.type==='GAME' || state.type==='GAME_STATS') ? 'flex':'none';
+            if (thanksEl) thanksEl.style.display = state.showPlayersWithQR ? 'none' : (state.type==='THANKS' ? 'flex':'none');
+            main.style.display = state.showPlayersWithQR ? 'none' : (state.type==='GAME' || state.type==='GAME_STATS' ? 'flex':'none');
+
+            if (state.showPlayersWithQR) return;
 
             // UKRYJ TIMER we wszystkich stanach poza GAME
             if(state.type!=='GAME') {
@@ -2101,14 +2348,14 @@
                     pod.style.setProperty('display', 'flex', 'important');
                     pod.style.setProperty('visibility', 'visible', 'important');
                     pod.style.setProperty('opacity', '1', 'important');
-                    console.log('✅ Kontener podium ustawiony na widoczny');
+                    log('✅ Kontener podium ustawiony na widoczny');
                 }
 
                 const w = state.winners || [];
                 const step = Number(state.podiumStep) || 0;
                 const isTeam = !!state.teamBattleMode;
 
-                console.log('PODIUM - step:', step, 'winners:', w, 'isTeam:', isTeam, 'pod display:', pod ? pod.style.display : 'null');
+                log('PODIUM - step:', step, 'winners:', w, 'isTeam:', isTeam, 'pod display:', pod ? pod.style.display : 'null');
 
                 // Ukryj kolumnę 3 w trybie drużynowym (nie usuwamy HTML)
                 const bar3El = document.getElementById('bar-3');
@@ -2327,7 +2574,7 @@
                         });
                         if(currentPodiumStep!==3){if(state.type!=='PODIUM')stopAllAudio();playSFX('win_3');showConfetti(3);}
                         currentPodiumStep=3;
-                        console.log('🏆 Step 3 - miejsce 3 pokazane:', {
+                        log('🏆 Step 3 - miejsce 3 pokazane:', {
                             bar3Height: b3.style.height,
                             els3Visible: els3.map(e=>e ? e.classList.contains('visible') : false),
                             els3Opacity: els3.map(e=>e ? e.style.opacity : 'brak')
@@ -2365,7 +2612,7 @@
                         });
                         if(currentPodiumStep!==2){if(state.type!=='PODIUM')stopAllAudio();playSFX('win_2');showConfetti(2);}
                         currentPodiumStep=2;
-                        console.log('🏆 Step 2 - miejsca 3 i 2 pokazane');
+                        log('🏆 Step 2 - miejsca 3 i 2 pokazane');
                     }
                     if(step===1) {
                         // Miejsce 1 - pokaż wszystkie miejsca (3, 2, 1)
@@ -2383,7 +2630,7 @@
                         });
                         if(currentPodiumStep!==1){if(state.type!=='PODIUM')stopAllAudio();playSFX('win_1');showConfetti(1);}
                         currentPodiumStep=1;
-                        console.log('🏆 Step 1 - wszystkie miejsca pokazane');
+                        log('🏆 Step 1 - wszystkie miejsca pokazane');
                     }
                 }
 
@@ -2402,7 +2649,7 @@
                         podiumTitle.style.setProperty('background', '-webkit-linear-gradient(#f1c40f, #e67e22)', 'important');
                         podiumTitle.style.setProperty('-webkit-background-clip', 'text', 'important');
                         podiumTitle.style.setProperty('-webkit-text-fill-color', 'transparent', 'important');
-                        console.log('✅ Nagłówek PODIUM ustawiony na widoczny');
+                        log('✅ Nagłówek PODIUM ustawiony na widoczny');
                     }
                     
                     // Upewnij się że kontener dla kart jest widoczny
@@ -2415,7 +2662,7 @@
                         podiumContentContainer.style.setProperty('width', '100%', 'important');
                         podiumContentContainer.style.setProperty('visibility', 'visible', 'important');
                         podiumContentContainer.style.setProperty('opacity', '1', 'important');
-                        console.log('✅ Kontener podium-content-container ustawiony na widoczny');
+                        log('✅ Kontener podium-content-container ustawiony na widoczny');
                     }
                     
                     // Ukryj słupki i kolumny
@@ -2440,7 +2687,7 @@
                             card2.style.setProperty('display', 'none', 'important');
                             card2.classList.remove('revealed');
                         }
-                        console.log('🔄 Step 0 - ukryto karty');
+                        log('🔄 Step 0 - ukryto karty');
                     }
                     // Dla step > 0 karty będą pokazane przez konkretne kroki (step 2 i step 1)
                     
@@ -2458,7 +2705,7 @@
                         if(score2El) score2El.textContent = (w[1]?.score || 0) + ' pkt';
                     }
                     
-                    console.log('🏆 Tryb drużynowy - karty:', {
+                    log('🏆 Tryb drużynowy - karty:', {
                         card1: card1 ? {
                             display: card1.style.display,
                             computedDisplay: window.getComputedStyle(card1).display,
@@ -2510,7 +2757,7 @@
                                     showConfetti(2);
                                 }
                             }
-                            console.log('✅ Karta 2 ustawiona:', {
+                            log('✅ Karta 2 ustawiona:', {
                                 display: card2.style.display,
                                 opacity: card2.style.opacity,
                                 transform: card2.style.transform,
@@ -2566,7 +2813,7 @@
                                     showConfetti(1);
                                 }
                             }
-                            console.log('✅ Karta 1 ustawiona:', {
+                            log('✅ Karta 1 ustawiona:', {
                                 display: card1.style.display,
                                 opacity: card1.style.opacity,
                                 transform: card1.style.transform,
@@ -2586,7 +2833,7 @@
                         
                         // Szczegółowe logi dla każdej karty osobno
                         if(card1) {
-                            console.log('🏆 Karta 1 - szczegóły:', {
+                            log('🏆 Karta 1 - szczegóły:', {
                                 step: step,
                                 display: card1.style.display,
                                 computedDisplay: card1Computed?.display,
@@ -2604,7 +2851,7 @@
                             });
                         }
                         if(card2) {
-                            console.log('🏆 Karta 2 - szczegóły:', {
+                            log('🏆 Karta 2 - szczegóły:', {
                                 step: step,
                                 display: card2.style.display,
                                 computedDisplay: card2Computed?.display,
@@ -2625,7 +2872,7 @@
                         // WYMUŚ widoczność jeśli karty mają klasę revealed ale są niewidoczne
                         if(card1 && card1.classList.contains('revealed')) {
                             if(card1Computed && (card1Computed.display === 'none' || card1Computed.opacity === '0' || card1.offsetWidth === 0)) {
-                                console.warn('⚠️ Karta 1 ma revealed ale jest niewidoczna - wymuszam', {
+                                if(DEBUG) console.warn('⚠️ Karta 1 ma revealed ale jest niewidoczna - wymuszam', {
                                     display: card1Computed.display,
                                     opacity: card1Computed.opacity,
                                     offsetWidth: card1.offsetWidth,
@@ -2652,7 +2899,7 @@
                         }
                         if(card2 && card2.classList.contains('revealed')) {
                             if(card2Computed && (card2Computed.display === 'none' || card2Computed.opacity === '0' || card2.offsetWidth === 0)) {
-                                console.warn('⚠️ Karta 2 ma revealed ale jest niewidoczna - wymuszam', {
+                                if(DEBUG) console.warn('⚠️ Karta 2 ma revealed ale jest niewidoczna - wymuszam', {
                                     display: card2Computed.display,
                                     opacity: card2Computed.opacity,
                                     offsetWidth: card2.offsetWidth,
@@ -2681,7 +2928,7 @@
                 }
 
                 // Debug - sprawdź czy słupki mają wysokości
-                console.log('PODIUM bars:', {
+                log('PODIUM bars:', {
                     bar1: b1.style.height,
                     bar2: b2.style.height,
                     bar3: b3.style.height,
@@ -2694,6 +2941,7 @@
             }
             // GAME LOGIC
             const q = state.activeQuestion;
+            if (q?.type !== 'SHIPS' && currentMode === 'SHIPS') stopShipsBG();
             const qEl = document.getElementById('main-q');
             let inPlayoff = !!(state.playoff && state.playoff.active);
             const rawText = inPlayoff ? (state.playoff.word || '') : (q?.question || '');
@@ -2707,7 +2955,7 @@
                 heroImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
                 heroImg.onerror = null;
                 heroImg.onload = null;
-                console.log('🧹 Wyczyszczono hero obrazek na początku pytania');
+                log('🧹 Wyczyszczono hero obrazek na początku pytania');
             }
 
             // Reset klas wieloliniowych
@@ -2797,6 +3045,7 @@
             } else if(q?.type==='SHIPS') {
                 currentMode='SHIPS';
                 battleBar.style.display='none';
+                if (state.shipsGame?.gameEnded) stopShipsBG(); else startShipsBG();
                 // WAŻNE: Zmniejsz cień header dla pytań typu SHIPS aby nie zasłaniał planszy
                 const headerEl = document.querySelector('.header');
                 if (headerEl) {
@@ -2873,7 +3122,7 @@
                 // Zatrzymaj tylko jeśli to NIE jest pytanie muzyczne
                 // Nie wymagaj !wasStatsOrCorrect – przy przejściu z GAME_STATS (wyniki poprzedniego) do nowego pytania muzycznego też odtwarzamy
                 if(q && q.type === 'MUSIC' && q.audio && isNewQuestion && state.type === 'GAME') {
-                    console.log('🎵 Screen.html - Odtwarzam dźwięk dla nowego pytania muzycznego (w sekcji NOWE PYTANIE):', {
+                    log('🎵 Screen.html - Odtwarzam dźwięk dla nowego pytania muzycznego (w sekcji NOWE PYTANIE):', {
                         audio: q.audio,
                         questionId: currentQuestionId,
                         lastQuestionId: lastQuestionId,
@@ -2897,10 +3146,10 @@
                 // - poprzedni stan był GAME_STATS lub GAME ze statystykami
                 // - pytanie ma audio (muzyczne) - już obsłużone wyżej
                 if(isNewQuestion && !q?.audio && !state.showStats && !state.showCorrect && state.type === 'GAME' && !wasStatsOrCorrect) {
-                    console.log('🔊 Odtwarzam dźwięk question_open dla nowego pytania:', currentQuestionId);
+                    log('🔊 Odtwarzam dźwięk question_open dla nowego pytania:', currentQuestionId);
                     playSFX('question_open');
                 } else {
-                    console.log('🔇 Pomijam dźwięk question_open:', {
+                    log('🔇 Pomijam dźwięk question_open:', {
                         isNewQuestion,
                         hasAudio: !!q?.audio,
                         showStats: state.showStats,
@@ -2944,7 +3193,7 @@
             // OBRAZEK HERO - wyświetlaj dla QUIZ i VOTE (nie dla MUSIC i HOT_OR_NOT)
             // UWAGA: heroContainer i heroImg są już zdefiniowane na początku sekcji GAME
             
-            console.log('🖼️ Sprawdzam obrazek:', {
+            log('🖼️ Sprawdzam obrazek:', {
                 'type': q?.type,
                 'image': q?.image,
                 'media': q?.media,
@@ -3017,7 +3266,7 @@
                     imageToUse = q.media;
                 }
                 
-                console.log('🖼️ Screen.html - q.image:', q?.image, 'q.media:', q?.media, 'imageToUse:', imageToUse);
+                log('🖼️ Screen.html - q.image:', q?.image, 'q.media:', q?.media, 'imageToUse:', imageToUse);
                 
                 if(imageToUse && imageToUse.trim() !== '') {
                 
@@ -3032,8 +3281,8 @@
                     // To jest OK - użyj bezpośrednio
                 }
                 
-                console.log('🖼️ Ścieżka obrazka:', imageSrc);
-                console.log('🖼️ Aktualne src obrazka:', heroImg.src);
+                log('🖼️ Ścieżka obrazka:', imageSrc);
+                log('🖼️ Aktualne src obrazka:', heroImg.src);
                 
                 // Ustaw źródło obrazka - zawsze ustaw poprawną ścieżkę
                 // Pobierz aktualny src bez origin (tylko ścieżka)
@@ -3054,7 +3303,7 @@
                     currentSrc = '';
                 }
                 
-                console.log('🖼️ Porównanie ścieżek - currentSrc:', currentSrc, 'imageSrc:', imageSrc, 'heroImg.src:', heroImg.src);
+                log('🖼️ Porównanie ścieżek - currentSrc:', currentSrc, 'imageSrc:', imageSrc, 'heroImg.src:', heroImg.src);
                 
                 // Zawsze ustaw poprawną ścieżkę obrazka - sprawdź czy src jest nieprawidłowe
                 const srcIsInvalid = !currentSrc || 
@@ -3064,13 +3313,13 @@
                                     (heroImg.src && heroImg.src.includes(window.location.href) && !heroImg.src.includes('/uploads/'));
                 
                 // Zawsze ustaw poprawną ścieżkę (niezależnie od poprzedniej wartości)
-                console.log('🖼️ Ustawiam src obrazka na:', imageSrc);
+                log('🖼️ Ustawiam src obrazka na:', imageSrc);
                 // Wyczyść src i ustaw poprawną ścieżkę
                 heroImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
                 // Użyj małego opóźnienia aby upewnić się że src jest czysty
                 setTimeout(() => {
                     heroImg.src = imageSrc;
-                    console.log('✅ Ustawiono heroImg.src na:', heroImg.src, 'powinno być:', imageSrc);
+                    log('✅ Ustawiono heroImg.src na:', heroImg.src, 'powinno być:', imageSrc);
                     
                     // Sprawdź czy src jest poprawne po ustawieniu
                     setTimeout(() => {
@@ -3131,13 +3380,13 @@
                     
                     // Jeśli src jest nieprawidłowe (zawiera URL strony), popraw to
                     if(heroImg.src.includes('screen.html') || heroImg.src.includes('vote.html') || heroImg.src === window.location.href) {
-                        console.log('⚠️ Wykryto nieprawidłowy src (URL strony), poprawiam na:', imageSrc);
+                        log('⚠️ Wykryto nieprawidłowy src (URL strony), poprawiam na:', imageSrc);
                         heroImg.src = imageSrc;
                         return; // Nie ukrywaj kontenera jeszcze
                     }
                     
                     // Spróbuj przeładować obrazek
-                    console.log('⚠️ Spróbuję przeładować obrazek...');
+                    log('⚠️ Spróbuję przeładować obrazek...');
                     setTimeout(() => {
                         if(heroImg.src !== imageSrc && !heroImg.src.includes('screen.html') && !heroImg.src.includes('vote.html')) {
                             heroImg.src = imageSrc;
@@ -3151,7 +3400,7 @@
                     }, 100);
                 };
                 heroImg.onload = function() {
-                    console.log('✅ Obrazek załadowany:', heroImg.src, 'wymiary:', heroImg.naturalWidth, 'x', heroImg.naturalHeight);
+                    log('✅ Obrazek załadowany:', heroImg.src, 'wymiary:', heroImg.naturalWidth, 'x', heroImg.naturalHeight);
                     heroContainer.style.display='flex';
                     heroContainer.style.visibility = 'visible';
                     heroContainer.style.opacity = '1';
@@ -3180,13 +3429,13 @@
                     heroImg.style.width = 'auto';
                     heroImg.style.height = 'auto';
                     
-                    console.log('✅ Kontener po załadowaniu - display:', heroContainer.style.display, 'visibility:', heroContainer.style.visibility, 'width:', heroContainer.style.width);
-                    console.log('✅ Obrazek po załadowaniu - display:', heroImg.style.display, 'naturalWidth:', heroImg.naturalWidth, 'naturalHeight:', heroImg.naturalHeight);
+                    log('✅ Kontener po załadowaniu - display:', heroContainer.style.display, 'visibility:', heroContainer.style.visibility, 'width:', heroContainer.style.width);
+                    log('✅ Obrazek po załadowaniu - display:', heroImg.style.display, 'naturalWidth:', heroImg.naturalWidth, 'naturalHeight:', heroImg.naturalHeight);
                 };
                 
                 // Sprawdź czy obrazek jest już załadowany (complete property)
                 if(heroImg.complete && heroImg.naturalHeight > 0) {
-                    console.log('✅ Obrazek już załadowany (complete), wymiary:', heroImg.naturalWidth, 'x', heroImg.naturalHeight);
+                    log('✅ Obrazek już załadowany (complete), wymiary:', heroImg.naturalWidth, 'x', heroImg.naturalHeight);
                     heroContainer.style.display='flex';
                     heroContainer.style.visibility = 'visible';
                     heroContainer.style.opacity = '1';
@@ -3215,30 +3464,30 @@
                     heroImg.style.width = 'auto';
                     heroImg.style.height = 'auto';
                     
-                    console.log('✅ Kontener dla już załadowanego - display:', heroContainer.style.display, 'width:', heroContainer.style.width);
+                    log('✅ Kontener dla już załadowanego - display:', heroContainer.style.display, 'width:', heroContainer.style.width);
                 }
                 
                 // Debug - sprawdź rzeczywisty stan kontenera po chwili
                 setTimeout(() => {
                     const computedStyle = window.getComputedStyle(heroContainer);
-                    console.log('🔍 Debug kontenera po 100ms:');
-                    console.log('  - display:', computedStyle.display);
-                    console.log('  - visibility:', computedStyle.visibility);
-                    console.log('  - opacity:', computedStyle.opacity);
-                    console.log('  - height:', computedStyle.height);
-                    console.log('  - max-height:', computedStyle.maxHeight);
-                    console.log('  - width:', computedStyle.width);
-                    console.log('  - z-index:', computedStyle.zIndex);
-                    console.log('  - position:', computedStyle.position);
-                    console.log('  - Obrazek src:', heroImg.src);
-                    console.log('  - Obrazek naturalWidth:', heroImg.naturalWidth);
-                    console.log('  - Obrazek naturalHeight:', heroImg.naturalHeight);
-                    console.log('  - Obrazek offsetWidth:', heroImg.offsetWidth);
-                    console.log('  - Obrazek offsetHeight:', heroImg.offsetHeight);
+                    log('🔍 Debug kontenera po 100ms:');
+                    log('  - display:', computedStyle.display);
+                    log('  - visibility:', computedStyle.visibility);
+                    log('  - opacity:', computedStyle.opacity);
+                    log('  - height:', computedStyle.height);
+                    log('  - max-height:', computedStyle.maxHeight);
+                    log('  - width:', computedStyle.width);
+                    log('  - z-index:', computedStyle.zIndex);
+                    log('  - position:', computedStyle.position);
+                    log('  - Obrazek src:', heroImg.src);
+                    log('  - Obrazek naturalWidth:', heroImg.naturalWidth);
+                    log('  - Obrazek naturalHeight:', heroImg.naturalHeight);
+                    log('  - Obrazek offsetWidth:', heroImg.offsetWidth);
+                    log('  - Obrazek offsetHeight:', heroImg.offsetHeight);
                 }, 100);
                 } else {
                     // Brak obrazka dla tego typu pytania - ukryj kontener i wyczyść src
-                    console.log('🖼️ Ukrywam kontener obrazka - brak obrazka dla typu:', q?.type);
+                    log('🖼️ Ukrywam kontener obrazka - brak obrazka dla typu:', q?.type);
                     heroContainer.style.display='none';
                     // Ustaw pusty src lub data URL zamiast pustego stringa, aby uniknąć błędów
                     heroImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
@@ -3278,8 +3527,8 @@
                 const imageA = q.imageA || '';
                 const imageB = q.imageB || '';
                 
-                console.log('🖼️ HOT_OR_NOT Screen.html - q:', q);
-                console.log('🖼️ HOT_OR_NOT Screen.html - q.imageA:', q.imageA, 'q.imageB:', q.imageB);
+                log('🖼️ HOT_OR_NOT Screen.html - q:', q);
+                log('🖼️ HOT_OR_NOT Screen.html - q.imageA:', q.imageA, 'q.imageB:', q.imageB);
                 
                 // Funkcja do wykrywania orientacji obrazka (bardziej precyzyjna)
                 function detectImageOrientation(imageSrc, callback) {
@@ -3298,7 +3547,7 @@
                         else callback('square');
                     };
                     img.onerror = () => {
-                        console.warn('⚠️ Nie można załadować obrazka do wykrycia orientacji:', imageSrc);
+                        if(DEBUG) console.warn('⚠️ Nie można załadować obrazka do wykrycia orientacji:', imageSrc);
                         callback('square');
                     };
                     const fullSrc = imageSrc.startsWith('/') || imageSrc.startsWith('http') ? imageSrc : '/uploads/' + imageSrc;
@@ -3310,7 +3559,7 @@
                     detectImageOrientation(imageB, (orientB) => {
                         let layout = 'horizontal';
                         
-                        console.log('🖼️ HOT_OR_NOT - orientacje:', { orientA, orientB });
+                        log('🖼️ HOT_OR_NOT - orientacje:', { orientA, orientB });
                         
                         // Jeśli oba są pionowe → układ pionowy (jeden pod drugim)
                         if(orientA === 'portrait' && orientB === 'portrait') {
@@ -3337,7 +3586,7 @@
                             layout = 'horizontal';
                         }
                         
-                        console.log('🖼️ HOT_OR_NOT - wybrany layout:', layout);
+                        log('🖼️ HOT_OR_NOT - wybrany layout:', layout);
                         grid.classList.add(`layout-${layout}`);
                         
                         // Renderuj obrazki
@@ -3350,7 +3599,7 @@
                     let imageASrc = (q.imageA && q.imageA.trim() !== '') ? q.imageA.trim() : '';
                     let imageBSrc = (q.imageB && q.imageB.trim() !== '') ? q.imageB.trim() : '';
                     
-                    console.log('🖼️ HOT_OR_NOT - surowe wartości:', {
+                    log('🖼️ HOT_OR_NOT - surowe wartości:', {
                         'q.imageA': q.imageA,
                         'q.imageB': q.imageB,
                         'q.imageA type': typeof q.imageA,
@@ -3364,11 +3613,11 @@
                     // Jeśli są puste, spróbuj użyć media jako fallback (tylko jeśli media nie jest puste)
                     if(!imageASrc && q.media && q.media.trim() !== '') {
                         imageASrc = q.media.trim();
-                        console.log('🖼️ Używam q.media jako fallback dla A:', imageASrc);
+                        log('🖼️ Używam q.media jako fallback dla A:', imageASrc);
                     }
                     if(!imageBSrc && q.media && q.media.trim() !== '') {
                         imageBSrc = q.media.trim();
-                        console.log('🖼️ Używam q.media jako fallback dla B:', imageBSrc);
+                        log('🖼️ Używam q.media jako fallback dla B:', imageBSrc);
                     }
                     
                     // Dodaj /uploads/ jeśli brakuje (tylko jeśli ścieżka nie jest pusta)
@@ -3378,7 +3627,7 @@
                             imageASrc = '/uploads/' + imageASrc;
                         } else if (imageASrc.startsWith('/uploads/')) {
                             // Już ma prefiks /uploads/, zostaw bez zmian
-                            console.log('✅ imageA już ma prefiks /uploads/:', imageASrc);
+                            log('✅ imageA już ma prefiks /uploads/:', imageASrc);
                         }
                     }
                     if(imageBSrc && imageBSrc.trim() !== '') {
@@ -3386,11 +3635,11 @@
                             imageBSrc = '/uploads/' + imageBSrc;
                         } else if (imageBSrc.startsWith('/uploads/')) {
                             // Już ma prefiks /uploads/, zostaw bez zmian
-                            console.log('✅ imageB już ma prefiks /uploads/:', imageBSrc);
+                            log('✅ imageB już ma prefiks /uploads/:', imageBSrc);
                         }
                     }
                     
-                    console.log('🖼️ HOT_OR_NOT - finalne ścieżki:', {
+                    log('🖼️ HOT_OR_NOT - finalne ścieżki:', {
                         'imageA': imageASrc,
                         'imageB': imageBSrc,
                         'imageA empty': !imageASrc || imageASrc.trim() === '',
@@ -3430,14 +3679,14 @@
                     
                     // Renderuj obrazki - tylko img, bez dodatkowych divów
                     const imgAHTML = imageASrc && imageASrc.trim() !== '' ? 
-                        `<img src="${imageASrc}" alt="Opcja A" onerror="console.error('❌ Błąd ładowania obrazka A:', this.src); this.style.display='none'; const parent = this.parentElement; if(parent && !parent.querySelector('.no-image-placeholder')) { const placeholder = document.createElement('div'); placeholder.className = 'no-image-placeholder'; placeholder.style.cssText = 'display: flex; align-items: center; justify-content: center; height: 100%; width: 100%; color: rgba(255,255,255,0.5); font-size: 1.5vw; position: absolute; top: 0; left: 0;'; placeholder.textContent = 'Brak obrazka'; parent.appendChild(placeholder); }" onload="console.log('✅ Obrazek A załadowany:', this.src, 'wymiary:', this.naturalWidth, 'x', this.naturalHeight); const placeholder = this.parentElement?.querySelector('.no-image-placeholder'); if(placeholder) placeholder.remove();">` : 
+                        `<img src="${imageASrc}" alt="Opcja A" onerror="console.error('❌ Błąd ładowania obrazka A:', this.src); this.style.display='none'; const parent = this.parentElement; if(parent && !parent.querySelector('.no-image-placeholder')) { const placeholder = document.createElement('div'); placeholder.className = 'no-image-placeholder'; placeholder.style.cssText = 'display: flex; align-items: center; justify-content: center; height: 100%; width: 100%; color: rgba(255,255,255,0.5); font-size: 1.5vw; position: absolute; top: 0; left: 0;'; placeholder.textContent = 'Brak obrazka'; parent.appendChild(placeholder); }" onload="log('✅ Obrazek A załadowany:', this.src, 'wymiary:', this.naturalWidth, 'x', this.naturalHeight); const placeholder = this.parentElement?.querySelector('.no-image-placeholder'); if(placeholder) placeholder.remove();">` : 
                         `<div class="no-image-placeholder" style="display: flex; align-items: center; justify-content: center; height: 100%; width: 100%; color: rgba(255,255,255,0.5); font-size: 1.5vw; position: absolute; top: 0; left: 0;">Brak obrazka</div>`;
                     
                     const imgBHTML = imageBSrc && imageBSrc.trim() !== '' ? 
-                        `<img src="${imageBSrc}" alt="Opcja B" onerror="console.error('❌ Błąd ładowania obrazka B:', this.src); this.style.display='none'; const parent = this.parentElement; if(parent && !parent.querySelector('.no-image-placeholder')) { const placeholder = document.createElement('div'); placeholder.className = 'no-image-placeholder'; placeholder.style.cssText = 'display: flex; align-items: center; justify-content: center; height: 100%; width: 100%; color: rgba(255,255,255,0.5); font-size: 1.5vw; position: absolute; top: 0; left: 0;'; placeholder.textContent = 'Brak obrazka'; parent.appendChild(placeholder); }" onload="console.log('✅ Obrazek B załadowany:', this.src, 'wymiary:', this.naturalWidth, 'x', this.naturalHeight); const placeholder = this.parentElement?.querySelector('.no-image-placeholder'); if(placeholder) placeholder.remove();">` : 
+                        `<img src="${imageBSrc}" alt="Opcja B" onerror="console.error('❌ Błąd ładowania obrazka B:', this.src); this.style.display='none'; const parent = this.parentElement; if(parent && !parent.querySelector('.no-image-placeholder')) { const placeholder = document.createElement('div'); placeholder.className = 'no-image-placeholder'; placeholder.style.cssText = 'display: flex; align-items: center; justify-content: center; height: 100%; width: 100%; color: rgba(255,255,255,0.5); font-size: 1.5vw; position: absolute; top: 0; left: 0;'; placeholder.textContent = 'Brak obrazka'; parent.appendChild(placeholder); }" onload="log('✅ Obrazek B załadowany:', this.src, 'wymiary:', this.naturalWidth, 'x', this.naturalHeight); const placeholder = this.parentElement?.querySelector('.no-image-placeholder'); if(placeholder) placeholder.remove();">` : 
                         `<div class="no-image-placeholder" style="display: flex; align-items: center; justify-content: center; height: 100%; width: 100%; color: rgba(255,255,255,0.5); font-size: 1.5vw; position: absolute; top: 0; left: 0;">Brak obrazka</div>`;
                     
-                    console.log('🖼️ HOT_OR_NOT - renderowanie gridu z obrazkami:', {
+                    log('🖼️ HOT_OR_NOT - renderowanie gridu z obrazkami:', {
                         'imageASrc': imageASrc,
                         'imageBSrc': imageBSrc,
                         'cardClassA': cardClassA,
@@ -3464,7 +3713,7 @@
                         </div>
                     `;
                     
-                    console.log('✅ HOT_OR_NOT - grid.innerHTML ustawiony, elementy:', grid.children.length);
+                    log('✅ HOT_OR_NOT - grid.innerHTML ustawiony, elementy:', grid.children.length);
                     
                     // Upewnij się że kontenery są widoczne po renderowaniu
                     setTimeout(() => {
@@ -3474,12 +3723,12 @@
                             wrapper.style.visibility = 'visible';
                             wrapper.style.opacity = '1';
                             wrapper.style.minHeight = '200px';
-                            console.log('✅ Wrapper ustawiony - display:', wrapper.style.display, 'minHeight:', wrapper.style.minHeight);
+                            log('✅ Wrapper ustawiony - display:', wrapper.style.display, 'minHeight:', wrapper.style.minHeight);
                         });
                         
                         const images = grid.querySelectorAll('.hot-image-wrapper img');
                         images.forEach(img => {
-                            console.log('🖼️ Obrazek w DOM:', {
+                            log('🖼️ Obrazek w DOM:', {
                                 src: img.src,
                                 complete: img.complete,
                                 naturalWidth: img.naturalWidth,
@@ -3722,7 +3971,7 @@
             
             // Debug dla typu LETTER
             if(q && q.type === 'LETTER') {
-                console.log('🔤 LETTER timer check:', {
+                log('🔤 LETTER timer check:', {
                     type: state.type,
                     inPlayoff: inPlayoff,
                     showStats: state.showStats,
@@ -3739,7 +3988,7 @@
             const currentQuestionId = q?.id !== undefined && q?.id !== null ? q.id : `q_${state.activeQuestionIndex || 0}`;
             const isNewQuestion = currentQuestionId !== lastQuestionId;
             
-            console.log('🔍 DEBUG Screen.html - sprawdzanie odtwarzania dźwięku (po sekcji NOWE PYTANIE):', {
+            log('🔍 DEBUG Screen.html - sprawdzanie odtwarzania dźwięku (po sekcji NOWE PYTANIE):', {
                 questionType: q?.type,
                 hasAudio: !!q?.audio,
                 audioUrl: q?.audio,
@@ -3907,7 +4156,7 @@
                     gameEnded: state.shipsGame.gameEnded || false,
                     playerStats: state.shipsGame.playerStats || {}
                 };
-                console.log('⚓ renderShipsBoard - zaktualizowano shipsGameState z state.shipsGame:', {
+                log('⚓ renderShipsBoard - zaktualizowano shipsGameState z state.shipsGame:', {
                     currentTurn: shipsGameState.currentTurn,
                     showStats: state.showStats,
                     showCorrect: state.showCorrect
@@ -3925,10 +4174,10 @@
                         gameEnded: false,
                         playerStats: {}
                     };
-                    console.log('⚓ renderShipsBoard - inicjalizacja shipsGameState');
+                    log('⚓ renderShipsBoard - inicjalizacja shipsGameState');
                 } else {
                     // Zachowaj istniejący stan jeśli state.shipsGame nie jest dostępne
-                    console.log('⚓ renderShipsBoard - zachowano istniejący shipsGameState (brak state.shipsGame)');
+                    log('⚓ renderShipsBoard - zachowano istniejący shipsGameState (brak state.shipsGame)');
                 }
             }
             
@@ -4141,7 +4390,7 @@
             // Usuń stare listenery jeśli istnieją
             socket.off('ships_game_update');
             socket.on('ships_game_update', (data) => {
-                console.log('⚓ Screen.html ships_game_update otrzymane:', {
+                log('⚓ Screen.html ships_game_update otrzymane:', {
                     questionId: data.questionId,
                     qId: q.id,
                     currentTurn: data.currentTurn,
@@ -4168,8 +4417,9 @@
                     shipsGameState.shots = data.shots !== undefined ? data.shots : shipsGameState.shots;
                     shipsGameState.currentTurn = data.currentTurn !== undefined ? data.currentTurn : shipsGameState.currentTurn;
                     shipsGameState.gameEnded = data.gameEnded !== undefined ? data.gameEnded : shipsGameState.gameEnded;
+                    if (shipsGameState.gameEnded) stopShipsBG();
                     
-                    console.log('⚓ Screen.html - zaktualizowano shipsGameState:', {
+                    log('⚓ Screen.html - zaktualizowano shipsGameState:', {
                         oldTurn: oldTurn,
                         newTurn: shipsGameState.currentTurn,
                         showStats: data.showStats,
@@ -4195,7 +4445,7 @@
                         showStats: data.showStats !== undefined ? data.showStats : (currentState ? currentState.showStats : false),
                         showCorrect: data.showCorrect !== undefined ? data.showCorrect : (currentState ? currentState.showCorrect : false)
                     };
-                    console.log('⚓ Screen.html - renderowanie planszy z updatedState:', {
+                    log('⚓ Screen.html - renderowanie planszy z updatedState:', {
                         showStats: updatedState.showStats,
                         showCorrect: updatedState.showCorrect,
                         currentTurn: updatedState.shipsGame?.currentTurn
@@ -4218,7 +4468,7 @@
             resizeTimeout = setTimeout(() => {
                 const q = currentGameState?.activeQuestion;
                 if (q && q.type === 'SHIPS' && currentGameState) {
-                    console.log('🔄 Screen.html - resize detected, re-rendering ships board', {
+                    log('🔄 Screen.html - resize detected, re-rendering ships board', {
                         windowHeight: window.innerHeight,
                         windowWidth: window.innerWidth,
                         boardSize: q.boardSize

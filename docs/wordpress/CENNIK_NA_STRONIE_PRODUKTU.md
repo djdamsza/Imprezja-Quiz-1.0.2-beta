@@ -50,13 +50,20 @@ add_action('wp', function() {
 
 ## Część 2: Dodanie cennika Stripe do treści produktu
 
+**WAŻNE – aby przewijanie na komórce działało:**
+1. **USUŃ** wszystkie stare bloki z cennikiem (mogą być zduplikowane lub z innej wersji)
+2. Wklej **JEDEN** blok – całą zawartość z `stripe-cennik.html` lub `imprezja-quiz-produkt-pelna-tresc.html`
+3. Jeśli nadal nie przewija się na mobile: skopiuj zawartość `imprezja-cennik-additional-css.css` do **Wygląd → Dostosuj → Dodatkowy CSS**
+
+**Kroki:**
 1. **WooCommerce** → **Produkty** → znajdź **Imprezja Quiz**
 2. Kliknij **Edytuj**
-3. W edytorze bloków przewiń do sekcji, gdzie chcesz umieścić cennik (np. po „Pobierz wersję testową” lub przed FAQ)
-4. Kliknij **+** (Dodaj blok)
-5. Wyszukaj **Własny HTML** (Custom HTML)
-6. Wklej całą zawartość z pliku **`docs/wordpress/stripe-cennik.html`**
-7. **Zapisz** lub **Zaktualizuj**
+3. **Usuń** stare bloki cennika (szukaj duplikatów „Prosty cennik”, wielu bloków Własny HTML z cennikiem)
+4. Przewiń do sekcji, gdzie ma być cennik
+5. Kliknij **+** → **Własny HTML**
+6. Wklej całą zawartość z **`stripe-cennik.html`** (albo fragment cennika z `imprezja-quiz-produkt-pelna-tresc.html`)
+7. **Zapisz** / **Zaktualizuj**
+8. Wyczyść cache (LiteSpeed, przeglądarka)
 
 ---
 
@@ -67,6 +74,38 @@ Jeśli chcesz ukryć ikonę koszyka w menu dla całej witryny (gdy wszystkie zak
 **Wygląd** → **Customizuj** → **Menu** → wybierz menu → usuń element „Koszyk”
 
 Lub zostaw koszyk – będzie pusty, gdy nie ma produktów WooCommerce w koszyku.
+
+---
+
+## Cron keep-alive (dhosting)
+
+1. **Plik** `cron.php` – wrzuć do `public_html/` (np. `/nowajakoscrozrywki.pl/public_html/cron.php`)
+2. **Zawartość** – tylko: `<?php file_get_contents('https://imprezja-quiz-1-0-2-beta.onrender.com/api/prices');`
+3. **Ścieżka w CRON** – ustaw: `~/nowajakoscrozrywki.pl/public_html/cron.php` (z `public_html` w ścieżce)
+4. **Interwał** – co 10 minut
+
+---
+
+## Przyspieszenie pierwszego kliknięcia (Render.com cold start)
+
+Na darmowym planie Render serwis „zasypia” po ~15 min bez ruchu. Pierwsze kliknięcie może trwać 30–60 s.
+
+**Rozwiązania:**
+1. **Preconnect** – już dodany w `stripe-cennik.html` (preconnect + dns-prefetch do API)
+2. **Cron ping** – skonfiguruj UptimeRobot lub cron.co, aby co 10–14 min wysyłał GET na `https://imprezja-quiz-1-0-2-beta.onrender.com/api/prices` lub `/health` (po redeployu) – serwis pozostanie „obudzony”
+3. **Płatny plan Render** – wyłącza cold start
+
+---
+
+## Cennik na komórce – przewijanie poziome
+
+Na ekranach ≤600px cennik używa **przewijania poziomego** – przesuń palcem w lewo, żeby zobaczyć kolejne plany (1 miesiąc → 3 miesiące → 12 miesięcy → Dożywotnia).
+
+**Jeśli nie przewija się na telefonie:**
+1. Sprawdź, czy nie masz **zduplikowanych** bloków cennika – usuń stare/duplikaty
+2. Skopiuj zawartość pliku **`imprezja-cennik-additional-css.css`** do **Wygląd → Dostosuj → Dodatkowy CSS** → Zapisz
+3. Wyczyść cache (LiteSpeed: Opróżnij wszystko)
+4. Sprawdź na telefonie w trybie incognito
 
 ---
 

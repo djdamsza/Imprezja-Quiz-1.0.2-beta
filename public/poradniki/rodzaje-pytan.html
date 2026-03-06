@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poradnik: Rodzaje pytań – Imprezja Quiz</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1a1a2e; color: #eee; line-height: 1.6; padding: 24px; max-width: 720px; margin: 0 auto; }
+        h1 { font-size: 1.6rem; margin-bottom: 8px; color: #f1c40f; }
+        .back { margin-bottom: 24px; }
+        .back a { color: #3498db; text-decoration: none; }
+        .back a:hover { text-decoration: underline; }
+        h2 { font-size: 1.2rem; margin-top: 28px; margin-bottom: 10px; color: #bdc3c7; }
+        p { margin-bottom: 12px; }
+        ul { margin: 12px 0 12px 24px; }
+        li { margin-bottom: 6px; }
+        .box { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 16px; margin: 16px 0; }
+        code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+        table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.9rem; }
+        th, td { border: 1px solid rgba(255,255,255,0.2); padding: 8px 10px; text-align: left; }
+        th { color: #f1c40f; }
+    </style>
+</head>
+<body>
+    <p class="back"><a href="/start.html">← Powrót do ekranu startowego</a></p>
+    <h1>📋 Wszystkie rodzaje pytań w quizie</h1>
+    <p>W edytorze quizów możesz dodawać różne typy pytań. Poniżej krótki opis każdego oraz opcje (Speedrun, Eliminacja).</p>
+
+    <h2>Tabela typów pytań</h2>
+    <table>
+        <tr><th>Typ</th><th>Opis</th></tr>
+        <tr><td><strong>QUIZ</strong></td><td>Pytanie z jedną poprawną odpowiedzią (A/B/C/D). Może zawierać obrazek. Punkty za poprawną + bonus za czas.</td></tr>
+        <tr><td><strong>Głosowanie</strong></td><td>Wybór A lub B – bez poprawnej odpowiedzi. 100 pkt za udział.</td></tr>
+        <tr><td><strong>Foto Głos</strong></td><td>Głosowanie z obrazkiem (A vs B). 100 pkt za wybór.</td></tr>
+        <tr><td><strong>Muzyka</strong></td><td>Pytanie z odtwarzanym dźwiękiem (np. rozpoznaj piosenkę). Jedna poprawna odpowiedź, jak QUIZ.</td></tr>
+        <tr><td><strong>Hot or Not</strong></td><td>Dwa obrazki – gracz wybiera A lub B. Można ustawić poprawną odpowiedź lub tylko zbierać głosy.</td></tr>
+        <tr><td><strong>Szacowanie</strong></td><td>Gracze wpisują liczbę. Wygrywa odpowiedź najbliższa poprawnej wartości.</td></tr>
+        <tr><td><strong>Pytanie otwarte</strong></td><td>Gracze wpisują dowolny tekst. Chmura słów, potem dogrywka TAK/NIE (bez punktów).</td></tr>
+        <tr><td><strong>Pytanie z literą</strong></td><td>Gracze wpisują wyraz na daną literę. Chmura słów, dogrywka TAK/NIE.</td></tr>
+        <tr><td><strong>Statki</strong></td><td>Gra w statki – strzały po kolei. Trafienie = 100 pkt.</td></tr>
+    </table>
+
+    <h2>Opcje pytania</h2>
+    <ul>
+        <li><strong>Speedrun</strong> – punkty tylko dla 10 pierwszych poprawnych: 1. miejsce = 1000 pkt, 2. = 900, …, 10. = 100. Reszta 0.</li>
+        <li><strong>Eliminacja</strong> – zła odpowiedź = gracz odpada (wynik zerowany, nie może grać dalej).</li>
+        <li><strong>Wyłącz punkty za czas</strong> – w pytaniach QUIZ/Muzyka zamiast 100 pkt + bonus za czas jest tylko 100 pkt za poprawną.</li>
+    </ul>
+
+    <h2>Punkty w skrócie</h2>
+    <ul>
+        <li>QUIZ / Muzyka: poprawna = 100 pkt + bonus za czas (można wyłączyć). Zła = 0.</li>
+        <li>Głosowanie / Foto Głos: 100 pkt za wybór.</li>
+        <li>Statki: trafienie = 100 pkt.</li>
+        <li>Tryb drużynowy: punkty gracza dodawane są do sumy drużyny.</li>
+    </ul>
+
+    <div class="box">
+        <strong>Podsumowanie:</strong> Wybierz typ pytania w edytorze, uzupełnij treść i odpowiedzi, opcjonalnie Speedrun lub Eliminacja. Zapisz quiz – gotowe do gry w panelu admina.
+    </div>
+</body>
+</html>

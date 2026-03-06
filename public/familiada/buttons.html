@@ -49,7 +49,7 @@
         #flash-overlay.fade-out { transition: opacity 3s ease-out; opacity: 0; }
         .btn-half.disabled { pointer-events: none; opacity: 0.5; }
         #fs-btn {
-            position: fixed; top: 12px; right: 12px; z-index: 200;
+            position: fixed; bottom: 12px; right: 12px; z-index: 200;
             background: rgba(0,0,0,0.6); color: #fff; border: 1px solid #777;
             padding: 10px 16px; border-radius: 8px; font-size: 14px;
             cursor: pointer; font-family: sans-serif;
@@ -61,10 +61,10 @@
     <button id="fs-btn" type="button">⛶ Pełny ekran</button>
     <div id="flash-overlay"></div>
     <div class="btn-half" id="btn-blue" data-team="1">
-        <span class="btn-label">NIEBIESCY</span>
+        <span class="btn-label" id="btn-label-1">NIEBIESCY</span>
     </div>
     <div class="btn-half" id="btn-red" data-team="2">
-        <span class="btn-label">CZERWONI</span>
+        <span class="btn-label" id="btn-label-2">CZERWONI</span>
     </div>
 
     <script>
@@ -74,8 +74,16 @@
         const flashOverlay = document.getElementById('flash-overlay');
 
         socket.emit('register_familiada', { role: 'buttons' });
+        socket.emit('familiada_request_team_names');
 
         let buttonsEnabled = false;
+
+        function setTeamLabels(team1, team2) {
+            const l1 = document.getElementById('btn-label-1');
+            const l2 = document.getElementById('btn-label-2');
+            if (l1) l1.textContent = (team1 && String(team1).trim()) ? String(team1).toUpperCase() : 'NIEBIESCY';
+            if (l2) l2.textContent = (team2 && String(team2).trim()) ? String(team2).toUpperCase() : 'CZERWONI';
+        }
 
         function setButtonsEnabled(enabled) {
             buttonsEnabled = enabled;
@@ -114,7 +122,9 @@
             showFlash(data.team);
         });
 
+        socket.on('familiada_team_names', (data) => setTeamLabels(data.team1, data.team2));
         socket.on('board_update', (msg) => {
+            if (msg.team1 != null || msg.team2 != null) setTeamLabels(msg.team1, msg.team2);
             if (msg.type === 'NEW_ROUND') setButtonsEnabled(true);
             if (msg.type === 'SHOW_FINAL' || msg.type === 'FULL_RESET') setButtonsEnabled(false);
         });
@@ -134,6 +144,21 @@
             }
         }
         document.getElementById('fs-btn').addEventListener('click', toggleFullScreen);
+
+        let wakeLock = null;
+        async function requestWakeLock() {
+            if (!('wakeLock' in navigator) || document.visibilityState !== 'visible') return;
+            try {
+                if (wakeLock) { try { await wakeLock.release(); } catch (e) {} wakeLock = null; }
+                wakeLock = await navigator.wakeLock.request('screen');
+                wakeLock.addEventListener('release', () => { wakeLock = null; });
+            } catch (err) {
+                if (window.isSecureContext === false) console.warn('Wake Lock: wymaga HTTPS lub localhost');
+            }
+        }
+        document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') requestWakeLock(); });
+        document.addEventListener('click', () => requestWakeLock(), { once: true });
+        document.addEventListener('touchstart', () => requestWakeLock(), { once: true });
     </script>
 </body>
 </html>

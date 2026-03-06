@@ -12,9 +12,9 @@ Niniejsza Licencja Użytkownika Końcowego (EULA) jest umową prawną między To
 
 1.1. Licencjodawca udziela Użytkownikowi niewyłącznej, nieprzenoszalnej licencji na użytkowanie Programu wyłącznie w celach niekomercyjnych lub komercyjnych (według typu zakupionej licencji), na następujących warunkach.
 
-1.2. Licencja uprawnia do instalacji i korzystania z Programu na **jednym komputerze** (jedno urządzenie na klucz licencyjny), chyba że Licencjodawca wyraźnie określi inaczej.
+1.2. Licencja uprawnia do instalacji i korzystania z Programu na **jednym komputerze** (jedno urządzenie na klucz licencyjny), chyba że Licencjodawca wyraźnie określi inaczej. **Licencja dożywotnia** jest bezterminowa. **Licencja czasowa** (subskrypcja: 1 miesiąc, 3 miesiące, 12 miesięcy) wygasa po upływie opłaconego okresu.
 
-1.3. Program może być używany w okresie trial (14 dni) bez opłaty. Po tym okresie wymagana jest aktywacja kluczem licencyjnym uzyskanym w wyniku zakupu.
+1.3. Program może być używany w okresie trial (14 dni) bez opłaty. Po tym okresie wymagana jest aktywacja kluczem licencyjnym uzyskanym w wyniku zakupu (przez stronę Wydawcy, Stripe lub inny wskazany kanał).
 
 ---
 
@@ -33,6 +33,8 @@ Niniejsza Licencja Użytkownika Końcowego (EULA) jest umową prawną między To
 2.5. Używać Programu w sposób naruszający prawo lub prawa osób trzecich.
 
 2.6. Używać tego samego klucza licencyjnego na więcej niż jednym komputerze (chyba że Licencjodawca wyraźnie na to zezwoli).
+
+2.7. W przypadku przeniesienia licencji na nowy komputer – poprzedni klucz zostaje unieważniony; użytkowanie starego klucza na poprzednim sprzęcie po przeniesieniu jest niedozwolone.
 
 ---
 
@@ -70,7 +72,7 @@ Niniejsza Licencja Użytkownika Końcowego (EULA) jest umową prawną między To
 
 ## 7. Wygaśnięcie licencji
 
-7.1. Licencja wygasa automatycznie w przypadku naruszenia przez Użytkownika któregokolwiek z jej warunków.
+7.1. Licencja wygasa automatycznie: (a) w przypadku naruszenia przez Użytkownika któregokolwiek z jej warunków; (b) w przypadku licencji czasowej – po upływie opłaconego okresu subskrypcji.
 
 7.2. Po wygaśnięciu Użytkownik zobowiązany jest zaprzestać używania Programu i usunąć go z urządzenia.
 
@@ -95,6 +97,6 @@ biuro@imprezja.pl
 
 ---
 
-*Ostatnia aktualizacja: 11 lutego 2026 r.*
+*Ostatnia aktualizacja: 18 lutego 2026 r.*
 
 © Damian Nowaczyk. Wszelkie prawa zastrzeżone.

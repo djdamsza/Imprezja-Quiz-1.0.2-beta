@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poradnik: Tworzenie własnego quizu – Imprezja Quiz</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1a1a2e; color: #eee; line-height: 1.6; padding: 24px; max-width: 720px; margin: 0 auto; }
+        h1 { font-size: 1.6rem; margin-bottom: 8px; color: #f1c40f; }
+        .back { margin-bottom: 24px; }
+        .back a { color: #3498db; text-decoration: none; }
+        .back a:hover { text-decoration: underline; }
+        h2 { font-size: 1.2rem; margin-top: 28px; margin-bottom: 10px; color: #bdc3c7; }
+        p { margin-bottom: 12px; }
+        ul { margin: 12px 0 12px 24px; }
+        li { margin-bottom: 6px; }
+        .box { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 16px; margin: 16px 0; }
+        code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+        table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.9rem; }
+        th, td { border: 1px solid rgba(255,255,255,0.2); padding: 8px 10px; text-align: left; }
+        th { color: #f1c40f; }
+    </style>
+</head>
+<body>
+    <p class="back"><a href="/start.html">← Powrót do ekranu startowego</a></p>
+    <h1>🎮 Tworzenie własnego quizu</h1>
+    <p>Edytor quizów pozwala stworzyć quiz od zera lub zaimportować gotowy. Dostęp: w przeglądarce wpisz adres aplikacji + <code>/editor.html</code> (np. <code>http://localhost:3000/editor.html</code> lub adres z ekranu).</p>
+
+    <h2>Tworzenie od zera</h2>
+    <ul>
+        <li>Wpisz nazwę pliku quizu (np. <code>quiz_urodzinowy</code>).</li>
+        <li>Kliknij przycisk typu pytania (QUIZ, Głosowanie, Muzyka, Foto Głos, Hot or Not, Szacowanie, Pytanie otwarte, Pytanie z literą, Statki).</li>
+        <li>Wypełnij treść pytania, dodaj odpowiedzi, zaznacz poprawną (gdy dotyczy).</li>
+        <li>Opcjonalnie: dodaj obrazek (upload), plik audio (dla Muzyka), ustaw czas i opcje (Speedrun, Eliminacja).</li>
+        <li>Zapisz quiz – pojawi się na liście w panelu admina w sekcji „Wybierz Quiz”.</li>
+    </ul>
+
+    <h2>Import quizu (własny tekst / gotowy plik)</h2>
+    <p><strong>Wklej JSON</strong> – w edytorze użyj przycisku „Wklej JSON”. Wklej treść pliku JSON quizu (np. skopiowaną z innego pliku lub wyeksportowaną wcześniej). Aplikacja wczyta pytania i ustawienia.</p>
+    <p><strong>Z dysku (plik JSON)</strong> – wybierz plik .json z quizem zapisany na komputerze. Edytor załaduje cały quiz.</p>
+    <p><strong>Importuj pakiet (ZIP)</strong> – jeśli quiz ma obrazki lub dźwięki, możesz zapisać „Pakiet” (JSON + pliki) i później wgrać plik .zip. W jednym kroku wczyta się quiz i powiązane pliki (obrazy, audio) do folderu uploads.</p>
+
+    <h2>Po zapisie</h2>
+    <p>Zapisany quiz trafia na serwer (folder quizów). W panelu admina w sekcji „Wybierz Quiz” wybierz go z listy i załaduj – potem prowadź grę z ekranu / telefonu jak zwykle.</p>
+
+    <div class="box">
+        <strong>Podsumowanie:</strong> Edytor = tworzenie od zera lub import JSON / pakietu ZIP. Zapisz → quiz pojawia się w panelu admina. Bez wrażliwych danych – wszystko działa lokalnie w Twojej aplikacji.
+    </div>
+</body>
+</html>

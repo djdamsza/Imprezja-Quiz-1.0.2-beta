@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bitwa wokalna – Imprezja Quiz</title>
+    <link rel="icon" href="data:,">
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        :root {
+            --bg: radial-gradient(circle at center, #1a1a2e, #000);
+            --glass: rgba(255,255,255,0.08);
+            --border: rgba(255,255,255,0.15);
+            --accent: #9b59b6;
+            --accent2: #3498db;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); min-height: 100vh; color: #fff; padding: 24px; }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 { color: var(--accent); margin-bottom: 24px; font-size: 1.8rem; }
+        .section { background: var(--glass); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; backdrop-filter: blur(10px); }
+        .section h2 { color: var(--accent2); font-size: 1.1rem; margin-bottom: 16px; }
+        .config-bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 20px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px; }
+        .config-bar select { padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: #fff; min-width: 140px; }
+        .config-bar input[type="text"] { padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); background: rgba(0,0,0,0.4); color: #fff; width: 140px; }
+        .btn { padding: 10px 18px; font-size: 0.95rem; font-weight: 600; border-radius: 8px; border: none; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-success { background: #2ecc71; color: #000; }
+        .btn-danger { background: #c0392b; color: #fff; }
+        #lte-start-btn { padding: 14px 24px; font-size: 1rem; background: #e74c3c !important; }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        .back-link { display: inline-block; margin-bottom: 20px; color: var(--accent); text-decoration: none; font-weight: 600; }
+        .back-link:hover { text-decoration: underline; }
+        .intro-view { display: flex; flex-direction: column; align-items: center; padding: 20px 0; }
+        .intro-view.hidden { display: none !important; }
+        .editor-section { display: none; }
+        .editor-section.visible { display: block; }
+        .intro-btn-row { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; align-items: center; margin-top: 24px; }
+        .intro-btn { padding: 14px 24px; font-size: 1rem; font-weight: 600; border-radius: 10px; border: none; cursor: pointer; text-decoration: none; transition: all 0.2s; }
+        .intro-btn:hover { transform: scale(1.05); }
+        .intro-btn-editor { background: #3498db; color: #fff; }
+        .intro-btn-editor:hover { background: #2980b9; }
+        .intro-btn-start { background: #2ecc71; color: #000; }
+        .intro-btn-start:hover { background: #27ae60; color: #fff; }
+        .intro-btn-back { background: #f1c40f; color: #000; }
+        .intro-btn-back:hover { background: #f39c12; color: #000; }
+        .intro-btn-stop { background: #e74c3c; color: #fff; }
+        .intro-btn-stop:hover { background: #c0392b; }
+        .intro-title { font-size: 1.8rem; color: var(--accent); margin-bottom: 8px; }
+        .editor-section .btn-zamknij { margin-bottom: 16px; background: #555; color: #fff; padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; }
+        .editor-section .btn-zamknij:hover { background: #666; }
+        .qr-box { display: none; text-align: center; padding: 12px; max-height: calc(100vh - 180px); overflow-y: auto; }
+        .qr-box.active { display: block; }
+        .qr-box img, .qr-img { width: clamp(140px, 14vw, 200px); height: clamp(140px, 14vw, 200px); object-fit: contain; background: #fff; padding: 8px; border-radius: 10px; margin: 8px 0; }
+        .qr-box p, .qr-url { color: rgba(255,255,255,0.8); margin: 6px 0; font-size: 0.8rem; }
+        .qr-choices { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; align-items: flex-start; max-width: 100%; }
+        .qr-choice-box { flex: 1 1 240px; min-width: 200px; max-width: 340px; text-align: center; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 12px; border: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; }
+        .qr-choice-label { font-weight: 700; color: var(--accent); margin-bottom: 4px; font-size: 0.95rem; }
+        .qr-choice-desc { font-size: 0.75rem; color: rgba(255,255,255,0.7); margin-bottom: 8px; line-height: 1.3; }
+        .qr-lub { align-self: center; font-weight: 600; color: rgba(255,255,255,0.5); padding: 0 8px; font-size: 0.9rem; flex-shrink: 0; }
+        .track-list { display: flex; flex-direction: column; gap: 12px; }
+        .track-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 12px; background: rgba(0,0,0,0.3); border-radius: 8px; border: 1px solid var(--border); }
+        .track-row .display-name { flex: 1; min-width: 160px; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); background: rgba(0,0,0,0.4); color: #fff; font-size: 1rem; }
+        .track-row .audio-info { font-size: 0.8rem; color: rgba(255,255,255,0.6); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .track-row .audio-browser-wrap { width: 100%; flex-basis: 100%; }
+        .track-row .color-swatch { width: 28px; height: 28px; border-radius: 6px; border: 2px solid var(--border); cursor: pointer; }
+        .track-row .color-swatch:hover { border-color: var(--accent); }
+        .track-row .remove-btn { padding: 6px 10px; font-size: 0.85rem; background: #555; color: #fff; border: none; border-radius: 6px; cursor: pointer; }
+        .track-row .remove-btn:hover { background: #c0392b; }
+        .track-row .order-btn { padding: 6px 10px; font-size: 0.9rem; background: #444; color: #fff; border: none; border-radius: 6px; cursor: pointer; }
+        .track-row .order-btn:hover { background: var(--accent2); }
+        .track-row .order-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .track-row .preview-btn { padding: 6px 10px; font-size: 0.9rem; }
+        .audio-upload { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .audio-upload input[type="file"] { display: none; }
+        .audio-browser { max-height: 100px; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+        .audio-browser .audio-chip { padding: 6px 10px; font-size: 0.8rem; background: var(--accent2); border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+        .audio-browser .audio-chip:hover { background: #2980b9; }
+        .audio-browser .audio-chip-play { opacity: 0.9; font-size: 0.75rem; padding: 2px 4px; border-radius: 4px; }
+        .audio-browser .audio-chip-play:hover { background: rgba(255,255,255,0.2); }
+        .add-track-btn { margin-top: 12px; }
+        .fullscreen-btn { position: fixed; bottom: 20px; right: 20px; padding: 10px 20px; border-radius: 5px; background: rgba(50,50,50,0.5); border: 1px solid #777; color: #fff; font-size: 12px; text-transform: uppercase; font-family: inherit; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; z-index: 1000; }
+        .fullscreen-btn:hover { background: rgba(70,70,70,0.7); }
+        .fullscreen-btn.hidden { display: none !important; }
+        .cofnij-btn {
+            position: fixed; bottom: 20px; left: 20px; z-index: 1000;
+            padding: 10px 20px; border-radius: 8px; border: none;
+            background: linear-gradient(135deg, #f1c40f, #e67e22); color: #1a1a2e;
+            font-size: 0.95rem; font-weight: 700; font-family: inherit;
+            text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.35); cursor: pointer;
+            transition: opacity 0.2s, transform 0.2s;
+        }
+        .cofnij-btn:hover { opacity: 0.95; transform: translateY(-1px); color: #1a1a2e; }
+        #save-as-wrap { display: none; align-items: center; gap: 8px; }
+        #save-as-wrap.visible { display: inline-flex; }
+        .RGB_16 { display: flex; flex-wrap: wrap; gap: 4px; }
+        .RGB_16 .swatch { width: 24px; height: 24px; border-radius: 4px; border: 2px solid var(--border); cursor: pointer; }
+        .RGB_16 .swatch:hover, .RGB_16 .swatch.active { border-color: var(--accent); }
+        .bank-tab { padding: 8px 14px; border-radius: 8px; border: 2px solid var(--border); background: rgba(0,0,0,0.3); color: #fff; cursor: pointer; font-size: 0.9rem; }
+        .bank-tab:hover { border-color: var(--accent2); }
+        .bank-tab.active { border-color: var(--accent); background: rgba(231,76,60,0.2); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="intro-view" id="intro-view">
+            <div class="intro-title">🎤 Bitwa wokalna</div>
+            <p style="color: rgba(255,255,255,0.7); font-size: 0.95rem; margin-bottom: 16px;">Zeskanuj QR – lista na telefonie. Ostatnie ustawienia zostaną użyte.</p>
+            <div class="section qr-box active" id="qr-section">
+                <div id="qr-choices" class="qr-choices">
+                    <div id="qr-box-local" class="qr-choice-box">
+                        <div class="qr-choice-label">1. Sieć lokalna (Wi‑Fi)</div>
+                        <p class="qr-choice-desc">Telefon i komputer w tej samej sieci.</p>
+                        <img id="qr-img-local" class="qr-img" src="" alt="QR lokalna">
+                        <p id="qr-url-local" class="qr-url" style="word-break: break-all; font-size: 0.85rem;"></p>
+                    </div>
+                    <div class="qr-lub">LUB</div>
+                    <div id="qr-box-pinggy" class="qr-choice-box">
+                        <div class="qr-choice-label">2. LTE (sieć komórkowa)</div>
+                        <p class="qr-choice-desc">Telefon przez LTE/4G. Kliknij „Sterowanie LTE” aby uruchomić tunel.</p>
+                        <p class="qr-choice-desc" style="color: rgba(255,255,255,0.6); font-size: 0.8rem;">⏱️ Tunel ok. 60 min.</p>
+                        <div id="qr-lte-start-wrap" style="margin: 12px 0;">
+                            <button type="button" class="btn btn-danger" id="lte-start-btn">🌐 Sterowanie LTE</button>
+                            <span id="qr-lte-status" style="margin-left: 10px; font-size: 0.9rem; color: rgba(255,255,255,0.7);"></span>
+                        </div>
+                        <div id="qr-lte-qr-wrap" style="display:none;">
+                            <img id="qr-img-pinggy" class="qr-img" src="" alt="QR LTE">
+                            <p id="qr-url-pinggy" class="qr-url" style="word-break: break-all; font-size: 0.85rem;"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="intro-btn-row">
+                <button type="button" class="intro-btn intro-btn-editor" id="btn-editor-intro">✏️ Edytor</button>
+                <button type="button" class="intro-btn intro-btn-start" id="btn-start-stop-intro">▶️ Start</button>
+                <a href="/start.html" class="intro-btn intro-btn-back">← Wróć</a>
+            </div>
+        </div>
+
+        <div class="section editor-section" id="editor-section">
+            <button type="button" class="btn-zamknij" id="btn-zamknij-editor">Zamknij</button>
+            <a href="/start.html" class="back-link">← Wróć do wyboru trybu</a>
+            <div class="config-bar" style="margin-top:12px;">
+                <label>Lista:</label>
+                <select id="config-select"><option value="domyslna">domyślna</option></select>
+                <button type="button" class="btn" id="config-new-btn" style="background:#2e7d32;">➕ NOWA</button>
+                <button type="button" class="btn btn-primary" id="config-load-btn">📂 Załaduj</button>
+                <button type="button" class="btn btn-primary" id="config-save-btn">💾 Zapisz</button>
+                <button type="button" class="btn" id="config-save-as-btn" style="background:#555;">Zapisz jako...</button>
+                <button type="button" class="btn" id="config-rename-btn" style="background:#444;">✏️ Edytuj nazwę</button>
+                <button type="button" class="btn btn-danger" id="config-delete-btn">🗑 Usuń</button>
+                <span id="save-as-wrap">
+                    <input type="text" id="save-as-name" placeholder="Nazwa listy">
+                    <button type="button" class="btn btn-primary" id="save-as-confirm">Zapisz</button>
+                    <button type="button" class="btn" id="save-as-cancel">Anuluj</button>
+                </span>
+            </div>
+            <div class="bank-bar" style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:16px;">
+                <span style="color:var(--accent2); font-weight:600;">Banki:</span>
+                <div id="bank-tabs" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+                <button type="button" class="btn" id="add-bank-btn" style="background:#2e7d32; padding:6px 12px;">➕ Bank</button>
+                <button type="button" class="btn" id="remove-bank-btn" style="background:#555; padding:6px 12px;">🗑 Usuń bank</button>
+            </div>
+            <h2>Fragmenty muzyczne</h2>
+            <p style="color:rgba(255,255,255,0.7); font-size:0.9rem; margin-bottom:12px;">Dodaj krótkie fragmenty. Na telefonie – swipe w lewo/prawo przełącza banki.</p>
+            <div class="track-list" id="track-list"></div>
+            <button type="button" class="btn btn-success add-track-btn" id="add-track-btn">➕ Dodaj fragment</button>
+            <div class="actions" style="margin-top:20px;">
+                <button type="button" class="btn btn-success" id="start-btn">▶️ Włącz Bitwa wokalna</button>
+            </div>
+        </div>
+
+        <a href="/start.html" class="cofnij-btn" title="Wróć do wyboru trybu">← Cofnij</a>
+    </div>
+
+    <audio id="bitwa-audio" style="display:none;"></audio>
+    <audio id="preview-audio" style="display:none;"></audio>
+
+    <script>
+        if (location.protocol === 'file:') {
+            document.body.innerHTML = '<div class="container" style="padding:40px;text-align:center;"><h1>⚠️ Otwórz przez serwer</h1><p><a href="http://127.0.0.1:3000/bitwa-wokalna.html" style="color:#e74c3c;">http://127.0.0.1:3000/bitwa-wokalna.html</a></p></div>';
+        } else {
+        const socket = io();
+        let config = { banks: [] };
+        let currentConfigName = 'domyslna';
+        let currentBankIndex = 0;
+
+        function ensureBanks() {
+            if (!config.banks || !config.banks.length) {
+                const oldTracks = config.tracks || [];
+                config.banks = [{ id: uid(), name: 'Bank 1', tracks: Array.isArray(oldTracks) ? oldTracks : [] }];
+                delete config.tracks;
+            }
+        }
+        function getCurrentBank() { ensureBanks(); return config.banks[currentBankIndex] || config.banks[0]; }
+        function getCurrentTracks() { const b = getCurrentBank(); return b ? (b.tracks || []) : []; }
+
+        const RGB_16 = ['#000000','#ffffff','#808080','#c0c0c0','#800000','#ff0000','#800080','#ff00ff','#008000','#00ff00','#808000','#ffff00','#000080','#0000ff','#008080','#00ffff'];
+
+        socket.emit('bitwa_wokalna_join_screen');
+        socket.on('bitwa_wokalna_state', (s) => {
+            updateIntroButtonsForActive(!!s.active);
+            if (s.active) { loadQRData(); showQRMode(); }
+            else showIntroMode();
+        });
+        let bitwaCurrentTrackId = null;
+        let progressInterval = null;
+        let bitwaGainNode = null;
+        let bitwaAudioContext = null;
+
+        function ensureBitwaAudioGraph() {
+            const a = document.getElementById('bitwa-audio');
+            if (!a || bitwaGainNode) return bitwaGainNode;
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const src = ctx.createMediaElementSource(a);
+                const gain = ctx.createGain();
+                src.connect(gain);
+                gain.connect(ctx.destination);
+                gain.gain.value = 1;
+                bitwaAudioContext = ctx;
+                bitwaGainNode = gain;
+                return gain;
+            } catch (e) { return null; }
+        }
+
+        function fadeOutAndStop(audioEl, ms, onDone) {
+            if (!audioEl || audioEl.paused) return;
+            if (audioEl._fadeRafId) cancelAnimationFrame(audioEl._fadeRafId);
+            const startVol = bitwaGainNode ? bitwaGainNode.gain.value : audioEl.volume;
+            const start = performance.now();
+            const step = (now) => {
+                const elapsed = now - start;
+                const t = Math.min(1, elapsed / ms);
+                const vol = startVol * (1 - t);
+                if (bitwaGainNode) bitwaGainNode.gain.value = vol;
+                else audioEl.volume = vol;
+                if (t < 1) audioEl._fadeRafId = requestAnimationFrame(step);
+                else {
+                    audioEl._fadeRafId = null;
+                    audioEl.pause();
+                    if (typeof onDone === 'function') onDone();
+                }
+            };
+            audioEl._fadeRafId = requestAnimationFrame(step);
+        }
+
+        socket.on('bitwa_wokalna_play', (payload) => {
+            const data = typeof payload === 'object' ? payload : { url: payload, volume: 1, trackId: null };
+            const a = document.getElementById('bitwa-audio');
+            if (!a) return;
+            ensureBitwaAudioGraph();
+            bitwaCurrentTrackId = data.trackId || null;
+            const vol = (data.volume ?? 1) * 1;
+            a.src = data.url;
+            if (bitwaGainNode) bitwaGainNode.gain.value = vol;
+            else a.volume = vol;
+            a.onended = () => {
+                if (bitwaCurrentTrackId) socket.emit('bitwa_wokalna_ended', { trackId: bitwaCurrentTrackId });
+                bitwaCurrentTrackId = null;
+                if (progressInterval) { clearInterval(progressInterval); progressInterval = null; }
+            };
+            let lastProgressEmit = 0;
+            a.ontimeupdate = () => {
+                if (!bitwaCurrentTrackId || !a.duration || !isFinite(a.duration)) return;
+                const now = Date.now();
+                if (now - lastProgressEmit < 80) return;
+                lastProgressEmit = now;
+                const p = Math.min(1, a.currentTime / a.duration);
+                socket.emit('bitwa_wokalna_progress', { trackId: bitwaCurrentTrackId, progress: p });
+            };
+            a.play().catch(e => console.warn('Audio:', e));
+        });
+        socket.on('bitwa_wokalna_stop', (payload) => {
+            const a = document.getElementById('bitwa-audio');
+            const trackId = bitwaCurrentTrackId;
+            if (!a || a.paused) {
+                if (trackId) socket.emit('bitwa_wokalna_ended', { trackId });
+                bitwaCurrentTrackId = null;
+                return;
+            }
+            bitwaCurrentTrackId = null;
+            fadeOutAndStop(a, 1500, () => {
+                if (trackId) socket.emit('bitwa_wokalna_ended', { trackId });
+            });
+        });
+        socket.on('bitwa_wokalna_volume', (v) => {
+            const vol = Math.max(0, Math.min(1, v));
+            if (bitwaGainNode) {
+                bitwaGainNode.gain.value = vol;
+            } else {
+                const a = document.getElementById('bitwa-audio');
+                if (a) a.volume = vol;
+            }
+        });
+        socket.on('tunnel_started', () => loadQRData());
+
+        function showIntroMode() {
+            document.getElementById('intro-view').classList.remove('hidden');
+            document.getElementById('editor-section').classList.remove('visible');
+            document.getElementById('editor-section').classList.add('hidden');
+            updateIntroButtonsForActive(false);
+        }
+        function updateIntroButtonsForActive(active) {
+            const btn = document.getElementById('btn-start-stop-intro');
+            if (!btn) return;
+            btn.textContent = active ? '⏹️ Stop' : '▶️ Start';
+            btn.className = 'intro-btn ' + (active ? 'intro-btn-stop' : 'intro-btn-start');
+            btn.style.display = '';
+        }
+        function showEditorMode() {
+            document.getElementById('intro-view').classList.add('hidden');
+            document.getElementById('editor-section').classList.remove('hidden');
+            document.getElementById('editor-section').classList.add('visible');
+        }
+        function showQRMode() {
+            document.getElementById('intro-view').classList.remove('hidden');
+            document.getElementById('editor-section').classList.remove('visible');
+            document.getElementById('editor-section').classList.add('hidden');
+            updateIntroButtonsForActive(true);
+        }
+
+        async function loadQRData() {
+            try {
+                const r = await fetch('/api/bitwa-wokalna/phone-qr?mode=local');
+                const d = await r.json();
+                if (d.qrCode) document.getElementById('qr-img-local').src = d.qrCode;
+                if (d.url) document.getElementById('qr-url-local').textContent = d.url;
+                const infoR = await fetch('/api/bitwa-wokalna/connection-info').catch(() => null);
+                const info = infoR ? await infoR.json().catch(() => ({})) : { pinggyAvailable: false };
+                document.getElementById('qr-lte-start-wrap').style.display = 'block';
+                if (info.pinggyAvailable) {
+                    const r2 = await fetch('/api/bitwa-wokalna/phone-qr?mode=pinggy').catch(() => ({}));
+                    const d2 = await r2.json().catch(() => ({}));
+                    document.getElementById('qr-lte-qr-wrap').style.display = 'block';
+                    if (d2.qrCode) document.getElementById('qr-img-pinggy').src = d2.qrCode;
+                    if (d2.url) document.getElementById('qr-url-pinggy').textContent = d2.url;
+                    document.getElementById('qr-lte-status').textContent = '';
+                } else {
+                    document.getElementById('qr-lte-qr-wrap').style.display = 'none';
+                }
+            } catch (e) { console.warn('QR:', e); }
+            finally {
+                var wrap = document.getElementById('qr-lte-start-wrap');
+                if (wrap) wrap.style.setProperty('display', 'block', 'important');
+            }
+        }
+
+        async function loadConfigList() {
+            try {
+                const r = await fetch('/api/bitwa-wokalna/configs');
+                const d = await r.json();
+                const sel = document.getElementById('config-select');
+                const configs = (d.configs && d.configs.length) ? d.configs : ['domyslna'];
+                sel.innerHTML = configs.map(c => `<option value="${c}" ${c === (d.current||'domyslna') ? 'selected' : ''}>${c}</option>`).join('');
+                currentConfigName = d.current || 'domyslna';
+            } catch (e) { console.warn('Load config list:', e); }
+        }
+
+        async function loadConfigByName(name) {
+            try {
+                const r = await fetch('/api/bitwa-wokalna/config' + (name ? '?name=' + encodeURIComponent(name) : ''));
+                const d = await r.json();
+                config = d.config || {};
+                ensureBanks();
+                currentBankIndex = Math.min(currentBankIndex, config.banks.length - 1);
+                if (currentBankIndex < 0) currentBankIndex = 0;
+                currentConfigName = name || 'domyslna';
+                renderBankTabs();
+                renderTracks();
+            } catch (e) { console.warn('Load config:', e); }
+        }
+
+        async function loadConfig() {
+            await loadConfigList();
+            await loadConfigByName(currentConfigName);
+            renderBankTabs();
+        }
+
+        function newConfig() {
+            const hasContent = (config.banks && config.banks.some(b => (b.tracks || []).length > 0)) || (config.tracks && config.tracks.length);
+            if (hasContent && !confirm('Utworzyć nową pustą listę? Niezapisane zmiany zostaną utracone.')) return;
+            config = { banks: [{ id: uid(), name: 'Bank 1', tracks: [] }] };
+            currentBankIndex = 0;
+            currentConfigName = 'nowy';
+            const sel = document.getElementById('config-select');
+            if (sel && !sel.querySelector('option[value="nowy"]')) {
+                const opt = document.createElement('option');
+                opt.value = 'nowy';
+                opt.textContent = 'nowy';
+                sel.insertBefore(opt, sel.firstChild);
+            }
+            if (sel) sel.value = 'nowy';
+            renderBankTabs();
+            renderTracks();
+        }
+
+        function renderBankTabs() {
+            ensureBanks();
+            const wrap = document.getElementById('bank-tabs');
+            if (!wrap) return;
+            wrap.innerHTML = config.banks.map((b, i) => `
+                <button type="button" class="bank-tab ${i === currentBankIndex ? 'active' : ''}" data-index="${i}" title="${(b.name || 'Bank').replace(/"/g, '&quot;')}">${(b.name || 'Bank ' + (i+1)).replace(/</g, '&lt;')}</button>
+            `).join('');
+            wrap.querySelectorAll('.bank-tab').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    currentBankIndex = parseInt(btn.dataset.index, 10);
+                    renderBankTabs();
+                    renderTracks();
+                });
+                btn.addEventListener('dblclick', (e) => {
+                    e.preventDefault();
+                    const i = parseInt(btn.dataset.index, 10);
+                    const bank = config.banks[i];
+                    if (!bank) return;
+                    const n = prompt('Nazwa banku:', bank.name || 'Bank ' + (i + 1));
+                    if (n != null && n.trim()) { bank.name = n.trim(); renderBankTabs(); }
+                });
+            });
+        }
+
+        function addBank() {
+            ensureBanks();
+            config.banks.push({ id: uid(), name: 'Bank ' + (config.banks.length + 1), tracks: [] });
+            currentBankIndex = config.banks.length - 1;
+            renderBankTabs();
+            renderTracks();
+        }
+
+        function removeBank() {
+            if (config.banks.length <= 1) { alert('Musi zostać co najmniej jeden bank.'); return; }
+            if (!confirm('Usunąć bank „' + (getCurrentBank().name || '') + '”?')) return;
+            config.banks.splice(currentBankIndex, 1);
+            currentBankIndex = Math.min(currentBankIndex, config.banks.length - 1);
+            renderBankTabs();
+            renderTracks();
+        }
+
+        async function saveConfig() {
+            if (currentConfigName === 'nowy') { showSaveAs(); return; }
+            try {
+                await fetch('/api/bitwa-wokalna/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ config, name: currentConfigName })
+                });
+                alert('Zapisano.');
+                await loadConfigList();
+            } catch (e) { alert('Błąd: ' + e.message); }
+        }
+
+        function showSaveAs() {
+            document.getElementById('save-as-wrap').classList.add('visible');
+            document.getElementById('save-as-name').value = currentConfigName === 'nowy' ? 'moja_lista' : currentConfigName + '_kopia';
+            document.getElementById('save-as-name').focus();
+        }
+        function hideSaveAs() {
+            document.getElementById('save-as-wrap').classList.remove('visible');
+        }
+
+        async function saveConfigAs() {
+            const name = document.getElementById('save-as-name').value.trim().replace(/[^a-zA-Z0-9_\-\sąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/g, '').replace(/\s+/g, '_') || 'lista';
+            if (!name) { alert('Podaj nazwę.'); return; }
+            try {
+                await fetch('/api/bitwa-wokalna/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ config, name })
+                });
+                hideSaveAs();
+                await loadConfigList();
+                document.getElementById('config-select').value = name;
+                currentConfigName = name;
+                alert('Zapisano jako: ' + name);
+            } catch (e) { alert('Błąd: ' + e.message); }
+        }
+
+        async function renameConfig() {
+            const newName = prompt('Nowa nazwa listy:', currentConfigName);
+            if (!newName || !newName.trim()) return;
+            const trimmed = newName.trim().replace(/[^a-zA-Z0-9_\-\sąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/g, '').replace(/\s+/g, '_') || 'lista';
+            if (trimmed === currentConfigName) return;
+            try {
+                const r = await fetch('/api/bitwa-wokalna/config', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ oldName: currentConfigName, newName: trimmed, config })
+                });
+                if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.error || 'Błąd'); return; }
+                await loadConfigList();
+                currentConfigName = trimmed;
+                alert('Zmieniono nazwę na: ' + trimmed);
+            } catch (e) { alert('Błąd: ' + e.message); }
+        }
+
+        async function deleteConfig() {
+            if (currentConfigName === 'domyslna') { alert('Nie można usunąć listy domyślnej.'); return; }
+            if (!confirm('Usunąć listę „' + currentConfigName + '”?')) return;
+            try {
+                const r = await fetch('/api/bitwa-wokalna/config?name=' + encodeURIComponent(currentConfigName), { method: 'DELETE' });
+                if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.error || 'Błąd'); return; }
+                currentConfigName = 'domyslna';
+                await loadConfigList();
+                await loadConfigByName('domyslna');
+                alert('Usunięto.');
+            } catch (e) { alert('Błąd: ' + e.message); }
+        }
+
+        function uid() {
+            return 't' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+        }
+
+        function addTrack() {
+            const bank = getCurrentBank();
+            if (!bank.tracks) bank.tracks = [];
+            bank.tracks.push({ id: uid(), audio: '', displayName: '', color: '#3498db' });
+            renderTracks();
+        }
+
+        function removeTrack(id) {
+            const bank = getCurrentBank();
+            if (bank.tracks) bank.tracks = bank.tracks.filter(t => t.id !== id);
+            renderTracks();
+        }
+
+        function moveTrack(id, direction) {
+            const bank = getCurrentBank();
+            const tracks = bank.tracks || [];
+            const idx = tracks.findIndex(t => t.id === id);
+            if (idx < 0) return;
+            const newIdx = direction === 'up' ? idx - 1 : idx + 1;
+            if (newIdx < 0 || newIdx >= tracks.length) return;
+            [tracks[idx], tracks[newIdx]] = [tracks[newIdx], tracks[idx]];
+            renderTracks();
+        }
+
+        function updateTrack(id, key, val) {
+            const t = getCurrentTracks().find(x => x.id === id);
+            if (t) t[key] = val;
+        }
+
+        function debounce(fn, ms) {
+            let t;
+            return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+        }
+
+        let previewPlayingPath = null;
+        function previewAudioFromPath(path) {
+            let url;
+            if (path.startsWith('http')) {
+                url = path;
+            } else {
+                const rawPath = path.startsWith('/') ? path : '/uploads/' + path;
+                url = /\.(vdjsample|ogg)$/i.test(rawPath) ? (location.origin + '/api/audio/stream?path=' + encodeURIComponent(rawPath)) : (location.origin + rawPath);
+            }
+            const a = document.getElementById('preview-audio');
+            if (!a) return;
+            if (previewPlayingPath === path && !a.paused) {
+                a.pause();
+                previewPlayingPath = null;
+                return;
+            }
+            previewPlayingPath = path;
+            a.onended = () => { previewPlayingPath = null; };
+            a.src = url;
+            a.volume = 1;
+            a.load();
+            a.play().catch(err => { previewPlayingPath = null; console.warn('Odsłuch:', err); });
+        }
+
+        async function searchAudio(trackId, q) {
+            const wrap = document.getElementById('audio-browser-' + trackId);
+            if (!wrap) return;
+            try {
+                const r = await fetch('/api/bitwa-wokalna/audio-files?q=' + encodeURIComponent(q || ''));
+                const d = await r.json();
+                wrap.innerHTML = (d.files || []).map(f => `<span class="audio-chip" data-track="${trackId}" data-path="${(f.path||'').replace(/"/g,'&quot;')}"><span class="audio-chip-play" title="Odsłuchaj">▶</span><span class="audio-chip-name">${(f.name||'').replace(/</g,'&lt;')}</span></span>`).join('');
+                wrap.onclick = (e) => {
+                    const c = e.target.closest('.audio-chip');
+                    if (!c) return;
+                    if (e.target.closest('.audio-chip-play')) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        previewAudioFromPath(c.dataset.path);
+                    } else {
+                        const t = getCurrentTracks().find(x => x.id === c.dataset.track);
+                        if (t) {
+                            t.audio = c.dataset.path;
+                            t.displayName = t.displayName || (c.dataset.path.replace(/^.*\//, '').replace(/\.[^.]+$/, '') || 'Utwór');
+                            renderTracks();
+                        }
+                    }
+                };
+                wrap.style.display = (d.files && d.files.length) ? 'flex' : 'none';
+            } catch (e) { wrap.style.display = 'none'; }
+        }
+
+        function renderTracks() {
+            const list = document.getElementById('track-list');
+            const tracks = getCurrentTracks();
+            list.innerHTML = tracks.map((t, i) => {
+                const fileName = t.audio ? t.audio.replace(/^.*\//, '') : '—';
+                const displayVal = (t.displayName || '').replace(/"/g, '&quot;');
+                return `
+                    <div class="track-row" data-id="${t.id}">
+                        <button type="button" class="order-btn" data-track="${t.id}" data-dir="up" title="Przesuń w górę" ${i === 0 ? 'disabled' : ''}>↑</button>
+                        <button type="button" class="order-btn" data-track="${t.id}" data-dir="down" title="Przesuń w dół" ${i === tracks.length - 1 ? 'disabled' : ''}>↓</button>
+                        <input type="text" class="display-name" placeholder="Nazwa wyświetlana" value="${displayVal}" data-track="${t.id}" data-field="displayName">
+                        <span class="audio-info" title="${fileName}">${fileName}</span>
+                        <button type="button" class="btn" onclick="this.nextElementSibling.click()">📁 Plik</button>
+                        <input type="file" accept="audio/*,.vdjsample,.ogg" style="display:none" data-track="${t.id}">
+                        <input type="text" placeholder="Szukaj..." class="audio-search" data-track="${t.id}" style="width:100px;padding:6px;font-size:0.85rem;">
+                        <div class="audio-browser-wrap"><div class="audio-browser" id="audio-browser-${t.id}" style="display:none;"></div></div>
+                        <div class="RGB_16" style="flex:0 0 auto;">
+                            ${RGB_16.map(c => `<button type="button" class="swatch ${(t.color||'#3498db').toLowerCase()===c?'active':''}" data-track="${t.id}" data-color="${c}" style="background:${c}"></button>`).join('')}
+                        </div>
+                        <button type="button" class="btn preview-btn" data-track="${t.id}" title="Odsłuchaj">▶</button>
+                        <button type="button" class="remove-btn" data-track="${t.id}">✕</button>
+                    </div>
+                `;
+            }).join('');
+
+            list.querySelectorAll('.display-name').forEach(inp => {
+                inp.addEventListener('input', (e) => updateTrack(e.target.dataset.track, 'displayName', e.target.value));
+            });
+            list.querySelectorAll('.audio-search').forEach(inp => {
+                inp.addEventListener('input', debounce(() => searchAudio(inp.dataset.track, inp.value), 300));
+                inp.addEventListener('focus', () => {
+                    document.querySelectorAll('.audio-browser').forEach(el => el.style.display = 'none');
+                    searchAudio(inp.dataset.track, '');
+                });
+            });
+            list.querySelectorAll('.swatch').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    updateTrack(btn.dataset.track, 'color', btn.dataset.color);
+                    renderTracks();
+                });
+            });
+            list.querySelectorAll('.remove-btn').forEach(btn => {
+                btn.addEventListener('click', () => removeTrack(btn.dataset.track));
+            });
+            list.querySelectorAll('.order-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    if (!btn.disabled) moveTrack(btn.dataset.track, btn.dataset.dir);
+                });
+            });
+            list.querySelectorAll('.preview-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const t = getCurrentTracks().find(x => x.id === btn.dataset.track);
+                    if (!t || !t.audio) { alert('Przypisz plik audio.'); return; }
+                    const rawPath = t.audio.startsWith('http') ? '' : (t.audio.startsWith('/') ? t.audio : '/uploads/' + t.audio);
+                    if (rawPath && /\.(vdjsample|ogg)$/i.test(rawPath)) {
+                        try {
+                            const r = await fetch('/api/audio/check?path=' + encodeURIComponent(rawPath));
+                            const d = await r.json().catch(() => ({}));
+                            if (!d.ok) {
+                                alert('Plik audio: ' + (d.error || 'błąd sprawdzenia'));
+                                return;
+                            }
+                        } catch (e) { alert('Nie można sprawdzić pliku: ' + e.message); return; }
+                    }
+                    const a = document.getElementById('preview-audio');
+                    if (!a) return;
+                    let url;
+                    if (t.audio.startsWith('http')) {
+                        url = t.audio;
+                    } else {
+                        url = rawPath && /\.(vdjsample|ogg)$/i.test(rawPath) ? (location.origin + '/api/audio/stream?path=' + encodeURIComponent(rawPath)) : (location.origin + rawPath);
+                    }
+                    a.onerror = () => alert('Nie udało się odtworzyć. Sprawdź czy plik jest poprawny (np. .vdjsample/.ogg z Virtual DJ).');
+                    if (!a.paused) {
+                        a.pause();
+                    } else {
+                        a.src = url;
+                        a.volume = 1;
+                        a.load();
+                        a.play().catch(err => { alert('Nie można odtworzyć: ' + (err.message || err)); });
+                    }
+                });
+            });
+            list.querySelectorAll('input[type="file"]').forEach(inp => {
+                inp.addEventListener('change', async (e) => {
+                    const f = e.target.files?.[0];
+                    if (!f) return;
+                    const fd = new FormData();
+                    fd.append('file', f, f.name);
+                    try {
+                        const r = await fetch('/upload', { method: 'POST', body: fd });
+                        const d = await r.json().catch(() => ({}));
+                        if (r.ok && d.filepath) {
+                            const t = getCurrentTracks().find(x => x.id === inp.dataset.track);
+                            if (t) {
+                                t.audio = d.filepath;
+                                t.displayName = t.displayName || f.name.replace(/\.[^.]+$/, '');
+                                renderTracks();
+                            }
+                        } else alert('Błąd uploadu.');
+                    } catch (e) { alert('Błąd: ' + e.message); }
+                    inp.value = '';
+                });
+            });
+        }
+
+        async function startBitwaWokalna() {
+            ensureBanks();
+            const hasTracks = config.banks.some(b => (b.tracks || []).length > 0);
+            if (!hasTracks) {
+                alert('Dodaj co najmniej jeden fragment muzyczny.');
+                return;
+            }
+            try {
+                await fetch('/api/bitwa-wokalna/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ config, name: currentConfigName })
+                });
+                await fetch('/api/bitwa-wokalna/start', { method: 'POST' });
+                showQRMode();
+                loadQRData();
+            } catch (e) { alert('Błąd: ' + e.message); }
+        }
+
+        async function stopBitwaWokalna() {
+            await fetch('/api/bitwa-wokalna/stop', { method: 'POST' });
+            showIntroMode();
+        }
+
+        document.getElementById('config-select').addEventListener('change', (e) => loadConfigByName(e.target.value));
+        document.getElementById('config-new-btn').addEventListener('click', newConfig);
+        document.getElementById('config-load-btn').addEventListener('click', () => loadConfigByName(document.getElementById('config-select').value));
+        document.getElementById('config-save-btn').addEventListener('click', saveConfig);
+        document.getElementById('config-save-as-btn').addEventListener('click', showSaveAs);
+        document.getElementById('save-as-confirm').addEventListener('click', saveConfigAs);
+        document.getElementById('save-as-cancel').addEventListener('click', hideSaveAs);
+        document.getElementById('config-rename-btn').addEventListener('click', renameConfig);
+        document.getElementById('config-delete-btn').addEventListener('click', deleteConfig);
+        document.getElementById('add-bank-btn').addEventListener('click', addBank);
+        document.getElementById('remove-bank-btn').addEventListener('click', removeBank);
+        document.getElementById('add-track-btn').addEventListener('click', addTrack);
+        document.getElementById('start-btn').addEventListener('click', startBitwaWokalna);
+        document.getElementById('btn-editor-intro').addEventListener('click', showEditorMode);
+        document.getElementById('btn-start-stop-intro').addEventListener('click', () => {
+            const btn = document.getElementById('btn-start-stop-intro');
+            if (btn && btn.classList.contains('intro-btn-stop')) stopBitwaWokalna();
+            else startBitwaWokalna();
+        });
+        document.getElementById('btn-zamknij-editor').addEventListener('click', showIntroMode);
+        document.getElementById('lte-start-btn')?.addEventListener('click', () => {
+            const status = document.getElementById('qr-lte-status');
+            if (status) status.textContent = 'Uruchamianie tunelu...';
+            socket.emit('admin_start_tunnel');
+        });
+
+        (async function init() {
+            await loadConfig();
+            await loadQRData();
+            showIntroMode();
+        })();
+        }
+    </script>
+</body>
+</html>

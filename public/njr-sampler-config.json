@@ -1,0 +1,61 @@
+{
+  "tileCount": 8,
+  "tiles": [
+    {
+      "id": "t0",
+      "color": "#3498db",
+      "label": "zainteresowanie",
+      "image": "🎵",
+      "audio": "/uploads/1772484391147-Start_pytania.mp3"
+    },
+    {
+      "id": "t1",
+      "color": "#3498db",
+      "label": "Start",
+      "image": "😌",
+      "audio": "/uploads/1772484404387-seabattle.mp3"
+    },
+    {
+      "id": "t2",
+      "color": "#db335d",
+      "label": "statystyki",
+      "image": "🎉",
+      "audio": "/uploads/1772484432120-Sygna___Statystyk__1_.mp3"
+    },
+    {
+      "id": "t3",
+      "color": "#3498db",
+      "label": "Love",
+      "image": "❤️",
+      "audio": "/uploads/1772484479153-uczucia.mp3"
+    },
+    {
+      "id": "t4",
+      "color": "#c7db33",
+      "label": "brawa",
+      "image": "😱",
+      "audio": "/uploads/1772484511686-win_1.mp3"
+    },
+    {
+      "id": "t5",
+      "color": "#dbd533",
+      "label": "brawa 2",
+      "image": "🔥",
+      "audio": "/uploads/1772484530274-win_2.mp3"
+    },
+    {
+      "id": "t6",
+      "color": "#dbb733",
+      "label": "",
+      "image": "",
+      "audio": "/uploads/1772484543853-win_3.mp3"
+    },
+    {
+      "id": "t7",
+      "color": "#ffffff",
+      "label": "wwww",
+      "image": "😴",
+      "audio": "/uploads/1772484550105-clock_loop.mp3"
+    }
+  ]
+}

@@ -64,6 +64,33 @@ Aby zresetować trial i uruchomić program od nowa (14 dni próbnych):
 
 ## Instalacja i uruchomienie
 
+### Na Macu: „Nie można sprawdzić aktualizacji”
+
+Komunikat oznacza, że aplikacja nie mogła połączyć się z serwerem aktualizacji (GitHub). Możliwe przyczyny:
+
+- **Brak internetu** lub zapora blokuje połączenie.
+- **Szczegóły błędu** – w oknie może być podany w nawiasie (np. timeout, ENOTFOUND). Sprawdź też log: w Finderze **Przejdź do folderu** → `~/Library/Logs/Imprezja Quiz/` lub w terminalu: `~/Library/Application Support/Imprezja Quiz/` (plik z logami Electron).
+
+**Na razie:** pobierz najnowszą wersję ręcznie ze [strony wydawcy](https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/latest) (DMG dla Apple Silicon lub Intel) i zainstaluj nadpisując aplikację.
+
+### Nie mogę zaktualizować automatycznie z 1.0.4 do 1.1.1 (brak oferty aktualizacji)
+
+Aplikacja 1.0.4 mogła nie pokazywać aktualizacji do 1.1.1 (beta), bo mechanizm aktualizacji domyślnie nie uwzględniał wersji „beta” na GitHub. **W nowszych buildach (1.1.1+) to zostało poprawione** – sprawdzanie aktualizacji obejmuje też wersje beta.
+
+**Jeśli nadal masz 1.0.4 i nie widzisz aktualizacji:** pobierz 1.1.1 ręcznie ze strony wydawcy lub z [GitHub Releases](https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases), **odinstaluj starą wersję** (Panel sterowania → Programy i funkcje → Imprezja Quiz), potem zainstaluj nową. Dane (quizy, licencja) są w folderze użytkownika i nie giną przy odinstalowaniu.
+
+### Instalator się wywala / nie instaluje nowej wersji (np. 1.1.1)
+
+**Aktualizacja:** Instalator przy aktualizacji sam zamyka aplikację i czyści stare wpisy (od wersji 1.1.x). Jeśli w trakcie instalacji pojawi się okno błędu (np. „Program nie zakończył się poprawnie”), wybierz **Kontynuuj** / **Dalej** – instalacja powinna dokończyć się poprawnie.
+
+Jeśli nadal występuje problem (np. bardzo stara wersja w systemie):
+
+1. **Zamknij** Imprezja Quiz (jeśli działa).
+2. **Odinstaluj starą wersję:** Panel sterowania → Programy i funkcje → **Imprezja Quiz** → Odinstaluj. W razie błędu odinstalowania użyj **napraw-uninstaller.bat** (jako administrator).
+3. Uruchom **nowy instalator** (np. 1.1.1).
+
+Po odinstalowaniu poprzedniej wersji instalator zwykle działa poprawnie.
+
 ### Instalator: „Nie udało się usunąć plików starej wersji aplikacji”
 
 1. Zamknij Imprezja Quiz.
@@ -79,6 +106,50 @@ Aby zresetować trial i uruchomić program od nowa (14 dni próbnych):
 4. **Nowe buildy (1.0.4+)** – instalator sam zamyka procesy przed instalacją.
 5. Jeśli nadal się nie udaje – wyłącz tymczasowo antywirus (np. Windows Defender) na czas instalacji.
 
+### Windows: wyskoczyło okno z pytaniem o dostęp do sieci – zamknąłem je, teraz admin/telefony nie łączą się
+
+Przy pierwszym uruchomieniu Windows może pokazać **okno Zapory** z pytaniem, czy zezwolić aplikacji na dostęp do sieci (prywatnej/publicznej). Jeśli je **zamkniesz** lub wybierzesz „Anuluj”, aplikacja zostanie **zablokowana** i telefony nie połączą się z serwerem (admin z telefonu, gra przez WiFi).
+
+**Jak dać dostęp po fakcie:**
+
+1. Otwórz **Zaporę Windows** (Start → wpisz „Zapora Windows” → „Zapora Windows Defender z zabezpieczeniami w zaawansowanym” lub: Ustawienia → Prywatność i zabezpieczenia → Zapora Windows).
+2. Po lewej: **„Zezwól aplikacji lub funkcji przez Zaporę Windows Defender”** → **„Zmień ustawienia”** (wymagane uprawnienia administratora).
+3. Na liście znajdź **„Imprezja Quiz”** (lub „ImprezjaQuiz”). Zaznacz **„Prywatne”** (sieć domowa). Zapisz (OK).
+4. Jeśli aplikacji **nie ma na liście**: kliknij **„Zezwól innej aplikacji…”** → **Przeglądaj** → wskaż plik programu, np.  
+   `C:\Users\<TwojaNazwa>\AppData\Local\Programs\Imprezja Quiz\ImprezjaQuiz.exe`  
+   (ścieżkę sprawdzisz: prawy przycisk na skrócie → Właściwości → „Element docelowy”).
+5. **Uruchom ponownie** Imprezja Quiz i sprawdź połączenie z telefonu.
+
+Przy następnym uruchomieniu, jeśli znowu wyskoczy pytanie – wybierz **„Sieci prywatne”** (lub obie) i **Zezwól**.
+
+### Komputer na LAN (kabel), telefony na WiFi – admin/gra nie łączą się
+
+Komputer podłączony kablem do routera i telefony na WiFi w tej samej sieci – połączenie powinno działać. Jeśli **admin z telefonu się nie otwiera** ani **gra przez WiFi nie łączy**:
+
+1. **Zapora Windows** – najczęstsza przyczyna. Zezwól aplikacji Imprezja Quiz na dostęp w sieci **prywatnej** (patrz pytanie powyżej: „Windows: wyskoczyło okno z pytaniem o dostęp do sieci”).
+2. **Tunel (LTE)** działa przez internet i nie zależy od LAN/WiFi. **Tunel jednym kliknięciem** na Windows wymaga **Klienta OpenSSH**. Przy instalacji aplikacja dodaje regułę zapory dla tunelu (ssh.exe). Log błędów: `%APPDATA%\Imprezja Quiz\tunnel.log`. Jak zainstalować OpenSSH – patrz pytanie poniżej.
+
+Więcej: dokumentacja w pliku ROUTER_SIECI.md (sekcje 6 i 7).
+
+### Windows 10/11: Jak zainstalować Klient OpenSSH (dla tunelu jednym kliknięciem)?
+
+**Automatycznie przy instalacji:** Gdy Klient OpenSSH nie jest zainstalowany, instalator **otworzy osobne okno** z prośbą o uprawnienia (UAC). Kliknij **Tak** – wtedy doinstaluje się OpenSSH (1–2 minuty). Nie trzeba uruchamiać całego instalatora jako administrator; tylko to jedno okno poprosi o zatwierdzenie. Po tym tunel LTE jednym kliknięciem działa bez dodatkowych kroków.
+
+**Ręcznie (gdy automatyczna instalacja się nie udała):**
+
+**Sposób 1 – Ustawienia (jeśli widzisz „Funkcje opcjonalne”):**  
+Ustawienia → Aplikacje → **Funkcje opcjonalne** (lub „Dodaj funkcję opcjonalną”) → **Dodaj funkcję** → wyszukaj **Klient OpenSSH** → Zainstaluj.
+
+**Sposób 2 – Okno „Funkcje systemu”:**  
+Naciśnij **Win + R**, wpisz: **optionalfeatures** i naciśnij Enter. Na liście zaznacz **Klient OpenSSH** (lub „Open SSH Client”), OK, poczekaj na instalację.
+
+**Sposób 3 – PowerShell (administrator):**  
+Otwórz **PowerShell jako administrator** (Start → wpisz „PowerShell” → prawy przycisk → Uruchom jako administrator). Wklej i uruchom:
+```powershell
+Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
+```
+Gdy status będzie „Installed”, zamknij PowerShell i uruchom ponownie Imprezja Quiz.
+
 ### Antywirus blokuje instalator (Windows) – co robić?
 
 Niektóre programy antywirusowe mogą oznaczać nowe instalatory jako podejrzane. Możesz:
@@ -86,14 +157,26 @@ Niektóre programy antywirusowe mogą oznaczać nowe instalatory jako podejrzane
 - Dodać wyjątek dla Imprezja Quiz w ustawieniach antywirusa,
 - Tymczasowo wyłączyć antywirus na czas instalacji.
 
-### Avast blokuje instalator / uninstaller (Windows)
+### Avast blokuje instalator / uninstaller (Windows) – IDP.Generic itp.
 
-**Avast** często zgłasza fałszywe alarmy dla instalatorów Electron (np. Win32:Malware-gen). Sprawdzony sposób działania:
+**Avast** często zgłasza fałszywe alarmy dla instalatorów Electron (np. **IDP.Generic**, Win32:Malware-gen). Instalator od wersji 1.1.2 przy **pierwszej instalacji** nie modyfikuje rejestru ani nie zamyka procesów – te kroki wykonuje tylko przy **aktualizacji** (mniej triggerów dla heurystyk).
 
-1. **Daj Avastowi czas** – po pobraniu poczekaj, aż plik zostanie zeskanowany (ok. 1–2 minuty).
-2. **Uruchom `napraw-uninstaller.bat`** (jako administrator) – usuwa stare pliki i wpisy rejestru.
-3. **Uruchom instalator** – jeśli pierwsza próba się nie udaje, spróbuj ponownie (często udaje się za drugim razem).
-4. **Wyjątek w Avast** (opcjonalnie): Avast → Ustawienia → Ogólne → Wyjątki → dodaj folder z instalatorem lub `%LocalAppData%\Programs\votebattle`.
+**Gdy Avast zablokuje instalator:**
+
+1. **Daj Avastowi czas** – po pobraniu poczekaj 1–2 minuty, aż plik zostanie zeskanowany.
+2. **Wyjątek:** Avast → Ustawienia → Ogólne → **Wyjątki** → dodaj folder z pobranym instalatorem (np. `Downloads`) lub ścieżkę `%LocalAppData%\Programs\Imprezja Quiz`.
+3. **Uruchom instalator** ponownie (PPK → Uruchom jako administrator). Przy aktualizacji: w razie błędu odinstalowania użyj **napraw-uninstaller.bat** (jako administrator), potem zainstaluj od nowa.
+4. **Zgłoszenie fałszywego alarmu:** [Avast – zgłoś fałszywy alarm](https://www.avast.com/false-positive-file-form.php) – pomaga w przyszłych wersjach. **Podpisanie kodu** (certyfikat EV/OV) praktycznie eliminuje te alarmy, ale wymaga zakupu certyfikatu.
+
+### Windows (64 bity): „Ta aplikacja nie będzie działać na tym komputerze”
+
+Aplikacja jest budowana tylko dla **Windows 64-bit** (x64). Jeśli masz **64-bitowy Windows** i widzisz ten komunikat:
+
+1. **Uruchom jako administrator** – prawy przycisk na instalatorze lub skrócie → „Uruchom jako administrator”.
+2. **SmartScreen** – jeśli Windows pokazuje „Windows chronił Twój komputer”, wybierz „Więcej informacji” → „Uruchom mimo to” (plik musi być pobrany z zaufanego źródła).
+3. **Antywirus** – tymczasowo wyłącz lub dodaj wyjątek dla folderu z instalatorem i dla `%LocalAppData%\Programs\Imprezja Quiz`.
+4. **Visual C++ Redistributable** – zainstaluj [Microsoft Visual C++ 2015–2022 Redistributable (x64)](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist). Electron może tego wymagać na czystym systemie.
+5. **Sprawdź typ systemu** – Ustawienia → System → Informacje o systemie → „Typ systemu”. Powinno być „Komputer z procesorem opartym na architekturze x64”. Jeśli jest „x86” (32 bity), potrzebna byłaby wersja 32-bitowa (obecnie nie wydajemy jej).
 
 ### macOS blokuje uruchomienie – „Aplikacja od nieznanego dewelopera”
 

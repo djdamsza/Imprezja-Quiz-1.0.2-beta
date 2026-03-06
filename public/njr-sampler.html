@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NJR Sampler – Imprezja Quiz</title>
+    <link rel="icon" href="data:,">
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        :root {
+            --bg: radial-gradient(circle at center, #1a1a2e, #000);
+            --glass: rgba(255,255,255,0.08);
+            --border: rgba(255,255,255,0.15);
+            --gold: #f1c40f;
+            --purple: #9b59b6;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); min-height: 100vh; color: #fff; padding: 24px; }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 { color: var(--gold); margin-bottom: 24px; font-size: 1.8rem; }
+        .section { background: var(--glass); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; backdrop-filter: blur(10px); }
+        .section h2 { color: var(--purple); font-size: 1.1rem; margin-bottom: 16px; }
+        .tile-count { display: flex; gap: 12px; margin-bottom: 20px; }
+        .tile-count label { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 10px 16px; background: rgba(0,0,0,0.3); border-radius: 8px; border: 2px solid var(--border); }
+        .tile-count input:checked + span { color: var(--gold); font-weight: 700; }
+        .tile-count input { display: none; }
+        .tile-count label:has(input:checked) { border-color: var(--gold); background: rgba(241,196,15,0.1); }
+        .tiles-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+        .tile-editor { background: rgba(0,0,0,0.3); border-radius: 10px; padding: 16px; border: 1px solid var(--border); }
+        .tile-editor h4 { font-size: 0.9rem; margin-bottom: 12px; color: var(--gold); }
+        .tile-editor label { display: block; font-size: 0.8rem; color: rgba(255,255,255,0.7); margin-bottom: 4px; }
+        .tile-editor input[type="text"], .tile-editor input[type="color"] { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border); background: rgba(0,0,0,0.4); color: #fff; margin-bottom: 10px; }
+        .tile-editor input[type="color"] { height: 36px; cursor: pointer; padding: 2px; }
+        .emoji-picker { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+        .emoji-btn { width: 36px; height: 36px; font-size: 1.4rem; border: 2px solid var(--border); border-radius: 8px; background: rgba(0,0,0,0.3); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .emoji-btn:hover, .emoji-btn.active { border-color: var(--gold); background: rgba(241,196,15,0.2); }
+        .audio-upload { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+        .audio-upload input[type="file"] { display: none; }
+        .audio-upload .btn { padding: 8px 12px; font-size: 0.85rem; border-radius: 6px; border: none; cursor: pointer; background: var(--purple); color: #fff; }
+        .audio-upload .name { font-size: 0.8rem; color: rgba(255,255,255,0.6); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 120px; }
+        .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
+        .btn { padding: 14px 24px; font-size: 1rem; font-weight: 600; border-radius: 10px; border: none; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background: linear-gradient(135deg, var(--gold), #e67e22); color: #000; }
+        .btn-success { background: #2ecc71; color: #000; }
+        .btn-danger { background: #e74c3c; color: #fff; }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        .qr-box { display: none; text-align: center; padding: 30px; }
+        .qr-box.active { display: block; }
+        .qr-box img { max-width: 280px; background: #fff; padding: 12px; border-radius: 12px; margin: 16px 0; }
+        .qr-box p { color: rgba(255,255,255,0.8); margin: 12px 0; font-size: 0.95rem; }
+        .back-link { display: inline-block; margin-bottom: 20px; color: var(--gold); text-decoration: none; font-weight: 600; }
+        .back-link:hover { text-decoration: underline; }
+        .editor-section { display: block; }
+        .editor-section.hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/start.html" class="back-link">← Powrót do wyboru trybu</a>
+        <h1>🎛️ NJR Sampler</h1>
+
+        <div class="section editor-section" id="editor-section">
+            <h2>Edycja kafelków</h2>
+            <div class="tile-count">
+                <label><input type="radio" name="tileCount" value="8" checked><span>8 kafelków</span></label>
+                <label><input type="radio" name="tileCount" value="10"><span>10 kafelków</span></label>
+            </div>
+            <div class="tiles-grid" id="tiles-grid"></div>
+            <div class="actions">
+                <button class="btn btn-primary" onclick="saveConfig()">💾 Zapisz konfigurację</button>
+                <button class="btn btn-success" onclick="startSampler()">▶️ Włącz sampler</button>
+            </div>
+        </div>
+
+        <div class="section qr-box" id="qr-section">
+            <h2>📱 Zeskanuj QR – panel na telefonie</h2>
+            <p>Użyj tunelu HTTPS (Pinggy) dla niegasnącego ekranu na telefonie.</p>
+            <img id="qr-img" src="" alt="QR">
+            <p id="qr-url" style="word-break: break-all; font-size: 0.85rem;"></p>
+            <button class="btn btn-danger" onclick="stopSampler()" style="margin-top: 16px;">⏹️ Wyłącz sampler</button>
+        </div>
+    </div>
+
+    <audio id="sampler-audio" style="display:none;"></audio>
+
+    <script>
+        const socket = io();
+        const EMOTION_EMOJIS = ['😊','😌','💥','🎵','🔥','😱','😂','👍','❤️','🎉','🤫','😴'];
+        let config = { tileCount: 8, tiles: [] };
+
+        socket.emit('njr_sampler_join_screen');
+        socket.on('njr_sampler_state', (s) => {
+            if (s.active) showQRMode();
+            else showEditorMode();
+        });
+        socket.on('njr_sampler_play', (url) => {
+            const a = document.getElementById('sampler-audio');
+            a.src = url;
+            a.volume = 1;
+            a.play().catch(e => console.warn('Audio:', e));
+        });
+        socket.on('njr_sampler_stop', () => {
+            document.getElementById('sampler-audio').pause();
+        });
+        socket.on('njr_sampler_volume', (v) => {
+            document.getElementById('sampler-audio').volume = v;
+        });
+
+        document.querySelectorAll('input[name="tileCount"]').forEach(r => {
+            r.onchange = () => { config.tileCount = parseInt(r.value); renderTiles(); };
+        });
+
+        async function loadConfig() {
+            try {
+                const r = await fetch('/api/njr-sampler/config');
+                const d = await r.json();
+                config = d.config || config;
+                if (config.banks && config.banks.length > 0) {
+                    config.tiles = config.banks[0].tiles || [];
+                }
+                if (!config.tiles) config.tiles = [];
+                document.querySelector(`input[name="tileCount"][value="${config.tileCount}"]`)?.click();
+                renderTiles();
+            } catch (e) { console.warn('Load config:', e); }
+        }
+
+        function renderTiles() {
+            const n = config.tileCount || 8;
+            if (!config.tiles) config.tiles = [];
+            while (config.tiles.length < n) {
+                config.tiles.push({ id: 't' + config.tiles.length, color: '#3498db', label: '', image: '', audio: '' });
+            }
+            config.tiles = config.tiles.slice(0, n);
+
+            const grid = document.getElementById('tiles-grid');
+            grid.innerHTML = config.tiles.map((t, i) => `
+                <div class="tile-editor" data-id="${t.id}">
+                    <h4>Kafelek ${i + 1}</h4>
+                    <label>Kolor</label>
+                    <input type="color" value="${t.color || '#3498db'}" onchange="updateTile('${t.id}','color',this.value)">
+                    <label>Opis (tekst)</label>
+                    <input type="text" placeholder="np. Uśmiech" value="${(t.label||'').replace(/"/g,'&quot;')}" onchange="updateTile('${t.id}','label',this.value)">
+                    <label>Emocja / ikona (emoji lub URL obrazka)</label>
+                    <div class="emoji-picker">
+                        ${EMOTION_EMOJIS.map(em => `<button type="button" class="emoji-btn ${t.image===em?'active':''}" onclick="setTileEmoji('${t.id}','${em}')">${em}</button>`).join('')}
+                    </div>
+                    <input type="text" placeholder="lub URL obrazka" value="${(t.image&&(t.image.startsWith('http')||t.image.startsWith('/'))?t.image:'').replace(/"/g,'&quot;')}" onchange="updateTile('${t.id}','image',this.value)" style="margin-top:4px;">
+                    <label>Dźwięk</label>
+                    <div class="audio-upload">
+                        <button type="button" class="btn" onclick="this.nextElementSibling.click()">📁 Wybierz plik</button>
+                        <input type="file" accept="audio/*" onchange="uploadAudio('${t.id}',this)">
+                        <span class="name">${t.audio ? t.audio.replace(/^.*\//,'') : '—'}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateTile(id, key, val) {
+            const t = config.tiles.find(x => x.id === id);
+            if (t) t[key] = val;
+        }
+
+        function setTileEmoji(id, em) {
+            const t = config.tiles.find(x => x.id === id);
+            if (t) { t.image = em; renderTiles(); }
+        }
+
+        async function uploadAudio(tileId, input) {
+            const f = input.files?.[0];
+            if (!f) return;
+            const fd = new FormData();
+            fd.append('file', f);
+            try {
+                const r = await fetch('/upload', { method: 'POST', body: fd });
+                const d = await r.json();
+                const filepath = d.filepath;
+                if (filepath) {
+                    const t = config.tiles.find(x => x.id === tileId);
+                    if (t) { t.audio = filepath; renderTiles(); }
+                }
+            } catch (e) { alert('Błąd uploadu: ' + e.message); }
+        }
+
+        async function saveConfig() {
+            try {
+                const toSave = { tileCount: config.tileCount || 8, tiles: config.tiles || [] };
+                await fetch('/api/njr-sampler/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ config: toSave, name: 'domyslna' })
+                });
+                alert('Zapisano.');
+            } catch (e) { alert('Błąd: ' + e.message); }
+        }
+
+        async function startSampler() {
+            try {
+                await fetch('/api/njr-sampler/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ bankAssignments: ['domyslna'] })
+                });
+                const r = await fetch('/api/njr-sampler/phone-qr');
+                const d = await r.json();
+                document.getElementById('qr-img').src = d.qrCode || '';
+                document.getElementById('qr-url').textContent = d.url || '';
+                showQRMode();
+            } catch (e) { alert('Błąd: ' + e.message); }
+        }
+
+        async function stopSampler() {
+            try {
+                await fetch('/api/njr-sampler/stop', { method: 'POST' });
+                showEditorMode();
+            } catch (e) { alert('Błąd: ' + e.message); }
+        }
+
+        function showQRMode() {
+            document.getElementById('editor-section').classList.add('hidden');
+            document.getElementById('qr-section').classList.add('active');
+        }
+
+        function showEditorMode() {
+            document.getElementById('editor-section').classList.remove('hidden');
+            document.getElementById('qr-section').classList.remove('active');
+        }
+
+        loadConfig();
+    </script>
+</body>
+</html>

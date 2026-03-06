@@ -1,0 +1,93 @@
+{
+  "tileCount": 8,
+  "tiles": [
+    {
+      "id": "t0",
+      "color": "#0000ff",
+      "label": "Whitney Intro 1",
+      "image": "❤️",
+      "audio": "/uploads/1772568520608-whitney_intro_1.mp3",
+      "volume": 53,
+      "isBackground": false,
+      "loop": false,
+      "fadeOut": true
+    },
+    {
+      "id": "t1",
+      "color": "#0000ff",
+      "label": "Whitney Intro 2",
+      "image": "🔥",
+      "audio": "/uploads/1772568551878-whitney_intro_2.mp3",
+      "volume": 55,
+      "isBackground": false,
+      "loop": false,
+      "fadeOut": true
+    },
+    {
+      "id": "t2",
+      "color": "#ff0000",
+      "label": "Sample LONG",
+      "image": "🔥",
+      "audio": "/uploads/1772568594488-sample_long_1.mp3",
+      "volume": 100,
+      "isBackground": false,
+      "loop": false,
+      "fadeOut": true
+    },
+    {
+      "id": "t3",
+      "color": "#ff0000",
+      "label": "Sample Short",
+      "image": "💥",
+      "audio": "/uploads/1772568654871-sample_short_1.mp3",
+      "volume": 100,
+      "isBackground": false,
+      "loop": false,
+      "fadeOut": true
+    },
+    {
+      "id": "t4",
+      "color": "#ff00ff",
+      "label": "Long OUTRO 1",
+      "image": "👍",
+      "audio": "/uploads/1772568594488-sample_long_1.mp3",
+      "volume": 100,
+      "isBackground": false,
+      "loop": false,
+      "fadeOut": true
+    },
+    {
+      "id": "t5",
+      "color": "#ff00ff",
+      "label": "Short Outro 2",
+      "image": "👍",
+      "audio": "/uploads/1772568654871-sample_short_1.mp3",
+      "volume": 100,
+      "isBackground": false,
+      "loop": false,
+      "fadeOut": true
+    },
+    {
+      "id": "t6",
+      "color": "#00ffff",
+      "label": "PODJUM",
+      "image": "🥁",
+      "audio": "/uploads/1772568794314-podjum.mp3",
+      "volume": 51,
+      "isBackground": true,
+      "loop": false,
+      "fadeOut": true
+    },
+    {
+      "id": "t7",
+      "color": "#0000ff",
+      "label": "BRAWA",
+      "image": "👍",
+      "audio": "/uploads/1772484511686-win_1.mp3",
+      "volume": 100,
+      "isBackground": false,
+      "loop": false,
+      "fadeOut": false
+    }
+  ]
+}

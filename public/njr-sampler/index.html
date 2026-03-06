@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NJR Sampler – Imprezja Quiz</title>
+    <link rel="icon" href="data:,">
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        :root {
+            --bg: radial-gradient(circle at center, #1a1a2e, #000);
+            --glass: rgba(255,255,255,0.08);
+            --border: rgba(255,255,255,0.15);
+            --gold: #f1c40f;
+            --purple: #9b59b6;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); min-height: 100vh; color: #fff; padding: 24px; }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 { color: var(--gold); margin-bottom: 24px; font-size: 1.8rem; }
+        .section { background: var(--glass); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; backdrop-filter: blur(10px); }
+        .section h2 { color: var(--purple); font-size: 1.1rem; margin-bottom: 16px; }
+        .tile-count { display: flex; gap: 12px; margin-bottom: 20px; }
+        .tile-count label { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 10px 16px; background: rgba(0,0,0,0.3); border-radius: 8px; border: 2px solid var(--border); }
+        .tile-count input:checked + span { color: var(--gold); font-weight: 700; }
+        .tile-count input { display: none; }
+        .tile-count label:has(input:checked) { border-color: var(--gold); background: rgba(241,196,15,0.1); }
+        .tiles-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; max-width: 520px; }
+        .tile-editor { background: rgba(0,0,0,0.3); border-radius: 10px; padding: 16px; border: 1px solid var(--border); position: relative; }
+        .tile-editor .bg-note { position: absolute; top: 8px; right: 8px; font-size: 1.2rem; opacity: 0.9; }
+        .color-palette { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+        .color-swatch { width: 28px; height: 28px; border-radius: 6px; border: 2px solid var(--border); cursor: pointer; }
+        .color-swatch:hover, .color-swatch.active { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold); }
+        .preview-inline { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
+        .tile-editor h4 { font-size: 0.9rem; margin-bottom: 12px; color: var(--gold); }
+        .tile-editor label { display: block; font-size: 0.8rem; color: rgba(255,255,255,0.7); margin-bottom: 4px; }
+        .tile-editor input[type="text"], .tile-editor input[type="color"] { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border); background: rgba(0,0,0,0.4); color: #fff; margin-bottom: 10px; }
+        .tile-editor input[type="color"] { height: 36px; cursor: pointer; padding: 2px; }
+        .emoji-picker { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+        .emoji-btn { width: 36px; height: 36px; font-size: 1.4rem; border: 2px solid var(--border); border-radius: 8px; background: rgba(0,0,0,0.3); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .emoji-btn:hover, .emoji-btn.active { border-color: var(--gold); background: rgba(241,196,15,0.2); }
+        .audio-upload { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+        .audio-upload input[type="file"] { display: none; }
+        .audio-upload .btn { padding: 8px 12px; font-size: 0.85rem; border-radius: 6px; border: none; cursor: pointer; background: var(--purple); color: #fff; }
+        .audio-upload .name { font-size: 0.8rem; color: rgba(255,255,255,0.6); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 120px; }
+        .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
+        .btn { padding: 14px 24px; font-size: 1rem; font-weight: 600; border-radius: 10px; border: none; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background: linear-gradient(135deg, var(--gold), #e67e22); color: #000; }
+        .btn-success { background: #2ecc71; color: #000; }
+        .btn-danger { background: #e74c3c; color: #fff; }
+        #lte-start-btn { padding: 14px 24px; font-size: 1rem; background: #e74c3c !important; }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        .qr-box { display: none; text-align: center; padding: 12px; max-height: calc(100vh - 180px); overflow-y: auto; }
+        .qr-box.active { display: block; }
+        .qr-box img, .qr-img { width: clamp(140px, 14vw, 200px); height: clamp(140px, 14vw, 200px); object-fit: contain; background: #fff; padding: 8px; border-radius: 10px; margin: 8px 0; }
+        .qr-box p, .qr-url { color: rgba(255,255,255,0.8); margin: 6px 0; font-size: 0.8rem; }
+        .qr-choices { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; align-items: flex-start; max-width: 100%; }
+        .qr-choice-box { flex: 1 1 240px; min-width: 200px; max-width: 340px; text-align: center; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 12px; border: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; }
+        .qr-choice-label { font-weight: 700; color: var(--gold); margin-bottom: 4px; font-size: 0.95rem; }
+        .qr-choice-desc { font-size: 0.75rem; color: rgba(255,255,255,0.7); margin-bottom: 8px; line-height: 1.3; }
+        .qr-lub { align-self: center; font-weight: 600; color: rgba(255,255,255,0.5); padding: 0 8px; font-size: 0.9rem; flex-shrink: 0; }
+        .back-link { display: inline-block; margin-bottom: 20px; color: var(--gold); text-decoration: none; font-weight: 600; }
+        .back-link:hover { text-decoration: underline; }
+        .intro-view { display: flex; flex-direction: column; align-items: center; padding: 20px 0; }
+        .intro-view.hidden { display: none !important; }
+        .editor-section { display: none; }
+        .editor-section.visible { display: block; }
+        .intro-btn-row { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; align-items: center; margin-top: 24px; }
+        .intro-btn { padding: 14px 24px; font-size: 1rem; font-weight: 600; border-radius: 10px; border: none; cursor: pointer; text-decoration: none; transition: all 0.2s; }
+        .intro-btn:hover { transform: scale(1.05); }
+        .intro-btn-editor { background: #3498db; color: #fff; }
+        .intro-btn-editor:hover { background: #2980b9; }
+        .intro-btn-start { background: #2ecc71; color: #000; }
+        .intro-btn-start:hover { background: #27ae60; color: #fff; }
+        .intro-btn-back { background: #f1c40f; color: #000; }
+        .intro-btn-back:hover { background: #f39c12; color: #000; }
+        .intro-btn-stop { background: #e74c3c; color: #fff; }
+        .intro-btn-stop:hover { background: #c0392b; }
+        .intro-title { font-size: 1.8rem; color: var(--gold); margin-bottom: 8px; }
+        .editor-section .btn-zamknij { margin-bottom: 16px; background: #555; color: #fff; padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; }
+        .editor-section .btn-zamknij:hover { background: #666; }
+        .config-bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 20px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px; }
+        .config-bar select { padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: #fff; min-width: 140px; }
+        .config-bar input[type="text"] { padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); background: rgba(0,0,0,0.4); color: #fff; width: 140px; }
+        .audio-browser { max-height: 120px; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+        .audio-browser .audio-chip { padding: 6px 10px; font-size: 0.8rem; background: var(--accent, #0f3460); border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+        .audio-browser .audio-chip:hover { background: #1a4a7a; }
+        .audio-browser .audio-chip-play { opacity: 0.9; font-size: 0.75rem; padding: 2px 4px; border-radius: 4px; }
+        .audio-browser .audio-chip-play:hover { background: rgba(255,255,255,0.2); }
+        .image-set { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+        .image-set .img-btn { width: 40px; height: 40px; border: 2px solid var(--border); border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; background: rgba(0,0,0,0.3); }
+        .image-set .img-btn:hover, .image-set .img-btn.active { border-color: var(--gold); }
+        .preview-btn { padding: 6px 10px !important; font-size: 0.9rem; }
+        .preview-btn.stop { background: #555; }
+        .tile-vol { width: 100%; margin: 4px 0; }
+        .bg-check { display: flex; align-items: center; gap: 8px; margin-top: 8px; cursor: pointer; }
+        .bg-check input { width: auto; margin: 0; }
+        .fullscreen-btn {
+            position: fixed; bottom: 20px; right: 20px;
+            padding: 10px 20px; border-radius: 5px;
+            background: rgba(50,50,50,0.5); border: 1px solid #777;
+            color: #fff; font-size: 12px; text-transform: uppercase; font-family: inherit;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
+            z-index: 1000;
+        }
+        .fullscreen-btn:hover { background: rgba(70,70,70,0.7); }
+        .fullscreen-btn.hidden { display: none !important; }
+        .cofnij-btn {
+            position: fixed; bottom: 20px; left: 20px; z-index: 1000;
+            padding: 10px 20px; border-radius: 8px; border: none;
+            background: linear-gradient(135deg, var(--gold), #e67e22); color: #1a1a2e;
+            font-size: 0.95rem; font-weight: 700; font-family: inherit;
+            text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.35); cursor: pointer;
+            transition: opacity 0.2s, transform 0.2s;
+        }
+        .cofnij-btn:hover { opacity: 0.95; transform: translateY(-1px); color: #1a1a2e; }
+        .bank-assign-row { display: flex; align-items: center; gap: 8px; }
+        .bank-assign-row select { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border); background: rgba(0,0,0,0.4); color: #fff; min-width: 140px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="intro-view" id="intro-view">
+            <div class="intro-title">🎛️ NJR Sampler</div>
+            <p style="color: rgba(255,255,255,0.7); font-size: 0.95rem; margin-bottom: 16px;">Zeskanuj QR – panel na telefonie. Ostatnie ustawienia zostaną użyte.</p>
+            <div class="section qr-box active" id="qr-section">
+                <div id="qr-choices" class="qr-choices">
+                    <div id="qr-box-local" class="qr-choice-box">
+                        <div class="qr-choice-label">1. Sieć lokalna (Wi‑Fi)</div>
+                        <p class="qr-choice-desc">Telefon i komputer w tej samej sieci.</p>
+                        <img id="qr-img-local" class="qr-img" src="" alt="QR lokalna">
+                        <p id="qr-url-local" class="qr-url" style="word-break: break-all; font-size: 0.85rem;"></p>
+                    </div>
+                    <div class="qr-lub">LUB</div>
+                    <div id="qr-box-pinggy" class="qr-choice-box">
+                        <div class="qr-choice-label">2. LTE (sieć komórkowa)</div>
+                        <p class="qr-choice-desc">Telefon przez LTE/4G. Kliknij „Sterowanie LTE” aby uruchomić tunel.</p>
+                        <p class="qr-choice-desc" style="color: rgba(255,255,255,0.6); font-size: 0.8rem;">⏱️ Tunel ok. 60 min.</p>
+                        <div id="qr-lte-start-wrap" style="margin: 12px 0;">
+                            <button type="button" class="btn btn-danger" id="lte-start-btn">🌐 Sterowanie LTE</button>
+                            <span id="qr-lte-status" style="margin-left: 10px; font-size: 0.9rem; color: rgba(255,255,255,0.7);"></span>
+                        </div>
+                        <div id="qr-lte-qr-wrap" style="display:none;">
+                            <img id="qr-img-pinggy" class="qr-img" src="" alt="QR LTE">
+                            <p id="qr-url-pinggy" class="qr-url" style="word-break: break-all; font-size: 0.85rem;"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="intro-btn-row">
+                <button type="button" class="intro-btn intro-btn-editor" id="btn-editor-intro">✏️ Edytor</button>
+                <button type="button" class="intro-btn intro-btn-start" id="btn-start-stop-intro">▶️ Start</button>
+                <a href="/start.html" class="intro-btn intro-btn-back">← Wróć</a>
+            </div>
+        </div>
+
+        <div class="section editor-section" id="editor-section">
+            <button type="button" class="btn-zamknij" id="btn-zamknij-editor">Zamknij</button>
+            <a href="/start.html" class="back-link">← Wróć do wyboru trybu</a>
+            <div class="config-bar" style="margin-top:12px;">
+                <label>Zestaw (konfiguracja):</label>
+                <select id="config-select">
+                    <option value="domyslna">domyślna</option>
+                </select>
+                <button type="button" class="btn" id="config-new-btn" style="background:#2e7d32;">➕ NOWY</button>
+                <button type="button" class="btn btn-primary" id="config-load-btn">📂 Załaduj</button>
+                <button type="button" class="btn btn-primary" id="config-save-btn">💾 Zapisz</button>
+                <button type="button" class="btn" id="config-save-as-btn" style="background:#555;">Zapisz jako...</button>
+                <button type="button" class="btn" id="config-rename-btn" style="background:#444;">✏️ Edytuj nazwę</button>
+                <button type="button" class="btn btn-danger" id="config-delete-btn">🗑 Usuń</button>
+                <span id="save-as-wrap" style="display:none; align-items:center; gap:8px;">
+                    <input type="text" id="save-as-name" placeholder="Nazwa konfiguracji">
+                    <button type="button" class="btn btn-primary" id="save-as-confirm">Zapisz</button>
+                    <button type="button" class="btn" id="save-as-cancel">Anuluj</button>
+                </span>
+            </div>
+            <div class="bank-assignment-section" style="margin-bottom:20px; padding:16px; background:rgba(0,0,0,0.2); border-radius:10px; border:1px solid var(--border);">
+                <h3 style="color:var(--purple); font-size:1rem; margin-bottom:12px;">📋 Przypisanie banków na występ</h3>
+                <p style="color:rgba(255,255,255,0.7); font-size:0.85rem; margin-bottom:12px;">Wybierz zestawy, które będą dostępne jako Bank 1, 2, 3… na telefonie (swipe w lewo/prawo).</p>
+                <div id="bank-assignment-list" style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:10px;"></div>
+                <button type="button" class="btn" id="add-bank-assignment-btn" style="background:#2e7d32; padding:6px 12px;">➕ Dodaj bank</button>
+                <button type="button" class="btn" id="remove-bank-assignment-btn" style="background:#555; padding:6px 12px;">🗑 Usuń ostatni bank</button>
+                <button type="button" class="btn" id="save-bank-assignment-btn" style="background:#3498db; padding:6px 12px;">💾 Zapisz przypisanie</button>
+            </div>
+            <h2>Edycja kafelków zestawu</h2>
+            <div class="tile-count">
+                <label><input type="radio" name="tileCount" value="8" checked><span>8 kafelków</span></label>
+                <label><input type="radio" name="tileCount" value="10"><span>10 kafelków</span></label>
+            </div>
+            <div class="tiles-grid" id="tiles-grid"></div>
+            <div class="actions">
+                <button type="button" class="btn btn-success" id="start-sampler-btn">▶️ Włącz sampler</button>
+            </div>
+        </div>
+
+        <a href="/start.html" class="cofnij-btn" title="Wróć do wyboru trybu">← Cofnij</a>
+        <button type="button" class="fullscreen-btn" id="fullscreen-btn" title="Pełny ekran" style="display:none;">⛶ PEŁNY EKRAN</button>
+    </div>
+
+    <audio id="sampler-audio" style="display:none;"></audio>
+    <audio id="sampler-audio-bg" style="display:none;"></audio>
+    <audio id="preview-audio" style="display:none;"></audio>
+
+    <script>
+        if (location.protocol === 'file:') {
+            document.body.innerHTML = '<div class="container" style="padding:40px;text-align:center;"><h1>⚠️ Niewłaściwy sposób otwarcia</h1><p>Otwórz stronę przez serwer: <a href="http://127.0.0.1:3000/njr-sampler.html" style="color:#f1c40f;">http://127.0.0.1:3000/njr-sampler.html</a></p><p>Uruchom Imprezja Quiz (Electron) i wybierz NJR Sampler z ekranu startowego.</p></div>';
+        } else {
+        const socket = io();
+        let config = { tileCount: 8, tiles: [] };
+        let currentConfigName = 'domyslna';
+        let bankAssignments = ['domyslna'];
+        let configList = ['domyslna'];
+        let samplerVolume = 1; // 0–1, master z telefonu
+        let currentTileVolume = 1; // 0–1, proporcja kafelka (one-shot)
+        let currentBgTileVolume = 1; // 0–1, proporcja tła
+
+        function applyVolumes() {
+            const a = document.getElementById('sampler-audio');
+            const bg = document.getElementById('sampler-audio-bg');
+            if (a) a.volume = currentTileVolume * samplerVolume;
+            if (bg) bg.volume = currentBgTileVolume * samplerVolume;
+        }
+        function fadeOutAndStop(audioEl, ms) {
+            if (!audioEl || audioEl.paused) return;
+            if (audioEl._fadeRafId) cancelAnimationFrame(audioEl._fadeRafId);
+            const startVol = audioEl.volume;
+            const start = performance.now();
+            const step = (now) => {
+                const elapsed = now - start;
+                const t = Math.min(1, elapsed / ms);
+                audioEl.volume = startVol * (1 - t);
+                if (t < 1) audioEl._fadeRafId = requestAnimationFrame(step);
+                else {
+                    audioEl._fadeRafId = null;
+                    audioEl.pause();
+                    if (audioEl.id === 'sampler-audio-bg') audioEl.src = '';
+                }
+            };
+            audioEl._fadeRafId = requestAnimationFrame(step);
+        }
+
+        socket.emit('njr_sampler_join_screen');
+        socket.on('njr_sampler_state', async (s) => {
+            updateIntroButtonsForActive(!!s.active);
+            if (s.active) { await loadQRData(); showQRMode(); }
+            else showIntroMode();
+        });
+        socket.on('njr_sampler_play', (payload) => {
+            const data = typeof payload === 'string' ? { url: payload, volume: 1, isBackground: false, loop: false } : payload;
+            const vol = data.volume ?? 1;
+            const loop = !!data.loop;
+            if (data.isBackground) {
+                const bg = document.getElementById('sampler-audio-bg');
+                if (!bg) return;
+                if (bg._fadeRafId) { cancelAnimationFrame(bg._fadeRafId); bg._fadeRafId = null; }
+                currentBgTileVolume = vol;
+                bg.src = data.url;
+                bg.volume = vol * samplerVolume;
+                bg.loop = loop;
+                bg.onended = loop ? null : () => socket.emit('njr_sampler_background_ended');
+                bg.play().catch(e => console.warn('Audio bg:', e));
+            } else {
+                const a = document.getElementById('sampler-audio');
+                if (a && a._fadeRafId) { cancelAnimationFrame(a._fadeRafId); a._fadeRafId = null; }
+                currentTileVolume = vol;
+                a.src = data.url;
+                a.volume = vol * samplerVolume;
+                a.loop = loop;
+                a.play().catch(e => console.warn('Audio:', e));
+            }
+        });
+        socket.on('njr_sampler_stop', (payload) => {
+            const data = typeof payload === 'object' ? payload : {};
+            const a = document.getElementById('sampler-audio');
+            if (data.fadeOut && a && !a.paused) {
+                fadeOutAndStop(a, 2000);
+            } else {
+                a.pause();
+            }
+        });
+        socket.on('njr_sampler_stop_background', (payload) => {
+            const data = typeof payload === 'object' ? payload : {};
+            const bg = document.getElementById('sampler-audio-bg');
+            if (data.fadeOut && bg && !bg.paused) {
+                fadeOutAndStop(bg, 2000);
+            } else {
+                bg.pause();
+                bg.src = '';
+            }
+        });
+        socket.on('njr_sampler_volume', (v) => {
+            samplerVolume = v;
+            applyVolumes();
+        });
+        socket.on('tunnel_started', async () => { await loadQRData(); });
+        socket.on('tunnel_error', (d) => {
+            const status = document.getElementById('qr-lte-status');
+            if (status) status.textContent = d.message || 'Błąd tunelu';
+        });
+
+        document.querySelectorAll('input[name="tileCount"]').forEach(r => {
+            r.onchange = () => {
+                config.tileCount = parseInt(r.value);
+                if (!config.tiles) config.tiles = [];
+                while (config.tiles.length < config.tileCount) config.tiles.push({ id: 't' + config.tiles.length, color: '#0000ff', label: '', image: '', audio: '', volume: 100, isBackground: false, loop: false, fadeOut: false });
+                config.tiles = config.tiles.slice(0, config.tileCount);
+                renderTiles();
+            };
+        });
+        const grid = document.getElementById('tiles-grid');
+        grid.addEventListener('change', (e) => {
+            const inp = e.target;
+            if (inp && inp.type === 'file' && inp.classList.contains('audio-file-input') && inp.files && inp.files[0]) {
+                uploadAudio(inp.dataset.tile, inp);
+                return;
+            }
+            const tileEd = inp?.closest('.tile-editor');
+            if (!tileEd) return;
+            const tileId = tileEd.dataset.id || inp.dataset.tile;
+            if (!tileId) return;
+            if (inp.type === 'text') {
+                const textInputs = Array.from(tileEd.querySelectorAll('input[type="text"]')).filter(x => !x.classList.contains('audio-search'));
+                if (textInputs[0] === inp) updateTile(tileId, 'label', inp.value);
+                else if (textInputs[1] === inp) updateTile(tileId, 'image', inp.value);
+            } else if (inp.type === 'range') {
+                updateTile(tileId, 'volume', parseInt(inp.value));
+                const s = document.getElementById('vol-val-' + tileId);
+                if (s) s.textContent = inp.value;
+            } else if (inp.type === 'checkbox') {
+                if (inp.dataset.field === 'loop') updateTile(tileId, 'loop', inp.checked);
+                else if (inp.dataset.field === 'fadeOut') updateTile(tileId, 'fadeOut', inp.checked);
+                else { updateTile(tileId, 'isBackground', inp.checked); renderTiles(); }
+            }
+        });
+        grid.addEventListener('click', (e) => {
+            const btn = e.target.closest('.img-btn');
+            if (btn) setTileEmoji(btn.dataset.tile, btn.dataset.emoji);
+            const swatch = e.target.closest('.color-swatch');
+            if (swatch) { updateTile(swatch.dataset.tile, 'color', swatch.dataset.color); renderTiles(); }
+            const previewBtn = e.target.closest('.preview-btn');
+            if (previewBtn) {
+                const t = (config.tiles || []).find(x => x.id === previewBtn.dataset.tile);
+                if (!t) return;
+                if (!t.audio || !t.audio.trim()) {
+                    alert('Przypisz najpierw dźwięk do kafelka (Upload lub Szukaj w uploads).');
+                    return;
+                }
+                const base = window.location.origin || 'http://127.0.0.1:3000';
+                let url;
+                if (t.audio.startsWith('http')) {
+                    url = t.audio;
+                } else {
+                    const rawPath = t.audio.startsWith('/') ? t.audio : '/uploads/' + t.audio;
+                    url = /\.(vdjsample|ogg)$/i.test(rawPath) ? (base + '/api/audio/stream?path=' + encodeURIComponent(rawPath)) : (base + rawPath);
+                }
+                const a = document.getElementById('preview-audio');
+                if (!a) return;
+                if (previewBtn.classList.contains('stop')) {
+                    a.pause();
+                } else {
+                    a.src = url;
+                    a.volume = ((t.volume ?? 100) / 100);
+                    a.load();
+                    a.play().catch(err => {
+                        console.warn('Preview play:', err);
+                        alert('Nie można odtworzyć. Sprawdź czy plik istnieje w uploads.');
+                    });
+                }
+            }
+        });
+
+        async function loadConfigList() {
+            try {
+                const r = await fetch('/api/njr-sampler/configs');
+                const d = await r.json();
+                configList = (d.configs && d.configs.length) ? d.configs : ['domyslna'];
+                const sel = document.getElementById('config-select');
+                if (sel) {
+                    sel.innerHTML = configList.map(c => `<option value="${c}" ${c === (d.current||'domyslna') ? 'selected' : ''}>${c}</option>`).join('');
+                    currentConfigName = d.current || 'domyslna';
+                }
+                renderBankAssignment();
+            } catch (e) { console.warn('Load config list:', e); }
+        }
+
+        async function loadConfigByName(name) {
+            try {
+                const r = await fetch('/api/njr-sampler/config' + (name ? '?name=' + encodeURIComponent(name) : ''));
+                const d = await r.json();
+                config = d.config || { tileCount: 8, tiles: [] };
+                if (!config.tiles && config.banks && Array.isArray(config.banks) && config.banks.length > 0)
+                    config.tiles = (config.banks[0].tiles || []).slice(0, config.tileCount || 8);
+                if (!config.tiles) config.tiles = [];
+                currentConfigName = name || 'domyslna';
+                document.querySelector(`input[name="tileCount"][value="${config.tileCount}"]`)?.click();
+                renderTiles();
+            } catch (e) { console.warn('Load config:', e); alert('Błąd: ' + (e.message || 'Failed to fetch')); }
+        }
+
+        async function loadBankAssignment() {
+            try {
+                const r = await fetch('/api/njr-sampler/bank-assignment');
+                const d = await r.json();
+                bankAssignments = Array.isArray(d.bankAssignments) && d.bankAssignments.length ? d.bankAssignments : ['domyslna'];
+                renderBankAssignment();
+            } catch (e) { console.warn('Load bank assignment:', e); }
+        }
+        function renderBankAssignment() {
+            const wrap = document.getElementById('bank-assignment-list');
+            if (!wrap) return;
+            wrap.innerHTML = bankAssignments.map((name, i) => `
+                <div class="bank-assign-row">
+                    <span style="color:rgba(255,255,255,0.8);">Bank ${i + 1}:</span>
+                    <select class="bank-assign-select" data-index="${i}">
+                        ${configList.map(c => `<option value="${c}" ${c === name ? 'selected' : ''}>${c}</option>`).join('')}
+                    </select>
+                </div>
+            `).join('');
+            wrap.querySelectorAll('.bank-assign-select').forEach(sel => {
+                sel.addEventListener('change', () => {
+                    bankAssignments[parseInt(sel.dataset.index)] = sel.value;
+                });
+            });
+        }
+        function addBankAssignment() {
+            bankAssignments.push(configList[0] || 'domyslna');
+            renderBankAssignment();
+        }
+        function removeBankAssignment() {
+            if (bankAssignments.length <= 1) { alert('Musi zostać co najmniej jeden bank.'); return; }
+            bankAssignments.pop();
+            renderBankAssignment();
+        }
+        async function saveBankAssignment() {
+            try {
+                const r = await fetch('/api/njr-sampler/bank-assignment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ bankAssignments })
+                });
+                const d = await r.json().catch(() => ({}));
+                if (!r.ok) { alert('Błąd zapisu przypisania: ' + (d.error || r.statusText || 'Nieznany błąd')); return; }
+                alert('Zapisano przypisanie banków (' + bankAssignments.length + ' banków).');
+            } catch (e) { alert('Błąd: ' + e.message); }
+        }
+
+        async function loadConfig() {
+            await loadConfigList();
+            await loadBankAssignment();
+            await loadConfigByName(currentConfigName);
+        }
+
+        function newConfig() {
+            const hasContent = (config.tiles || []).some(isTileFilled);
+            if (hasContent && !confirm('Utworzyć nową pustą konfigurację? Niezapisane zmiany zostaną utracone.')) return;
+            const n = config.tileCount || 8;
+            const tiles = [];
+            for (let i = 0; i < n; i++) tiles.push({ id: 't' + i, color: '#0000ff', label: '', image: '', audio: '', volume: 100, isBackground: false, loop: false, fadeOut: false });
+            config = { tileCount: n, tiles };
+            currentConfigName = 'nowy';
+            const sel = document.getElementById('config-select');
+            if (sel && !sel.querySelector('option[value="nowy"]')) {
+                const opt = document.createElement('option');
+                opt.value = 'nowy';
+                opt.textContent = 'nowy';
+                sel.insertBefore(opt, sel.firstChild);
+            }
+            if (sel) sel.value = 'nowy';
+            document.querySelector(`input[name="tileCount"][value="${n}"]`)?.click();
+            renderTiles();
+        }
+        function initConfigButtons() {
+            const confirm = document.getElementById('save-as-confirm');
+            const cancel = document.getElementById('save-as-cancel');
+            if (confirm && !confirm._bound) { confirm._bound = true; confirm.addEventListener('click', saveConfigAs); }
+            if (cancel && !cancel._bound) { cancel._bound = true; cancel.addEventListener('click', hideSaveAs); }
+            document.getElementById('config-new-btn')?.addEventListener('click', newConfig);
+            document.getElementById('config-load-btn')?.addEventListener('click', () => {
+                const sel = document.getElementById('config-select');
+                if (sel) loadConfigByName(sel.value);
+            });
+            document.getElementById('config-save-btn')?.addEventListener('click', saveConfig);
+            document.getElementById('config-save-as-btn')?.addEventListener('click', showSaveAs);
+            document.getElementById('config-rename-btn')?.addEventListener('click', renameConfig);
+            document.getElementById('config-delete-btn')?.addEventListener('click', deleteConfig);
+            document.getElementById('add-bank-assignment-btn')?.addEventListener('click', addBankAssignment);
+            document.getElementById('remove-bank-assignment-btn')?.addEventListener('click', removeBankAssignment);
+            document.getElementById('save-bank-assignment-btn')?.addEventListener('click', saveBankAssignment);
+            document.getElementById('start-sampler-btn')?.addEventListener('click', startSampler);
+            document.getElementById('fullscreen-btn')?.addEventListener('click', toggleFullscreen);
+            document.getElementById('lte-start-btn')?.addEventListener('click', () => {
+                const status = document.getElementById('qr-lte-status');
+                if (status) status.textContent = 'Uruchamianie tunelu...';
+                socket.emit('admin_start_tunnel');
+            });
+        }
+        async function renameConfig() {
+            const newName = prompt('Nowa nazwa konfiguracji:', currentConfigName);
+            if (!newName || !newName.trim()) return;
+            const trimmed = newName.trim().replace(/[^a-zA-Z0-9_\-\sąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/g, '').replace(/\s+/g, '_') || 'konfiguracja';
+            if (trimmed === currentConfigName) return;
+            try {
+                const r = await fetch('/api/njr-sampler/config', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ oldName: currentConfigName, newName: trimmed, config: { tileCount: config.tileCount, tiles: config.tiles } })
+                });
+                const d = await r.json().catch(() => ({}));
+                if (!r.ok) { alert('Błąd: ' + (d.error || r.statusText || 'Nieznany błąd')); return; }
+                await loadConfigList();
+                currentConfigName = trimmed;
+                const sel = document.getElementById('config-select');
+                if (sel) {
+                    if (!sel.querySelector('option[value="' + trimmed + '"]')) {
+                        const opt = document.createElement('option');
+                        opt.value = trimmed;
+                        opt.textContent = trimmed;
+                        sel.appendChild(opt);
+                    }
+                    sel.value = trimmed;
+                }
+                alert('Zmieniono nazwę na: ' + trimmed);
+            } catch (e) { alert('Błąd: ' + e.message); }
+        }
+        async function deleteConfig() {
+            if (currentConfigName === 'domyslna') {
+                alert('Nie można usunąć konfiguracji domyślnej.');
+                return;
+            }
+            if (!confirm('Usunąć konfigurację „' + currentConfigName + '”?')) return;
+            try {
+                const r = await fetch('/api/njr-sampler/config?name=' + encodeURIComponent(currentConfigName), { method: 'DELETE' });
+                if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.error || 'Błąd'); return; }
+                currentConfigName = 'domyslna';
+                await loadConfigList();
+                await loadConfigByName('domyslna');
+                alert('Usunięto.');
+            } catch (e) { alert('Błąd: ' + e.message); }
+        }
+
+        function showSaveAs() {
+            const wrap = document.getElementById('save-as-wrap');
+            wrap.style.display = 'inline-flex';
+            document.getElementById('save-as-name').value = currentConfigName + '_kopia';
+            document.getElementById('save-as-name').focus();
+        }
+        function hideSaveAs() {
+            document.getElementById('save-as-wrap').style.display = 'none';
+        }
+
+        async function saveConfigAs() {
+            const name = document.getElementById('save-as-name').value.trim();
+            if (!name) { alert('Podaj nazwę.'); return; }
+            const toSave = getConfigToSave();
+            if (!toSave || toSave.tiles.length === 0) { alert('Wypełnij co najmniej jeden kafelek (kolor, dźwięk, ikona, opis).'); return; }
+            const total = config.tileCount || 8;
+            const ok = await confirmPartialTiles(toSave.tiles.length, total, 'zapisać');
+            if (!ok) return;
+            try {
+                await fetch('/api/njr-sampler/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ config: toSave, name })
+                });
+                hideSaveAs();
+                await loadConfigList();
+                document.getElementById('config-select').value = name;
+                currentConfigName = name;
+                alert('Zapisano jako: ' + name);
+            } catch (e) { alert('Błąd: ' + e.message); }
+        }
+
+        const IMAGE_SET = ['😊','😌','💥','🎵','🔥','😱','😂','👍','❤️','🎉','🤫','😴','🥁','🎤','📢','⚡','🌟','💡','🎸','🎹'];
+        const RGB_16 = ['#000000','#ffffff','#808080','#c0c0c0','#800000','#ff0000','#800080','#ff00ff','#008000','#00ff00','#808000','#ffff00','#000080','#0000ff','#008080','#00ffff'];
+
+        function renderTiles() {
+            if (!config.tiles) config.tiles = [];
+            const n = config.tileCount || 8;
+            while (config.tiles.length < n) {
+                config.tiles.push({ id: 't' + config.tiles.length, color: '#0000ff', label: '', image: '', audio: '', volume: 100, isBackground: false, loop: false, fadeOut: false });
+            }
+            config.tiles = config.tiles.slice(0, n);
+            config.tiles.forEach(t => {
+                if (t.volume == null) t.volume = 100;
+                if (t.isBackground == null) t.isBackground = false;
+                if (t.loop == null) t.loop = false;
+                if (t.fadeOut == null) t.fadeOut = false;
+            });
+
+            const grid = document.getElementById('tiles-grid');
+            grid.innerHTML = config.tiles.map((t, i) => `
+                <div class="tile-editor" data-id="${t.id}">
+                    ${t.isBackground ? '<span class="bg-note" title="Tło muzyczne">🎵</span>' : ''}
+                    <div class="preview-inline">
+                        <h4 style="margin:0;flex:1">Kafelek ${i + 1}</h4>
+                        <button type="button" class="btn preview-btn" data-tile="${t.id}" title="Odsłuchaj">▶</button>
+                        <button type="button" class="btn preview-btn stop" data-tile="${t.id}" title="Stop">⏹</button>
+                    </div>
+                    <label>Kolor</label>
+                    <div class="color-palette">
+                        ${RGB_16.map(c => `<button type="button" class="color-swatch ${(t.color||'#0000ff').toLowerCase()===c?'active':''}" data-tile="${t.id}" data-color="${c}" style="background:${c}"></button>`).join('')}
+                    </div>
+                    <label>Opis</label>
+                    <input type="text" placeholder="np. Uśmiech" value="${(t.label||'').replace(/"/g,'&quot;')}" data-tile="${t.id}">
+                    <label>Ikona (wybierz ze zbioru)</label>
+                    <div class="image-set">
+                        ${IMAGE_SET.map(em => `<button type="button" class="img-btn ${t.image===em?'active':''}" data-tile="${t.id}" data-emoji="${em}">${em}</button>`).join('')}
+                    </div>
+                    <input type="text" placeholder="lub URL obrazka" value="${(t.image&&(t.image.startsWith('http')||t.image.startsWith('/'))?t.image:'').replace(/"/g,'&quot;')}" data-tile="${t.id}" style="margin-top:4px;">
+                    <label>Dźwięk (MP3/WAV)</label>
+                    <div class="audio-upload">
+                        <button type="button" class="btn" onclick="this.nextElementSibling.click()">📁 Upload</button>
+                        <input type="file" accept="audio/*,.vdjsample,.ogg" class="audio-file-input" data-tile="${t.id}">
+                        <input type="text" placeholder="Szukaj w uploads..." class="audio-search" data-tile="${t.id}" style="width:120px;padding:6px;font-size:0.85rem;">
+                        <span class="name">${t.audio ? t.audio.replace(/^.*\//,'') : '—'}</span>
+                    </div>
+                    <div class="audio-browser" id="audio-browser-${t.id}" style="display:none;"></div>
+                    <label>Głośność kafelka: <span id="vol-val-${t.id}">${t.volume ?? 100}</span>%</label>
+                    <input type="range" class="tile-vol" data-tile="${t.id}" min="0" max="100" value="${t.volume ?? 100}">
+                    <label class="bg-check"><input type="checkbox" ${t.isBackground?'checked':''} data-tile="${t.id}"> TŁO MUZYCZNE</label>
+                    <label class="bg-check"><input type="checkbox" ${t.loop?'checked':''} data-tile="${t.id}" data-field="loop"> 🔁 Odtwarzaj w pętli</label>
+                    <label class="bg-check"><input type="checkbox" ${t.fadeOut?'checked':''} data-tile="${t.id}" data-field="fadeOut"> 🔇 Wyciszanie (2 s)</label>
+                </div>
+            `).join('');
+            document.querySelectorAll('.audio-search').forEach(inp => {
+                inp.addEventListener('input', debounce(() => searchAudioForTile(inp.dataset.tile, inp.value), 300));
+                inp.addEventListener('focus', () => showAudioBrowser(inp.dataset.tile));
+            });
+        }
+
+        function debounce(fn, ms) {
+            let t;
+            return () => { clearTimeout(t); t = setTimeout(fn, ms); };
+        }
+
+        async function searchAudioForTile(tileId, q) {
+            const wrap = document.getElementById('audio-browser-' + tileId);
+            if (!wrap) return;
+            try {
+                const r = await fetch('/api/njr-sampler/audio-files?q=' + encodeURIComponent(q || ''));
+                const d = await r.json();
+                wrap.innerHTML = (d.files || []).map(f => `<span class="audio-chip" data-tile="${tileId}" data-path="${(f.path||'').replace(/"/g,'&quot;')}"><span class="audio-chip-play" title="Odsłuchaj">▶</span><span class="audio-chip-name">${(f.name||'').replace(/</g,'&lt;')}</span></span>`).join('');
+                wrap.onclick = (e) => {
+                    const c = e.target.closest('.audio-chip');
+                    if (!c) return;
+                    if (e.target.closest('.audio-chip-play')) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        previewAudioFromPath(c.dataset.path);
+                    } else {
+                        pickAudio(c.dataset.tile, c.dataset.path);
+                    }
+                };
+                wrap.style.display = d.files && d.files.length ? 'flex' : 'none';
+            } catch (e) { wrap.style.display = 'none'; }
+        }
+
+        function showAudioBrowser(tileId) {
+            document.querySelectorAll('.audio-browser').forEach(el => el.style.display = 'none');
+            searchAudioForTile(tileId, '');
+        }
+
+        function pickAudio(tileId, path) {
+            const t = (config.tiles || []).find(x => x.id === tileId);
+            if (t) { t.audio = path; renderTiles(); }
+        }
+
+        let previewPlayingPath = null;
+        function previewAudioFromPath(path) {
+            const base = window.location.origin || 'http://127.0.0.1:3000';
+            let url;
+            if (path.startsWith('http')) {
+                url = path;
+            } else {
+                const rawPath = path.startsWith('/') ? path : '/uploads/' + path;
+                url = /\.(vdjsample|ogg)$/i.test(rawPath) ? (base + '/api/audio/stream?path=' + encodeURIComponent(rawPath)) : (base + rawPath);
+            }
+            const a = document.getElementById('preview-audio');
+            if (!a) return;
+            if (previewPlayingPath === path && !a.paused) {
+                a.pause();
+                previewPlayingPath = null;
+                return;
+            }
+            previewPlayingPath = path;
+            a.onended = () => { previewPlayingPath = null; };
+            a.src = url;
+            a.volume = 1;
+            a.load();
+            a.play().catch(err => { previewPlayingPath = null; console.warn('Odsłuch:', err); });
+        }
+
+        function updateTile(id, key, val) {
+            const t = (config.tiles || []).find(x => x.id === id);
+            if (t) t[key] = val;
+        }
+
+        function isTileFilled(t) {
+            const hasColor = !!(t.color && t.color.trim());
+            const hasAudio = !!(t.audio && t.audio.trim());
+            const hasImage = !!(t.image && t.image.trim());
+            const hasLabel = !!(t.label && String(t.label).trim());
+            return hasColor && hasAudio && hasImage && hasLabel;
+        }
+        function getFilledTiles() {
+            return (config.tiles || []).filter(t => isTileFilled(t));
+        }
+        function confirmPartialTiles(filledCount, totalCount, action) {
+            if (filledCount >= totalCount) return Promise.resolve(true);
+            const msg = `Wypełniono tylko ${filledCount} z ${totalCount} kafelków. Chcesz ${action} czy edytować dalej?`;
+            return new Promise(resolve => {
+                if (confirm(msg + '\n\nOK = ' + action + '\nAnuluj = edytuj dalej')) resolve(true);
+                else resolve(false);
+            });
+        }
+
+        function setTileEmoji(id, em) {
+            const t = (config.tiles || []).find(x => x.id === id);
+            if (t) { t.image = em; renderTiles(); }
+        }
+
+        async function uploadAudio(tileId, input) {
+            const f = input.files?.[0];
+            if (!f) return;
+            const fd = new FormData();
+            fd.append('file', f, f.name);
+            try {
+                const r = await fetch('/upload', { method: 'POST', body: fd });
+                const d = await r.json().catch(() => ({}));
+                if (!r.ok) {
+                    alert('Błąd uploadu: ' + (d.error || r.statusText || 'Nieznany błąd'));
+                    return;
+                }
+                const filepath = d.filepath;
+                if (filepath) {
+                    const t = (config.tiles || []).find(x => x.id === tileId);
+                    if (t) { t.audio = filepath; renderTiles(); }
+                } else {
+                    alert('Serwer nie zwrócił ścieżki pliku.');
+                }
+            } catch (e) { alert('Błąd uploadu: ' + e.message); }
+            input.value = '';
+        }
+
+        function getConfigToSave() {
+            const hasFilled = (config.tiles || []).some(isTileFilled);
+            if (!hasFilled) return null;
+            return { tileCount: config.tileCount || 8, tiles: config.tiles || [] };
+        }
+
+        async function saveConfig() {
+            const toSave = getConfigToSave();
+            const filledCount = (config.tiles || []).filter(isTileFilled).length;
+            if (!toSave || filledCount === 0) { alert('Wypełnij co najmniej jeden kafelek (kolor, dźwięk, ikona, opis).'); return; }
+            const total = config.tileCount || 8;
+            const ok = await confirmPartialTiles(filledCount, total, 'zapisać');
+            if (!ok) return;
+            if (currentConfigName === 'nowy') { showSaveAs(); return; }
+            try {
+                const r = await fetch('/api/njr-sampler/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ config: toSave, name: currentConfigName })
+                });
+                const d = await r.json().catch(() => ({}));
+                if (!r.ok) { alert('Błąd zapisu: ' + (d.error || r.statusText || 'Nieznany błąd')); return; }
+                await loadConfigList();
+                alert('Zapisano zestaw „' + currentConfigName + '”.');
+            } catch (e) { alert('Błąd: ' + e.message); }
+        }
+
+        async function startSampler() {
+            if (bankAssignments.length === 0) { alert('Przypisz co najmniej jeden zestaw do banku.'); return; }
+            const emptyBanks = bankAssignments.filter(n => !n || !n.trim());
+            if (emptyBanks.length) { alert('Wszystkie banki muszą mieć wybrany zestaw.'); return; }
+            try {
+                const r = await fetch('/api/njr-sampler/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ bankAssignments })
+                });
+                if (!r.ok) { const d = await r.json().catch(() => ({})); alert('Błąd uruchomienia: ' + (d.error || r.statusText || 'Nieznany błąd')); return; }
+                await loadQRData();
+                showQRMode();
+            } catch (e) { alert('Błąd: ' + e.message); }
+        }
+
+        async function loadQRData() {
+            try {
+                const infoR = await fetch('/api/njr-sampler/connection-info');
+                const info = await infoR.json().catch(() => ({}));
+                const localR = await fetch('/api/njr-sampler/phone-qr?mode=local');
+                const localD = await localR.json().catch(() => ({}));
+                document.getElementById('qr-img-local').src = localD.qrCode || '';
+                document.getElementById('qr-url-local').textContent = localD.url || '';
+                document.getElementById('qr-lte-start-wrap').style.display = 'block';
+                if (info.pinggyAvailable) {
+                    const pinggyR = await fetch('/api/njr-sampler/phone-qr?mode=pinggy');
+                    const pinggyD = await pinggyR.json().catch(() => ({}));
+                    document.getElementById('qr-lte-qr-wrap').style.display = 'block';
+                    document.getElementById('qr-img-pinggy').src = pinggyD.qrCode || '';
+                    document.getElementById('qr-url-pinggy').textContent = pinggyD.url || '';
+                    document.getElementById('qr-lte-status').textContent = '';
+                } else {
+                    document.getElementById('qr-lte-qr-wrap').style.display = 'none';
+                }
+            } catch (e) { console.warn('Load QR:', e); }
+            finally {
+                var wrap = document.getElementById('qr-lte-start-wrap');
+                if (wrap) wrap.style.setProperty('display', 'block', 'important');
+            }
+        }
+
+        async function stopSampler() {
+            try {
+                await fetch('/api/njr-sampler/stop', { method: 'POST' });
+                showIntroMode();
+            } catch (e) { alert('Błąd: ' + e.message); }
+        }
+
+        function showIntroMode() {
+            document.getElementById('intro-view').classList.remove('hidden');
+            document.getElementById('editor-section').classList.remove('visible');
+            document.getElementById('editor-section').classList.add('hidden');
+            updateIntroButtonsForActive(false);
+            document.getElementById('fullscreen-btn').style.display = 'none';
+        }
+
+        function updateIntroButtonsForActive(active) {
+            const btn = document.getElementById('btn-start-stop-intro');
+            if (!btn) return;
+            btn.textContent = active ? '⏹️ Stop' : '▶️ Start';
+            btn.className = 'intro-btn ' + (active ? 'intro-btn-stop' : 'intro-btn-start');
+            btn.style.display = '';
+        }
+
+        function showQRMode() {
+            document.getElementById('intro-view').classList.remove('hidden');
+            document.getElementById('editor-section').classList.remove('visible');
+            document.getElementById('editor-section').classList.add('hidden');
+            updateIntroButtonsForActive(true);
+            document.getElementById('fullscreen-btn').style.display = '';
+        }
+
+        function showEditorMode() {
+            document.getElementById('intro-view').classList.add('hidden');
+            document.getElementById('editor-section').classList.remove('hidden');
+            document.getElementById('editor-section').classList.add('visible');
+        }
+
+        function toggleFullscreen() {
+            const el = document.documentElement;
+            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                (el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen)?.call(el);
+            } else {
+                (document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen)?.call(document);
+            }
+        }
+
+        initConfigButtons();
+        document.getElementById('btn-editor-intro')?.addEventListener('click', showEditorMode);
+        document.getElementById('btn-start-stop-intro')?.addEventListener('click', () => {
+            const btn = document.getElementById('btn-start-stop-intro');
+            if (btn && btn.classList.contains('intro-btn-stop')) stopSampler();
+            else startSampler();
+        });
+        document.getElementById('btn-zamknij-editor')?.addEventListener('click', showIntroMode);
+
+        (async function init() {
+            await loadConfig();
+            await loadQRData();
+            showIntroMode();
+        })();
+        }
+    </script>
+</body>
+</html>
