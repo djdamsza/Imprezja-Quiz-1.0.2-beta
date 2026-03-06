@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poradnik: Router WiFi dla Imprezja Quiz</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            line-height: 1.6;
+            padding: 24px;
+            max-width: 720px;
+            margin: 0 auto;
+        }
+        h1 {
+            font-size: 1.6rem;
+            margin-bottom: 8px;
+            color: #f1c40f;
+        }
+        .back { margin-bottom: 24px; }
+        .back a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        .back a:hover { text-decoration: underline; }
+        h2 {
+            font-size: 1.2rem;
+            margin-top: 28px;
+            margin-bottom: 10px;
+            color: #bdc3c7;
+        }
+        p { margin-bottom: 12px; }
+        ul {
+            margin: 12px 0 12px 24px;
+        }
+        li { margin-bottom: 6px; }
+        .box {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 16px;
+            margin: 16px 0;
+        }
+        code {
+            background: rgba(0,0,0,0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <p class="back"><a href="/start.html">← Powrót do ekranu startowego</a></p>
+    <h1>📶 Jak dobrze skonfigurować router WiFi dla Imprezja Quiz</h1>
+    <p>Imprezja Quiz działa w sieci lokalnej: komputer z aplikacją jest serwerem, a telefony łączą się z nim przez WiFi. Poniżej uniwersalne zasady dla typowego routera.</p>
+
+    <h2>Router z dostępem do internetu</h2>
+    <p>Jeśli router ma internet (np. od operatora):</p>
+    <ul>
+        <li><strong>Komputer z Imprezja Quiz</strong> – podłącz go do WiFi (lub kablem LAN) do tego samego routera co telefony.</li>
+        <li><strong>Izolacja klientów (Client Isolation / AP Isolation)</strong> – jeśli w routerze jest taka opcja, <strong>wyłącz ją</strong>. Gdy jest włączona, urządzenia w WiFi nie widzą się nawzajem i telefony nie połączą się z komputerem.</li>
+        <li><strong>Firewall</strong> – zwykle nie blokuje ruchu w sieci lokalnej. Jeśli coś nie działa, sprawdź w routerze, czy nie ma blokady ruchu między urządzeniami w LAN.</li>
+        <li><strong>Pasmo i zasięg</strong> – używaj 2,4 GHz lub 5 GHz, w zależności od tego, co lepiej działa. Im bliżej routera, tym stabilniejsze połączenie.</li>
+    </ul>
+
+    <h2>Router bez internetu (tylko sieć lokalna)</h2>
+    <p>Można użyć routera bez podłączonego internetu – wystarczy, że tworzy sieć WiFi i łączy urządzenia:</p>
+    <ul>
+        <li>Włącz router, skonfiguruj WiFi (nazwa sieci SSID i hasło).</li>
+        <li>Nie podłączaj kabla WAN do niczego (albo wyłącz „wymagaj internetu” w ustawieniach, jeśli router to oferuje).</li>
+        <li>Komputer i telefony łączą się z tym samym WiFi – Imprezja Quiz działa tak samo jak z routerem z internetem.</li>
+        <li>Sprawdź, czy <strong>Client Isolation / Izolacja klientów</strong> jest wyłączona.</li>
+    </ul>
+
+    <h2>Ustawienia w samej aplikacji</h2>
+    <p>W Imprezja Quiz możesz dostosować działanie bez zmiany routera:</p>
+    <ul>
+        <li><strong>Wyłączenie obrazków</strong> – w trybie quizu (ekran głosowania / pytania) często da się wyłączyć wyświetlanie obrazków w pytaniach albo użyć trybu „tylko tekst”. Szukaj w ustawieniach ekranu lub w konfiguracji quizu opcji typu „pokaż obrazki” / „ukryj obrazy” i ustaw zgodnie z potrzebą (mniej ruchu w sieci, szybsze ładowanie).</li>
+        <li><strong>Jakość / rozmiar mediów</strong> – jeśli są ustawienia jakości obrazu lub wideo, ich obniżenie zmniejszy obciążenie sieci.</li>
+        <li><strong>Adres IP i port</strong> – aplikacja zwykle sama pokazuje adres (np. <code>http://192.168.1.10:3000</code>). Upewnij się, że telefony wchodzą na ten adres w przeglądarce lub skanują wyświetlany kod QR.</li>
+    </ul>
+
+    <div class="box">
+        <strong>Podsumowanie:</strong> Komputer i telefony w tej samej sieci WiFi, wyłączona izolacja klientów w routerze. Opcjonalnie wyłącz obrazki w ustawieniach quizu, żeby odciążyć sieć. Router może działać z internetem lub bez – dla samego Quizu wystarczy sieć lokalna.
+    </div>
+</body>
+</html>

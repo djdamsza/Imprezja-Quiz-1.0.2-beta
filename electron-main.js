@@ -205,28 +205,44 @@ console.log('🔧 __dirname:', __dirname);
 
 /** Konfiguruje autoUpdater i ustawia global.imprezjaCheckForUpdates – wywołać PRZED startServer */
 function setupAutoUpdater() {
+    global.imprezjaUpdateStatus = global.imprezjaUpdateStatus || { status: 'idle' };
     if (!app.isPackaged) {
         global.imprezjaCheckForUpdates = async () => ({ available: false, message: 'Sprawdzanie aktualizacji tylko w wersji spakowanej.' });
+        global.imprezjaQuitAndInstall = () => {};
         return;
     }
     try {
         const { autoUpdater } = require('electron-updater');
-        // Wymuszamy GitHub jako źródło aktualizacji (nadpisuje ewentualną starą konfigurację generic/nowajakoscrozrywki)
         autoUpdater.setFeedURL({
             provider: 'github',
             owner: 'djdamsza',
             repo: 'Imprezja-Quiz-1.0.2-beta'
         });
-        autoUpdater.autoDownload = false;
+        autoUpdater.autoDownload = true;
         autoUpdater.allowDowngrade = false;
+        autoUpdater.allowPrerelease = true;
         autoUpdater.logger = {
             info: (msg) => logToFile('[updater] ' + msg),
             warn: (msg) => logToFile('[updater] ' + msg),
             error: (msg) => logToFile('[updater] ' + msg)
         };
+        autoUpdater.on('update-available', (info) => {
+            global.imprezjaUpdateStatus = { status: 'downloading', version: info.version };
+            logToFile('[updater] update-available: ' + info.version);
+        });
+        autoUpdater.on('update-downloaded', (info) => {
+            global.imprezjaUpdateStatus = { status: 'ready', version: info.version };
+            logToFile('[updater] update-downloaded: ' + info.version);
+        });
         const MANUAL_DOWNLOAD_URL = 'https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/latest';
+        global.imprezjaQuitAndInstall = () => {
+            if (global.imprezjaUpdateStatus && global.imprezjaUpdateStatus.status === 'ready') {
+                autoUpdater.quitAndInstall(false);
+            }
+        };
         global.imprezjaCheckForUpdates = async () => {
             try {
+                global.imprezjaUpdateStatus = { status: 'idle' };
                 const result = await autoUpdater.checkForUpdates();
                 if (!result || !result.updateInfo) {
                     return { available: false, message: 'Masz najnowszą wersję.' };
@@ -235,17 +251,20 @@ function setupAutoUpdater() {
                 return { available: true, version, message: `Dostępna wersja ${version}` };
             } catch (err) {
                 const msg = err && err.message ? err.message : String(err);
+                logToFile('[updater] checkForUpdates error: ' + msg);
                 return {
                     available: false,
                     error: `Nie można sprawdzić aktualizacji. Pobierz najnowszą wersję ręcznie: ${MANUAL_DOWNLOAD_URL}`,
-                    manualUrl: MANUAL_DOWNLOAD_URL
+                    manualUrl: MANUAL_DOWNLOAD_URL,
+                    detail: process.platform === 'darwin' ? msg : undefined
                 };
             }
         };
-        logToFile('✅ AutoUpdater skonfigurowany');
+        logToFile('✅ AutoUpdater skonfigurowany (autoDownload=true)');
     } catch (err) {
         logToFile('⚠️ Błąd autoUpdater: ' + err.message);
         global.imprezjaCheckForUpdates = async () => ({ available: false, error: err.message });
+        global.imprezjaQuitAndInstall = () => {};
     }
 }
 
@@ -594,7 +613,7 @@ function createWindowWithRetry() {
                     `));
                 } catch (_) {}
             }
-        }, 300); // Krótkie opóźnienie żeby loading window się pokazało
+        }, 80); // Krótkie opóźnienie żeby loading window się pokazało (80ms wystarczy)
     }).catch((err) => {
         logToFile('❌ BŁĄD w app.whenReady(): ' + err.message);
         logToFile('Stack: ' + (err.stack || 'brak'));

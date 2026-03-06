@@ -1,0 +1,118 @@
+{
+  "banks": [
+    {
+      "id": "t1772652868000_ufqhij1",
+      "name": "Bank 1",
+      "tracks": [
+        {
+          "id": "t1772652902490_42kfajr",
+          "audio": "/uploads/1772652914498-Dla_Mnie_Masz_Stajla.vdjsample",
+          "displayName": "Dla Mnie Masz Stajla",
+          "color": "#ff0000"
+        },
+        {
+          "id": "t1772652983039_elvppzy",
+          "audio": "/uploads/1772653033496-Kazdy_Facet_To_Swinia.vdjsample",
+          "displayName": "Kazdy Facet To Swinia",
+          "color": "#0000ff"
+        },
+        {
+          "id": "t1772653036971_9olly8o",
+          "audio": "/uploads/1772653049318-W_aucie.vdjsample",
+          "displayName": "W aucie",
+          "color": "#ff0000"
+        },
+        {
+          "id": "t1772653083205_y81el50",
+          "audio": "/uploads/1772653097858-Mama_ostrzega__a__Radio_Edit_.vdjsample",
+          "displayName": "Mama ostrzegała (Radio Edit)",
+          "color": "#0000ff"
+        },
+        {
+          "id": "t1772653108123_2dgrg8u",
+          "audio": "/uploads/1772653119668-Rapapara__1_.vdjsample",
+          "displayName": "Rapapara ",
+          "color": "#ff0000"
+        },
+        {
+          "id": "t1772653125667_lpqyt47",
+          "audio": "/uploads/1772653135987-Och_i_ach__Radio_Edit___1_.vdjsample",
+          "displayName": "Och i ach ",
+          "color": "#0000ff"
+        },
+        {
+          "id": "t1772653220837_6s0eeed",
+          "audio": "/uploads/1772636174668-Ona_by_tak_chcia__a__Clean_Radio_Edit___1_.vdjsample",
+          "displayName": "Ona by tak chciała ",
+          "color": "#ff0000"
+        },
+        {
+          "id": "t1772653241454_m2la2ya",
+          "audio": "/uploads/1772653253223-Gdzie_ten__kto__ry_powie_mi.vdjsample",
+          "displayName": "Gdzie ten, który powie mi",
+          "color": "#0000ff"
+        },
+        {
+          "id": "t1772653288604_065ynjz",
+          "audio": "/uploads/1772635932798-A_Wszystko_To__1_.vdjsample",
+          "displayName": "A Wszystko To",
+          "color": "#ff0000"
+        },
+        {
+          "id": "t1772653306555_gizwij7",
+          "audio": "/uploads/1772636231166-Agnieszka_ju___dawno__1_.vdjsample",
+          "displayName": "Agnieszka już dawno",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1772653400603_6z0rknd",
+          "audio": "/uploads/1772653411840-Oddam_Ci_wszystko__Radio_Edit_.vdjsample",
+          "displayName": "Oddam Ci wszystko",
+          "color": "#ff0000"
+        },
+        {
+          "id": "t1772653418738_9xm3pc3",
+          "audio": "/uploads/1772653432326-Szansa__Radio_Edit___1_.vdjsample",
+          "displayName": "Szansa",
+          "color": "#0000ff"
+        },
+        {
+          "id": "t1772653440638_yd62h7q",
+          "audio": "/uploads/1772653896884-Zawsze_Z_Toba_Chcialbym_Byc...__Przez_Miesiac_______2_.vdjsample",
+          "displayName": "Zawsze Z Toba Chcialbym Byc",
+          "color": "#ff0000"
+        },
+        {
+          "id": "t1772653465621_6wkp0yg",
+          "audio": "/uploads/1772653473214-Wesele_w_Dubaju__Radio_Edit_.vdjsample",
+          "displayName": "Wesele w Dubaju (Radio Edit)",
+          "color": "#0000ff"
+        },
+        {
+          "id": "t1772653477787_ks5yxkm",
+          "audio": "/uploads/1772653489418-Highway_To_Hell__Clean___Short_Edit___1_.vdjsample",
+          "displayName": "Highway To Hell ",
+          "color": "#ff0000"
+        },
+        {
+          "id": "t1772653496904_rmr1wt6",
+          "audio": "/uploads/1772653505174-Z_Toba___na_chacie__Radio_Edit_.vdjsample",
+          "displayName": "Z Tobą na chacie ",
+          "color": "#0000ff"
+        },
+        {
+          "id": "t1772653510505_tj8aheg",
+          "audio": "/uploads/1772654128208-Mo__j_jest_ten_kawa__ek_pod__ogi__Album_Version___2_.vdjsample",
+          "displayName": "Mój jest ten kawałek podłogi ",
+          "color": "#ff0000"
+        },
+        {
+          "id": "t1772653524238_ro6rap1",
+          "audio": "/uploads/1772653609682-a_teraz_idziemy_na_jednego_2.mp3",
+          "displayName": "3 sekundy a teraz idziemy INSTRUMENTAL",
+          "color": "#008000"
+        }
+      ]
+    }
+  ]
+}

@@ -34,12 +34,69 @@ const server = http.createServer(app);
 const io = socketIo(server);
 
 const PORT = 3000;
+const PORT_HTTPS = 3443;
 
-// Sprawdź licencję przy starcie
-let licenseStatus = license.checkLicense();
+// Certyfikaty HTTPS – dla Wake Lock (niegasnący ekran) w Familiada admin i przyciski
+let httpsOptions = null;
+const certsDir = path.join(__dirname, 'certs');
+const keyPath = path.join(certsDir, 'key.pem');
+const certPath = path.join(certsDir, 'cert.pem');
+function loadHttpsCerts() {
+    try {
+        if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
+            httpsOptions = {
+                key: fs.readFileSync(keyPath),
+                cert: fs.readFileSync(certPath)
+            };
+            console.log('✅ Certyfikaty HTTPS załadowane z', certsDir);
+            return;
+        }
+        const { execSync } = require('child_process');
+        if (!fs.existsSync(certsDir)) fs.mkdirSync(certsDir, { recursive: true });
+        execSync(`openssl req -x509 -newkey rsa:2048 -nodes -sha256 -subj '/CN=localhost' -keyout "${keyPath}" -out "${certPath}" -days 365`, { stdio: 'pipe' });
+        httpsOptions = { key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) };
+        console.log('✅ Wygenerowano certyfikaty HTTPS w', certsDir);
+    } catch (err) {
+        console.warn('⚠️ HTTPS niedostępny:', err.message);
+        console.warn('   Wake Lock w Familiada admin/przyciski wymaga HTTPS. Użyj tunelu (działa) lub: openssl req -x509 -newkey rsa:2048 -nodes -subj "/CN=localhost" -keyout certs/key.pem -out certs/cert.pem');
+    }
+}
+loadHttpsCerts();
+
+let httpsServer = null;
+if (httpsOptions) {
+    httpsServer = https.createServer(httpsOptions, app);
+    io.attach(httpsServer);
+}
+
+// Wersja deweloperska – symulacje licencji:
+// IMPREZJA_SIMULATE_TRIAL=1 – symulacja aktywnego trialu (valid, type: 'trial', np. 5 dni)
+// IMPREZJA_SIMULATE_LICENSE_EXPIRED=1 – wymusza ekran „Licencja wymagana” (wygasły trial / brak licencji)
+function getLicenseStatus() {
+    if (process.env.IMPREZJA_SIMULATE_LICENSE_EXPIRED === '1') {
+        return { valid: false, reason: 'Symulacja: okres testowy zakończony (dev). Aby wyłączyć: odznacz IMPREZJA_SIMULATE_LICENSE_EXPIRED.', trial: { valid: false }, type: null };
+    }
+    if (process.env.IMPREZJA_SIMULATE_TRIAL === '1') {
+        const daysLeft = parseInt(process.env.IMPREZJA_SIMULATE_TRIAL_DAYS || '5', 10) || 5;
+        return {
+            valid: true,
+            type: 'trial',
+            daysLeft,
+            reason: undefined,
+            trial: { valid: true, daysLeft, daysElapsed: 14 - daysLeft, reason: undefined }
+        };
+    }
+    return license.checkLicense();
+}
+let licenseStatus = getLicenseStatus();
 console.log('\n🔐 ═══════════════════════════════════════════════════');
 console.log('   STATUS LICENCJI');
 console.log('   ═══════════════════════════════════════════════════');
+if (process.env.IMPREZJA_SIMULATE_LICENSE_EXPIRED === '1') {
+    console.log('   ⚠️  Symulacja wygasłej licencji (dev) – widoczny ekran „Licencja wymagana”');
+} else if (process.env.IMPREZJA_SIMULATE_TRIAL === '1') {
+    console.log('   ⚠️  Symulacja aktywnego trialu (dev) – aplikacja działa jak w okresie testowym');
+}
 if (licenseStatus.valid) {
     if (licenseStatus.type === 'trial') {
         console.log(`   ✅ Okres testowy aktywny`);
@@ -62,17 +119,41 @@ if (licenseStatus.valid) {
 }
 console.log('   ═══════════════════════════════════════════════════\n');
 // W aplikacji spakowanej (asar) __dirname jest tylko do odczytu – quizy i uploady w katalogu danych
-const dataDir = process.env.IMPREZJA_DATA_DIR;
-const quizzesDir = dataDir ? path.join(dataDir, 'quizzes') : path.join(__dirname, 'public', 'quizzes');
-const uploadsDir = dataDir ? path.join(dataDir, 'uploads') : path.join(__dirname, 'public', 'uploads');
-if (dataDir) console.log('   📂 Katalog danych (quizy, uploady):', dataDir);
+// Gdy IMPREZJA_DATA_DIR nie jest ustawiony (npm start), używamy tego samego katalogu co Electron,
+// żeby NJR Sampler i Śpiewaj Dalej nie traciły list przy przełączaniu trybów.
+function getDefaultDataDir() {
+    const home = os.homedir();
+    if (process.platform === 'darwin') return path.join(home, 'Library', 'Application Support', 'Imprezja Quiz');
+    if (process.platform === 'win32') return path.join(process.env.APPDATA || home, 'Imprezja Quiz');
+    return path.join(home, '.config', 'Imprezja Quiz');
+}
+const dataDir = process.env.IMPREZJA_DATA_DIR || getDefaultDataDir();
+const quizzesDir = path.join(dataDir, 'quizzes');
+const uploadsDir = path.join(dataDir, 'uploads');
+const vdjRecordingsBank = process.platform === 'darwin'
+    ? path.join(os.homedir(), 'Library', 'Application Support', 'VirtualDJ', 'Sampler', 'Recordings.bank')
+    : (process.platform === 'win32' ? path.join(process.env.APPDATA || os.homedir(), 'VirtualDJ', 'Sampler', 'Recordings.bank') : '');
+console.log('   📂 Katalog danych (quizy, uploady, sampler, śpiewaj dalej):', dataDir);
+
+const tunnelLogPath = dataDir ? path.join(dataDir, 'tunnel.log') : '';
+function appendTunnelLog(line) {
+    if (!tunnelLogPath) return;
+    try { fs.appendFileSync(tunnelLogPath, (typeof line === 'string' ? line : JSON.stringify(line)) + '\n', 'utf8'); } catch (_) {}
+}
+function emitTunnelError(socket, payload) {
+    const msg = payload.message || 'Błąd tunelu.';
+    appendTunnelLog(new Date().toISOString() + ' ' + msg);
+    const out = { message: msg, logPath: tunnelLogPath || undefined };
+    socket.emit('tunnel_error', out);
+    io.to(ADMIN_ROOM).emit('tunnel_error', out);
+}
 
 // Przechowywanie aktualnej nazwy sieci WiFi
 let currentWiFiSSID = null;
 // URL tunelu Pinggy – gdy ustawiony, QR „do gry” prowadzi przez sieć komórkową (zawsze tylko origin, bez ścieżki)
 let currentPinggyUrl = null;
 
-/** Normalizuje URL tunelu: tylko origin, https; odrzuca dashboard i localhost. Pinggy. */
+/** Normalizuje URL tunelu: tylko origin, https; odrzuca dashboard i localhost. Pinggy (Mac) i Tunnelmole (Windows). */
 function normalizePinggyUrl(input) {
     if (typeof input !== 'string' || !input.trim()) return null;
     let s = input.trim().replace(/\/$/, '').replace(/#.*$/, '');
@@ -83,7 +164,10 @@ function normalizePinggyUrl(input) {
         if (/dashboard|localhost|127\.0\.0\.1/i.test(origin)) return null;
         const host = origin.replace(/^https?:\/\//i, '');
         const isPinggy = /\.(a\.)?(free\.)?pinggy\.(io|link)$/i.test(host) || host.endsWith('.pinggy.io') || host.endsWith('.pinggy.link');
-        if (!isPinggy) return null;
+        const isTunnelmole = /\.tunnelmole\.(net|com)$/i.test(host);
+        const isLocaltunnel = /\.(localtunnel\.(me|app)|loca\.lt)$/i.test(host);
+        const isCloudflare = /\.trycloudflare\.com$/i.test(host);
+        if (!isPinggy && !isTunnelmole && !isLocaltunnel && !isCloudflare) return null;
         return origin.toLowerCase().startsWith('https://') ? origin : ('https://' + host);
     } catch (_) {
         return null;
@@ -173,26 +257,219 @@ function loadFamiliadaData() {
 }
 loadFamiliadaData();
 
+// NJR Sampler i Śpiewaj Dalej – konfiguracje
+const NJR_SAMPLER_CONFIGS_DIR = path.join(path.dirname(quizzesDir), 'njr-sampler-configs');
+const NJR_SAMPLER_LAST_FILE = path.join(path.dirname(quizzesDir), 'njr-sampler-last.json');
+const NJR_SAMPLER_BANK_ASSIGNMENT_FILE = path.join(path.dirname(quizzesDir), 'njr-sampler-bank-assignment.json');
+const SPIEWAJ_DALEJ_CONFIGS_DIR = path.join(path.dirname(quizzesDir), 'spiewaj-dalej-configs');
+const SPIEWAJ_DALEJ_LAST_FILE = path.join(path.dirname(quizzesDir), 'spiewaj-dalej-last.json');
+const BITWA_WOKALNA_CONFIGS_DIR = path.join(path.dirname(quizzesDir), 'bitwa-wokalna-configs');
+const BITWA_WOKALNA_LAST_FILE = path.join(path.dirname(quizzesDir), 'bitwa-wokalna-last.json');
+let njrSamplerConfig = { tileCount: 8, tiles: [] };
+let njrSamplerActive = false;
+let njrSamplerPlayingTile = null; // one-shot (oklaski itd.)
+let njrSamplerPlayingBackgroundTile = null; // tło muzyczne – gra do wyłączenia lub końca
+let njrSamplerVolume = 1; // 0–1, master z telefonu
+
+function safeConfigName(name) {
+    const s = String(name || '').trim().replace(/[^a-zA-Z0-9_\-\sąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/g, '').replace(/\s+/g, '_');
+    return s || 'domyslna';
+}
+
+function getNjrSamplerConfigPath(name) {
+    return path.join(NJR_SAMPLER_CONFIGS_DIR, safeConfigName(name) + '.json');
+}
+
+function loadNjrSamplerConfig() {
+    try {
+        if (!fs.existsSync(NJR_SAMPLER_CONFIGS_DIR)) fs.mkdirSync(NJR_SAMPLER_CONFIGS_DIR, { recursive: true });
+        let toLoad = 'domyslna';
+        if (fs.existsSync(NJR_SAMPLER_LAST_FILE)) {
+            try {
+                const last = JSON.parse(fs.readFileSync(NJR_SAMPLER_LAST_FILE, 'utf8'));
+                if (last && last.name) toLoad = last.name;
+            } catch (_) {}
+        }
+        const cfgPath = getNjrSamplerConfigPath(toLoad);
+        if (fs.existsSync(cfgPath)) {
+            const raw = fs.readFileSync(cfgPath, 'utf8');
+            const data = JSON.parse(raw);
+            const tileCount = data.tileCount || 8;
+            if (data.banks && Array.isArray(data.banks) && data.banks.length > 0) {
+                njrSamplerConfig = { tileCount, banks: data.banks };
+            } else {
+                const tiles = data.tiles || [];
+                const n = tiles.length;
+                const pad = n < tileCount ? tileCount - n : 0;
+                const slice = tiles.slice(0, tileCount);
+                for (let i = slice.length; i < tileCount; i++) slice.push({ id: 't' + i, color: '#3498db', label: '', image: '', audio: '', volume: 100, isBackground: false });
+                njrSamplerConfig = { tileCount, banks: [{ id: 'b1', name: 'Bank 1', tiles: slice }] };
+            }
+            njrSamplerConfig.banks.forEach(b => {
+                if (!b.tiles) b.tiles = [];
+                const n = b.tiles.length;
+                const tc = njrSamplerConfig.tileCount || 8;
+                if (n < tc) { for (let i = n; i < tc; i++) b.tiles.push({ id: 't' + i, color: '#3498db', label: '', image: '', audio: '', volume: 100, isBackground: false }); }
+                else if (n > tc) b.tiles = b.tiles.slice(0, tc);
+                b.tiles.forEach(t => {
+                    if (t.volume == null) t.volume = 100;
+                    if (t.isBackground == null) t.isBackground = false;
+                    if (t.loop == null) t.loop = false;
+                    if (t.fadeOut == null) t.fadeOut = false;
+                });
+            });
+        } else {
+            const tiles = [];
+            for (let i = 0; i < 8; i++) tiles.push({ id: 't' + i, color: '#3498db', label: '', image: '', audio: '', volume: 100, isBackground: false, loop: false, fadeOut: false });
+            njrSamplerConfig = { tileCount: 8, banks: [{ id: 'b1', name: 'Bank 1', tiles }] };
+        }
+    } catch (err) {
+        console.warn('⚠️ NJR Sampler: błąd ładowania config:', err.message);
+    }
+}
+
+function saveNjrSamplerConfig(name) {
+    try {
+        const cfgName = name ? safeConfigName(name) : 'domyslna';
+        const cfgPath = getNjrSamplerConfigPath(cfgName);
+        fs.writeFileSync(cfgPath, JSON.stringify(njrSamplerConfig, null, 2), 'utf8');
+        fs.writeFileSync(NJR_SAMPLER_LAST_FILE, JSON.stringify({ name: cfgName }), 'utf8');
+    } catch (err) {
+        console.warn('⚠️ NJR Sampler: błąd zapisu config:', err.message);
+    }
+}
+
+function loadNjrSamplerBankAssignment() {
+    try {
+        if (fs.existsSync(NJR_SAMPLER_BANK_ASSIGNMENT_FILE)) {
+            const raw = fs.readFileSync(NJR_SAMPLER_BANK_ASSIGNMENT_FILE, 'utf8');
+            const data = JSON.parse(raw);
+            return Array.isArray(data.bankAssignments) && data.bankAssignments.length > 0 ? data.bankAssignments : ['domyslna'];
+        }
+    } catch (_) {}
+    return ['domyslna'];
+}
+
+function loadNjrSamplerConfigByName(name) {
+    const cfgPath = getNjrSamplerConfigPath(name);
+    if (!fs.existsSync(cfgPath)) return null;
+    try {
+        const data = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+        const tileCount = data.tileCount || 8;
+        let tiles = [];
+        if (data.banks && Array.isArray(data.banks) && data.banks.length > 0) {
+            tiles = (data.banks[0].tiles || []).slice(0, tileCount);
+        } else if (Array.isArray(data.tiles)) {
+            tiles = data.tiles.slice(0, tileCount);
+        }
+        for (let i = tiles.length; i < tileCount; i++) {
+            tiles.push({ id: 't' + i, color: '#3498db', label: '', image: '', audio: '', volume: 100, isBackground: false });
+        }
+        tiles = tiles.slice(0, tileCount);
+        tiles.forEach(t => {
+            if (t.volume == null) t.volume = 100;
+            if (t.isBackground == null) t.isBackground = false;
+            if (t.loop == null) t.loop = false;
+            if (t.fadeOut == null) t.fadeOut = false;
+        });
+        return { tileCount, tiles };
+    } catch (_) { return null; }
+}
+
+function buildNjrSamplerConfigFromBankAssignments(bankAssignments) {
+    const banks = [];
+    const tc = 8;
+    for (let i = 0; i < bankAssignments.length; i++) {
+        const name = String(bankAssignments[i] || 'domyslna').trim() || 'domyslna';
+        const cfg = loadNjrSamplerConfigByName(name);
+        const tiles = cfg ? cfg.tiles : [];
+        banks.push({ id: 'b' + (i + 1), name, tiles });
+    }
+    return { tileCount: tc, banks };
+}
+
+loadNjrSamplerConfig();
+
+// Whitney – gotowy setup 8 kafelków (bez banków), osobna gra obok Samplera
+const WHITNEY_CONFIG_FILE = path.join(path.dirname(quizzesDir), 'whitney-config.json');
+// W buildzie (asar) __dirname może nie wskazywać na aplikację – używamy IMPREZJA_APP_PATH (ustawiane przez Electron)
+const appRootForDefaults = process.env.IMPREZJA_APP_PATH || __dirname;
+const WHITNEY_DEFAULT_PATH = path.join(appRootForDefaults, 'public', 'njr-sampler-configs', 'Whitney.json');
+let whitneyConfig = { tileCount: 8, tiles: [] };
+let whitneyActive = false;
+let whitneyPlayingTile = null;
+let whitneyPlayingBackgroundTile = null;
+let whitneyVolume = 1;
+
+function loadWhitneyConfig() {
+    try {
+        if (fs.existsSync(WHITNEY_CONFIG_FILE)) {
+            const raw = fs.readFileSync(WHITNEY_CONFIG_FILE, 'utf8');
+            const data = JSON.parse(raw);
+            const tiles = data.tiles || [];
+            const slice = tiles.slice(0, 8);
+            for (let i = slice.length; i < 8; i++) slice.push({ id: 't' + i, color: '#3498db', label: '', image: '', audio: '', volume: 100, isBackground: false });
+            whitneyConfig = { tileCount: 8, tiles: slice };
+        } else if (fs.existsSync(WHITNEY_DEFAULT_PATH)) {
+            const raw = fs.readFileSync(WHITNEY_DEFAULT_PATH, 'utf8');
+            const data = JSON.parse(raw);
+            const tiles = (data.tiles || []).slice(0, 8);
+            for (let i = tiles.length; i < 8; i++) tiles.push({ id: 't' + i, color: '#3498db', label: '', image: '', audio: '', volume: 100, isBackground: false });
+            whitneyConfig = { tileCount: 8, tiles };
+            fs.writeFileSync(WHITNEY_CONFIG_FILE, JSON.stringify(whitneyConfig, null, 2), 'utf8');
+            console.log('   📋 Whitney: utworzono config z Whitney.json');
+        } else {
+            const tiles = [];
+            for (let i = 0; i < 8; i++) tiles.push({ id: 't' + i, color: '#3498db', label: '', image: '', audio: '', volume: 100, isBackground: false });
+            whitneyConfig = { tileCount: 8, tiles };
+        }
+        whitneyConfig.tiles.forEach(t => {
+            if (t.volume == null) t.volume = 100;
+            if (t.isBackground == null) t.isBackground = false;
+            if (t.loop == null) t.loop = false;
+            if (t.fadeOut == null) t.fadeOut = false;
+        });
+    } catch (err) {
+        console.warn('⚠️ Whitney: błąd ładowania:', err.message);
+    }
+}
+
 // Stwórz foldery jeśli nie istnieją
 if (!fs.existsSync(quizzesDir)) fs.mkdirSync(quizzesDir, { recursive: true });
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 if (!fs.existsSync(familiadaDir)) fs.mkdirSync(familiadaDir, { recursive: true });
-// Przy pierwszym uruchomieniu z katalogu danych: skopiuj quizy i pliki Familiady z aplikacji
+// Wersja aplikacji (z package.json) – przy nowej wersji nadpisujemy configi Śpiewaj Dalej/NJR/Bitwa z builda, żeby build miał te same banki co dev. Aby wymusić odświeżenie bez zmiany wersji, usuń plik .configs-synced-version w katalogu danych.
+let appVersionForSync = '';
+try {
+    const pkgPath = path.join(process.env.IMPREZJA_APP_PATH || __dirname, 'package.json');
+    if (fs.existsSync(pkgPath)) {
+        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+        appVersionForSync = (pkg.version || '').trim();
+    }
+} catch (_) {}
+const CONFIGS_SYNCED_VERSION_FILE = dataDir ? path.join(dataDir, '.configs-synced-version') : '';
+const shouldSyncConfigsFromApp = dataDir && appVersionForSync && (() => {
+    if (!CONFIGS_SYNCED_VERSION_FILE) return true;
+    try {
+        if (!fs.existsSync(CONFIGS_SYNCED_VERSION_FILE)) return true;
+        const last = fs.readFileSync(CONFIGS_SYNCED_VERSION_FILE, 'utf8').trim();
+        return last !== appVersionForSync;
+    } catch (_) { return true; }
+})();
+
+// Przy uruchomieniu z katalogu danych: skopiuj brakujące quizy z aplikacji (także nowe dodane do projektu)
 if (dataDir) {
     try {
-        const existing = fs.readdirSync(quizzesDir).filter(f => f.toLowerCase().endsWith('.json'));
-        if (existing.length === 0) {
-            const appPathForQuizzes = process.env.IMPREZJA_APP_PATH || __dirname;
-            const appQuizzes = path.join(appPathForQuizzes, 'public', 'quizzes');
-            if (fs.existsSync(appQuizzes)) {
-                const toCopy = fs.readdirSync(appQuizzes).filter(f => f.toLowerCase().endsWith('.json'));
-                for (const name of toCopy) {
-                    const src = path.join(appQuizzes, name);
-                    const dest = path.join(quizzesDir, name);
-                    if (!fs.existsSync(dest)) {
-                        fs.copyFileSync(src, dest);
-                        console.log('   📋 Skopiowano quiz z aplikacji:', name);
-                    }
+        const appPathForQuizzes = process.env.IMPREZJA_APP_PATH || __dirname;
+        const appQuizzes = path.join(appPathForQuizzes, 'public', 'quizzes');
+        if (fs.existsSync(appQuizzes)) {
+            const toCopy = fs.readdirSync(appQuizzes).filter(f => f.toLowerCase().endsWith('.json'));
+            for (const name of toCopy) {
+                const src = path.join(appQuizzes, name);
+                const dest = path.join(quizzesDir, name);
+                if (!fs.existsSync(dest)) {
+                    fs.copyFileSync(src, dest);
+                    console.log('   📋 Skopiowano quiz z aplikacji:', name);
                 }
             }
         }
@@ -209,17 +486,133 @@ if (dataDir) {
                 }
             }
         }
+        // Śpiewaj Dalej / NJR Sampler / Bitwa – przy nowej wersji aplikacji nadpisz configi z builda, żeby build miał te same banki co wersja deweloperska
+        const overwriteConfigs = shouldSyncConfigsFromApp;
+        const appSpiewajDalej = path.join(appPathForCopy, 'public', 'spiewaj-dalej-configs');
+        if (fs.existsSync(appSpiewajDalej)) {
+            if (!fs.existsSync(SPIEWAJ_DALEJ_CONFIGS_DIR)) fs.mkdirSync(SPIEWAJ_DALEJ_CONFIGS_DIR, { recursive: true });
+            const appFiles = fs.readdirSync(appSpiewajDalej).filter(f => f.toLowerCase().endsWith('.json'));
+            for (const name of appFiles) {
+                const src = path.join(appSpiewajDalej, name);
+                const dest = path.join(SPIEWAJ_DALEJ_CONFIGS_DIR, name);
+                if (overwriteConfigs || !fs.existsSync(dest)) {
+                    fs.copyFileSync(src, dest);
+                    console.log('   📋 Skopiowano listę Śpiewaj Dalej:', name);
+                }
+            }
+        }
+        const appNjrSampler = path.join(appPathForCopy, 'public', 'njr-sampler-configs');
+        if (fs.existsSync(appNjrSampler)) {
+            if (!fs.existsSync(NJR_SAMPLER_CONFIGS_DIR)) fs.mkdirSync(NJR_SAMPLER_CONFIGS_DIR, { recursive: true });
+            const appFiles = fs.readdirSync(appNjrSampler).filter(f => f.toLowerCase().endsWith('.json'));
+            for (const name of appFiles) {
+                const src = path.join(appNjrSampler, name);
+                const dest = path.join(NJR_SAMPLER_CONFIGS_DIR, name);
+                if (overwriteConfigs || !fs.existsSync(dest)) {
+                    fs.copyFileSync(src, dest);
+                    console.log('   📋 Skopiowano konfigurację NJR Sampler:', name);
+                }
+            }
+        }
+        const appBitwaWokalna = path.join(appPathForCopy, 'public', 'bitwa-wokalna-configs');
+        if (fs.existsSync(appBitwaWokalna)) {
+            if (!fs.existsSync(BITWA_WOKALNA_CONFIGS_DIR)) fs.mkdirSync(BITWA_WOKALNA_CONFIGS_DIR, { recursive: true });
+            const appFiles = fs.readdirSync(appBitwaWokalna).filter(f => f.toLowerCase().endsWith('.json'));
+            for (const name of appFiles) {
+                const src = path.join(appBitwaWokalna, name);
+                const dest = path.join(BITWA_WOKALNA_CONFIGS_DIR, name);
+                if (overwriteConfigs || !fs.existsSync(dest)) {
+                    fs.copyFileSync(src, dest);
+                    console.log('   📋 Skopiowano listę Bitwy wokalnej:', name);
+                }
+            }
+        }
+        // Domyślna konfiguracja banków samplerów – tylko jeśli plik jeszcze nie istnieje w danych
+        const appDefaultBankAssignment = path.join(appPathForCopy, 'public', 'njr-sampler-bank-assignment.json');
+        if (fs.existsSync(appDefaultBankAssignment) && !fs.existsSync(NJR_SAMPLER_BANK_ASSIGNMENT_FILE)) {
+            try {
+                fs.copyFileSync(appDefaultBankAssignment, NJR_SAMPLER_BANK_ASSIGNMENT_FILE);
+                console.log('   📋 Skopiowano domyślne przypisanie banków NJR Sampler');
+            } catch (_) {}
+        }
+        // Bank assignment NJR Sampler – kopiuj z aplikacji jeśli brak w danych
+        const appBankAssignment = path.join(appPathForCopy, 'public', 'njr-sampler-bank-assignment.json');
+        if (fs.existsSync(appBankAssignment) && !fs.existsSync(NJR_SAMPLER_BANK_ASSIGNMENT_FILE)) {
+            try {
+                const dir = path.dirname(NJR_SAMPLER_BANK_ASSIGNMENT_FILE);
+                if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+                fs.copyFileSync(appBankAssignment, NJR_SAMPLER_BANK_ASSIGNMENT_FILE);
+                console.log('   📋 Skopiowano bank-assignment NJR Sampler z aplikacji');
+            } catch (_) {}
+        }
+        // Bank assignment – kopiuj z aplikacji do danych, jeśli jeszcze nie istnieje
+        const appBankAssignment = path.join(appPathForCopy, 'public', 'njr-sampler-bank-assignment.json');
+        if (fs.existsSync(appBankAssignment) && !fs.existsSync(NJR_SAMPLER_BANK_ASSIGNMENT_FILE)) {
+            try {
+                fs.copyFileSync(appBankAssignment, NJR_SAMPLER_BANK_ASSIGNMENT_FILE);
+                console.log('   📋 Skopiowano bank-assignment z aplikacji');
+            } catch (_) {}
+        }
+        if (overwriteConfigs && CONFIGS_SYNCED_VERSION_FILE && appVersionForSync) {
+            try {
+                fs.writeFileSync(CONFIGS_SYNCED_VERSION_FILE, appVersionForSync, 'utf8');
+                console.log('   📋 Zapisano wersję zsynchronizowanych configów:', appVersionForSync);
+            } catch (_) {}
+        }
+        // Gry muzyczne – skopiuj pliki audio z configów (Whitney, Prank Nerd, Śpiewaj Dalej, Bitwa) z aplikacji do userData/uploads
+        const appUploads = path.join(appPathForCopy, 'public', 'uploads');
+        if (fs.existsSync(appUploads) && fs.existsSync(uploadsDir)) {
+            const configDirs = [
+                path.join(appPathForCopy, 'public', 'njr-sampler-configs'),
+                path.join(appPathForCopy, 'public', 'spiewaj-dalej-configs'),
+                path.join(appPathForCopy, 'public', 'bitwa-wokalna-configs')
+            ];
+            const collected = new Set();
+            function extractAudioPaths(obj) {
+                if (!obj) return;
+                if (Array.isArray(obj)) { obj.forEach(extractAudioPaths); return; }
+                if (typeof obj === 'object') {
+                    if (typeof obj.audio === 'string' && (obj.audio.startsWith('/uploads/') || obj.audio.startsWith('uploads/'))) {
+                        const name = path.basename(obj.audio.replace(/^\/+/, ''));
+                        if (name) collected.add(name);
+                    }
+                    Object.values(obj).forEach(extractAudioPaths);
+                }
+            }
+            for (const dir of configDirs) {
+                if (!fs.existsSync(dir)) continue;
+                const files = fs.readdirSync(dir).filter(f => f.toLowerCase().endsWith('.json'));
+                for (const name of files) {
+                    try {
+                        const raw = fs.readFileSync(path.join(dir, name), 'utf8');
+                        const data = JSON.parse(raw);
+                        extractAudioPaths(data);
+                    } catch (_) {}
+                }
+            }
+            for (const fileName of collected) {
+                const src = path.join(appUploads, fileName);
+                const dest = path.join(uploadsDir, fileName);
+                if (fs.existsSync(src) && (shouldSyncConfigsFromApp || !fs.existsSync(dest))) {
+                    try {
+                        fs.copyFileSync(src, dest);
+                        console.log('   📋 Skopiowano plik audio do banków:', fileName);
+                    } catch (e) { console.warn('   ⚠️ Nie skopiowano', fileName, e.message); }
+                }
+            }
+        }
     } catch (err) {
         console.warn('   ⚠️ Nie udało się skopiować plików z aplikacji:', err.message);
     }
 }
+loadWhitneyConfig();
 
 // Middleware
 app.use(express.json());
 
 // === ENDPOINTY LICENCJI ===
 app.get('/api/license/status', (req, res) => {
-    const status = license.checkLicense();
+    const status = getLicenseStatus();
     res.json(status);
 });
 
@@ -235,7 +628,7 @@ app.post('/api/license/activate', (req, res) => {
     }
     
     if (license.saveLicenseKey(key)) {
-        licenseStatus = license.checkLicense();
+        licenseStatus = getLicenseStatus();
         res.json({ success: true, status: licenseStatus });
     } else {
         res.status(500).json({ error: 'Błąd zapisu licencji' });
@@ -244,6 +637,731 @@ app.post('/api/license/activate', (req, res) => {
 
 app.get('/api/license/machine-id', (req, res) => {
     res.json({ machineId: license.getMachineId() });
+});
+
+// === API NJR SAMPLER ===
+app.get('/api/njr-sampler/configs', (req, res) => {
+    try {
+        if (!fs.existsSync(NJR_SAMPLER_CONFIGS_DIR)) {
+            return res.json({ configs: [], current: 'domyslna' });
+        }
+        const files = fs.readdirSync(NJR_SAMPLER_CONFIGS_DIR)
+            .filter(f => f.endsWith('.json'))
+            .map(f => f.replace(/\.json$/, ''));
+        let current = 'domyslna';
+        if (fs.existsSync(NJR_SAMPLER_LAST_FILE)) {
+            try {
+                const last = JSON.parse(fs.readFileSync(NJR_SAMPLER_LAST_FILE, 'utf8'));
+                if (last && last.name && files.includes(last.name)) current = last.name;
+            } catch (_) {}
+        }
+        res.json({ configs: files.sort(), current });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/njr-sampler/config', (req, res) => {
+    const name = req.query.name;
+    if (name) {
+        const cfgPath = getNjrSamplerConfigPath(name);
+        if (fs.existsSync(cfgPath)) {
+            try {
+                const data = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+                const tileCount = data.tileCount || 8;
+                if (data.banks && Array.isArray(data.banks) && data.banks.length > 0) {
+                    njrSamplerConfig = { tileCount, banks: data.banks };
+                } else {
+                    const tiles = data.tiles || [];
+                    const slice = tiles.slice(0, tileCount);
+                    for (let i = slice.length; i < tileCount; i++) slice.push({ id: 't' + i, color: '#3498db', label: '', image: '', audio: '', volume: 100, isBackground: false });
+                    njrSamplerConfig = { tileCount, banks: [{ id: 'b1', name: 'Bank 1', tiles: slice }] };
+                }
+                fs.writeFileSync(NJR_SAMPLER_LAST_FILE, JSON.stringify({ name: safeConfigName(name) }), 'utf8');
+            } catch (err) {
+                return res.status(500).json({ error: err.message });
+            }
+        }
+    }
+    res.json({ config: njrSamplerConfig, active: njrSamplerActive });
+});
+
+app.post('/api/njr-sampler/config', (req, res) => {
+    const { config, name } = req.body || {};
+    if (!config || typeof config.tileCount !== 'number') return res.status(400).json({ error: 'Nieprawidłowa konfiguracja' });
+    if (config.banks && Array.isArray(config.banks) && config.banks.length > 0) {
+        njrSamplerConfig = config;
+    } else if (Array.isArray(config.tiles)) {
+        njrSamplerConfig = { tileCount: config.tileCount, banks: [{ id: 'b1', name: 'Bank 1', tiles: config.tiles }] };
+    } else return res.status(400).json({ error: 'Nieprawidłowa konfiguracja' });
+    saveNjrSamplerConfig(name);
+    res.json({ success: true });
+});
+
+app.patch('/api/njr-sampler/config', (req, res) => {
+    const { oldName, newName, config: bodyConfig } = req.body || {};
+    if (!oldName || !newName) return res.status(400).json({ error: 'Brak oldName lub newName' });
+    const safeNew = safeConfigName(newName);
+    if (!safeNew) return res.status(400).json({ error: 'Nieprawidłowa nazwa' });
+    const oldPath = getNjrSamplerConfigPath(oldName);
+    const newPath = getNjrSamplerConfigPath(newName);
+    if (fs.existsSync(newPath) && newPath !== oldPath) return res.status(400).json({ error: 'Konfiguracja o tej nazwie już istnieje' });
+    try {
+        if (fs.existsSync(oldPath)) {
+            fs.renameSync(oldPath, newPath);
+        } else {
+            if (!fs.existsSync(NJR_SAMPLER_CONFIGS_DIR)) fs.mkdirSync(NJR_SAMPLER_CONFIGS_DIR, { recursive: true });
+            const hasBanks = bodyConfig && bodyConfig.banks && Array.isArray(bodyConfig.banks) && bodyConfig.banks.length > 0;
+            const hasTiles = bodyConfig && Array.isArray(bodyConfig.tiles);
+            const cfgToSave = (bodyConfig && typeof bodyConfig.tileCount === 'number' && (hasBanks || hasTiles))
+                ? (hasBanks ? bodyConfig : { tileCount: bodyConfig.tileCount, banks: [{ id: 'b1', name: 'Bank 1', tiles: bodyConfig.tiles }] })
+                : njrSamplerConfig;
+            fs.writeFileSync(newPath, JSON.stringify(cfgToSave, null, 2), 'utf8');
+        }
+        try {
+            fs.writeFileSync(NJR_SAMPLER_LAST_FILE, JSON.stringify({ name: safeConfigName(newName) }), 'utf8');
+        } catch (_) {}
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/njr-sampler/config', (req, res) => {
+    const name = req.query.name;
+    if (!name) return res.status(400).json({ error: 'Brak nazwy' });
+    const cfgPath = getNjrSamplerConfigPath(name);
+    if (fs.existsSync(cfgPath)) {
+        try {
+            fs.unlinkSync(cfgPath);
+            let current = 'domyslna';
+            if (fs.existsSync(NJR_SAMPLER_LAST_FILE)) {
+                try {
+                    const last = JSON.parse(fs.readFileSync(NJR_SAMPLER_LAST_FILE, 'utf8'));
+                    if (last && last.name === safeConfigName(name)) {
+                        fs.writeFileSync(NJR_SAMPLER_LAST_FILE, JSON.stringify({ name: 'domyslna' }), 'utf8');
+                        loadNjrSamplerConfig();
+                    }
+                } catch (_) {}
+            }
+            res.json({ success: true });
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    } else {
+        res.status(404).json({ error: 'Nie znaleziono' });
+    }
+});
+
+app.get('/api/njr-sampler/audio-files', (req, res) => {
+    try {
+        const q = (req.query.q || '').toLowerCase().trim();
+        const exts = ['.mp3', '.wav', '.m4a', '.ogg', '.aac', '.flac', '.vdjsample'];
+        const files = [];
+        const dirs = [uploadsDir, path.join(__dirname, 'public', 'uploads')];
+        if (vdjRecordingsBank) dirs.push(vdjRecordingsBank);
+        for (const dir of dirs) {
+            if (!fs.existsSync(dir)) continue;
+            for (const f of fs.readdirSync(dir)) {
+                const ext = path.extname(f).toLowerCase();
+                if (!exts.includes(ext)) continue;
+                const name = f.toLowerCase();
+                if (q && !name.includes(q)) continue;
+                const filepath = '/uploads/' + f;
+                if (!files.some(x => x.path === filepath)) {
+                    files.push({ path: filepath, name: f });
+                }
+            }
+        }
+        files.sort((a, b) => a.name.localeCompare(b.name));
+        res.json({ files: files.slice(0, 100) });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+// Tylko jedna gra muzyczna aktywna naraz – przy starcie jednej zatrzymaj pozostałe
+function stopOtherMusicGames(except) {
+    if (except !== 'njr' && njrSamplerActive) {
+        njrSamplerActive = false;
+        njrSamplerPlayingTile = null;
+        njrSamplerPlayingBackgroundTile = null;
+        io.to('njr_sampler_screen').emit('njr_sampler_state', { active: false });
+        io.to('njr_sampler_phone').emit('njr_sampler_state', { active: false });
+        io.to('njr_sampler_screen').emit('njr_sampler_stop');
+    }
+    if (except !== 'whitney' && whitneyActive) {
+        whitneyActive = false;
+        whitneyPlayingTile = null;
+        whitneyPlayingBackgroundTile = null;
+        io.to('whitney_screen').emit('whitney_state', { active: false });
+        io.to('whitney_phone').emit('whitney_state', { active: false });
+        io.to('whitney_screen').emit('whitney_stop');
+    }
+    if (except !== 'spiewaj' && spiewajDalejActive) {
+        spiewajDalejActive = false;
+        spiewajDalejUsedIds.clear();
+        io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_state', { active: false });
+        io.to('spiewaj_dalej_phone').emit('spiewaj_dalej_state', { active: false });
+        io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_stop');
+    }
+    if (except !== 'bitwa' && bitwaWokalnaActive) {
+        bitwaWokalnaActive = false;
+        bitwaWokalnaUsedIds.clear();
+        io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_state', { active: false });
+        io.to('bitwa_wokalna_phone').emit('bitwa_wokalna_state', { active: false });
+        io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_stop');
+    }
+}
+
+app.post('/api/njr-sampler/start', (req, res) => {
+    stopOtherMusicGames('njr');
+    const { bankAssignments } = req.body || {};
+    let toUse = [];
+    if (Array.isArray(bankAssignments) && bankAssignments.length > 0) {
+        toUse = bankAssignments;
+        try {
+            const dir = path.dirname(NJR_SAMPLER_BANK_ASSIGNMENT_FILE);
+            if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+            fs.writeFileSync(NJR_SAMPLER_BANK_ASSIGNMENT_FILE, JSON.stringify({ bankAssignments: toUse }, null, 2), 'utf8');
+        } catch (err) { console.warn('NJR Sampler: nie udało się zapisać bank-assignment:', err.message); }
+    } else {
+        toUse = loadNjrSamplerBankAssignment();
+    }
+    if (toUse.length > 0) {
+        njrSamplerConfig = buildNjrSamplerConfigFromBankAssignments(toUse);
+    }
+    njrSamplerActive = true;
+    njrSamplerPlayingTile = null;
+    njrSamplerPlayingBackgroundTile = null;
+    io.to('njr_sampler_screen').emit('njr_sampler_state', { active: true, config: njrSamplerConfig });
+    io.to('njr_sampler_phone').emit('njr_sampler_state', { active: true, config: njrSamplerConfig });
+    res.json({ success: true });
+});
+app.post('/api/njr-sampler/stop', (req, res) => {
+    njrSamplerActive = false;
+    njrSamplerPlayingTile = null;
+    njrSamplerPlayingBackgroundTile = null;
+    io.to('njr_sampler_screen').emit('njr_sampler_state', { active: false });
+    io.to('njr_sampler_phone').emit('njr_sampler_state', { active: false });
+    io.to('njr_sampler_screen').emit('njr_sampler_stop');
+    res.json({ success: true });
+});
+app.get('/api/njr-sampler/phone-qr', async (req, res) => {
+    try {
+        const mode = (req.query.mode || '').toLowerCase();
+        let baseUrl;
+        if (mode === 'local') {
+            baseUrl = httpsServer ? `https://${IP}:${PORT_HTTPS}` : `http://${IP}:${PORT}`;
+        } else if (mode === 'pinggy') {
+            const pinggyOrigin = currentPinggyUrl
+                ? (normalizePinggyUrl(currentPinggyUrl) || (() => { try { return new URL(currentPinggyUrl).origin; } catch (_) { return currentPinggyUrl.replace(/\/$/, '').replace(/\/[^/].*$/, ''); } })())
+                : null;
+            if (!pinggyOrigin) {
+                return res.status(400).json({ error: 'Tunel Pinggy nie jest uruchomiony. Uruchom tunel w panelu admina (Imprezja Quiz → Admin → Tunel Pinggy).' });
+            }
+            baseUrl = pinggyOrigin;
+        } else {
+            baseUrl = currentPinggyUrl
+                ? (normalizePinggyUrl(currentPinggyUrl) || (() => { try { return new URL(currentPinggyUrl).origin; } catch (_) { return currentPinggyUrl.replace(/\/$/, '').replace(/\/[^/].*$/, ''); } })())
+                : (httpsServer ? `https://${IP}:${PORT_HTTPS}` : `http://${IP}:${PORT}`);
+        }
+        const phoneUrl = `${baseUrl.replace(/\/$/, '')}/njr-sampler/phone.html`;
+        const qrCode = await QRCode.toDataURL(phoneUrl, { width: 280, margin: 2 });
+        res.json({ url: phoneUrl, qrCode, mode: mode || (currentPinggyUrl ? 'pinggy' : 'local') });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+app.get('/api/njr-sampler/connection-info', (req, res) => {
+    res.json({
+        pinggyAvailable: !!currentPinggyUrl,
+        localUrl: (httpsServer ? `https://${IP}:${PORT_HTTPS}` : `http://${IP}:${PORT}`) + '/njr-sampler/phone.html'
+    });
+});
+
+app.get('/api/njr-sampler/bank-assignment', (req, res) => {
+    try {
+        const bankAssignments = loadNjrSamplerBankAssignment();
+        res.json({ bankAssignments });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/njr-sampler/bank-assignment', (req, res) => {
+    const { bankAssignments } = req.body || {};
+    if (!Array.isArray(bankAssignments) || bankAssignments.length === 0) {
+        return res.status(400).json({ error: 'bankAssignments musi być niepustą tablicą' });
+    }
+    try {
+        const dir = path.dirname(NJR_SAMPLER_BANK_ASSIGNMENT_FILE);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(NJR_SAMPLER_BANK_ASSIGNMENT_FILE, JSON.stringify({ bankAssignments }, null, 2), 'utf8');
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// === WHITNEY – gotowy setup 8 kafelków ===
+app.get('/api/whitney/config', (req, res) => {
+    loadWhitneyConfig();
+    res.json({ config: whitneyConfig });
+});
+app.post('/api/whitney/config', (req, res) => {
+    try {
+        const data = req.body;
+        const tiles = (data.config && data.config.tiles) || [];
+        const slice = tiles.slice(0, 8);
+        for (let i = slice.length; i < 8; i++) slice.push({ id: 't' + i, color: '#3498db', label: '', image: '', audio: '', volume: 100, isBackground: false });
+        whitneyConfig = { tileCount: 8, tiles: slice };
+        fs.writeFileSync(WHITNEY_CONFIG_FILE, JSON.stringify(whitneyConfig, null, 2), 'utf8');
+        if (whitneyActive) {
+            io.to('whitney_screen').emit('whitney_state', { active: true, config: whitneyConfig });
+            io.to('whitney_phone').emit('whitney_state', { active: true, config: whitneyConfig });
+        }
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+app.post('/api/whitney/start', (req, res) => {
+    stopOtherMusicGames('whitney');
+    whitneyActive = true;
+    whitneyPlayingTile = null;
+    whitneyPlayingBackgroundTile = null;
+    io.to('whitney_screen').emit('whitney_state', { active: true, config: whitneyConfig });
+    io.to('whitney_phone').emit('whitney_state', { active: true, config: whitneyConfig });
+    res.json({ success: true });
+});
+app.post('/api/whitney/stop', (req, res) => {
+    whitneyActive = false;
+    whitneyPlayingTile = null;
+    whitneyPlayingBackgroundTile = null;
+    io.to('whitney_screen').emit('whitney_state', { active: false });
+    io.to('whitney_phone').emit('whitney_state', { active: false });
+    io.to('whitney_screen').emit('whitney_stop');
+    res.json({ success: true });
+});
+app.get('/api/whitney/connection-info', (req, res) => {
+    res.json({
+        pinggyAvailable: !!currentPinggyUrl,
+        localUrl: (httpsServer ? `https://${IP}:${PORT_HTTPS}` : `http://${IP}:${PORT}`) + '/whitney/phone.html'
+    });
+});
+app.get('/api/whitney/phone-qr', async (req, res) => {
+    try {
+        const mode = (req.query.mode || '').toLowerCase();
+        let baseUrl;
+        if (mode === 'local') {
+            baseUrl = httpsServer ? `https://${IP}:${PORT_HTTPS}` : `http://${IP}:${PORT}`;
+        } else if (mode === 'pinggy') {
+            const pinggyOrigin = currentPinggyUrl ? (normalizePinggyUrl(currentPinggyUrl) || (() => { try { return new URL(currentPinggyUrl).origin; } catch (_) { return currentPinggyUrl.replace(/\/$/, '').replace(/\/[^/].*$/, ''); } })()) : null;
+            if (!pinggyOrigin) return res.status(400).json({ error: 'Tunel Pinggy nie jest uruchomiony.' });
+            baseUrl = pinggyOrigin;
+        } else {
+            baseUrl = currentPinggyUrl ? (normalizePinggyUrl(currentPinggyUrl) || (() => { try { return new URL(currentPinggyUrl).origin; } catch (_) { return currentPinggyUrl.replace(/\/$/, '').replace(/\/[^/].*$/, ''); } })()) : (httpsServer ? `https://${IP}:${PORT_HTTPS}` : `http://${IP}:${PORT}`);
+        }
+        const phoneUrl = `${baseUrl.replace(/\/$/, '')}/whitney/phone.html`;
+        const qrCode = await QRCode.toDataURL(phoneUrl, { width: 280, margin: 2 });
+        res.json({ url: phoneUrl, qrCode, mode: mode || (currentPinggyUrl ? 'pinggy' : 'local') });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+app.get('/api/whitney/audio-files', (req, res) => {
+    try {
+        const q = (req.query.q || '').toLowerCase().trim();
+        const exts = ['.mp3', '.wav', '.m4a', '.ogg', '.aac', '.flac', '.vdjsample'];
+        const files = [];
+        for (const dir of [uploadsDir, path.join(__dirname, 'public', 'uploads'), vdjRecordingsBank]) {
+            if (!fs.existsSync(dir)) continue;
+            for (const f of fs.readdirSync(dir)) {
+                const ext = path.extname(f).toLowerCase();
+                if (!exts.includes(ext)) continue;
+                const name = f.toLowerCase();
+                if (q && !name.includes(q)) continue;
+                const filepath = '/uploads/' + f;
+                if (!files.some(x => x.path === filepath)) files.push({ path: filepath, name: f });
+            }
+        }
+        files.sort((a, b) => a.name.localeCompare(b.name));
+        res.json({ files: files.slice(0, 100) });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// === ŚPIEWAJ DALEJ – listy fragmentów muzycznych ===
+let spiewajDalejConfig = { tracks: [] };
+let spiewajDalejActive = false;
+let spiewajDalejVolume = 1;
+let spiewajDalejUsedIds = new Set();
+
+function getSpiewajDalejConfigPath(name) {
+    return path.join(SPIEWAJ_DALEJ_CONFIGS_DIR, safeConfigName(name) + '.json');
+}
+
+app.get('/api/spiewaj-dalej/configs', (req, res) => {
+    try {
+        if (!fs.existsSync(SPIEWAJ_DALEJ_CONFIGS_DIR)) {
+            return res.json({ configs: [], current: 'domyslna' });
+        }
+        const files = fs.readdirSync(SPIEWAJ_DALEJ_CONFIGS_DIR)
+            .filter(f => f.endsWith('.json'))
+            .map(f => f.replace(/\.json$/, ''));
+        const configs = [...new Set(['domyslna', ...files])].sort();
+        let current = 'domyslna';
+        if (fs.existsSync(SPIEWAJ_DALEJ_LAST_FILE)) {
+            try {
+                const last = JSON.parse(fs.readFileSync(SPIEWAJ_DALEJ_LAST_FILE, 'utf8'));
+                if (last && last.name && configs.includes(last.name)) current = last.name;
+            } catch (_) {}
+        }
+        res.json({ configs, current });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/spiewaj-dalej/config', (req, res) => {
+    const name = req.query.name;
+    if (name) {
+        const cfgPath = getSpiewajDalejConfigPath(name);
+        if (fs.existsSync(cfgPath)) {
+            try {
+                const data = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+                spiewajDalejConfig = data.banks ? data : { tracks: data.tracks || [] };
+                fs.writeFileSync(SPIEWAJ_DALEJ_LAST_FILE, JSON.stringify({ name: safeConfigName(name) }), 'utf8');
+            } catch (err) {
+                return res.status(500).json({ error: err.message });
+            }
+        }
+    }
+    res.json({ config: spiewajDalejConfig, active: spiewajDalejActive });
+});
+
+app.post('/api/spiewaj-dalej/config', (req, res) => {
+    const { config, name } = req.body || {};
+    const hasTracks = config && Array.isArray(config.tracks);
+    const hasBanks = config && Array.isArray(config.banks) && config.banks.length > 0;
+    if (config && (hasTracks || hasBanks)) {
+        spiewajDalejConfig = config;
+        const cfgName = name ? safeConfigName(name) : 'domyslna';
+        if (!fs.existsSync(SPIEWAJ_DALEJ_CONFIGS_DIR)) fs.mkdirSync(SPIEWAJ_DALEJ_CONFIGS_DIR, { recursive: true });
+        fs.writeFileSync(getSpiewajDalejConfigPath(cfgName), JSON.stringify(spiewajDalejConfig, null, 2), 'utf8');
+        fs.writeFileSync(SPIEWAJ_DALEJ_LAST_FILE, JSON.stringify({ name: cfgName }), 'utf8');
+        res.json({ success: true });
+    } else {
+        res.status(400).json({ error: 'Nieprawidłowa konfiguracja' });
+    }
+});
+
+app.get('/api/spiewaj-dalej/audio-files', (req, res) => {
+    try {
+        const q = (req.query.q || '').toLowerCase().trim();
+        const exts = ['.mp3', '.wav', '.m4a', '.ogg', '.aac', '.flac', '.vdjsample'];
+        const files = [];
+        const dirs = [uploadsDir, path.join(__dirname, 'public', 'uploads')];
+        if (vdjRecordingsBank) dirs.push(vdjRecordingsBank);
+        for (const dir of dirs) {
+            if (!fs.existsSync(dir)) continue;
+            for (const f of fs.readdirSync(dir)) {
+                const ext = path.extname(f).toLowerCase();
+                if (!exts.includes(ext)) continue;
+                const name = f.toLowerCase();
+                if (q && !name.includes(q)) continue;
+                const filepath = '/uploads/' + f;
+                if (!files.some(x => x.path === filepath)) {
+                    files.push({ path: filepath, name: f });
+                }
+            }
+        }
+        files.sort((a, b) => a.name.localeCompare(b.name));
+        res.json({ files: files.slice(0, 100) });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/spiewaj-dalej/start', (req, res) => {
+    stopOtherMusicGames('spiewaj');
+    spiewajDalejActive = true;
+    spiewajDalejUsedIds.clear();
+    io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_state', { active: true, config: spiewajDalejConfig });
+    io.to('spiewaj_dalej_phone').emit('spiewaj_dalej_state', { active: true, config: spiewajDalejConfig });
+    res.json({ success: true });
+});
+
+app.post('/api/spiewaj-dalej/stop', (req, res) => {
+    spiewajDalejActive = false;
+    spiewajDalejUsedIds.clear();
+    io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_state', { active: false });
+    io.to('spiewaj_dalej_phone').emit('spiewaj_dalej_state', { active: false });
+    io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_stop');
+    res.json({ success: true });
+});
+
+app.get('/api/spiewaj-dalej/phone-qr', async (req, res) => {
+    try {
+        const mode = (req.query.mode || '').toLowerCase();
+        let baseUrl;
+        if (mode === 'local') {
+            baseUrl = httpsServer ? `https://${IP}:${PORT_HTTPS}` : `http://${IP}:${PORT}`;
+        } else if (mode === 'pinggy') {
+            const pinggyOrigin = currentPinggyUrl ? (normalizePinggyUrl(currentPinggyUrl) || currentPinggyUrl.replace(/\/$/, '').replace(/\/[^/].*$/, '')) : null;
+            if (!pinggyOrigin) return res.status(400).json({ error: 'Tunel Pinggy nie jest uruchomiony.' });
+            baseUrl = pinggyOrigin;
+        } else {
+            baseUrl = currentPinggyUrl ? (normalizePinggyUrl(currentPinggyUrl) || currentPinggyUrl.replace(/\/$/, '').replace(/\/[^/].*$/, '')) : (httpsServer ? `https://${IP}:${PORT_HTTPS}` : `http://${IP}:${PORT}`);
+        }
+        const phoneUrl = `${baseUrl.replace(/\/$/, '')}/spiewaj-dalej/phone.html`;
+        const qrCode = await QRCode.toDataURL(phoneUrl, { width: 280, margin: 2 });
+        res.json({ url: phoneUrl, qrCode });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/spiewaj-dalej/connection-info', (req, res) => {
+    res.json({
+        pinggyAvailable: !!currentPinggyUrl,
+        localUrl: (httpsServer ? `https://${IP}:${PORT_HTTPS}` : `http://${IP}:${PORT}`) + '/spiewaj-dalej/phone.html'
+    });
+});
+
+app.patch('/api/spiewaj-dalej/config', (req, res) => {
+    const { oldName, newName, config: bodyConfig } = req.body || {};
+    if (!oldName || !newName) return res.status(400).json({ error: 'Brak oldName lub newName' });
+    const safeNew = safeConfigName(newName);
+    if (!safeNew) return res.status(400).json({ error: 'Nieprawidłowa nazwa' });
+    const oldPath = getSpiewajDalejConfigPath(oldName);
+    const newPath = getSpiewajDalejConfigPath(newName);
+    try {
+        if (fs.existsSync(oldPath)) {
+            fs.renameSync(oldPath, newPath);
+            if (bodyConfig && Array.isArray(bodyConfig.tracks)) {
+                spiewajDalejConfig = bodyConfig;
+                fs.writeFileSync(newPath, JSON.stringify(spiewajDalejConfig, null, 2), 'utf8');
+            }
+            try {
+                const last = JSON.parse(fs.readFileSync(SPIEWAJ_DALEJ_LAST_FILE, 'utf8'));
+                if (last && last.name === safeConfigName(oldName)) {
+                    fs.writeFileSync(SPIEWAJ_DALEJ_LAST_FILE, JSON.stringify({ name: safeConfigName(newName) }), 'utf8');
+                }
+            } catch (_) {}
+        }
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/spiewaj-dalej/config', (req, res) => {
+    const name = req.query.name;
+    if (!name) return res.status(400).json({ error: 'Brak nazwy' });
+    try {
+        const cfgPath = getSpiewajDalejConfigPath(name);
+        if (fs.existsSync(cfgPath)) {
+            fs.unlinkSync(cfgPath);
+            try {
+                const last = JSON.parse(fs.readFileSync(SPIEWAJ_DALEJ_LAST_FILE, 'utf8'));
+                if (last && last.name === safeConfigName(name)) {
+                    fs.writeFileSync(SPIEWAJ_DALEJ_LAST_FILE, JSON.stringify({ name: 'domyslna' }), 'utf8');
+                    spiewajDalejConfig = { tracks: [] };
+                }
+            } catch (_) {}
+        }
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// === BITWA WOKALNA – klon Śpiewaj Dalej ===
+let bitwaWokalnaConfig = { tracks: [] };
+let bitwaWokalnaActive = false;
+let bitwaWokalnaVolume = 1;
+let bitwaWokalnaUsedIds = new Set();
+
+function getBitwaWokalnaConfigPath(name) {
+    return path.join(BITWA_WOKALNA_CONFIGS_DIR, safeConfigName(name) + '.json');
+}
+
+app.get('/api/bitwa-wokalna/configs', (req, res) => {
+    try {
+        if (!fs.existsSync(BITWA_WOKALNA_CONFIGS_DIR)) {
+            return res.json({ configs: [], current: 'domyslna' });
+        }
+        const files = fs.readdirSync(BITWA_WOKALNA_CONFIGS_DIR)
+            .filter(f => f.endsWith('.json'))
+            .map(f => f.replace(/\.json$/, ''));
+        const configs = [...new Set(['domyslna', ...files])].sort();
+        let current = 'domyslna';
+        if (fs.existsSync(BITWA_WOKALNA_LAST_FILE)) {
+            try {
+                const last = JSON.parse(fs.readFileSync(BITWA_WOKALNA_LAST_FILE, 'utf8'));
+                if (last && last.name && configs.includes(last.name)) current = last.name;
+            } catch (_) {}
+        }
+        res.json({ configs, current });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/bitwa-wokalna/config', (req, res) => {
+    const name = req.query.name;
+    if (name) {
+        const cfgPath = getBitwaWokalnaConfigPath(name);
+        if (fs.existsSync(cfgPath)) {
+            try {
+                const data = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+                bitwaWokalnaConfig = data.banks ? data : { tracks: data.tracks || [] };
+                fs.writeFileSync(BITWA_WOKALNA_LAST_FILE, JSON.stringify({ name: safeConfigName(name) }), 'utf8');
+            } catch (err) {
+                return res.status(500).json({ error: err.message });
+            }
+        }
+    }
+    res.json({ config: bitwaWokalnaConfig, active: bitwaWokalnaActive });
+});
+
+app.post('/api/bitwa-wokalna/config', (req, res) => {
+    const { config, name } = req.body || {};
+    const hasTracks = config && Array.isArray(config.tracks);
+    const hasBanks = config && Array.isArray(config.banks) && config.banks.length > 0;
+    if (config && (hasTracks || hasBanks)) {
+        bitwaWokalnaConfig = config;
+        const cfgName = name ? safeConfigName(name) : 'domyslna';
+        if (!fs.existsSync(BITWA_WOKALNA_CONFIGS_DIR)) fs.mkdirSync(BITWA_WOKALNA_CONFIGS_DIR, { recursive: true });
+        fs.writeFileSync(getBitwaWokalnaConfigPath(cfgName), JSON.stringify(bitwaWokalnaConfig, null, 2), 'utf8');
+        fs.writeFileSync(BITWA_WOKALNA_LAST_FILE, JSON.stringify({ name: cfgName }), 'utf8');
+        res.json({ success: true });
+    } else {
+        res.status(400).json({ error: 'Nieprawidłowa konfiguracja' });
+    }
+});
+
+app.get('/api/bitwa-wokalna/audio-files', (req, res) => {
+    try {
+        const q = (req.query.q || '').toLowerCase().trim();
+        const exts = ['.mp3', '.wav', '.m4a', '.ogg', '.aac', '.flac', '.vdjsample'];
+        const files = [];
+        const dirs = [uploadsDir, path.join(__dirname, 'public', 'uploads')];
+        if (vdjRecordingsBank) dirs.push(vdjRecordingsBank);
+        for (const dir of dirs) {
+            if (!fs.existsSync(dir)) continue;
+            for (const f of fs.readdirSync(dir)) {
+                const ext = path.extname(f).toLowerCase();
+                if (!exts.includes(ext)) continue;
+                const name = f.toLowerCase();
+                if (q && !name.includes(q)) continue;
+                const filepath = '/uploads/' + f;
+                if (!files.some(x => x.path === filepath)) {
+                    files.push({ path: filepath, name: f });
+                }
+            }
+        }
+        files.sort((a, b) => a.name.localeCompare(b.name));
+        res.json({ files: files.slice(0, 100) });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/bitwa-wokalna/start', (req, res) => {
+    stopOtherMusicGames('bitwa');
+    bitwaWokalnaActive = true;
+    bitwaWokalnaUsedIds.clear();
+    io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_state', { active: true, config: bitwaWokalnaConfig });
+    io.to('bitwa_wokalna_phone').emit('bitwa_wokalna_state', { active: true, config: bitwaWokalnaConfig });
+    res.json({ success: true });
+});
+
+app.post('/api/bitwa-wokalna/stop', (req, res) => {
+    bitwaWokalnaActive = false;
+    bitwaWokalnaUsedIds.clear();
+    io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_state', { active: false });
+    io.to('bitwa_wokalna_phone').emit('bitwa_wokalna_state', { active: false });
+    io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_stop');
+    res.json({ success: true });
+});
+
+app.get('/api/bitwa-wokalna/phone-qr', async (req, res) => {
+    try {
+        const mode = (req.query.mode || '').toLowerCase();
+        let baseUrl;
+        if (mode === 'local') {
+            baseUrl = httpsServer ? `https://${IP}:${PORT_HTTPS}` : `http://${IP}:${PORT}`;
+        } else if (mode === 'pinggy') {
+            const pinggyOrigin = currentPinggyUrl ? (normalizePinggyUrl(currentPinggyUrl) || currentPinggyUrl.replace(/\/$/, '').replace(/\/[^/].*$/, '')) : null;
+            if (!pinggyOrigin) return res.status(400).json({ error: 'Tunel Pinggy nie jest uruchomiony.' });
+            baseUrl = pinggyOrigin;
+        } else {
+            baseUrl = currentPinggyUrl ? (normalizePinggyUrl(currentPinggyUrl) || currentPinggyUrl.replace(/\/$/, '').replace(/\/[^/].*$/, '')) : (httpsServer ? `https://${IP}:${PORT_HTTPS}` : `http://${IP}:${PORT}`);
+        }
+        const phoneUrl = `${baseUrl.replace(/\/$/, '')}/bitwa-wokalna/phone.html`;
+        const qrCode = await QRCode.toDataURL(phoneUrl, { width: 280, margin: 2 });
+        res.json({ url: phoneUrl, qrCode });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/bitwa-wokalna/connection-info', (req, res) => {
+    res.json({
+        pinggyAvailable: !!currentPinggyUrl,
+        localUrl: (httpsServer ? `https://${IP}:${PORT_HTTPS}` : `http://${IP}:${PORT}`) + '/bitwa-wokalna/phone.html'
+    });
+});
+
+app.patch('/api/bitwa-wokalna/config', (req, res) => {
+    const { oldName, newName, config: bodyConfig } = req.body || {};
+    if (!oldName || !newName) return res.status(400).json({ error: 'Brak oldName lub newName' });
+    const safeNew = safeConfigName(newName);
+    if (!safeNew) return res.status(400).json({ error: 'Nieprawidłowa nazwa' });
+    const oldPath = getBitwaWokalnaConfigPath(oldName);
+    const newPath = getBitwaWokalnaConfigPath(newName);
+    try {
+        if (fs.existsSync(oldPath)) {
+            fs.renameSync(oldPath, newPath);
+            if (bodyConfig && Array.isArray(bodyConfig.tracks)) {
+                bitwaWokalnaConfig = bodyConfig;
+                fs.writeFileSync(newPath, JSON.stringify(bitwaWokalnaConfig, null, 2), 'utf8');
+            }
+            try {
+                const last = JSON.parse(fs.readFileSync(BITWA_WOKALNA_LAST_FILE, 'utf8'));
+                if (last && last.name === safeConfigName(oldName)) {
+                    fs.writeFileSync(BITWA_WOKALNA_LAST_FILE, JSON.stringify({ name: safeConfigName(newName) }), 'utf8');
+                }
+            } catch (_) {}
+        }
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/bitwa-wokalna/config', (req, res) => {
+    const name = req.query.name;
+    if (!name) return res.status(400).json({ error: 'Brak nazwy' });
+    try {
+        const cfgPath = getBitwaWokalnaConfigPath(name);
+        if (fs.existsSync(cfgPath)) {
+            fs.unlinkSync(cfgPath);
+            try {
+                const last = JSON.parse(fs.readFileSync(BITWA_WOKALNA_LAST_FILE, 'utf8'));
+                if (last && last.name === safeConfigName(name)) {
+                    fs.writeFileSync(BITWA_WOKALNA_LAST_FILE, JSON.stringify({ name: 'domyslna' }), 'utf8');
+                    bitwaWokalnaConfig = { tracks: [] };
+                }
+            } catch (_) {}
+        }
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // === API FAMILIADA ===
@@ -281,7 +1399,9 @@ function getFamiliadaFiles() {
                 if (!seen.has(f)) { seen.add(f); result.push(f); }
             }
         }
-        return result.sort();
+        result.sort();
+        if (!result.includes(FAMILIADA_GOLDEN_FILE)) result.push(FAMILIADA_GOLDEN_FILE);
+        return result;
     } catch (err) {
         return [];
     }
@@ -299,9 +1419,10 @@ app.get('/api/familiada/files', (req, res) => {
 function resolveFamiliadaFilePath(filename) {
     const name = (filename && typeof filename === 'string') ? filename.trim() : '';
     if (!name || name.includes('..') || name.includes('/') || !name.toLowerCase().endsWith('.json')) return null;
-    const dirs = getFamiliadaDirs();
-    const availableFiles = getFamiliadaFiles();
     const nameLower = name.toLowerCase();
+    if (nameLower === FAMILIADA_GOLDEN_FILE.toLowerCase()) return familiadaGoldenPath;
+    const dirs = getFamiliadaDirs();
+    const availableFiles = getFamiliadaFiles().filter(f => f.toLowerCase() !== FAMILIADA_GOLDEN_FILE.toLowerCase());
     const match = availableFiles.find(f => f.toLowerCase() === nameLower);
     if (match) {
         for (const dir of dirs) {
@@ -320,6 +1441,10 @@ app.get('/api/familiada/data', (req, res) => {
     try {
         let file = req.query.file;
         if (file && typeof file === 'string') file = file.trim();
+        if (file && file.toLowerCase() === FAMILIADA_GOLDEN_FILE.toLowerCase()) {
+            loadFamiliadaGoldenData();
+            return res.json(familiadaGoldenQuestions);
+        }
         const filePath = file ? resolveFamiliadaFilePath(file) : null;
         if (filePath) {
             const raw = fs.readFileSync(filePath, 'utf8');
@@ -350,6 +1475,15 @@ app.post('/api/familiada/save', (req, res) => {
             return res.status(400).json({ error: 'Oczekiwana tablica pytań' });
         }
         const valid = data.filter(q => q && (q.question || '').trim());
+        const isGolden = filename && filename.toLowerCase() === FAMILIADA_GOLDEN_FILE.toLowerCase();
+        if (isGolden) {
+            const goldenValid = valid.slice(0, 10);
+            familiadaGoldenQuestions = goldenValid;
+            if (!fs.existsSync(familiadaDir)) fs.mkdirSync(familiadaDir, { recursive: true });
+            fs.writeFileSync(familiadaGoldenPath, JSON.stringify(familiadaGoldenQuestions, null, 2), 'utf8');
+            io.to('familiada').emit('familiada_golden_updated', familiadaGoldenQuestions);
+            return res.json({ success: true, count: familiadaGoldenQuestions.length });
+        }
         if (filename) {
             const filePath = path.join(familiadaDir, filename);
             if (!fs.existsSync(familiadaDir)) fs.mkdirSync(familiadaDir, { recursive: true });
@@ -371,6 +1505,9 @@ app.delete('/api/familiada/file/:filename', (req, res) => {
         const name = decodeURIComponent(req.params.filename || '');
         if (!name || name.includes('..') || name.includes('/') || !name.toLowerCase().endsWith('.json')) {
             return res.status(400).json({ error: 'Nieprawidłowa nazwa pliku' });
+        }
+        if (name.toLowerCase() === FAMILIADA_GOLDEN_FILE.toLowerCase()) {
+            return res.status(400).json({ error: 'Złotej listy nie można usunąć' });
         }
         const filePath = path.join(familiadaDir, name);
         if (!fs.existsSync(filePath)) {
@@ -412,6 +1549,15 @@ app.post('/api/familiada/golden', (req, res) => {
 });
 
 // Sprawdź aktualizacje (tylko w aplikacji Electron – in-process)
+app.get('/api/version', (req, res) => {
+    try {
+        const pkg = require('./package.json');
+        res.json({ version: pkg.version || '1.0.0' });
+    } catch (e) {
+        res.json({ version: '1.0.0' });
+    }
+});
+
 app.post('/api/check-updates', async (req, res) => {
     const fn = typeof global.imprezjaCheckForUpdates === 'function' ? global.imprezjaCheckForUpdates : null;
     if (!fn) {
@@ -425,12 +1571,52 @@ app.post('/api/check-updates', async (req, res) => {
     }
 });
 
-// Blokada gdy licencja nieważna – główne strony serwują license-required.html
-const BLOCKED_PATHS = ['/', '/admin.html', '/Screen.html', '/vote.html', '/index.html'];
+app.get('/api/update-status', (req, res) => {
+    const status = global.imprezjaUpdateStatus || { status: 'idle' };
+    res.json(status);
+});
+
+app.post('/api/install-update', (req, res) => {
+    const fn = typeof global.imprezjaQuitAndInstall === 'function' ? global.imprezjaQuitAndInstall : null;
+    if (!fn) {
+        return res.json({ ok: false, error: 'Dostępne tylko w aplikacji desktop.' });
+    }
+    fn();
+    res.json({ ok: true });
+});
+
+// Blokada gdy licencja nieważna – główne strony i wszystkie tryby gry serwują license-required.html
+/* Ścieżki wymagające jakiejkolwiek ważnej licencji (w tym trial): Quiz, Familiada, start, admin, edytory */
+const BLOCKED_PATHS = [
+    '/', '/admin.html', '/Screen.html', '/vote.html', '/index.html', '/start.html',
+    '/editor.html', '/editor-standalone.html'
+];
+const BLOCKED_PREFIXES = ['/familiada/'];
+
+/* Nowe tryby gry – wymagają wykupionej licencji (trial nie wystarczy) */
+const NEW_MODE_PATHS = ['/njr-sampler.html', '/whitney.html', '/spiewaj-dalej.html', '/bitwa-wokalna.html'];
+const NEW_MODE_PREFIXES = ['/njr-sampler/', '/whitney/', '/spiewaj-dalej/', '/bitwa-wokalna/'];
+
+function hasFullLicense(status) {
+    return status.valid && status.type !== 'trial';
+}
+
 app.use((req, res, next) => {
+    const isNewModePath = NEW_MODE_PATHS.some(p => req.path === p || req.path === p.replace(/^\//, ''));
+    const isNewModePrefix = NEW_MODE_PREFIXES.some(prefix => req.path.startsWith(prefix));
+    const isNewMode = isNewModePath || isNewModePrefix;
+
     const isBlockedPath = BLOCKED_PATHS.some(p => req.path === p || req.path === p.replace(/^\//, ''));
-    if (!isBlockedPath) return next();
-    const status = license.checkLicense();
+    const isBlockedPrefix = BLOCKED_PREFIXES.some(prefix => req.path.startsWith(prefix));
+    const isBlocked = isBlockedPath || isBlockedPrefix;
+
+    if (!isBlocked && !isNewMode) return next();
+
+    const status = getLicenseStatus();
+    if (isNewMode) {
+        if (hasFullLicense(status)) return next();
+        return res.sendFile(path.join(__dirname, 'public', 'license-required.html'));
+    }
     if (status.valid) return next();
     res.sendFile(path.join(__dirname, 'public', 'license-required.html'));
 });
@@ -507,6 +1693,116 @@ app.get('/', (req, res) => {
 app.get('/vote.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'vote.html'));
 });
+app.get('/njr-sampler.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'njr-sampler', 'index.html'));
+});
+app.get('/whitney.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'whitney', 'index.html'));
+});
+app.get('/spiewaj-dalej.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'spiewaj-dalej', 'index.html'));
+});
+app.get('/bitwa-wokalna.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'bitwa-wokalna', 'index.html'));
+});
+
+// .vdjsample i .ogg z VDJ: nagłówek zmiennej długości (zawiera ścieżkę do oryginału), potem Ogg Opus
+// Szukamy sygnatury OggS w pierwszych 512 bajtach – stream od tej pozycji
+const VDJSAMPLE_OGGS_SEARCH_LIMIT = 512;
+function findOggsOffset(filePath) {
+    const fd = fs.openSync(filePath, 'r');
+    try {
+        const buf = Buffer.alloc(VDJSAMPLE_OGGS_SEARCH_LIMIT);
+        const read = fs.readSync(fd, buf, 0, VDJSAMPLE_OGGS_SEARCH_LIMIT, 0);
+        const idx = buf.slice(0, read).indexOf('OggS');
+        return idx >= 0 ? idx : 128;
+    } finally {
+        fs.closeSync(fd);
+    }
+}
+function isVdjOrOggPath(p) {
+    const lower = (p || '').toLowerCase().trim();
+    return lower && (lower.endsWith('.vdjsample') || lower.endsWith(' .vdjsample') || lower.endsWith('.ogg') || lower.endsWith(' .ogg'));
+}
+
+function sanitizeAudioPath(p) {
+    return (p || '').replace(/^\/+/, '').split('/').filter(seg => seg !== '..').join('/');
+}
+
+app.get('/api/audio/check', (req, res) => {
+    const p = sanitizeAudioPath(req.query.path || '');
+    if (!p || !isVdjOrOggPath(p)) {
+        return res.json({ ok: false, error: 'Nieprawidłowa ścieżka (wymagane .vdjsample lub .ogg)' });
+    }
+    const name = path.basename(p);
+    const dirs = [uploadsDir, path.join(__dirname, 'public', 'uploads')];
+    if (vdjRecordingsBank) dirs.push(vdjRecordingsBank);
+    let filePath = null;
+    for (const d of dirs) {
+        const fp = path.join(d, name);
+        if (fs.existsSync(fp) && fs.statSync(fp).isFile()) {
+            filePath = fp;
+            break;
+        }
+    }
+    if (!filePath) return res.json({ ok: false, error: 'Plik nie istnieje' });
+    try {
+        const stat = fs.statSync(filePath);
+        if (stat.size <= 128) return res.json({ ok: false, error: 'Plik za krótki' });
+        const oggsOffset = findOggsOffset(filePath);
+        if (stat.size <= oggsOffset) return res.json({ ok: false, error: 'Plik za krótki (brak danych Ogg)' });
+        res.json({ ok: true });
+    } catch (err) {
+        res.json({ ok: false, error: err.message || 'Błąd odczytu pliku' });
+    }
+});
+
+app.get('/api/audio/stream', (req, res) => {
+    const p = sanitizeAudioPath(req.query.path || '');
+    if (!p || !isVdjOrOggPath(p)) {
+        return res.status(400).json({ error: 'Nieprawidłowa ścieżka (wymagane .vdjsample lub .ogg)' });
+    }
+    const name = path.basename(p);
+    const dirs = [uploadsDir, path.join(__dirname, 'public', 'uploads')];
+    if (vdjRecordingsBank) dirs.push(vdjRecordingsBank);
+    let filePath = null;
+    for (const d of dirs) {
+        const fp = path.join(d, name);
+        if (fs.existsSync(fp) && fs.statSync(fp).isFile()) {
+            filePath = fp;
+            break;
+        }
+    }
+    if (!filePath) return res.status(404).json({ error: 'Plik nie istnieje' });
+    const stat = fs.statSync(filePath);
+    if (stat.size <= 128) return res.status(400).json({ error: 'Plik za krótki' });
+    const oggsOffset = findOggsOffset(filePath);
+    if (stat.size <= oggsOffset) return res.status(400).json({ error: 'Plik za krótki (brak danych Ogg)' });
+    const totalSize = stat.size - oggsOffset;
+    res.setHeader('Content-Type', 'audio/ogg; codecs=opus');
+    res.setHeader('Accept-Ranges', 'bytes');
+    const rangeHeader = req.headers.range;
+    if (rangeHeader && /^bytes=/.test(rangeHeader)) {
+        const parts = rangeHeader.replace(/^bytes=/, '').split('-');
+        const start = parts[0] ? parseInt(parts[0], 10) : 0;
+        const end = parts[1] ? parseInt(parts[1], 10) : totalSize - 1;
+        const reqStart = Math.max(0, start);
+        const reqEnd = Math.min(totalSize - 1, end);
+        if (reqStart <= reqEnd) {
+            const chunkSize = reqEnd - reqStart + 1;
+            res.status(206);
+            res.setHeader('Content-Range', `bytes ${reqStart}-${reqEnd}/${totalSize}`);
+            res.setHeader('Content-Length', chunkSize);
+            const stream = fs.createReadStream(filePath, { start: oggsOffset + reqStart, end: oggsOffset + reqEnd });
+            stream.pipe(res);
+            return;
+        }
+    }
+    res.setHeader('Content-Length', totalSize);
+    const stream = fs.createReadStream(filePath, { start: oggsOffset });
+    stream.pipe(res);
+});
+
 // /uploads: najpierw katalog danych (zapis użytkownika), potem fallback na pliki z aplikacji (asar) – żeby w DMG/setup były dźwięki i grafika z pytań
 app.use('/uploads', express.static(uploadsDir));
 app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
@@ -529,7 +1825,7 @@ app.get('/api/current-wifi-ssid', (req, res) => {
             const m = out.match(/SSID\s*:\s*(.+)/);
             if (m) ssid = m[1].trim();
         } else {
-            for (const iface of ['en0', 'en1', 'wlan0']) {
+            for (const iface of ['en0', 'en1', 'en2', 'wlan0']) {
                 try {
                     const out = execSync(`networksetup -getairportnetwork ${iface}`, { encoding: 'utf8', timeout: 2000 });
                     const m = out.match(/Current Wi-Fi Network:\s*(.+)/);
@@ -543,6 +1839,21 @@ app.get('/api/current-wifi-ssid', (req, res) => {
                 try {
                     const out = execSync('iwgetid -r', { encoding: 'utf8', timeout: 2000 });
                     if (out && out.trim()) ssid = out.trim();
+                } catch (_) {}
+            }
+            if (!ssid) {
+                try {
+                    const out = execSync('system_profiler SPAirPortDataType', { encoding: 'utf8', timeout: 5000 });
+                    const m = out.match(/Current Network:\s*(.+)/);
+                    if (m && m[1].trim()) ssid = m[1].trim();
+                } catch (_) {}
+            }
+            if (!ssid) {
+                try {
+                    const airportPath = '/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport';
+                    const out = execSync(airportPath + ' -I', { encoding: 'utf8', timeout: 2000 });
+                    const m = out.match(/^\s*SSID:\s*(.+)$/m);
+                    if (m && m[1].trim()) ssid = m[1].trim();
                 } catch (_) {}
             }
         }
@@ -733,8 +2044,16 @@ function refreshFileHashCache() {
     console.log(`📦 Odświeżono cache hash plików: ${processed} plików`);
 }
 
-// Odśwież cache przy starcie serwera
-refreshFileHashCache();
+// Cache odświeżany asynchronicznie po starcie – nie blokuje server.listen()
+function scheduleRefreshFileHashCache() {
+    setImmediate(() => {
+        try {
+            refreshFileHashCache();
+        } catch (err) {
+            console.warn('⚠️ Odświeżenie cache hash:', err.message);
+        }
+    });
+}
 
 // Upload konfiguracja - użyj memory storage aby móc sprawdzić hash przed zapisem
 const storage = multer.memoryStorage();
@@ -1103,6 +2422,7 @@ let gameState = {
     quizOptions: { disableTimePoints: false }, // Opcje quizu
     teamBattleMode: false,
     showQROnPhones: false,
+    showPlayersWithQR: false,  // ekran TV: QR + latające nicki zalogowanych graczy
     sendImagesToPhones: true,  // false = nie ładuj obrazków na telefonach (zalecane przy wielu graczach)
     teams: {
         A: { name: "", score: 0 },
@@ -1145,10 +2465,10 @@ function getTeamBalanceMultiplier(team) {
 // === FUNKCJE POMOCNICZE ===
 
 function getLocalIP() {
+    const verbose = process.env.IMPREZJA_VERBOSE_NETWORK === '1';
     try {
         const interfaces = os.networkInterfaces();
-        console.log('🔍 Sprawdzam interfejsy sieciowe...');
-        console.log('📋 Dostępne interfejsy:', Object.keys(interfaces).join(', '));
+        if (verbose) console.log('🔍 Sprawdzam interfejsy sieciowe...');
         
         const foundIPs = [];
         
@@ -1162,29 +2482,22 @@ function getLocalIP() {
                 lowerName.includes('virtualbox') || lowerName.includes('vmware') ||
                 lowerName.includes('hyper-v') || lowerName.includes('loopback') ||
                 lowerName.includes('teredo') || lowerName.includes('isatap')) {
-                console.log(`⏭️  Pomijam wirtualny interfejs: ${name}`);
+                if (verbose) console.log(`⏭️  Pomijam wirtualny interfejs: ${name}`);
                 continue;
             }
             
-            // Loguj WSZYSTKIE interfejsy (nawet te które pomijamy)
-            console.log(`🔍 Sprawdzam interfejs: ${name}`);
             for (const iface of interfaces[name]) {
                 const isIPv4 = iface.family === 'IPv4' || iface.family === 4;
-                console.log(`   - ${iface.family} ${iface.address} (internal: ${iface.internal}, netmask: ${iface.netmask || 'brak'})`);
+                if (verbose) console.log(`   - ${iface.family} ${iface.address} (internal: ${iface.internal})`);
                 
                 if (isIPv4 && !iface.internal) {
-                    // Sprawdź czy to nie jest link-local (169.254.x.x)
                     const ipParts = iface.address.split('.');
                     const isLinkLocal = ipParts[0] === '169' && ipParts[1] === '254';
                     
                     if (!isLinkLocal) {
                         foundIPs.push({ name, address: iface.address, internal: iface.internal });
-                        console.log(`   ✅ DODANO: ${iface.address} z interfejsu ${name}`);
-                    } else {
-                        console.log(`   ⏭️  Pomijam link-local: ${iface.address}`);
+                        if (verbose) console.log(`   ✅ DODANO: ${iface.address} z interfejsu ${name}`);
                     }
-                } else if (isIPv4 && iface.internal) {
-                    console.log(`   ⏭️  Pomijam internal: ${iface.address}`);
                 }
             }
         }
@@ -1197,20 +2510,17 @@ function getLocalIP() {
         
         if (wifiIPs.length > 0) {
             const selected = wifiIPs[0];
-            console.log(`✅ Używam IP z interfejsu WiFi/Ethernet: ${selected.address} (${selected.name})`);
+            console.log(`✅ IP sieciowe: ${selected.address} (${selected.name})`);
             return selected.address;
         }
         
-        // Jeśli nie ma WiFi, użyj pierwszego znalezionego (ale nie localhost)
         if (foundIPs.length > 0) {
             const selected = foundIPs[0];
-            console.log(`✅ Używam IP: ${selected.address} z interfejsu ${selected.name}`);
+            console.log(`✅ IP sieciowe: ${selected.address} (${selected.name})`);
             return selected.address;
         }
         
-        console.warn('⚠️ Nie znaleziono zewnętrznego IP!');
-        console.warn('   Sprawdź czy komputer jest połączony z siecią WiFi/Ethernet');
-        console.warn('   Dostępne interfejsy:', Object.keys(interfaces).join(', '));
+        console.warn('⚠️ Nie znaleziono IP sieciowego – sprawdź połączenie WiFi/Ethernet');
     } catch (error) {
         console.warn('⚠️ Nie można pobrać adresów IP:', error.message);
         console.warn('   Stack:', error.stack);
@@ -1220,33 +2530,26 @@ function getLocalIP() {
 
 let IP = getLocalIP();
 
-// Jeśli nie znaleziono IP, spróbuj alternatywną metodę (dla Windows)
+// Jeśli nie znaleziono IP, spróbuj alternatywną metodę (dla Windows – działa przy LAN i przy różnych językach systemu)
 if (IP === 'localhost' && process.platform === 'win32') {
-    console.log('🔄 Próbuję alternatywną metodę wykrywania IP na Windows...');
+    console.log('🔄 Próbuję alternatywną metodę wykrywania IP na Windows (ipconfig)...');
     try {
         const { execSync } = require('child_process');
-        // Użyj ipconfig na Windows
-        const result = execSync('ipconfig', { encoding: 'utf8', timeout: 5000 });
-        const lines = result.split('\n');
-        let currentAdapter = '';
+        const result = execSync('ipconfig', { encoding: 'utf8', timeout: 5000, maxBuffer: 2 * 1024 * 1024 });
+        const lines = result.split(/\r?\n/);
+        // Szukaj dowolnej linii z adresem IPv4 (EN: "IPv4 Address", PL: "Adres IPv4", inne: często "IPv4")
+        const ipv4LabelPattern = /IPv4|Adres IPv4|IPv4 Address/i;
         for (const line of lines) {
-            // Znajdź adapter WiFi/Ethernet
-            if (line.includes('adapter') && (line.toLowerCase().includes('wi-fi') || 
-                line.toLowerCase().includes('wireless') || line.toLowerCase().includes('ethernet'))) {
-                currentAdapter = line.trim();
-            }
-            // Znajdź IPv4 Address w tym adapterze
-            if (currentAdapter && line.includes('IPv4 Address')) {
-                const match = line.match(/(\d+\.\d+\.\d+\.\d+)/);
-                if (match && !match[1].startsWith('169.254')) {
-                    IP = match[1];
-                    console.log(`✅ Znaleziono IP przez ipconfig: ${IP} (adapter: ${currentAdapter})`);
-                    break;
-                }
+            if (!ipv4LabelPattern.test(line)) continue;
+            const match = line.match(/(\d+\.\d+\.\d+\.\d+)/);
+            if (match && !match[1].startsWith('169.254')) {
+                IP = match[1];
+                console.log(`✅ Znaleziono IP przez ipconfig: ${IP}`);
+                break;
             }
         }
     } catch (err) {
-        console.warn('⚠️ Alternatywna metoda nie zadziałała:', err.message);
+        console.warn('⚠️ Alternatywna metoda ipconfig nie zadziałała:', err.message);
     }
 }
 
@@ -1387,11 +2690,13 @@ function getAdminHost() {
     } catch (_) { return 'localhost'; }
 }
 
-// === QR DO PANELU ADMINA (http://IP:PORT/admin.html) – na start ekranu ===
+// === QR DO PANELU ADMINA – HTTPS gdy dostępny (niegasnący ekran), inaczej HTTP ===
 async function generateAdminQR() {
     try {
-        const adminHost = getAdminHost();
-        const adminUrl = `http://${adminHost}:${PORT}/admin.html`;
+        const proto = httpsServer ? 'https' : 'http';
+        const port = httpsServer ? PORT_HTTPS : PORT;
+        const adminHost = httpsServer ? IP : getAdminHost();
+        const adminUrl = `${proto}://${adminHost}:${port}/admin.html`;
         console.log('📱 Generuję QR admina:', adminUrl);
         console.log('📱 IP:', IP);
         console.log('📱 adminHost:', adminHost);
@@ -1786,8 +3091,10 @@ function getStateForBroadcast() {
         tunnelUrl: currentPinggyUrl || null,
         showLocalGameQR: showLocalGameQR,
         localGameUrl: `http://${IP}:${PORT}/vote.html`,
-        showAdminQR: !adminHasBeenOpened,
-        adminUrl: `http://${getAdminHost()}:${PORT}/admin.html`
+        showAdminQR: !(io.sockets.adapter.rooms.get(ADMIN_ROOM)?.size > 0),
+        adminUrl: httpsServer ? `https://${IP}:${PORT_HTTPS}/admin.html` : `http://${getAdminHost()}:${PORT}/admin.html`,
+        showPlayersWithQR: gameState.showPlayersWithQR,
+        playerNicks: Array.from(players.values()).map(p => p.nick || '').filter(Boolean)
     };
 }
 
@@ -1946,8 +3253,10 @@ io.on('connection', (socket) => {
         socket.emit('familiada_team_names', { team1: familiadaTeam1Name, team2: familiadaTeam2Name });
     });
     socket.on('familiada_request_qr_admin', async () => {
-        const adminUrl = `http://${IP}:${PORT}/familiada/admin.html`;
-        const buttonsUrl = `http://${IP}:${PORT}/familiada/buttons.html`;
+        const proto = httpsServer ? 'https' : 'http';
+        const port = httpsServer ? PORT_HTTPS : PORT;
+        const adminUrl = `${proto}://${IP}:${port}/familiada/admin.html`;
+        const buttonsUrl = `${proto}://${IP}:${port}/familiada/buttons.html`;
         try {
             const [adminQr, buttonsQr] = await Promise.all([
                 QRCode.toDataURL(adminUrl, { width: 220, margin: 2 }),
@@ -1962,6 +3271,207 @@ io.on('connection', (socket) => {
     });
     socket.on('set_game_mode', (mode) => {
         if (mode === 'quiz') gameMode = 'quiz';
+    });
+
+    // NJR Sampler – ekran (komputer) i telefon
+    socket.on('njr_sampler_join_screen', () => {
+        socket.join('njr_sampler_screen');
+        socket.emit('njr_sampler_state', { active: njrSamplerActive, config: njrSamplerConfig });
+        socket.emit('njr_sampler_volume', njrSamplerVolume);
+    });
+    socket.on('njr_sampler_join_phone', () => {
+        socket.join('njr_sampler_phone');
+        socket.emit('njr_sampler_state', { active: njrSamplerActive, config: njrSamplerConfig });
+        socket.emit('njr_sampler_volume_sync', njrSamplerVolume); // telefon ustawia suwak
+    });
+    socket.on('njr_sampler_toggle', (payload) => {
+        if (!njrSamplerActive) return;
+        const bankIndex = (typeof payload === 'object' && payload != null && typeof payload.bankIndex === 'number') ? payload.bankIndex : 0;
+        const tileId = (typeof payload === 'object' && payload != null && payload.tileId != null) ? payload.tileId : payload;
+        const banks = njrSamplerConfig.banks || [{ tiles: njrSamplerConfig.tiles || [] }];
+        const bank = banks[bankIndex];
+        const tiles = bank ? (bank.tiles || []) : [];
+        const tile = tiles.find(t => t.id === tileId);
+        if (!tile || !tile.audio) return;
+        const vol = Math.max(0, Math.min(100, tile.volume ?? 100)) / 100;
+        let audioUrl = tile.audio.startsWith('/') ? tile.audio : '/uploads/' + tile.audio;
+        if (/\.(vdjsample|ogg)$/i.test(audioUrl)) audioUrl = '/api/audio/stream?path=' + encodeURIComponent(audioUrl);
+        const isBg = !!tile.isBackground;
+        const loop = !!tile.loop;
+
+        if (isBg) {
+            if (njrSamplerPlayingBackgroundTile === tileId) {
+                njrSamplerPlayingBackgroundTile = null;
+                io.to('njr_sampler_screen').emit('njr_sampler_stop_background', { fadeOut: !!tile.fadeOut });
+                io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: null, isBackground: true });
+            } else {
+                njrSamplerPlayingBackgroundTile = tileId;
+                io.to('njr_sampler_screen').emit('njr_sampler_play', { url: audioUrl, volume: vol, isBackground: true, loop });
+                io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId, isBackground: true });
+            }
+        } else {
+            if (njrSamplerPlayingTile === tileId) {
+                njrSamplerPlayingTile = null;
+                io.to('njr_sampler_screen').emit('njr_sampler_stop', { fadeOut: !!tile.fadeOut });
+                io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: null, isBackground: false });
+            } else {
+                njrSamplerPlayingTile = tileId;
+                io.to('njr_sampler_screen').emit('njr_sampler_play', { url: audioUrl, volume: vol, isBackground: false, loop });
+                io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId, isBackground: false });
+            }
+        }
+    });
+    socket.on('njr_sampler_background_ended', () => {
+        njrSamplerPlayingBackgroundTile = null;
+        io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: null, isBackground: true });
+    });
+    socket.on('njr_sampler_volume', (vol) => {
+        njrSamplerVolume = Math.max(0, Math.min(1, vol));
+        io.to('njr_sampler_screen').emit('njr_sampler_volume', njrSamplerVolume);
+    });
+
+    // Whitney – ekran i telefon (8 kafelków, bez banków)
+    socket.on('whitney_join_screen', () => {
+        socket.join('whitney_screen');
+        socket.emit('whitney_state', { active: whitneyActive, config: whitneyConfig });
+        socket.emit('whitney_volume', whitneyVolume);
+    });
+    socket.on('whitney_join_phone', () => {
+        socket.join('whitney_phone');
+        socket.emit('whitney_state', { active: whitneyActive, config: whitneyConfig });
+        socket.emit('whitney_volume_sync', whitneyVolume);
+    });
+    socket.on('whitney_toggle', (payload) => {
+        if (!whitneyActive) return;
+        const tileId = (typeof payload === 'object' && payload != null && payload.tileId != null) ? payload.tileId : payload;
+        const tiles = whitneyConfig.tiles || [];
+        const tile = tiles.find(t => t.id === tileId);
+        if (!tile || !tile.audio) return;
+        let audioUrl = tile.audio.startsWith('/') ? tile.audio : '/uploads/' + tile.audio;
+        if (/\.(vdjsample|ogg)$/i.test(audioUrl)) audioUrl = '/api/audio/stream?path=' + encodeURIComponent(audioUrl);
+        const vol = Math.max(0, Math.min(100, tile.volume ?? 100)) / 100;
+        const isBg = !!tile.isBackground;
+        const loop = !!tile.loop;
+
+        if (isBg) {
+            if (whitneyPlayingBackgroundTile === tileId) {
+                whitneyPlayingBackgroundTile = null;
+                io.to('whitney_screen').emit('whitney_stop_background', { fadeOut: !!tile.fadeOut });
+                io.to('whitney_phone').emit('whitney_playing', { tileId: null, isBackground: true });
+            } else {
+                whitneyPlayingBackgroundTile = tileId;
+                io.to('whitney_screen').emit('whitney_play', { url: audioUrl, volume: vol, isBackground: true, loop });
+                io.to('whitney_phone').emit('whitney_playing', { tileId, isBackground: true });
+            }
+        } else {
+            if (whitneyPlayingTile === tileId) {
+                whitneyPlayingTile = null;
+                io.to('whitney_screen').emit('whitney_stop', { fadeOut: !!tile.fadeOut });
+                io.to('whitney_phone').emit('whitney_playing', { tileId: null, isBackground: false });
+            } else {
+                whitneyPlayingTile = tileId;
+                io.to('whitney_screen').emit('whitney_play', { url: audioUrl, volume: vol, isBackground: false, loop });
+                io.to('whitney_phone').emit('whitney_playing', { tileId, isBackground: false });
+            }
+        }
+    });
+    socket.on('whitney_background_ended', () => {
+        whitneyPlayingBackgroundTile = null;
+        io.to('whitney_phone').emit('whitney_playing', { tileId: null, isBackground: true });
+    });
+    socket.on('whitney_volume', (vol) => {
+        whitneyVolume = Math.max(0, Math.min(1, vol));
+        io.to('whitney_screen').emit('whitney_volume', whitneyVolume);
+    });
+
+    // Śpiewaj Dalej – ekran (komputer) i telefon
+    socket.on('spiewaj_dalej_join_screen', () => {
+        socket.join('spiewaj_dalej_screen');
+        socket.emit('spiewaj_dalej_state', { active: spiewajDalejActive, config: spiewajDalejConfig });
+        socket.emit('spiewaj_dalej_volume', spiewajDalejVolume);
+    });
+    socket.on('spiewaj_dalej_join_phone', () => {
+        socket.join('spiewaj_dalej_phone');
+        socket.emit('spiewaj_dalej_state', { active: spiewajDalejActive, config: spiewajDalejConfig, usedIds: Array.from(spiewajDalejUsedIds) });
+        socket.emit('spiewaj_dalej_volume_sync', spiewajDalejVolume);
+    });
+    socket.on('spiewaj_dalej_play', (trackId) => {
+        if (!spiewajDalejActive || !trackId) return;
+        let track = null;
+        if (spiewajDalejConfig.banks && Array.isArray(spiewajDalejConfig.banks)) {
+            for (const b of spiewajDalejConfig.banks) {
+                track = (b.tracks || []).find(t => t.id === trackId);
+                if (track) break;
+            }
+        } else {
+            track = (spiewajDalejConfig.tracks || []).find(t => t.id === trackId);
+        }
+        if (!track || !track.audio) return;
+        let audioUrl = track.audio.startsWith('http') ? track.audio : (track.audio.startsWith('/') ? track.audio : '/uploads/' + track.audio.replace(/^\/+/, ''));
+        if (/\.(vdjsample|ogg)$/i.test(audioUrl)) {
+            audioUrl = '/api/audio/stream?path=' + encodeURIComponent(audioUrl);
+        }
+        spiewajDalejUsedIds.add(trackId);
+        io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_play', { url: audioUrl, volume: spiewajDalejVolume, trackId });
+        io.to('spiewaj_dalej_phone').emit('spiewaj_dalej_used', { trackId });
+    });
+    socket.on('spiewaj_dalej_stop', (trackId) => {
+        io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_stop', { trackId });
+    });
+    socket.on('spiewaj_dalej_progress', (data) => {
+        io.to('spiewaj_dalej_phone').emit('spiewaj_dalej_progress', data);
+    });
+    socket.on('spiewaj_dalej_ended', (data) => {
+        io.to('spiewaj_dalej_phone').emit('spiewaj_dalej_ended', data);
+    });
+    socket.on('spiewaj_dalej_volume', (vol) => {
+        spiewajDalejVolume = Math.max(0, Math.min(1, vol));
+        io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_volume', spiewajDalejVolume);
+    });
+
+    // Bitwa wokalna – ekran (komputer) i telefon
+    socket.on('bitwa_wokalna_join_screen', () => {
+        socket.join('bitwa_wokalna_screen');
+        socket.emit('bitwa_wokalna_state', { active: bitwaWokalnaActive, config: bitwaWokalnaConfig });
+        socket.emit('bitwa_wokalna_volume', bitwaWokalnaVolume);
+    });
+    socket.on('bitwa_wokalna_join_phone', () => {
+        socket.join('bitwa_wokalna_phone');
+        socket.emit('bitwa_wokalna_state', { active: bitwaWokalnaActive, config: bitwaWokalnaConfig, usedIds: Array.from(bitwaWokalnaUsedIds) });
+        socket.emit('bitwa_wokalna_volume_sync', bitwaWokalnaVolume);
+    });
+    socket.on('bitwa_wokalna_play', (trackId) => {
+        if (!bitwaWokalnaActive || !trackId) return;
+        let track = null;
+        if (bitwaWokalnaConfig.banks && Array.isArray(bitwaWokalnaConfig.banks)) {
+            for (const b of bitwaWokalnaConfig.banks) {
+                track = (b.tracks || []).find(t => t.id === trackId);
+                if (track) break;
+            }
+        } else {
+            track = (bitwaWokalnaConfig.tracks || []).find(t => t.id === trackId);
+        }
+        if (!track || !track.audio) return;
+        let audioUrl = track.audio.startsWith('http') ? track.audio : (track.audio.startsWith('/') ? track.audio : '/uploads/' + track.audio.replace(/^\/+/, ''));
+        if (/\.(vdjsample|ogg)$/i.test(audioUrl)) {
+            audioUrl = '/api/audio/stream?path=' + encodeURIComponent(audioUrl);
+        }
+        bitwaWokalnaUsedIds.add(trackId);
+        io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_play', { url: audioUrl, volume: bitwaWokalnaVolume, trackId });
+        io.to('bitwa_wokalna_phone').emit('bitwa_wokalna_used', { trackId });
+    });
+    socket.on('bitwa_wokalna_stop', (trackId) => {
+        io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_stop', { trackId });
+    });
+    socket.on('bitwa_wokalna_progress', (data) => {
+        io.to('bitwa_wokalna_phone').emit('bitwa_wokalna_progress', data);
+    });
+    socket.on('bitwa_wokalna_ended', (data) => {
+        io.to('bitwa_wokalna_phone').emit('bitwa_wokalna_ended', data);
+    });
+    socket.on('bitwa_wokalna_volume', (vol) => {
+        bitwaWokalnaVolume = Math.max(0, Math.min(1, vol));
+        io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_volume', bitwaWokalnaVolume);
     });
 
     socket.on('select_question', (index) => {
@@ -2050,6 +3560,15 @@ io.on('connection', (socket) => {
         io.to('familiada').emit('update_scores', { t1: 0, t2: 0, roundAwarded: false, team1: familiadaTeam1Name, team2: familiadaTeam2Name });
         io.to('familiada').emit('board_update', { type: 'FULL_RESET', team1: familiadaTeam1Name, team2: familiadaTeam2Name });
     });
+    socket.on('familiada_screen_reset', () => {
+        familiadaTeam1Score = 0;
+        familiadaTeam2Score = 0;
+        familiadaRoundAwardedTo = null;
+        familiadaQuestionActive = false;
+        familiadaButtonUsedThisRound = false;
+        io.to('familiada').emit('update_scores', { t1: 0, t2: 0, roundAwarded: false, team1: familiadaTeam1Name, team2: familiadaTeam2Name });
+        io.to('familiada').emit('board_update', { type: 'FULL_RESET', team1: familiadaTeam1Name, team2: familiadaTeam2Name });
+    });
     socket.on('familiada_get_files', () => {
         socket.emit('familiada_files_list', getFamiliadaFiles());
     });
@@ -2062,9 +3581,12 @@ io.on('connection', (socket) => {
             const data = JSON.parse(raw);
             const questions = Array.isArray(data) ? data : [];
             familiadaQuestions = questions;
-            const dir = path.dirname(familiadaDataPath);
-            if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-            fs.writeFileSync(familiadaDataPath, JSON.stringify(questions, null, 2), 'utf8');
+            const isGolden = filename && filename.toLowerCase() === FAMILIADA_GOLDEN_FILE.toLowerCase();
+            if (!isGolden) {
+                const dir = path.dirname(familiadaDataPath);
+                if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+                fs.writeFileSync(familiadaDataPath, JSON.stringify(questions, null, 2), 'utf8');
+            }
             io.to('familiada').emit('familiada_data_updated', questions);
             socket.emit('familiada_load_ok', { count: questions.length });
         } catch (err) {
@@ -2083,21 +3605,16 @@ io.on('connection', (socket) => {
             if (data) socket.emit('qr_local_game', data);
         });
     }
-    // QR do panelu admina (na start – znika po otwarciu admina na telefonie)
-    if (!adminHasBeenOpened) {
+    // QR do panelu admina – zawsze wysyłaj przy połączeniu ekranu (pozostaje widoczny także po wejściu admina z telefonu)
+    generateAdminQR().then((data) => {
+        if (data) socket.emit('qr_admin', data);
+    });
+
+    socket.on('request_qr_admin', () => {
+        // Zawsze zwracaj QR admina (np. po „Zakończ” na ekranie startowym – pokaż QR nawet gdy admin już połączony)
         generateAdminQR().then((data) => {
             if (data) socket.emit('qr_admin', data);
         });
-    }
-
-    socket.on('request_qr_admin', () => {
-        if (!adminHasBeenOpened) {
-            generateAdminQR().then((data) => {
-                if (data) socket.emit('qr_admin', data);
-            });
-        } else {
-            socket.emit('qr_admin', { qrCode: null });
-        }
     });
 
     socket.on('request_qr', () => {
@@ -2155,124 +3672,145 @@ io.on('connection', (socket) => {
         }
     });
 
-    // === JEDEN KLIK: tunel Pinggy (SSH) – na Mac/Linux działa od razu; na Windows wymaga OpenSSH lub ręcznego URL ===
+    // === JEDEN KLIK: tunel – Cloudflare (wszystkie platformy), Mac/Linux fallback: Pinggy (SSH) ===
     socket.on('admin_start_tunnel', () => {
         if (tunnelProcess) {
             socket.emit('tunnel_started', { tunnelUrl: currentPinggyUrl });
             return;
         }
+        appendTunnelLog('=== tunnel start ' + new Date().toISOString() + ' ===');
         const isWin = process.platform === 'win32';
-        const knownHostsOpt = isWin ? 'NUL' : '/dev/null';
-        const args = [
-            '-o', 'UserKnownHostsFile=' + knownHostsOpt,
-            '-o', 'StrictHostKeyChecking=no',
-            '-o', 'ConnectTimeout=15',
-            '-p', '443',
-            '-R0:localhost:' + PORT,
-            'a.pinggy.io'
-        ];
-        let sshExe = 'ssh';
-        if (isWin) {
-            const sysRoot = process.env.SystemRoot || process.env.windir || 'C:\\Windows';
-            const sshPath = path.join(sysRoot, 'System32', 'OpenSSH', 'ssh.exe');
-            if (fs.existsSync(sshPath)) sshExe = sshPath;
-        }
-        const spawnOpts = { stdio: ['ignore', 'pipe', 'pipe'], env: process.env };
-        if (isWin) spawnOpts.windowsHide = true;
-        const child = spawn(sshExe, args, spawnOpts);
-        let output = '';
-        child.stdout.on('data', (data) => { output += (data && data.toString()) || ''; });
-        child.stderr.on('data', (data) => { output += (data && data.toString()) || ''; });
 
-        const PINGGY_URL_REGEX = /https:\/\/[a-zA-Z0-9][-a-zA-Z0-9.]*\.(a\.)?(free\.)?pinggy\.(io|link)(\/[^\s]*)?/gi;
-        const tryExtractUrl = () => {
-            const matches = output.match(PINGGY_URL_REGEX);
-            if (!matches || matches.length === 0) return null;
-            const candidates = [];
-            for (const raw of matches) {
-                let u = raw.replace(/\/$/, '').replace(/#.*$/, '').trim();
-                if (/dashboard/i.test(u)) continue;
+        // Cloudflare Tunnel – spawn cloudflared bezpośrednio, bez Tunnel.quick() który ma bug
+        appendTunnelLog('Cloudflare Tunnel start');
+        {
+            // Znajdź cloudflared(.exe):
+            // 1. extraResources – resources/cloudflared.exe (dodane do instalatora Windows)
+            // 2. app.asar.unpacked/node_modules/cloudflared/bin/ (asarUnpack)
+            // 3. normalny node_modules (dev)
+            const cfExeName = isWin ? 'cloudflared.exe' : 'cloudflared';
+            let cfBin = null;
+            // 1) extraResources: obok app.asar w katalogu resources
+            const resourcesDir2 = path.dirname(__dirname);
+            const cfExtra = path.join(resourcesDir2, cfExeName);
+            if (fs.existsSync(cfExtra)) cfBin = cfExtra;
+            // 2) asarUnpack
+            if (!cfBin) {
                 try {
-                    const origin = new URL(u).origin;
-                    if (/dashboard|localhost/i.test(origin)) continue;
-                    candidates.push(origin);
+                    let b = require('cloudflared').bin;
+                    if (b && b.includes('app.asar') && !b.includes('app.asar.unpacked')) {
+                        b = b.replace('app.asar', 'app.asar.unpacked');
+                    }
+                    if (b && fs.existsSync(b)) cfBin = b;
                 } catch (_) {}
+            }
+            // 3) dev: normalny require
+            if (!cfBin) {
+                try { const b = require('cloudflared').bin; if (b && fs.existsSync(b)) cfBin = b; } catch (_) {}
+            }
+            if (!cfBin) {
+                emitTunnelError(socket, { message: 'Nie znaleziono pliku cloudflared. Sprawdzono: ' + cfExtra });
+                return;
+            }
+            appendTunnelLog('cloudflared binary: ' + cfBin);
+            let urlSent = false;
+            let cfChild = null;
+            const timeout = setTimeout(() => {
+                if (urlSent) return;
+                urlSent = true;
+                try { if (cfChild) cfChild.kill('SIGTERM'); } catch (_) {}
+                emitTunnelError(socket, { message: 'Tunel nie odpowiedział w czasie (timeout). Sprawdź połączenie z internetem.' });
+            }, 30000);
+            const child = spawn(cfBin, ['tunnel', '--url', `http://localhost:${PORT}`], {
+                stdio: ['ignore', 'pipe', 'pipe'],
+                windowsHide: true
+            });
+            cfChild = child;
+            let cfOutput = '';
+            let cfUrl = null;
+            const onData = (data) => {
+                const chunk = data.toString('utf8');
+                cfOutput += chunk;
+                appendTunnelLog(chunk.trim());
+                // URL pojawia się przed potwierdzeniem połączenia
+                if (!cfUrl) {
+                    const m = cfOutput.match(/https:\/\/[a-zA-Z0-9][-a-zA-Z0-9.]*\.trycloudflare\.com/i);
+                    if (m) cfUrl = m[0].replace(/\/$/, '');
                 }
-            const tunnelLike = candidates.find(c => /\.(a\.|free\.)?pinggy\.(io|link)$/i.test(c.replace(/^https?:\/\//, '')));
-            return tunnelLike || candidates[0] || null;
-        };
-
-        const timeout = setTimeout(() => {
-            if (tunnelProcess !== child) return;
-            const url = tryExtractUrl();
-            if (!url) {
-                try { child.kill('SIGTERM'); } catch (_) {}
-                tunnelProcess = null;
-                socket.emit('tunnel_error', { message: 'Nie udało się odczytać adresu z tunelu (timeout). Użyj sekcji „Wklej adres tunelu” poniżej – uruchom ręcznie i wklej URL.' });
-            }
-        }, 22000);
-
-        child.on('error', (err) => {
-            clearTimeout(timeout);
-            if (tunnelProcess === child) tunnelProcess = null;
-            let msg = err.message || 'Błąd uruchomienia tunelu.';
-            if (err.code === 'ENOENT' && isWin) {
-                msg = 'Na Windows tunel jednym kliknięciem wymaga Klienta OpenSSH (Ustawienia → Aplikacje → Opcjonalne funkcje → Dodaj funkcję → Klient OpenSSH). Alternatywnie: w sekcji „Wklej adres tunelu” uruchom ręcznie w PowerShell: ssh -p 443 -R0:localhost:3000 a.pinggy.io i wklej wyświetlony adres.';
-            } else if (err.code === 'ENOENT') {
-                msg = 'Nie znaleziono polecenia ssh. Użyj sekcji „Wklej adres tunelu” i uruchom tunel ręcznie.';
-            }
-            socket.emit('tunnel_error', { message: msg });
-        });
-
-        let urlSent = false;
-        const removeUrlListeners = () => {
-            try {
-                child.stdout.removeAllListeners('data');
-                child.stderr.removeAllListeners('data');
-            } catch (_) {}
-        };
-        const onUrlReady = async (url) => {
-            if (!url || urlSent) return;
-            const normalized = normalizePinggyUrl(url);
-            if (!normalized) return;
-            urlSent = true;
-            clearTimeout(timeout);
-            removeUrlListeners();
-            currentPinggyUrl = normalized;
-            tunnelProcess = child;
-            console.log('🌐 Tunel Pinggy (1 klik):', currentPinggyUrl);
-            const data = await generateGameQR();
-            if (data) io.emit('qr_code', data.qrCode);
-            socket.emit('tunnel_started', { tunnelUrl: currentPinggyUrl });
-            io.emit('update_state', getStateForBroadcast());
-            if (gameState.showQROnPhones) {
-                const wifiQR = currentWiFiSSID ? await generateWiFiQR(currentWiFiSSID) : null;
-                const localGameQR = showLocalGameQR ? await generateLocalGameQR() : null;
-                const tunnelQR = await generateGameQR();
-                io.emit('qr_codes_on_phones', { wifiQR, wifiSSID: currentWiFiSSID, localGameQR, tunnelQR, gameQR: tunnelQR });
-            }
-        };
-        child.stderr.on('data', () => { const u = tryExtractUrl(); if (u) onUrlReady(u); });
-        child.stdout.on('data', () => { const u = tryExtractUrl(); if (u) onUrlReady(u); });
-        child.on('close', async () => {
-            clearTimeout(timeout);
-            if (tunnelProcess === child) {
-                tunnelProcess = null;
-                currentPinggyUrl = null;
-                io.emit('qr_code', null);
-                io.emit('update_state', getStateForBroadcast());
-                if (gameState.showQROnPhones) {
-                    const wifiQR = currentWiFiSSID ? await generateWiFiQR(currentWiFiSSID) : null;
-                    const localGameQR = showLocalGameQR ? await generateLocalGameQR() : null;
-                    io.emit('qr_codes_on_phones', { wifiQR, wifiSSID: currentWiFiSSID, localGameQR, tunnelQR: null, gameQR: localGameQR || null });
+                // Tunel jest gotowy dopiero gdy zarejestruje połączenie
+                if (!urlSent && cfUrl && /Registered tunnel connection/i.test(cfOutput)) {
+                    urlSent = true;
+                    clearTimeout(timeout);
+                    const normalized = normalizePinggyUrl(cfUrl);
+                    if (!normalized) {
+                        try { child.kill('SIGTERM'); } catch (_) {}
+                        emitTunnelError(socket, { message: 'Tunel zwrócił nieprawidłowy adres: ' + cfUrl });
+                        return;
+                    }
+                    currentPinggyUrl = normalized;
+                    tunnelProcess = child;
+                    console.log('🌐 Tunel Cloudflare (1 klik):', currentPinggyUrl);
+                    appendTunnelLog('Cloudflare Tunnel URL: ' + currentPinggyUrl);
+                    (async () => {
+                        const tunnelPayload = { tunnelUrl: currentPinggyUrl };
+                        const data = await generateGameQR();
+                        if (data) io.emit('qr_code', data.qrCode);
+                        socket.emit('tunnel_started', tunnelPayload);
+                        io.to(ADMIN_ROOM).emit('tunnel_started', tunnelPayload);
+                        io.to('njr_sampler_screen').emit('tunnel_started', tunnelPayload);
+                        io.to('spiewaj_dalej_screen').emit('tunnel_started', tunnelPayload);
+                        io.to('bitwa_wokalna_screen').emit('tunnel_started', tunnelPayload);
+                        io.to('whitney_screen').emit('tunnel_started', tunnelPayload);
+                        io.emit('update_state', getStateForBroadcast());
+                        if (gameState.showQROnPhones) {
+                            const wifiQR = currentWiFiSSID ? await generateWiFiQR(currentWiFiSSID) : null;
+                            const localGameQR = showLocalGameQR ? await generateLocalGameQR() : null;
+                            const tunnelQR = await generateGameQR();
+                            io.emit('qr_codes_on_phones', { wifiQR, wifiSSID: currentWiFiSSID, localGameQR, tunnelQR, gameQR: tunnelQR });
+                        }
+                    })();
                 }
-            }
-        });
+            };
+            child.stdout.on('data', onData);
+            child.stderr.on('data', onData);
+            child.on('error', (err) => {
+                clearTimeout(timeout);
+                if (!urlSent) { urlSent = true; emitTunnelError(socket, { message: 'Błąd cloudflared: ' + (err.message || err) }); }
+            });
+            child.on('close', (code) => {
+                clearTimeout(timeout);
+                // #region agent log
+                try { fs.appendFileSync('/Users/test/Documents/VoteBattle/.cursor/debug-86fe69.log', JSON.stringify({sessionId:'86fe69',location:'server.js:child.close',message:'cloudflared closed',data:{code,urlSent,isTunnelProcess:(tunnelProcess===child),hasCurrentUrl:!!currentPinggyUrl},timestamp:Date.now(),hypothesisId:'A'})+'\n'); } catch(_) {}
+                // #endregion
+                if (tunnelProcess === child) {
+                    tunnelProcess = null;
+                    currentPinggyUrl = null;
+                    io.emit('qr_code', null);
+                    io.emit('update_state', getStateForBroadcast());
+                    io.to(ADMIN_ROOM).emit('tunnel_stopped');
+                    // #region agent log
+                    try { fs.appendFileSync('/Users/test/Documents/VoteBattle/.cursor/debug-86fe69.log', JSON.stringify({sessionId:'86fe69',location:'server.js:child.close-natural-drop',message:'natural drop: emitted tunnel_stopped to ADMIN_ROOM',data:{code},timestamp:Date.now(),hypothesisId:'A'})+'\n'); } catch(_) {}
+                    // #endregion
+                }
+                if (!urlSent) {
+                    urlSent = true;
+                    const snippet = cfOutput.slice(-400).replace(/\r\n/g, '\n');
+                    emitTunnelError(socket, { message: 'Cloudflare zakończył się (kod ' + code + '). ' + (snippet || '') });
+                }
+            });
+        }
+            return;
     });
 
     socket.on('admin_stop_tunnel', async () => {
         if (tunnelProcess) {
-            try { tunnelProcess.kill('SIGTERM'); } catch (_) {}
+            if (typeof tunnelProcess.stop === 'function') {
+                try { tunnelProcess.stop(); } catch (_) {}
+            } else if (typeof tunnelProcess.close === 'function') {
+                try { tunnelProcess.close(); } catch (_) {}
+            } else {
+                try { tunnelProcess.kill('SIGTERM'); } catch (_) {}
+            }
             tunnelProcess = null;
         }
         currentPinggyUrl = null;
@@ -2340,15 +3878,12 @@ io.on('connection', (socket) => {
     socket.on('admin_login', (data) => {
         socket.join(ADMIN_ROOM); // Priorytet – admin dostaje update_state od razu, bez throttle
         const fromComputer = data && data.isComputer === true;
-        // Gdy admin wchodzi z komputera – nie chowaj QR (można sterować z komputera i z telefonu)
-        if (!fromComputer && !adminHasBeenOpened) {
-            adminHasBeenOpened = true;
-            io.emit('update_state', getStateForBroadcast());
-            io.emit('hide_admin_qr');
-        }
+        if (!fromComputer) adminHasBeenOpened = true;
         const files = getQuizFiles();
         socket.emit('files_list', files);
         if (fromComputer) socket.emit('admin_from_computer_confirmed');
+        // Ekran (Screen) musi dostać stan od razu, żeby ukryć QR admina – inaczej na Windows QR znika dopiero po innym zdarzeniu (np. Ekran startowy)
+        broadcastStateImmediate();
     });
 
     // ZAŁADUJ QUIZ DO GRY
@@ -2631,6 +4166,15 @@ io.on('connection', (socket) => {
         broadcastStateImmediate(); // Admin klika „Odpowiedź" – natychmiastowa aktualizacja
     });
 
+    socket.on('admin_repeat_music', () => {
+        const q = gameState.activeQuestion;
+        const audioUrl = q && (q.type === 'MUSIC' || q.type === 'M') && q.audio;
+        if (audioUrl) {
+            io.emit('admin_repeat_music', audioUrl);
+            console.log('🔁 admin_repeat_music – powtórzenie dźwięku pytania muzycznego');
+        }
+    });
+
     socket.on('admin_start_playoff', (word) => {
         // Wyczyść timer gdy zaczyna się dogrywka
         if (questionTimer) {
@@ -2908,6 +4452,20 @@ io.on('connection', (socket) => {
         
         gameState.type = 'INTRO';
         broadcastState();
+    });
+
+    socket.on('admin_toggle_show_players_with_qr', () => {
+        gameState.showPlayersWithQR = !gameState.showPlayersWithQR;
+        console.log('👥 QR + nicki na ekranie:', gameState.showPlayersWithQR ? 'WŁĄCZONE' : 'WYŁĄCZONE');
+        broadcastStateImmediate();
+    });
+
+    socket.on('admin_play_intro_music', (data) => {
+        io.emit('admin_play_intro_music', data || { volume: 70 });
+    });
+    socket.on('admin_set_master_volume', (vol) => {
+        const v = Math.max(0, Math.min(100, parseInt(vol, 10)));
+        io.emit('admin_master_volume', v);
     });
 
     // === TEAM BATTLE MODE ===
@@ -3813,6 +5371,9 @@ function onServerReady(urlPrefix) {
     console.log(`   📺 Ekran TV:           http://${IP}:${PORT}/Screen.html`);
     console.log(`   ✏️  Edytor:             http://${IP}:${PORT}/editor.html`);
     console.log(`   📱 Gracze:             http://${IP}:${PORT}/vote.html`);
+    console.log(`   🎛️  NJR Sampler:       http://${IP}:${PORT}/njr-sampler.html`);
+    console.log(`   🎤  Śpiewaj Dalej:     http://${IP}:${PORT}/spiewaj-dalej.html`);
+    console.log(`   🎙️  Bitwa wokalna:     http://${IP}:${PORT}/bitwa-wokalna.html`);
     console.log('   ─────────────────────────────────────────────────');
     console.log(`   📂 Katalog quizzes:   ${quizzesDir}`);
     if (IP === 'localhost') {
@@ -3847,24 +5408,28 @@ function checkLicenseMiddleware(req, res, next) {
 function doListen(readyCallback) {
     const serverInstance = server.listen(PORT, '0.0.0.0', () => {
         const address = serverInstance.address();
-        console.log(`✅ Serwer uruchomiony!`);
-        console.log(`📡 Adres nasłuchiwania: ${address.address}:${address.port}`);
-        console.log(`📡 Rodzina: ${address.family}`);
+        console.log(`✅ Serwer HTTP uruchomiony na porcie ${PORT}`);
         if (address.address === '0.0.0.0' || address.address === '::') {
             console.log(`✅ Serwer nasłuchuje na WSZYSTKICH interfejsach - dostępny z sieci!`);
-        } else if (address.address === '127.0.0.1' || address.address === '::1') {
-            console.error(`❌ PROBLEM: Serwer nasłuchuje tylko na localhost (${address.address})!`);
-            console.error(`   Telefon NIE będzie mógł się połączyć!`);
-            console.error(`   Serwer musi nasłuchiwać na 0.0.0.0 żeby być dostępnym z sieci.`);
         }
-        console.log(`📡 Wykryte IP komputera: ${IP}`);
-        console.log(`🌐 URL dla telefonu: http://${IP}:${PORT}/admin.html`);
+        console.log(`📡 Wykryte IP: ${IP}`);
+        if (httpsServer) {
+            httpsServer.listen(PORT_HTTPS, '0.0.0.0', () => {
+                console.log(`✅ Serwer HTTPS uruchomiony na porcie ${PORT_HTTPS}`);
+                console.log(`🔒 Quiz admin (niegasnący ekran): https://${IP}:${PORT_HTTPS}/admin.html`);
+                console.log(`🔒 Familiada admin: https://${IP}:${PORT_HTTPS}/familiada/admin.html`);
+                console.log(`🔒 Familiada przyciski: https://${IP}:${PORT_HTTPS}/familiada/buttons.html`);
+            });
+            httpsServer.on('error', (err) => {
+                if (err.code === 'EADDRINUSE') console.warn(`⚠️ Port HTTPS ${PORT_HTTPS} zajęty – Familiada użyje HTTP`);
+                else console.warn('⚠️ Błąd HTTPS:', err.message);
+            });
+        }
         if (IP === 'localhost' || IP === '127.0.0.1') {
             console.warn('⚠️ UWAGA: Wykryto tylko localhost - telefon nie będzie mógł się połączyć!');
-            console.warn('   Upewnij się że komputer i telefon są w tej samej sieci WiFi.');
-            console.warn('   Sprawdź czy komputer ma przypisane IP w sieci lokalnej.');
         }
         if (!process.env.IMPREZJA_ELECTRON) onServerReady(`http://${IP}:${PORT}`);
+        scheduleRefreshFileHashCache();
         if (typeof readyCallback === 'function') readyCallback();
     });
     serverInstance.on('error', (err) => {

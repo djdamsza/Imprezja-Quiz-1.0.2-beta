@@ -1,26 +1,34 @@
 {
   "name": "votebattle",
   "description": "Imprezja Quiz – quiz i głosowanie w sieci lokalnej (działa offline)",
-  "version": "1.0.4",
+  "version": "1.1.5-beta",
   "author": "Damian Nowaczyk",
   "main": "electron-main.js",
   "scripts": {
     "start": "node server.js",
     "kill-port": "lsof -ti:3000 | xargs kill -9 2>/dev/null || true",
-    "electron:fresh": "npm run kill-port && sleep 2 && npm run electron",
+    "electron:fresh": "npm run kill-port && sleep 2 && electron .",
     "electron:dev": "npm run kill-port && sleep 2 && electron .",
     "clean": "node scripts/clean.js",
-    "electron": "electron .",
+    "electron": "npm run kill-port && sleep 2 && electron .",
     "build": "electron-builder",
     "build:mac": "electron-builder --mac",
     "build:mac:universal": "electron-builder --mac --universal",
     "build:mac:x64": "electron-builder --mac --x64",
     "build:mac:intel": "electron-builder --mac --x64",
     "build:mac:arm64": "electron-builder --mac --arm64",
-    "build:win": "electron-builder --win --x64",
+    "build:win": "NODE_OPTIONS=--max-old-space-size=8192 electron-builder --win --x64",
+    "build:njr": "node scripts/prepare-njr-for-electron.js",
+    "build:all-in-one": "npm run build:njr && electron-builder",
+    "build:all-in-one:mac": "npm run build:njr && npm run build:mac",
+    "build:all-in-one:win": "npm run build:njr && npm run build:win",
     "pac": "node scripts/clean.js && npm run build:mac:arm64 && npm run build:mac:x64 && npm run build:win",
     "build:launcher": "pkg launcher.js --targets node18-win-x64 --output dist/ImprezjaQuiz-Launcher.exe",
-    "license-key": "node scripts/generate-license-key.js"
+    "license-key": "node scripts/generate-license-key.js",
+    "simulate:trial": "IMPREZJA_SIMULATE_TRIAL=1 node server.js",
+    "simulate:trial:electron": "IMPREZJA_SIMULATE_TRIAL=1 electron .",
+    "simulate:license-expired": "IMPREZJA_SIMULATE_LICENSE_EXPIRED=1 node server.js",
+    "simulate:license-expired:electron": "IMPREZJA_SIMULATE_LICENSE_EXPIRED=1 electron ."
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.2.7",
@@ -31,6 +39,7 @@
     "@fontsource/vt323": "^5.2.7",
     "adm-zip": "^0.5.16",
     "archiver": "^7.0.1",
+    "cloudflared": "^0.7.1",
     "electron-updater": "^6.7.3",
     "express": "^4.21.1",
     "jimp": "^0.22.10",
@@ -40,7 +49,7 @@
     "socket.io": "^4.8.1"
   },
   "devDependencies": {
-    "electron": "^25.9.8",
+    "electron": "^28.3.0",
     "electron-builder": "^26.7.0"
   },
   "build": {
@@ -53,7 +62,23 @@
     },
     "files": [
       "**/*",
+      "resources/njr-converter/**",
+      "!tools/vdj-database-editor/**",
+      "!public/quizzes/Quiz Kardasz.json",
+      "!public/quizzes/Quiz Emil.json",
+      "!public/quizzes/Quiz Dominika i Mateusz 2026.json",
+      "!public/uploads/177021*",
+      "!public/uploads/177037*",
+      "!public/uploads/177038*",
+      "!public/uploads/177090*",
+      "!public/uploads/177091*",
       "!node_modules/.cache",
+      "!node_modules/**/test/**",
+      "!node_modules/**/tests/**",
+      "!node_modules/**/doc/**",
+      "!node_modules/**/docs/**",
+      "!node_modules/**/*.md",
+      "!node_modules/**/.*",
       "!**/.DS_Store",
       "!**/._*",
       "!**/*.dmg",
@@ -73,13 +98,17 @@
       "!scripts",
       "!launcher.js",
       "!license-private.pem",
-      "!VoteBattle-zrodla*.zip"
+      "!VoteBattle-zrodla*.zip",
+      "!resources/tunnelmole-windows/**",
+      "!scripts/download-tmole-windows.js"
     ],
     "asar": true,
     "asarUnpack": [
       "**/*.node",
       "**/node_modules/sharp/**",
-      "**/node_modules/@img/**"
+      "**/node_modules/@img/**",
+      "**/node_modules/cloudflared/**",
+      "resources/njr-converter/**"
     ],
     "mac": {
       "category": "public.app-category.entertainment",
@@ -94,6 +123,12 @@
       "singleArchFiles": "**/node_modules/@img/**"
     },
     "win": {
+      "extraResources": [
+        {
+          "from": "resources/cloudflared-windows/cloudflared.exe",
+          "to": "cloudflared.exe"
+        }
+      ],
       "target": [
         {
           "target": "nsis",
@@ -111,6 +146,7 @@
       "releaseType": "release"
     },
     "nsis": {
+      "include": "build/installer.nsh",
       "oneClick": true,
       "allowToChangeInstallationDirectory": false,
       "runAfterFinish": false,

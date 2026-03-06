@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poradnik: Familiada – wszystkie funkcje | Imprezja Quiz</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1a1a2e; color: #eee; line-height: 1.6; padding: 24px; max-width: 720px; margin: 0 auto; }
+        h1 { font-size: 1.6rem; margin-bottom: 8px; color: #f1c40f; }
+        .back { margin-bottom: 24px; }
+        .back a { color: #3498db; text-decoration: none; }
+        .back a:hover { text-decoration: underline; }
+        h2 { font-size: 1.2rem; margin-top: 28px; margin-bottom: 10px; color: #bdc3c7; }
+        p { margin-bottom: 12px; }
+        ul { margin: 12px 0 12px 24px; }
+        li { margin-bottom: 6px; }
+        .box { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 16px; margin: 16px 0; }
+        code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+        .tip { border-left: 4px solid #2ecc71; padding-left: 12px; margin: 12px 0; color: #bdc3c7; }
+    </style>
+</head>
+<body>
+    <p class="back"><a href="/start.html">← Powrót do ekranu startowego</a></p>
+    <h1>🎤 Familiada – pełny poradnik</h1>
+    <p>Wszystkie funkcje trybu Familiada: import pytań, złota lista, rozdzielanie punktów, suchary, działanie przycisków oraz gry poza kolejnością.</p>
+
+    <h2>Edytor pytań</h2>
+    <p>Z ekranu Familiady wybierz <strong>„Edytor pytań Familiady”</strong> lub otwórz w przeglądarce <code>/familiada/editor.html</code>. Tam tworzysz i zapisujesz listy pytań.</p>
+
+    <h2>Importowanie pytań (tekst, JSON, XML)</h2>
+    <p>Nie musisz wpisywać wszystkiego ręcznie. Edytor przyjmuje:</p>
+    <ul>
+        <li><strong>Wklej JSON / tekst</strong> – przycisk „Wklej JSON” otwiera okno. Możesz wkleić:<br>
+        • <strong>Tekst:</strong> np. „Pytanie 1: Jaki kolor ma niebo? / Odpowiedź – 40” albo pytanie w jednej linii, a w kolejnych liniach lista odpowiedzi (każda z punktami).<br>
+        • <strong>JSON / XML</strong> – struktura z pytaniami i odpowiedziami; edytor parsuje i dodaje pytania.</li>
+        <li><strong>Z dysku (JSON)</strong> – wybierz plik .json z zapisanymi pytaniami.</li>
+        <li><strong>Przeciągnij plik</strong> – przeciągnij plik XML, JSON lub TXT na wskazane pole; treść zostanie zaimportowana.</li>
+    </ul>
+
+    <h2>⭐ Złota lista</h2>
+    <p><strong>Złota lista</strong> to zestaw do 10 ulubionych pytań, które są zawsze dostępne w panelu admina – niezależnie od załadowanej głównej listy. Przydatne na „na szybko” lub na finał.</p>
+    <ul>
+        <li>W edytorze przy każdym pytaniu jest przycisk <strong>☆</strong> (gwiazdka). Kliknij, aby dodać pytanie do złotej listy.</li>
+        <li>Sekcja „Złota Lista” jest na dole edytora. Możesz tam dodawać pytania, edytować je i zapisać przyciskiem <strong>„Zapisz złotą listę”</strong>.</li>
+        <li>W panelu admina (pilot) na dole jest blok <strong>„Złota lista”</strong> – po załadowaniu gry pytania ze złotej listy są tam widoczne i możesz je wyświetlać w dowolnej chwili, także poza kolejnością głównej listy.</li>
+    </ul>
+
+    <h2>🔢 Rozdzielanie punktów</h2>
+    <p>Odpowiedzi w Familiadzie mają punkty (np. suma 100). Zamiast wpisywać je ręcznie:</p>
+    <ul>
+        <li>W edytorze przy każdej karcie pytania jest przycisk <strong>„Rozdziel automatycznie”</strong>.</li>
+        <li>Kliknij go – punkty zostaną rozłożone tak, że <strong>pierwsza odpowiedź dostaje najwięcej</strong>, druga mniej, itd. (np. dla 5 odpowiedzi: 30, 25, 20, 15, 10). Suma zawsze 100.</li>
+        <li>Możesz potem ręcznie poprawić poszczególne wartości w polach punktów.</li>
+    </ul>
+
+    <h2>😄 Suchary</h2>
+    <p>W panelu admina (pilot) jest sekcja <strong>„Suchary”</strong> z przyciskiem <strong>„Daj suchara”</strong>. Po kliknięciu wyświetla się losowy suchar (krótki dowcip) – np. na przerwę lub dla rozluźnienia. Możesz usunąć wyświetlony suchar przyciskiem „Usuń” (wtedy nie pojawi się ponownie do końca sesji). Jest też opcja przywrócenia bazy sucharów.</p>
+
+    <h2>Działanie przycisków w grze</h2>
+    <p>Podczas rundy prowadzący (z panelu na telefonie lub komputera) widzi wybrane pytanie i listę odpowiedzi. Do obsługi rundy służą:</p>
+    <ul>
+        <li><strong>X, XX, XXX (niebieskie / czerwone)</strong> – oznaczają pierwszą, drugą i trzecią pomyłkę danej drużyny. Kliknięcie „X” daje pierwszą pomyłkę, „XX” drugą, „XXX” trzecią (koniec szans dla tej drużyny w tej rundzie).</li>
+        <li><strong>X (środek)</strong> – pomyłka „w środku” (wspólna, np. gdy obie drużyny się pomylą w tym samym momencie).</li>
+        <li><strong>💰 Przekaż (niebieski / czerwony)</strong> – przyznaje drużynie punkty za odsłoniętą odpowiedź i przekazuje kolejkę drugiej drużynie. Niebieski = punkty dla niebieskich, czerwony = punkty dla czerwonych.</li>
+        <li><strong>← Zamknij / Dżyngiel</strong> – zamyka panel pytania i można odtworzyć dżyngiel (przejście do podsumowania rundy lub kolejnego pytania).</li>
+    </ul>
+    <p>Na ekranie TV widać efekt naciśnięcia przycisku drużyny (podświetlenie niebieskie/czerwone).</p>
+
+    <h2>Przyciski bez podpinania (strona przycisków)</h2>
+    <p>Nie musisz używać fizycznych przycisków. Na ekranie startowym Familiady jest drugi kod QR: <strong>„Zeskanuj – przyciski (niebieski/czerwony)”</strong>. Po zeskanowaniu otwiera się strona z dwoma dużymi przyciskami: <strong>NIEBIESCY</strong> i <strong>CZERWONI</strong>. Działają tak samo jak podpięte przyciski – gdy w rundzie można naciskać, naciśnięcie przyznaje kolejność odpowiedzi i wyświetla efekt na ekranie. Można grać wyłącznie z telefonem/tabletem, bez dodatkowego sprzętu.</p>
+
+    <h2>Pytania poza kolejnością</h2>
+    <p>Kolejność pytań na liście nie jest sztywna. Możesz:</p>
+    <ul>
+        <li>Kliknąć <strong>dowolne pytanie</strong> z załadowanej listy – od razu wyświetli się ono na tablicy. Nie musisz iść 1, 2, 3…</li>
+        <li>Korzystać równolegle ze <strong>złotej listy</strong> – pytania z złotej listy są na dole panelu i możesz je wyświetlać w dowolnym momencie.</li>
+    </ul>
+    <p>Dzięki temu prowadzący może dostosować grę do tempa imprezy lub wracać do ulubionych pytań.</p>
+
+    <h2>Inne funkcje panelu admina</h2>
+    <ul>
+        <li><strong>Zeruj punkty (0:0)</strong> – resetuje wynik drużyn.</li>
+        <li><strong>Wczytaj listę pytań</strong> – wybór zapisanej listy (plik JSON) i załadowanie jej do gry.</li>
+        <li><strong>Nazwy drużyn</strong> – edycja „Niebiescy” / „Czerwoni” i zastosowanie na ekranie.</li>
+        <li><strong>Intro / Dżyngiel</strong> – odtwarzanie intro i dżyngla na ekranie.</li>
+        <li><strong>Ekran końcowy (Outro)</strong> – przejście do podsumowania i końca gry.</li>
+    </ul>
+
+    <div class="box">
+        <strong>Podsumowanie:</strong> Familiada w Imprezji to pełny panel do prowadzenia gry: import pytań (tekst/JSON/XML), złota lista, automatyczne rozdzielanie punktów, suchary, przyciski w grze (X, XX, XXX, Przekaż) oraz możliwość używania przycisków na stronie (bez podpinania) i dowolna kolejność pytań.
+    </div>
+</body>
+</html>

@@ -254,9 +254,21 @@
         </div>
     </div>
 </div>
+<div id="editor-toast" class="editor-toast" style="display: none; position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); padding: 10px 20px; border-radius: 8px; z-index: 10000; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); max-width: 90%;"></div>
 
 <script>
     const socket = io();
+
+    window.showEditorStatus = function(msg, type) {
+        const el = document.getElementById('editor-toast');
+        if (!el) return;
+        el.textContent = msg;
+        el.style.background = type === 'success' ? '#2ecc71' : type === 'error' ? '#e74c3c' : '#3498db';
+        el.style.color = '#fff';
+        el.style.display = 'block';
+        clearTimeout(window._editorToastT);
+        window._editorToastT = setTimeout(function() { el.style.display = 'none'; }, 4000);
+    };
 
     // === OPTYMALIZATOR GRAFIKI (FUNKCJE POMOCNICZE) ===
     /**
@@ -342,7 +354,7 @@
 
     socket.on('editor_delete_status', (status) => {
         console.log('📥 Otrzymano status usuwania:', status);
-        alert(status.message);
+        if (window.showEditorStatus) window.showEditorStatus(status.message, status.success ? 'success' : 'error');
         if(status.success) {
             socket.emit('editor_get_files');
             const deleteModalEl = document.getElementById('deleteModal');
@@ -365,13 +377,13 @@
     });
 
     socket.on('editor_file_content', (data) => {
-        if(confirm('Wczytanie pliku nadpisze obecny widok. Kontynuować?')) {
+        {
             document.getElementById('filename').value = data.filename.replace('.json', '');
             processData(data);
         }
     });
 
-    socket.on('editor_save_status', (status) => alert(status.message));
+    socket.on('editor_save_status', (status) => { if (window.showEditorStatus) window.showEditorStatus(status.message, status.success ? 'success' : 'error'); });
 
     // === LOGIKA EDYTORA ===
 
@@ -770,10 +782,10 @@
                         preview.style.display = 'block';
                     }
                 } else {
-                    alert('Błąd uploadu');
+                    if (window.showEditorStatus) window.showEditorStatus('Błąd uploadu', 'error');
                 }
             })
-            .catch(err => alert('Błąd: ' + err))
+            .catch(err => { if (window.showEditorStatus) window.showEditorStatus('Błąd: ' + err.message, 'error'); })
             .finally(() => {
                 if(loader) loader.style.display = 'none';
             });
@@ -851,10 +863,10 @@
                         console.log(`✅ HOT_OR_NOT - zaktualizowano preview dla ${imageType}`);
                     }
                 } else {
-                    alert('Błąd uploadu');
+                    if (window.showEditorStatus) window.showEditorStatus('Błąd uploadu', 'error');
                 }
             })
-            .catch(err => alert('Błąd: ' + err))
+            .catch(err => { if (window.showEditorStatus) window.showEditorStatus('Błąd: ' + err.message, 'error'); })
             .finally(() => {
                 if(loader) loader.style.display = 'none';
             });
@@ -863,7 +875,7 @@
     // --- ZBIERANIE DANYCH ---
     function collectData() {
         const filename = document.getElementById('filename').value.trim();
-        if (!filename) { alert('Podaj nazwę pliku!'); return null; }
+        if (!filename) { if (window.showEditorStatus) window.showEditorStatus('Podaj nazwę pliku!', 'error'); return null; }
 
         const questions = [];
         document.querySelectorAll('.question-card').forEach(card => {
@@ -1279,7 +1291,7 @@
                 a.download = (document.getElementById('filename').value || 'quiz') + '-pakiet.zip';
                 a.click();
             } catch (e) {
-                alert('Błąd pobierania pakietu: ' + e.message);
+                if (window.showEditorStatus) window.showEditorStatus('Błąd pobierania pakietu: ' + e.message, 'error');
             }
         });
     }
@@ -1296,7 +1308,7 @@
             processData(data.data);
             input.value = '';
         } catch (e) {
-            alert('Błąd importu pakietu: ' + e.message);
+            if (window.showEditorStatus) window.showEditorStatus('Błąd importu pakietu: ' + e.message, 'error');
         }
     }
 
@@ -1320,7 +1332,7 @@
         })
         .catch(err => {
             console.error('Błąd uploadu:', err);
-            alert('Błąd podczas przesyłania obrazka');
+            if (window.showEditorStatus) window.showEditorStatus('Błąd podczas przesyłania obrazka', 'error');
         });
     }
 
@@ -1370,7 +1382,7 @@
             try {
                 document.getElementById('filename').value = file.name.replace('.json', '');
                 processData(JSON.parse(e.target.result));
-            } catch(e) { alert('Błąd pliku'); }
+            } catch(e) { if (window.showEditorStatus) window.showEditorStatus('Błąd pliku', 'error'); }
         };
         reader.readAsText(file);
     }
@@ -1386,7 +1398,7 @@
             const txt = document.getElementById('pasteArea').value;
             if(txt) processData(JSON.parse(txt));
             document.getElementById('pasteModal').style.display = 'none';
-        } catch(e) { alert('Błąd JSON'); }
+        } catch(e) { if (window.showEditorStatus) window.showEditorStatus('Błąd JSON', 'error'); }
     }
 
     // === LOGIKA EDYTORA STATKÓW ===
@@ -1652,14 +1664,14 @@
     function openDeleteModal() {
         const filename = document.getElementById('server-files-list').value;
         if(!filename) {
-            alert('Wybierz plik do usunięcia!');
+            if (window.showEditorStatus) window.showEditorStatus('Wybierz plik do usunięcia!', 'error');
             return;
         }
         const deleteFilenameEl = document.getElementById('delete-filename');
         const deleteModalEl = document.getElementById('deleteModal');
         if(!deleteFilenameEl || !deleteModalEl) {
             console.error('❌ Nie znaleziono elementów modala usuwania');
-            alert('Błąd: Nie znaleziono elementów modala. Odśwież stronę.');
+            if (window.showEditorStatus) window.showEditorStatus('Błąd: Nie znaleziono elementów modala. Odśwież stronę.', 'error');
             return;
         }
         deleteFilenameEl.textContent = filename;
@@ -1672,19 +1684,19 @@
     function confirmDelete() {
         const filename = document.getElementById('server-files-list').value;
         if(!filename) {
-            alert('Błąd: Nie wybrano pliku!');
+            if (window.showEditorStatus) window.showEditorStatus('Błąd: Nie wybrano pliku!', 'error');
             return;
         }
         
         const checkedOption = document.querySelector('input[name="delete-option"]:checked');
         if(!checkedOption) {
-            alert('Błąd: Nie wybrano opcji usuwania!');
+            if (window.showEditorStatus) window.showEditorStatus('Błąd: Nie wybrano opcji usuwania!', 'error');
             return;
         }
         
         const deleteRelated = checkedOption.value === 'all';
         
-        if(confirm(`Czy na pewno chcesz usunąć "${filename}"${deleteRelated ? ' wraz z wszystkimi powiązanymi plikami' : ''}?`)) {
+        if (true) {
             console.log('📤 Wysyłanie żądania usunięcia:', { filename, deleteRelated });
             socket.emit('editor_delete_file', { filename, deleteRelated });
         }

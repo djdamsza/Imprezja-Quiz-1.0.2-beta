@@ -1,0 +1,93 @@
+{
+  "tileCount": 8,
+  "tiles": [
+    {
+      "id": "t0",
+      "color": "#0000ff",
+      "label": "XP START UP",
+      "image": "🎵",
+      "audio": "/uploads/1772569173236-windows-xp-startup.mp3",
+      "volume": 100,
+      "isBackground": false,
+      "loop": false,
+      "fadeOut": false
+    },
+    {
+      "id": "t1",
+      "color": "#ff0000",
+      "label": "XP SHUT DOWN",
+      "image": "🎵",
+      "audio": "/uploads/1772569216238-windows-shutdown_lWRhnkD.mp3",
+      "volume": 100,
+      "isBackground": false,
+      "loop": false,
+      "fadeOut": false
+    },
+    {
+      "id": "t2",
+      "color": "#000080",
+      "label": "AVAST ZAGROZENIE",
+      "image": "🔥",
+      "audio": "/uploads/1772569252972-avast-zostalo-wykryte-zagrozenie.mp3",
+      "volume": 100,
+      "isBackground": false,
+      "loop": false,
+      "fadeOut": false
+    },
+    {
+      "id": "t3",
+      "color": "#000080",
+      "label": "AVAST BAZA WIRUSÓW",
+      "image": "🔥",
+      "audio": "/uploads/1772569274951-baza-wirusow-zostala-zaktualizowana.mp3",
+      "volume": 100,
+      "isBackground": false,
+      "loop": false,
+      "fadeOut": false
+    },
+    {
+      "id": "t4",
+      "color": "#000000",
+      "label": "ERROR",
+      "image": "😂",
+      "audio": "/uploads/1772569327478-erro_kXS3n9A.mp3",
+      "volume": 100,
+      "isBackground": false,
+      "loop": false,
+      "fadeOut": false
+    },
+    {
+      "id": "t5",
+      "color": "#ffffff",
+      "label": "MODEM",
+      "image": "⚡",
+      "audio": "/uploads/1772569363069-loading-lost-connection-green-screen-with-sound-effect-2_K8HORkT.mp3",
+      "volume": 100,
+      "isBackground": false,
+      "loop": false,
+      "fadeOut": false
+    },
+    {
+      "id": "t6",
+      "color": "#ff00ff",
+      "label": "TIME",
+      "image": "😴",
+      "audio": "/uploads/1772569380413-a-few-moments-later-hd.mp3",
+      "volume": 100,
+      "isBackground": false,
+      "loop": false,
+      "fadeOut": false
+    },
+    {
+      "id": "t7",
+      "color": "#0000ff",
+      "label": "NOKIA",
+      "image": "🎉",
+      "audio": "/uploads/1772569440749-nokia-ringtone-1994.mp3",
+      "volume": 100,
+      "isBackground": false,
+      "loop": false,
+      "fadeOut": false
+    }
+  ]
+}

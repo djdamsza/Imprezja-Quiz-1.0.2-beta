@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Logo Imprezja Quiz – podgląd bez tła</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 2rem; }
+    h1 { margin-bottom: 1.5rem; }
+    .preview { margin: 2rem 0; padding: 2rem; border-radius: 12px; }
+    .preview h2 { margin-bottom: 1rem; font-size: 1rem; }
+    .preview.dark { background: #1a1a2e; }
+    .preview.light { background: #f8f9fa; }
+    .preview.gradient { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .preview img { max-width: 280px; height: auto; display: block; }
+    .corner { position: absolute; top: 20px; right: 20px; }
+    .corner img { max-width: 120px; }
+    .info { background: #e9ecef; padding: 1rem; border-radius: 8px; margin-top: 2rem; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <h1>Logo Imprezja Quiz – bez tła (do akceptacji)</h1>
+  <p>Podgląd logo z przezroczystym tłem na różnych tłach – tak będzie wyglądać na ekranie TV, vote.html i Familiada.</p>
+
+  <div class="preview dark">
+    <h2>Na ciemnym tle (ekran TV, główny ekran)</h2>
+    <img src="imprezja-quiz-logo-transparent.png" alt="Imprezja Quiz">
+  </div>
+
+  <div class="preview light">
+    <h2>Na jasnym tle</h2>
+    <img src="imprezja-quiz-logo-transparent.png" alt="Imprezja Quiz">
+  </div>
+
+  <div class="preview gradient">
+    <h2>Na gradientowym tle</h2>
+    <img src="imprezja-quiz-logo-transparent.png" alt="Imprezja Quiz">
+  </div>
+
+  <div class="preview dark" style="position: relative;">
+    <h2>W narożniku (symulacja Familiada)</h2>
+    <div class="corner">
+      <img src="imprezja-quiz-logo-transparent.png" alt="Imprezja Quiz">
+    </div>
+    <p style="opacity: 0.7;">Treść ekranu…</p>
+  </div>
+
+  <div class="info">
+    <strong>Pliki:</strong><br>
+    • <code>docs/marketing/imprezja-quiz-logo-transparent.png</code> – do podglądu i akceptacji<br>
+    • <code>public/uploads/imprezja-quiz-logo-transparent.png</code> – kopia do montażu w grze<br><br>
+    Po akceptacji wmontujemy logo w Screen.html, vote.html i ekran Familiady.
+  </div>
+</body>
+</html>

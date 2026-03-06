@@ -853,19 +853,60 @@
         
         .ships-stats-container {
             width: 100%;
-            max-width: 600px;
+            max-width: 100%;
             flex: 0 0 auto;
+            overflow-x: auto;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
-            /* Na telefonie: przewijanie, na TV: ucięcie ale pokaż maksymalnie dużo */
-            max-height: calc(100vh - 400px); /* Pozostaw miejsce na planszę i nagłówek */
+            max-height: calc(100vh - 350px);
+            padding: 8px;
+            box-sizing: border-box;
         }
         
-        /* Na większych ekranach (TV) - ogranicz wysokość tabeli */
         @media (min-width: 1024px) {
             .ships-stats-container {
+                max-width: 600px;
                 max-height: 50vh;
             }
+        }
+
+        .ships-stats-table {
+            width: 100%;
+            min-width: 0;
+            table-layout: fixed;
+            border-collapse: collapse;
+            font-size: clamp(0.8rem, 2.5vw, 1rem);
+        }
+        .ships-stats-table table {
+            width: 100%;
+            table-layout: fixed;
+            font-size: inherit;
+        }
+        .ships-stats-table th,
+        .ships-stats-table td {
+            padding: 6px 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .ships-stats-table .ships-stats-inner-table {
+            table-layout: fixed;
+            font-size: inherit;
+        }
+        .ships-stats-table .ships-stats-inner-table th,
+        .ships-stats-table .ships-stats-inner-table td {
+            padding: 6px 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .ships-stats-table .ships-stats-inner-table td:first-child {
+            width: 45%;
+            word-break: break-word;
+            white-space: normal;
+            overflow: visible;
+        }
+        .ships-stats-table .ships-stats-inner-table td:not(:first-child) {
+            width: 18%;
+            text-align: center;
         }
 
         .ships-board-table {
@@ -1921,6 +1962,12 @@
             min-height: 200px;
             overflow: hidden;
         }
+        /* Dla zdjęć pionowych: karty węższe, wyśrodkowane – mniej pustej przestrzeni */
+        .hot-or-not-grid.layout-vertical .hot-image-card {
+            max-width: min(95vw, 50vh);
+            margin-left: auto;
+            margin-right: auto;
+        }
         
         .hot-or-not-grid.layout-mixed {
             grid-template-columns: 1fr 1fr;
@@ -2752,7 +2799,7 @@
     <div class="container">
         <!-- EKRAN LOGOWANIA -->
         <div id="login-screen">
-            <div class="logo">🎮 Imprezja Quiz</div>
+            <img src="/img/logo_imprezja_mini.png" alt="Imprezja Quiz" style="max-width: 160px; height: auto; margin: 0 auto 12px; display: block;">
             <div class="subtitle">Wpisz swoje imię</div>
             
             <div class="input-group">
@@ -2765,6 +2812,7 @@
 
         <!-- EKRAN OCZEKIWANIA -->
         <div id="waiting-screen">
+            <img src="/img/logo_imprezja_mini.png" alt="Imprezja Quiz" style="max-width: 140px; height: auto; margin-bottom: 12px;">
             <div class="intro-title" id="intro-title">Imprezja Quiz</div>
             
             <!-- Kody QR – przekaż dalej dostęp do gry (gdy admin włączył opcję) -->
@@ -2872,6 +2920,7 @@
 
         <!-- EKRAN PODZIĘKOWAŃ -->
         <div id="thanks-screen">
+            <img src="/img/logo_imprezja_mini.png" alt="Imprezja Quiz" style="max-width: 120px; height: auto; margin-bottom: 16px;">
             <div class="thanks-title" id="thanks-title">🎉 Dziękuję za udział w zabawie</div>
             <div class="thanks-content" id="thanks-content"></div>
             <div class="thanks-image-container" id="thanks-image-container" style="display: none; margin-top: 30px; text-align: center;">
@@ -2881,6 +2930,7 @@
 
         <!-- EKRAN PODIUM -->
         <div id="podium-screen">
+            <img src="/img/logo_imprezja_mini.png" alt="Imprezja Quiz" style="max-width: 120px; height: auto; margin-bottom: 12px;">
             <div class="podium-title" id="podium-title-header" style="display: block !important; visibility: visible !important; opacity: 1 !important; text-align: center !important; font-size: clamp(1.3rem, 5vw, 2rem) !important; font-weight: 900 !important; margin-bottom: 20px !important; background: -webkit-linear-gradient(#f1c40f, #e67e22) !important; -webkit-background-clip: text !important; -webkit-text-fill-color: transparent !important;">🏆 PODIUM</div>
             <div class="podium-waiting" id="podium-waiting">Obserwuj ekran główny...</div>
             
@@ -2913,6 +2963,8 @@
     </div>
 
     <script>
+        const DEBUG = false;
+        const log = (...a) => DEBUG && log(...a);
         const socket = io();
         let playerNick = '';
         let playerScore = 0;
@@ -2927,18 +2979,18 @@
         let currentGameState = null;
         let playerEliminated = false;
 
-        console.log('🎮 Aplikacja gracza uruchomiona');
+        log('🎮 Aplikacja gracza uruchomiona');
         
         // Inicjalizacja - pokaż ekran logowania jeśli gracz nie jest zarejestrowany
         window.addEventListener('DOMContentLoaded', () => {
-            console.log('📱 DOM załadowany - sprawdzam stan gracza');
+            log('📱 DOM załadowany - sprawdzam stan gracza');
             
             // Dodaj event listener dla przycisku "DOŁĄCZ DO GRY" (backup dla onclick)
             const joinBtn = document.getElementById('join-game-btn');
             if (joinBtn) {
                 joinBtn.addEventListener('click', (e) => {
                     e.preventDefault();
-                    console.log('🔘 Kliknięto przycisk DOŁĄCZ DO GRY');
+                    log('🔘 Kliknięto przycisk DOŁĄCZ DO GRY');
                     if (typeof window.registerPlayer === 'function') {
                         window.registerPlayer();
                     } else {
@@ -2967,9 +3019,9 @@
                         }, 100);
                     }
                 };
-                console.log('✅ Event listener dodany do przycisku DOŁĄCZ DO GRY');
+                log('✅ Event listener dodany do przycisku DOŁĄCZ DO GRY');
             } else {
-                console.warn('⚠️ Nie znaleziono przycisku join-game-btn');
+                if(DEBUG) console.warn('⚠️ Nie znaleziono przycisku join-game-btn');
             }
             
             try {
@@ -2979,18 +3031,18 @@
                     const loginScreen = document.getElementById('login-screen');
                     if (loginScreen) {
                         loginScreen.style.display = 'block';
-                        console.log('✅ Pokazuję ekran logowania');
+                        log('✅ Pokazuję ekran logowania');
                     }
                 } else {
                     // Jest zapisany nick - ukryj ekran logowania (zostanie pokazany po reconnect)
                     const loginScreen = document.getElementById('login-screen');
                     if (loginScreen) {
                         loginScreen.style.display = 'none';
-                        console.log('✅ Ukrywam ekran logowania - gracz ma zapisany nick:', savedNick);
+                        log('✅ Ukrywam ekran logowania - gracz ma zapisany nick:', savedNick);
                     }
                 }
             } catch (e) {
-                console.warn('Błąd przy inicjalizacji:', e);
+                if(DEBUG) console.warn('Błąd przy inicjalizacji:', e);
                 // W przypadku błędu pokaż ekran logowania
                 const loginScreen = document.getElementById('login-screen');
                 if (loginScreen) loginScreen.style.display = 'block';
@@ -3001,7 +3053,7 @@
         function requestFullscreen() {
             const elem = document.documentElement;
             if (elem.requestFullscreen) {
-                elem.requestFullscreen().catch(e => console.log('Fullscreen error:', e));
+                elem.requestFullscreen().catch(e => log('Fullscreen error:', e));
             } else if (elem.webkitRequestFullscreen) {
                 elem.webkitRequestFullscreen();
             } else if (elem.msRequestFullscreen) {
@@ -3054,7 +3106,7 @@
         }
 
         socket.on('connect', () => {
-            console.log('✅ Połączono z serwerem, socket.id:', socket.id);
+            log('✅ Połączono z serwerem, socket.id:', socket.id);
             hideConnectionLost();
 
             // Automatyczna rejestracja przy reconnect jeśli gracz był wcześniej zarejestrowany
@@ -3063,7 +3115,7 @@
                 const savedTeam = localStorage.getItem('voteBattle_team');
                 
                 if (savedNick && savedNick.trim() !== '') {
-                    console.log('🔄 Automatyczna rejestracja przy reconnect:', savedNick);
+                    log('🔄 Automatyczna rejestracja przy reconnect:', savedNick);
                     playerNick = savedNick;
                     if (savedTeam) {
                         playerTeam = savedTeam;
@@ -3074,12 +3126,12 @@
                     registerPlayer(savedNick);
                 } else {
                     // Jeśli nie ma zapisanego nicku, pokaż ekran logowania
-                    console.log('📱 Brak zapisanego nicku - pokazuję ekran logowania');
+                    log('📱 Brak zapisanego nicku - pokazuję ekran logowania');
                     const loginScreen = document.getElementById('login-screen');
                     if (loginScreen) loginScreen.style.display = 'block';
                 }
             } catch (e) {
-                console.warn('Nie można odczytać z localStorage:', e);
+                if(DEBUG) console.warn('Nie można odczytać z localStorage:', e);
             }
             
             // Poproś o aktualny stan gry po połączeniu
@@ -3087,7 +3139,7 @@
         });
         
         socket.on('disconnect', () => {
-            console.log('❌ Rozłączono z serwerem');
+            log('❌ Rozłączono z serwerem');
             showConnectionLost();
         });
 
@@ -3098,7 +3150,7 @@
         
         // Obsługa kodów QR „przekaż dalej dostęp” – WiFi, gra lokalna, tunel
         socket.on('qr_codes_on_phones', (data) => {
-            console.log('📱 Otrzymano kody QR (przekaż dalej dostęp)');
+            log('📱 Otrzymano kody QR (przekaż dalej dostęp)');
             const wifiBlock = document.getElementById('notv-wifi-block-waiting');
             const localBlock = document.getElementById('notv-local-block-waiting');
             const tunnelBlock = document.getElementById('notv-tunnel-block-waiting');
@@ -3136,7 +3188,7 @@
         // Poproś serwer o aktualny stan (jeśli serwer tego nie obsługuje, użyj update_state który jest wysyłany automatycznie)
 
         socket.on('disconnect', () => {
-            console.log('❌ Rozłączono z serwerem');
+            log('❌ Rozłączono z serwerem');
             showConnectionLost();
         });
 
@@ -3195,10 +3247,10 @@
                     localStorage.setItem('voteBattle_team', playerTeam);
                 }
             } catch (e) {
-                console.warn('Nie można zapisać do localStorage:', e);
+                if(DEBUG) console.warn('Nie można zapisać do localStorage:', e);
             }
             
-            console.log('👤 Wysyłam rejestrację gracza:', trimmedNick, nickToUse ? '(auto-reconnect)' : '', 'socket.connected:', socket.connected);
+            log('👤 Wysyłam rejestrację gracza:', trimmedNick, nickToUse ? '(auto-reconnect)' : '', 'socket.connected:', socket.connected);
             
             // Wyślij rejestrację do serwera
             socket.emit('register_player', trimmedNick);
@@ -3338,14 +3390,14 @@
             if (stateRefreshTimer) clearTimeout(stateRefreshTimer);
             stateRefreshTimer = setTimeout(() => {
                 if (currentGameState && (currentGameState.type === 'GAME' || currentGameState.type === 'GAME_STATS') && socket.connected && playerNick) {
-                    console.log('🔄 Brak aktualizacji 3s – proszę o stan');
+                    log('🔄 Brak aktualizacji 3s – proszę o stan');
                     socket.emit('request_state');
                 }
                 stateRefreshTimer = null;
             }, 3000);
         }
         socket.on('update_state', (state) => {
-            console.log('📡 Stan gry:', state.type, 'showStats:', state.showStats, 'showCorrect:', state.showCorrect, 'teamBattleMode:', state.teamBattleMode, 'playerNick:', playerNick, 'playerTeam:', playerTeam);
+            log('📡 Stan gry:', state.type, 'showStats:', state.showStats, 'showCorrect:', state.showCorrect, 'teamBattleMode:', state.teamBattleMode, 'playerNick:', playerNick, 'playerTeam:', playerTeam);
             
             // Zapisz aktualny stan gry
             currentGameState = state;
@@ -3354,20 +3406,20 @@
             playerEliminated = !!(state.eliminatedMap && state.eliminatedMap[socket.id]);
             
             // WAŻNE: Jeśli dogrywka jest aktywna, natychmiast ukryj wszystkie obrazy i upewnij się że dogrywka jest wyświetlona
-            console.log('🎤 Wczesne sprawdzenie dogrywki:', {
+            log('🎤 Wczesne sprawdzenie dogrywki:', {
                 playoffExists: !!state.playoff,
                 playoffActive: !!(state.playoff && state.playoff.active),
                 playerNick: playerNick
             });
             
             if (state.playoff && state.playoff.active && playerNick) {
-                console.log('🎤 ✅ WCZESNE WYKRYCIE DOGRYWKI - natychmiast ustawiam słowo i napis DOGRYWKA i ukrywam obrazy');
+                log('🎤 ✅ WCZESNE WYKRYCIE DOGRYWKI - natychmiast ustawiam słowo i napis DOGRYWKA i ukrywam obrazy');
                 
                 // WAŻNE: Ustaw słowo dogrywki i napis "DOGRYWKA" NAJPIERW, przed wszystkimi innymi operacjami
                 const qTextElEarly = document.getElementById('question-text');
                 if (qTextElEarly && state.playoff && state.playoff.word) {
                     const playoffWord = state.playoff.word || '';
-                    console.log('📝 [WCZESNE] Ustawiam słowo i napis DOGRYWKA natychmiast, słowo:', playoffWord);
+                    log('📝 [WCZESNE] Ustawiam słowo i napis DOGRYWKA natychmiast, słowo:', playoffWord);
                     qTextElEarly.innerHTML = `
                         <div class="playoff-word" style="text-align: center !important; width: 100% !important; display: block !important; margin: 0 auto 10px auto !important; font-size: clamp(1rem, 4vw, 1.3rem) !important; font-weight: 700 !important; color: white !important;">${playoffWord}</div>
                         <div class="playoff-title-pulse" style="text-align: center !important; width: 100% !important; display: block !important; margin: 0 auto 20px auto !important;">🎤 DOGRYWKA</div>
@@ -3438,7 +3490,7 @@
             if (playerNick) {
                 const loginScreen = document.getElementById('login-screen');
                 if (loginScreen && loginScreen.style.display !== 'none') {
-                    console.log('✅ Ukrywam ekran logowania - gracz jest zarejestrowany:', playerNick);
+                    log('✅ Ukrywam ekran logowania - gracz jest zarejestrowany:', playerNick);
                     loginScreen.style.display = 'none';
                 }
             }
@@ -3452,12 +3504,12 @@
                 // Jeśli gracz ma zapisaną drużynę w localStorage, ale serwer zresetował drużyny,
                 // wyczyść localStorage i wymuś ponowny wybór
                 if (playerTeam && !hasTeamOnServer) {
-                    console.log('🔄 Tryb drużynowy aktywowany - resetuję zapisaną drużynę gracza');
+                    log('🔄 Tryb drużynowy aktywowany - resetuję zapisaną drużynę gracza');
                     playerTeam = null;
                     try {
                         localStorage.removeItem('voteBattle_team');
                     } catch (e) {
-                        console.warn('Nie można usunąć drużyny z localStorage:', e);
+                        if(DEBUG) console.warn('Nie można usunąć drużyny z localStorage:', e);
                     }
                 }
             }
@@ -3493,20 +3545,20 @@
             
             // EKRAN WYBORU DRUŻYNY - pokazuj tylko jeśli gracz jest zarejestrowany i nie ma drużyny
             if (state.type === 'TEAM_SELECTION' && playerNick && !playerTeam) {
-                console.log('🎯 Otrzymano TEAM_SELECTION - pokazuję ekran wyboru drużyn');
+                log('🎯 Otrzymano TEAM_SELECTION - pokazuję ekran wyboru drużyn');
                 showTeamSelectionScreen();
                 return;
             }
             
             // Jeśli gracz jest zarejestrowany, nie ma drużyny i tryb drużynowy jest aktywny - pokaż wybór drużyny
             if (playerNick && !playerTeam && state.teamBattleMode && state.type !== 'TEAM_SELECTION') {
-                console.log('🎯 Wykryto teamBattleMode bez drużyny - pokazuję ekran wyboru drużyn');
+                log('🎯 Wykryto teamBattleMode bez drużyny - pokazuję ekran wyboru drużyn');
                 showTeamSelectionScreen();
                 return;
             }
             
             // Dogrywka TAK/NIE – zawsze priorytet gdy aktywna
-            console.log('🎤 Sprawdzam dogrywkę:', {
+            log('🎤 Sprawdzam dogrywkę:', {
                 playerNick: playerNick,
                 stateType: state.type,
                 playoffExists: !!state.playoff,
@@ -3522,15 +3574,15 @@
                     playoffVoted = false;
                     lastPlayoffWord = newPlayoffWord;
                     lastPlayoffQuestionId = state.activeQuestion?.id ?? null;
-                    console.log('🎤 Nowa dogrywka – reset playoffVoted, słowo:', newPlayoffWord);
+                    log('🎤 Nowa dogrywka – reset playoffVoted, słowo:', newPlayoffWord);
                 }
                 
-                console.log('🎤 ✅ WARUNEK DOGRYWKI SPEŁNIONY - sprawdzam czy pokazać głosowanie czy wyniki');
-                console.log('🎤 Dogrywka aktywna - showStats:', state.showStats, 'showCorrect:', state.showCorrect, 'playoff:', state.playoff, 'playoffVoted:', playoffVoted);
+                log('🎤 ✅ WARUNEK DOGRYWKI SPEŁNIONY - sprawdzam czy pokazać głosowanie czy wyniki');
+                log('🎤 Dogrywka aktywna - showStats:', state.showStats, 'showCorrect:', state.showCorrect, 'playoff:', state.playoff, 'playoffVoted:', playoffVoted);
                 
                 // WAŻNE: Jeśli gracz już oddał głos w tej dogrywce, pokaż wyniki zamiast przycisków
                 if (playoffVoted) {
-                    console.log('📊 Gracz już oddał głos - pokazuję/zaktualizuję wyniki dogrywki');
+                    log('📊 Gracz już oddał głos - pokazuję/zaktualizuję wyniki dogrywki');
                     showScreen('voting');
                     const grid = document.getElementById('answers-grid');
                     if (grid) {
@@ -3614,10 +3666,10 @@
                 }
                 
                 // WAŻNE: Gdy dogrywka jest aktywna i gracz jeszcze nie oddał głosu, pokazuj ekran głosowania TAK/NIE
-                console.log('🗳️ ========== WYWOŁUJĘ showPlayoffScreen (dogrywka aktywna - gracz jeszcze nie oddał głosu) ==========');
-                console.log('🗳️ Pokazuję ekran głosowania dogrywki, playoff:', state.playoff);
+                log('🗳️ ========== WYWOŁUJĘ showPlayoffScreen (dogrywka aktywna - gracz jeszcze nie oddał głosu) ==========');
+                log('🗳️ Pokazuję ekran głosowania dogrywki, playoff:', state.playoff);
                 showPlayoffScreen(state.playoff);
-                console.log('🗳️ ========== PO WYWOŁANIU showPlayoffScreen ==========');
+                log('🗳️ ========== PO WYWOŁANIU showPlayoffScreen ==========');
                 return;
             } else {
                 // Dogrywka nie jest aktywna - usuń atrybut data-playoff-active jeśli istnieje
@@ -3635,10 +3687,10 @@
                     
                     // Jeśli tryb drużynowy i gracz nie ma drużyny, pokaż wybór drużyny
                     if (state.teamBattleMode && !playerTeam) {
-                        console.log('🎯 IDLE/INTRO z teamBattleMode - pokazuję ekran wyboru drużyn');
+                        log('🎯 IDLE/INTRO z teamBattleMode - pokazuję ekran wyboru drużyn');
                         showTeamSelectionScreen();
                     } else {
-                        console.log('✅ Pokazuję ekran waiting po rejestracji');
+                        log('✅ Pokazuję ekran waiting po rejestracji');
                         showScreen('waiting');
                         updatePlayerInfo();
                         
@@ -3679,7 +3731,7 @@
             }
             else if (state.type === 'PODIUM') {
                 if (playerNick) {
-                    console.log('🥇 Otrzymano PODIUM:', state.winners, 'krok:', state.podiumStep);
+                    log('🥇 Otrzymano PODIUM:', state.winners, 'krok:', state.podiumStep);
                     showPodiumScreen(state.winners, state.podiumStep);
                 }
                 return;
@@ -3701,7 +3753,7 @@
                     const isPlayoffActive = state.playoff && state.playoff.active;
                     if (isPlayoffActive) {
                         // To jest dogrywka - użyj showPlayoffScreen zamiast showVotingScreen
-                        console.log('🎤 Wykryto dogrywkę w GAME - używam showPlayoffScreen');
+                        log('🎤 Wykryto dogrywkę w GAME - używam showPlayoffScreen');
                         showPlayoffScreen(state.playoff);
                         return;
                     }
@@ -3710,14 +3762,14 @@
                     if (q) {
                         // WAŻNE: Sprawdź ponownie czy dogrywka nie została aktywowana między sprawdzeniami
                         if (state.playoff && state.playoff.active) {
-                            console.log('🎤 Dogrywka aktywna podczas renderowania pytania - przełączam na dogrywkę');
+                            log('🎤 Dogrywka aktywna podczas renderowania pytania - przełączam na dogrywkę');
                             showPlayoffScreen(state.playoff);
                             return;
                         }
                         // WAŻNE: Sprawdź czy pytanie ma ID - jeśli nie, użyj activeQuestionIndex jako fallback
                         const questionId = q.id !== undefined && q.id !== null ? q.id : `q_${state.activeQuestionIndex || 0}`;
                         if (questionId !== currentQuestionId) {
-                            console.log('📝 Nowe pytanie wykryte:', { 
+                            log('📝 Nowe pytanie wykryte:', { 
                                 questionId, 
                                 currentQuestionId, 
                                 qId: q.id, 
@@ -3738,10 +3790,10 @@
                                     }
                                 }
                             } catch (e) {
-                                console.warn('Błąd przy sprawdzaniu localStorage:', e);
+                                if(DEBUG) console.warn('Błąd przy sprawdzaniu localStorage:', e);
                             }
                             
-                            console.log('🔍 DEBUG - Sprawdzanie hasAnswered dla nowego pytania:', {
+                            log('🔍 DEBUG - Sprawdzanie hasAnswered dla nowego pytania:', {
                                 questionId: questionId,
                                 currentQuestionId: currentQuestionId,
                                 answeredKey: answeredKey,
@@ -3752,14 +3804,14 @@
                             
                             hasAnswered = localStorage.getItem(answeredKey) === 'true';
                             
-                            console.log('🔍 DEBUG - hasAnswered po sprawdzeniu localStorage:', {
+                            log('🔍 DEBUG - hasAnswered po sprawdzeniu localStorage:', {
                                 hasAnswered: hasAnswered,
                                 answeredKey: answeredKey,
                                 localStorageValue: localStorage.getItem(answeredKey)
                             });
                             
                             if (hasAnswered) {
-                                console.log('✅ Gracz już zagłosował na to pytanie (z localStorage)');
+                                log('✅ Gracz już zagłosował na to pytanie (z localStorage)');
                                 // Przywróć indeks odpowiedzi gracza
                                 const savedIndex = localStorage.getItem(`${answeredKey}_index`);
                                 if (savedIndex !== null) {
@@ -3769,13 +3821,13 @@
                                 // WAŻNE: Resetuj hasAnswered i playerAnswerIndex dla nowego pytania
                                 hasAnswered = false;
                                 playerAnswerIndex = null;
-                                console.log('🔄 Nowe pytanie - resetuję hasAnswered i playerAnswerIndex');
+                                log('🔄 Nowe pytanie - resetuję hasAnswered i playerAnswerIndex');
                             }
                             // Sprawdź ponownie czy dogrywka nie została aktywowana przed wywołaniem showVotingScreen
                             if (!(state.playoff && state.playoff.active)) {
                                 showVotingScreen(q, state.timeLeft || 30);
                             } else {
-                                console.log('🎤 Dogrywka aktywna - pomijam showVotingScreen dla pytania', questionId);
+                                log('🎤 Dogrywka aktywna - pomijam showVotingScreen dla pytania', questionId);
                                 showPlayoffScreen(state.playoff);
                             }
                         } else {
@@ -3786,11 +3838,11 @@
                             const hasLetterInputs = !!document.getElementById('letter-answer-input-1');
                             // WAŻNE: Nie przeładowuj LETTER gdy gracz już ma pola do wpisania – inaczej update_state co 120ms czyściłby tekst podczas pisania
                             if ((letterJustStarted || gridEmpty) && !hasLetterInputs) {
-                                if (gridEmpty) console.log('📝 To samo pytanie, ale grid pusty – wymuszam showVotingScreen');
-                                if (letterJustStarted) console.log('📝 [LETTER] To samo pytanie, gameStarted=true, brak pól – przeładowuję widok (pola na litery)');
+                                if (gridEmpty) log('📝 To samo pytanie, ale grid pusty – wymuszam showVotingScreen');
+                                if (letterJustStarted) log('📝 [LETTER] To samo pytanie, gameStarted=true, brak pól – przeładowuję widok (pola na litery)');
                                 showVotingScreen(q, state.timeLeft || 30);
                             } else {
-                                console.log('📝 To samo pytanie - pomijam showVotingScreen:', { 
+                                log('📝 To samo pytanie - pomijam showVotingScreen:', { 
                                     questionId, 
                                     currentQuestionId, 
                                     qId: q.id 
@@ -3807,7 +3859,7 @@
                         updateQuestionDisplay(q, { imageOnly: true });
                         updateEliminatedOverlay();
                     } else {
-                        console.log('⚠️ Brak aktywnego pytania w stanie GAME');
+                        log('⚠️ Brak aktywnego pytania w stanie GAME');
                     }
                 } else {
                     updateEliminatedOverlay();
@@ -3820,14 +3872,14 @@
                         lastPlayoffWord = '';
                         lastPlayoffQuestionId = null;
                         if (state.activeQuestion && state.activeQuestion.type === 'LETTER') {
-                            console.log('🎤 Dogrywka zakończona – powrót do chmury słów dla LETTER');
+                            log('🎤 Dogrywka zakończona – powrót do chmury słów dla LETTER');
                             currentQuestionId = null;
                         }
                     }
                     
                     if (isPlayoff) {
                         // Dogrywka aktywna - ZAWSZE pokazuj ekran głosowania, ignoruj showStats
-                        console.log('🎤 GAME_STATS z dogrywką - ZAWSZE pokazuję ekran głosowania TAK/NIE (ignoruję showStats)');
+                        log('🎤 GAME_STATS z dogrywką - ZAWSZE pokazuję ekran głosowania TAK/NIE (ignoruję showStats)');
                         showPlayoffScreen(state.playoff);
                         return;
                     }
@@ -3851,7 +3903,7 @@
                                     const imgSrc = (state.activeQuestion.imageSmall || state.activeQuestion.image || state.activeQuestion.media || '').trim();
                                     const skipImages = state.sendImagesToPhones === false;
                                     if (imgSrc && heroContainer && heroImg && !skipImages) {
-                                        console.log('📊 [GAME_STATS] OPEN - Utrzymuję widoczność grafiki podczas pokazywania statystyk');
+                                        log('📊 [GAME_STATS] OPEN - Utrzymuję widoczność grafiki podczas pokazywania statystyk');
                                         const src = (imgSrc.startsWith('/') || imgSrc.startsWith('http')) ? imgSrc : '/uploads/' + imgSrc;
                                         heroContainer.style.display = 'block';
                                         heroContainer.style.visibility = 'visible';
@@ -3886,7 +3938,7 @@
 
         // === WYŚWIETLANIE EKRANÓW (z efektem przejścia) ===
         function showScreen(screenName) {
-            console.log('🖥️  Przełączam na ekran:', screenName);
+            log('🖥️  Przełączam na ekran:', screenName);
             const container = document.querySelector('.container');
             if (container) container.classList.add('screen-transition');
             
@@ -3986,7 +4038,7 @@
                         cardNieAfter.style.setProperty('box-shadow', 'inset 0 2px 10px rgba(0,0,0,0.2), 0 4px 20px rgba(231, 76, 60, 0.4)', 'important');
                     }
                 }, 100);
-                console.log('📊 Wyniki dogrywki wyświetlone po oddaniu głosu:', {
+                log('📊 Wyniki dogrywki wyświetlone po oddaniu głosu:', {
                     tak: p.stats.A || 0,
                     nie: p.stats.B || 0,
                     pctA: pctA,
@@ -3996,20 +4048,20 @@
         }
         
         function showPlayoffScreen(playoff) {
-            console.log('🎤 ========== showPlayoffScreen START ==========');
-            console.log('🎤 showPlayoffScreen wywołane:', {
+            log('🎤 ========== showPlayoffScreen START ==========');
+            log('🎤 showPlayoffScreen wywołane:', {
                 playoff: playoff,
                 playoffVoted: playoffVoted,
                 lastPlayoffWord: lastPlayoffWord,
                 playoffActive: playoff?.active,
                 playoffWord: playoff?.word
             });
-            console.log('🎤 Stack trace:', new Error().stack);
+            log('🎤 Stack trace:', new Error().stack);
             
             // Resetuj flagę głosowania jeśli to nowa dogrywka (nowe słowo lub nowe pytanie)
             const currentQId = currentGameState?.activeQuestion?.id;
             if (playoff.word !== lastPlayoffWord || currentQId !== lastPlayoffQuestionId) { 
-                console.log('🔄 Nowa dogrywka - resetuję flagę głosowania');
+                log('🔄 Nowa dogrywka - resetuję flagę głosowania');
                 playoffVoted = false; 
                 lastPlayoffWord = playoff.word || '';
                 lastPlayoffQuestionId = currentQId;
@@ -4022,7 +4074,7 @@
             const qTextElEarly = document.getElementById('question-text');
             if (qTextElEarly && playoff && playoff.word) {
                 const playoffWord = playoff.word || '';
-                console.log('📝 [0] Ustawiam słowo dogrywki i napis DOGRYWKA NAJPIERW (przed ukrywaniem obrazków), słowo:', playoffWord);
+                log('📝 [0] Ustawiam słowo dogrywki i napis DOGRYWKA NAJPIERW (przed ukrywaniem obrazków), słowo:', playoffWord);
                 qTextElEarly.innerHTML = `
                     <div class="playoff-word" style="text-align: center !important; width: 100% !important; display: block !important; margin: 0 auto 10px auto !important; font-size: clamp(1rem, 4vw, 1.3rem) !important; font-weight: 700 !important; color: white !important;">${playoffWord}</div>
                     <div class="playoff-title-pulse" style="text-align: center !important; width: 100% !important; display: block !important; margin: 0 auto 20px auto !important;">🎤 DOGRYWKA</div>
@@ -4037,9 +4089,9 @@
             
             // UKRYJ CAŁY question-header (zawiera hero-image-container) - WAŻNE dla dogrywki - użyj !important
             const questionHeader = document.querySelector('.question-header');
-            console.log('🖼️ questionHeader znaleziony:', !!questionHeader, questionHeader ? questionHeader.style.display : 'brak');
+            log('🖼️ questionHeader znaleziony:', !!questionHeader, questionHeader ? questionHeader.style.display : 'brak');
             if (questionHeader) {
-                console.log('🖼️ Ukrywam question-header');
+                log('🖼️ Ukrywam question-header');
                 questionHeader.style.setProperty('display', 'none', 'important');
                 questionHeader.style.setProperty('visibility', 'hidden', 'important');
                 questionHeader.style.setProperty('opacity', '0', 'important');
@@ -4050,18 +4102,18 @@
                 questionHeader.style.setProperty('overflow', 'hidden', 'important');
                 questionHeader.style.setProperty('position', 'absolute', 'important');
                 questionHeader.style.setProperty('left', '-9999px', 'important');
-                console.log('🖼️ question-header po ukryciu:', window.getComputedStyle(questionHeader).display, window.getComputedStyle(questionHeader).visibility);
+                log('🖼️ question-header po ukryciu:', window.getComputedStyle(questionHeader).display, window.getComputedStyle(questionHeader).visibility);
             } else {
-                console.warn('⚠️ question-header NIE ZNALEZIONY!');
+                if(DEBUG) console.warn('⚠️ question-header NIE ZNALEZIONY!');
             }
             
             // UKRYJ OBRAZEK HERO - wymuś ukrycie (ważne dla dogrywki) - użyj !important
             const heroContainer = document.getElementById('hero-image-container');
             const heroImg = document.getElementById('hero-image');
-            console.log('🖼️ heroContainer znaleziony:', !!heroContainer, heroContainer ? heroContainer.style.display : 'brak');
-            console.log('🖼️ heroImg znaleziony:', !!heroImg, heroImg ? heroImg.src : 'brak');
+            log('🖼️ heroContainer znaleziony:', !!heroContainer, heroContainer ? heroContainer.style.display : 'brak');
+            log('🖼️ heroImg znaleziony:', !!heroImg, heroImg ? heroImg.src : 'brak');
             if (heroContainer) {
-                console.log('🖼️ Ukrywam heroContainer, przed:', window.getComputedStyle(heroContainer).display);
+                log('🖼️ Ukrywam heroContainer, przed:', window.getComputedStyle(heroContainer).display);
                 heroContainer.style.setProperty('display', 'none', 'important');
                 heroContainer.style.setProperty('visibility', 'hidden', 'important');
                 heroContainer.style.setProperty('opacity', '0', 'important');
@@ -4073,12 +4125,12 @@
                 heroContainer.style.setProperty('width', '0', 'important');
                 heroContainer.style.setProperty('position', 'absolute', 'important');
                 heroContainer.style.setProperty('left', '-9999px', 'important');
-                console.log('🖼️ heroContainer po ukryciu:', window.getComputedStyle(heroContainer).display, window.getComputedStyle(heroContainer).visibility, window.getComputedStyle(heroContainer).width);
+                log('🖼️ heroContainer po ukryciu:', window.getComputedStyle(heroContainer).display, window.getComputedStyle(heroContainer).visibility, window.getComputedStyle(heroContainer).width);
             } else {
-                console.warn('⚠️ heroContainer NIE ZNALEZIONY!');
+                if(DEBUG) console.warn('⚠️ heroContainer NIE ZNALEZIONY!');
             }
             if (heroImg) {
-                console.log('🖼️ Ukrywam heroImg, przed src:', heroImg.src);
+                log('🖼️ Ukrywam heroImg, przed src:', heroImg.src);
                 heroImg.src = '';
                 heroImg.style.setProperty('display', 'none', 'important');
                 heroImg.style.setProperty('visibility', 'hidden', 'important');
@@ -4088,25 +4140,25 @@
                 heroImg.style.setProperty('max-width', '0', 'important');
                 heroImg.style.setProperty('max-height', '0', 'important');
                 heroImg.removeAttribute('src');
-                console.log('🖼️ heroImg po ukryciu:', window.getComputedStyle(heroImg).display, heroImg.src);
+                log('🖼️ heroImg po ukryciu:', window.getComputedStyle(heroImg).display, heroImg.src);
             } else {
-                console.warn('⚠️ heroImg NIE ZNALEZIONY!');
+                if(DEBUG) console.warn('⚠️ heroImg NIE ZNALEZIONY!');
             }
             
             // Ukryj również obrazek jeśli jest w voting-screen
             const votingScreenEl = document.getElementById('voting-screen');
-            console.log('🖼️ votingScreenEl znaleziony:', !!votingScreenEl);
+            log('🖼️ votingScreenEl znaleziony:', !!votingScreenEl);
             if (votingScreenEl) {
-                console.log('🖼️ Dodaję klasy do voting-screen:', 'no-image', 'playoff-mode');
+                log('🖼️ Dodaję klasy do voting-screen:', 'no-image', 'playoff-mode');
                 votingScreenEl.classList.add('no-image');
                 votingScreenEl.classList.remove('has-image');
                 votingScreenEl.classList.remove('hot-or-not-mode');
                 votingScreenEl.classList.add('playoff-mode');
                 // WAŻNE: Upewnij się że voting-screen nie blokuje kliknięć
                 votingScreenEl.style.pointerEvents = 'auto';
-                console.log('🖼️ voting-screen klasy:', votingScreenEl.className);
+                log('🖼️ voting-screen klasy:', votingScreenEl.className);
             } else {
-                console.warn('⚠️ voting-screen NIE ZNALEZIONY!');
+                if(DEBUG) console.warn('⚠️ voting-screen NIE ZNALEZIONY!');
             }
             
             // WAŻNE: Ukryj overlay eliminacji podczas dogrywki (dogrywka jest dostępna dla wszystkich)
@@ -4118,10 +4170,10 @@
             
             // Wyświetl słowo wybrane do dogrywki i napis DOGRYWKA w miejscu pytania (question-text w voting-header)
             const qTextEl = document.getElementById('question-text');
-            console.log('📝 [4] qTextEl znaleziony:', !!qTextEl, qTextEl ? 'innerHTML przed:' + qTextEl.innerHTML.substring(0, 50) : 'brak');
+            log('📝 [4] qTextEl znaleziony:', !!qTextEl, qTextEl ? 'innerHTML przed:' + qTextEl.innerHTML.substring(0, 50) : 'brak');
             if (qTextEl) {
                 const playoffWord = playoff.word || '';
-                console.log('📝 [4] Ustawiam tekst dogrywki, słowo:', playoffWord);
+                log('📝 [4] Ustawiam tekst dogrywki, słowo:', playoffWord);
                 // Wyświetl słowo wybrane przez admina i napis DOGRYWKA - styl jak normalne pytania - WYMUSZONE style inline
                 qTextEl.innerHTML = `
                     <div class="playoff-word" style="text-align: center !important; width: 100% !important; display: block !important; margin: 0 auto 10px auto !important; font-size: clamp(1rem, 4vw, 1.3rem) !important; font-weight: 700 !important; color: white !important;">${playoffWord}</div>
@@ -4141,7 +4193,7 @@
                 qTextEl.style.setProperty('width', '100%', 'important');
                 // Blokuj nadpisanie przez inne funkcje
                 qTextEl.setAttribute('data-playoff-active', 'true');
-                console.log('📝 [4] qTextEl po ustawieniu:', {
+                log('📝 [4] qTextEl po ustawieniu:', {
                     innerHTML: qTextEl.innerHTML.substring(0, 200),
                     fullInnerHTML: qTextEl.innerHTML,
                     display: window.getComputedStyle(qTextEl).display,
@@ -4158,7 +4210,7 @@
             
             // Upewnij się że voting-header jest widoczny i wyśrodkowany (zawiera question-text)
             const votingHeader = document.querySelector('.voting-header');
-            console.log('📝 [5] votingHeader znaleziony:', !!votingHeader);
+            log('📝 [5] votingHeader znaleziony:', !!votingHeader);
             if (votingHeader) {
                 votingHeader.style.setProperty('display', 'flex', 'important');
                 votingHeader.style.setProperty('visibility', 'visible', 'important');
@@ -4168,13 +4220,13 @@
                 // WAŻNE: Podczas dogrywki wymuś wyśrodkowanie zamiast space-between
                 votingHeader.style.setProperty('justify-content', 'center', 'important');
                 votingHeader.style.setProperty('align-items', 'center', 'important');
-                console.log('📝 [5] voting-header po ustawieniu:', {
+                log('📝 [5] voting-header po ustawieniu:', {
                     display: window.getComputedStyle(votingHeader).display,
                     visibility: window.getComputedStyle(votingHeader).visibility,
                     opacity: window.getComputedStyle(votingHeader).opacity
                 });
             } else {
-                console.warn('⚠️ [5] voting-header NIE ZNALEZIONY!');
+                if(DEBUG) console.warn('⚠️ [5] voting-header NIE ZNALEZIONY!');
             }
             
             // Upewnij się że header-question jest wyśrodkowany i wymuś style inline
@@ -4186,7 +4238,7 @@
                 headerQuestion.style.setProperty('width', '100%', 'important');
                 headerQuestion.style.setProperty('flex', '1', 'important');
                 headerQuestion.style.setProperty('display', 'flex', 'important');
-                console.log('📝 [5] header-question po ustawieniu:', {
+                log('📝 [5] header-question po ustawieniu:', {
                     justifyContent: window.getComputedStyle(headerQuestion).justifyContent,
                     alignItems: window.getComputedStyle(headerQuestion).alignItems,
                     textAlign: window.getComputedStyle(headerQuestion).textAlign,
@@ -4204,20 +4256,20 @@
             }
             
             const grid = document.getElementById('answers-grid');
-            console.log('🎤 answers-grid element:', grid, 'exists:', !!grid);
+            log('🎤 answers-grid element:', grid, 'exists:', !!grid);
             if (!grid) {
                 console.error('❌ Nie znaleziono answers-grid');
                 return;
             }
             
-            console.log('🎤 Przed modyfikacją grid:', {
+            log('🎤 Przed modyfikacją grid:', {
                 innerHTML: grid.innerHTML.substring(0, 100),
                 classList: Array.from(grid.classList),
                 display: window.getComputedStyle(grid).display,
                 flexDirection: window.getComputedStyle(grid).flexDirection
             });
             
-            console.log('📦 [5] Grid przed zmianami:', {
+            log('📦 [5] Grid przed zmianami:', {
                 className: grid.className,
                 innerHTML: grid.innerHTML.substring(0, 100),
                 computedDisplay: window.getComputedStyle(grid).display,
@@ -4242,7 +4294,7 @@
             grid.style.setProperty('width', '100%', 'important');
             grid.style.setProperty('max-width', '100%', 'important');
             grid.style.setProperty('padding', '20px', 'important');
-            console.log('📦 [5] Grid po zmianach:', {
+            log('📦 [5] Grid po zmianach:', {
                 className: grid.className,
                 computedDisplay: window.getComputedStyle(grid).display,
                 computedFlexDirection: window.getComputedStyle(grid).flexDirection,
@@ -4250,7 +4302,7 @@
                 inlineFlexDirection: grid.style.flexDirection
             });
             
-            console.log('🎤 Po modyfikacji grid:', {
+            log('🎤 Po modyfikacji grid:', {
                 classList: Array.from(grid.classList),
                 display: grid.style.display,
                 flexDirection: grid.style.flexDirection,
@@ -4261,9 +4313,9 @@
             
             // Funkcja do wysłania głosu dogrywki
             function sendPlayoffVote(idx) {
-                console.log('🗳️ Głosowanie dogrywka:', idx === 0 ? 'TAK' : 'NIE', 'playoffVoted:', playoffVoted, 'socket.connected:', socket.connected);
+                log('🗳️ Głosowanie dogrywka:', idx === 0 ? 'TAK' : 'NIE', 'playoffVoted:', playoffVoted, 'socket.connected:', socket.connected);
                 if (playoffVoted) {
-                    console.warn('⚠️ Już zagłosowano - pomijam');
+                    if(DEBUG) console.warn('⚠️ Już zagłosowano - pomijam');
                     return;
                 }
                 if (!socket || !socket.connected) {
@@ -4272,9 +4324,9 @@
                     return;
                 }
                 playoffVoted = true;
-                console.log('📤 Wysyłam głos do serwera:', { index: idx, team: playerTeam, socketId: socket.id });
+                log('📤 Wysyłam głos do serwera:', { index: idx, team: playerTeam, socketId: socket.id });
                 socket.emit('send_answer', { index: idx, team: playerTeam });
-                console.log('✅ Głos wysłany do serwera');
+                log('✅ Głos wysłany do serwera');
                 
                 // Wyłącz przyciski
                 const takBtn = document.getElementById('playoff-tak');
@@ -4305,7 +4357,7 @@
             
             // Funkcja pomocnicza do dodania handlera z wieloma metodami
             function addClickHandler(btn, idx, name) {
-                console.log('🎤 addClickHandler wywołane dla:', name, 'button:', btn, 'exists:', !!btn, 'inDOM:', document.contains(btn));
+                log('🎤 addClickHandler wywołane dla:', name, 'button:', btn, 'exists:', !!btn, 'inDOM:', document.contains(btn));
                 
                 if (!btn) {
                     console.error('❌ addClickHandler: przycisk nie istnieje!');
@@ -4317,7 +4369,7 @@
                     e.preventDefault();
                     e.stopPropagation();
                     e.stopImmediatePropagation();
-                    console.log('🔵 ✅ Kliknięto ' + name + ' (addEventListener capture) - WYSYŁAM GŁOS');
+                    log('🔵 ✅ Kliknięto ' + name + ' (addEventListener capture) - WYSYŁAM GŁOS');
                     sendPlayoffVote(idx);
                     return false;
                 }, true);
@@ -4326,7 +4378,7 @@
                 btn.addEventListener('click', function handler2(e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    console.log('🔵 ✅ Kliknięto ' + name + ' (addEventListener bubble) - WYSYŁAM GŁOS');
+                    log('🔵 ✅ Kliknięto ' + name + ' (addEventListener bubble) - WYSYŁAM GŁOS');
                     sendPlayoffVote(idx);
                     return false;
                 }, false);
@@ -4335,7 +4387,7 @@
                 btn.onclick = function(e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    console.log('🔵 ✅ onclick ' + name + ' - WYSYŁAM GŁOS');
+                    log('🔵 ✅ onclick ' + name + ' - WYSYŁAM GŁOS');
                     sendPlayoffVote(idx);
                     return false;
                 };
@@ -4344,7 +4396,7 @@
                 btn.addEventListener('touchstart', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    console.log('🔵 ✅ touchstart ' + name + ' - WYSYŁAM GŁOS');
+                    log('🔵 ✅ touchstart ' + name + ' - WYSYŁAM GŁOS');
                     sendPlayoffVote(idx);
                     return false;
                 }, { passive: false });
@@ -4353,25 +4405,25 @@
                 btn.addEventListener('touchend', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    console.log('🔵 ✅ touchend ' + name + ' - WYSYŁAM GŁOS');
+                    log('🔵 ✅ touchend ' + name + ' - WYSYŁAM GŁOS');
                     sendPlayoffVote(idx);
                     return false;
                 }, { passive: false });
                 
-                console.log('🎤 Handlery przypisane do przycisku', name, ':', {
+                log('🎤 Handlery przypisane do przycisku', name, ':', {
                     hasOnclick: !!btn.onclick,
                     eventListeners: 'dodane (click capture, click bubble, touchstart, touchend)'
                 });
             }
             
             // Utwórz kontener playoff-ui z wymuszonymi stylami inline - WYŚRODKOWANY
-            console.log('🎤 Tworzę kontener playoff-ui');
+            log('🎤 Tworzę kontener playoff-ui');
             const playoffContainer = document.createElement('div');
             playoffContainer.className = 'playoff-ui';
             // WAŻNE: width: auto zamiast 100% aby przyciski były wyśrodkowane jako grupa
             playoffContainer.style.cssText = 'display: flex !important; flex-direction: row !important; gap: 20px !important; justify-content: center !important; align-items: center !important; flex-wrap: nowrap !important; padding: 20px !important; width: auto !important; max-width: 100% !important; margin: 0 auto !important;';
             
-            console.log('🎤 Kontener playoff-ui utworzony:', {
+            log('🎤 Kontener playoff-ui utworzony:', {
                 className: playoffContainer.className,
                 style: playoffContainer.style.cssText,
                 computedDisplay: window.getComputedStyle(playoffContainer).display,
@@ -4405,13 +4457,13 @@
             // Usuń wszystkie dzieci które mogą być dodane przez CSS (answer-letter, answer-text)
             nieBtn.innerHTML = 'NIE';
             
-            console.log('🎤 Przyciski utworzone:', {
+            log('🎤 Przyciski utworzone:', {
                 takBtn: { id: takBtn.id, className: takBtn.className, textContent: takBtn.textContent, style: takBtn.style.cssText.substring(0, 100) },
                 nieBtn: { id: nieBtn.id, className: nieBtn.className, textContent: nieBtn.textContent, style: nieBtn.style.cssText.substring(0, 100) }
             });
             
             // Dodaj handlery BEZPOŚREDNIO do przycisków przed dodaniem do DOM
-            console.log('🎤 Przypisuję handlery do przycisków');
+            log('🎤 Przypisuję handlery do przycisków');
             addClickHandler(takBtn, 0, 'TAK');
             addClickHandler(nieBtn, 1, 'NIE');
             
@@ -4427,7 +4479,7 @@
             grid.style.setProperty('width', '100%', 'important');
             grid.style.setProperty('max-width', '100%', 'important');
             
-            console.log('🎤 Po dodaniu do DOM:', {
+            log('🎤 Po dodaniu do DOM:', {
                 gridInnerHTML: grid.innerHTML.substring(0, 200),
                 playoffContainerInDOM: document.contains(playoffContainer),
                 takBtnInDOM: document.contains(takBtn),
@@ -4440,8 +4492,8 @@
                 computedGridFlexDirection: window.getComputedStyle(grid).flexDirection
             });
             
-            console.log('✅ [6] Przyciski dogrywki utworzone z poziomą orientacją i handlerami');
-            console.log('📦 [6] Grid po dodaniu przycisków:', grid.innerHTML.substring(0, 300));
+            log('✅ [6] Przyciski dogrywki utworzone z poziomą orientacją i handlerami');
+            log('📦 [6] Grid po dodaniu przycisków:', grid.innerHTML.substring(0, 300));
             
             // Sprawdź stan po chwili (po renderowaniu)
             setTimeout(() => {
@@ -4451,28 +4503,28 @@
                 const heroContainerCheck = document.getElementById('hero-image-container');
                 const qTextCheck = document.getElementById('question-text');
                 
-                console.log('🔍 [7] SPRAWDZENIE PO 100ms:');
-                console.log('🔍 [7] playoffContainer:', {
+                log('🔍 [7] SPRAWDZENIE PO 100ms:');
+                log('🔍 [7] playoffContainer:', {
                     exists: !!playoffContainerCheck,
                     display: playoffContainerCheck ? window.getComputedStyle(playoffContainerCheck).display : 'brak',
                     flexDirection: playoffContainerCheck ? window.getComputedStyle(playoffContainerCheck).flexDirection : 'brak'
                 });
-                console.log('🔍 [7] takBtn:', {
+                log('🔍 [7] takBtn:', {
                     exists: !!takBtnCheck,
                     display: takBtnCheck ? window.getComputedStyle(takBtnCheck).display : 'brak',
                     flex: takBtnCheck ? window.getComputedStyle(takBtnCheck).flex : 'brak'
                 });
-                console.log('🔍 [7] nieBtn:', {
+                log('🔍 [7] nieBtn:', {
                     exists: !!nieBtnCheck,
                     display: nieBtnCheck ? window.getComputedStyle(nieBtnCheck).display : 'brak',
                     flex: nieBtnCheck ? window.getComputedStyle(nieBtnCheck).flex : 'brak'
                 });
-                console.log('🔍 [7] heroContainer:', {
+                log('🔍 [7] heroContainer:', {
                     exists: !!heroContainerCheck,
                     display: heroContainerCheck ? window.getComputedStyle(heroContainerCheck).display : 'brak',
                     visibility: heroContainerCheck ? window.getComputedStyle(heroContainerCheck).visibility : 'brak'
                 });
-                console.log('🔍 [7] qText:', {
+                log('🔍 [7] qText:', {
                     exists: !!qTextCheck,
                     innerHTML: qTextCheck ? qTextCheck.innerHTML.substring(0, 200) : 'brak',
                     fullInnerHTML: qTextCheck ? qTextCheck.innerHTML : 'brak',
@@ -4495,7 +4547,7 @@
                     const hasPlayoffTitle = qTextFinal.querySelector('.playoff-title-pulse') !== null;
                     
                     if (!hasPlayoffAttr || !hasPlayoffWord || !hasPlayoffTitle) {
-                        console.warn('⚠️ [FINAL CHECK] Tekst dogrywki został nadpisany! Przywracam...');
+                        if(DEBUG) console.warn('⚠️ [FINAL CHECK] Tekst dogrywki został nadpisany! Przywracam...');
                         const playoffWord = playoff.word || '';
                         qTextFinal.innerHTML = `
                             <div class="playoff-word" style="text-align: center !important; width: 100% !important; display: block !important; margin: 0 auto 10px auto !important; font-size: clamp(1rem, 4vw, 1.3rem) !important; font-weight: 700 !important; color: white !important;">${playoffWord}</div>
@@ -4513,7 +4565,7 @@
                         qTextFinal.style.setProperty('text-align', 'center', 'important');
                         qTextFinal.style.setProperty('width', '100%', 'important');
                         qTextFinal.style.setProperty('margin', '0 auto', 'important');
-                        console.log('✅ [FINAL CHECK] Tekst dogrywki jest poprawnie ustawiony');
+                        log('✅ [FINAL CHECK] Tekst dogrywki jest poprawnie ustawiony');
                     }
                     
                     // Upewnij się że header-question jest wyśrodkowany
@@ -4526,12 +4578,12 @@
                 }
             }, 200);
             
-            console.log('🎤 ========== KONIEC showPlayoffScreen ==========');
+            log('🎤 ========== KONIEC showPlayoffScreen ==========');
         }
 
         function updateQuestionDisplay(q, opts) {
             const imageOnly = opts && opts.imageOnly === true;
-            console.log('🎤 updateQuestionDisplay wywołane:', {
+            log('🎤 updateQuestionDisplay wywołane:', {
                 question: q ? q.question : 'brak',
                 questionType: q ? q.type : 'brak',
                 imageOnly,
@@ -4541,7 +4593,7 @@
             
             // NIE aktualizuj display jeśli jest aktywna dogrywka
             if (currentGameState && currentGameState.playoff && currentGameState.playoff.active) {
-                console.log('🎤 ✅ Dogrywka aktywna - pomijam updateQuestionDisplay i wymuszam ukrycie obrazka');
+                log('🎤 ✅ Dogrywka aktywna - pomijam updateQuestionDisplay i wymuszam ukrycie obrazka');
                 // WAŻNE: Upewnij się że obrazek jest ukryty podczas dogrywki - użyj !important przez style
                 const heroContainer = document.getElementById('hero-image-container');
                 const heroImg = document.getElementById('hero-image');
@@ -4599,17 +4651,17 @@
             // WAŻNE: NIE nadpisuj question-text jeśli dogrywka jest aktywna lub ma atrybut data-playoff-active
             const isPlayoffActive = currentGameState && currentGameState.playoff && currentGameState.playoff.active;
             const hasPlayoffAttr = qTextEl && qTextEl.getAttribute('data-playoff-active') === 'true';
-            console.log('📝 updateQuestionDisplay - isPlayoffActive:', isPlayoffActive, 'hasPlayoffAttr:', hasPlayoffAttr);
+            log('📝 updateQuestionDisplay - isPlayoffActive:', isPlayoffActive, 'hasPlayoffAttr:', hasPlayoffAttr);
             if (!imageOnly && qTextEl && q && !isPlayoffActive && !hasPlayoffAttr) {
-                console.log('📝 updateQuestionDisplay - nadpisuję tekst pytania:', q.question);
+                log('📝 updateQuestionDisplay - nadpisuję tekst pytania:', q.question);
                 qTextEl.textContent = q.question || 'Pytanie...';
                 qTextEl.removeAttribute('data-playoff-active');
             } else if (!imageOnly) {
-                console.log('📝 updateQuestionDisplay - POMIJAM nadpisanie (dogrywka aktywna lub atrybut)');
+                log('📝 updateQuestionDisplay - POMIJAM nadpisanie (dogrywka aktywna lub atrybut)');
                 // Jeśli dogrywka jest aktywna, upewnij się że słowo dogrywki i napis DOGRYWKA są ustawione - styl jak normalne pytania
                 if (isPlayoffActive && qTextEl && qTextEl.getAttribute('data-playoff-active') !== 'true') {
                     const playoffWord = currentGameState.playoff?.word || '';
-                    console.log('📝 updateQuestionDisplay - Przywracam słowo dogrywki i napis DOGRYWKA:', playoffWord);
+                    log('📝 updateQuestionDisplay - Przywracam słowo dogrywki i napis DOGRYWKA:', playoffWord);
                     qTextEl.innerHTML = `
                         <div class="playoff-word" style="text-align: center !important; width: 100% !important; display: block !important; margin: 0 auto 10px auto !important; font-size: clamp(1rem, 4vw, 1.3rem) !important; font-weight: 700 !important; color: white !important;">${playoffWord}</div>
                         <div class="playoff-title-pulse" style="text-align: center !important; width: 100% !important; display: block !important; margin: 0 auto 20px auto !important;">🎤 DOGRYWKA</div>
@@ -4631,7 +4683,7 @@
                 const imgSrc = (q.imageSmall || q.image || q.media || '').trim();
                 if (imgSrc && !skipImages) {
                     const src = (imgSrc.startsWith('/') || imgSrc.startsWith('http')) ? imgSrc : '/uploads/' + imgSrc;
-                    console.log('📊 updateQuestionDisplay OPEN - Utrzymuję widoczność grafiki:', src);
+                    log('📊 updateQuestionDisplay OPEN - Utrzymuję widoczność grafiki:', src);
                     heroContainer.style.display = 'block';
                     heroContainer.style.visibility = 'visible';
                     heroContainer.style.opacity = '1';
@@ -4674,8 +4726,8 @@
         }
 
         function renderVoteResults(state) {
-            console.log('📊 ========== renderVoteResults START ==========');
-            console.log('📊 Parametry:', {
+            log('📊 ========== renderVoteResults START ==========');
+            log('📊 Parametry:', {
                 hasPlayoff: !!state.playoff,
                 playoffActive: state.playoff?.active,
                 showStats: state.showStats,
@@ -4693,7 +4745,7 @@
             // WAŻNE: Jeśli dogrywka jest aktywna, ZAWSZE pokazuj ekran głosowania, nie wyniki
             // Wyniki dogrywki będą pokazane dopiero gdy dogrywka zostanie zakończona przez admina
             if (state.playoff && state.playoff.active) {
-                console.log('🎤 renderVoteResults - Dogrywka aktywna - przełączam na ekran głosowania (ignoruję showStats)');
+                log('🎤 renderVoteResults - Dogrywka aktywna - przełączam na ekran głosowania (ignoruję showStats)');
                 showPlayoffScreen(state.playoff);
                 return;
             }
@@ -4717,7 +4769,7 @@
             const isLetterOrOpen = q && (q.type === 'LETTER' || q.type === 'OPEN');
             // WAŻNE: Nie pokazuj wyników dogrywki dla pytań OPEN/LETTER gdy showStats jest true - pokaż chmurę słów
             if (state.playoff && !state.playoff.active && (state.showStats || state.showCorrect) && !isLetterOrOpen) {
-                console.log('📊 renderVoteResults - Renderuję wyniki dogrywki (dogrywka zakończona)');
+                log('📊 renderVoteResults - Renderuję wyniki dogrywki (dogrywka zakończona)');
                 // WAŻNE: Ukryj obrazek podczas pokazywania wyników dogrywki
                 const heroContainer = document.getElementById('hero-image-container');
                 const heroImg = document.getElementById('hero-image');
@@ -4793,12 +4845,12 @@
                         cardNie.style.setProperty('box-shadow', 'inset 0 2px 10px rgba(0,0,0,0.2), 0 4px 20px rgba(231, 76, 60, 0.4)', 'important');
                     }
                 }, 100);
-                console.log('📊 renderVoteResults - Wyniki dogrywki wyrenderowane:', {
+                log('📊 renderVoteResults - Wyniki dogrywki wyrenderowane:', {
                     tak: p.stats.A || 0,
                     nie: p.stats.B || 0,
                     gridInnerHTML: grid.innerHTML.substring(0, 200)
                 });
-                console.log('📊 ========== renderVoteResults END (dogrywka) ==========');
+                log('📊 ========== renderVoteResults END (dogrywka) ==========');
                 return;
             }
             
@@ -5081,7 +5133,7 @@
         function showVotingScreen(question, timeLeft) {
             // NIE pokazuj showVotingScreen jeśli jest aktywna dogrywka
             if (currentGameState && currentGameState.playoff && currentGameState.playoff.active) {
-                console.log('🎤 Dogrywka aktywna - pomijam showVotingScreen, wywołuję showPlayoffScreen zamiast');
+                log('🎤 Dogrywka aktywna - pomijam showVotingScreen, wywołuję showPlayoffScreen zamiast');
                 // WAŻNE: Ustaw słowo dogrywki przed wywołaniem showPlayoffScreen
                 const qTextElEarly = document.getElementById('question-text');
                 if (qTextElEarly && currentGameState.playoff && currentGameState.playoff.word) {
@@ -5100,7 +5152,7 @@
             // WAŻNE: Resetuj hasAnswered dla nowego pytania (sprawdź czy questionId się zmienił)
             const questionId = question.id !== undefined && question.id !== null ? question.id : `q_${Date.now()}`;
             
-            console.log('🔍 DEBUG showVotingScreen - sprawdzanie questionId:', {
+            log('🔍 DEBUG showVotingScreen - sprawdzanie questionId:', {
                 questionId: questionId,
                 currentQuestionId: currentQuestionId,
                 questionIdChanged: questionId !== currentQuestionId,
@@ -5109,7 +5161,7 @@
             });
             
             if (questionId !== currentQuestionId) {
-                console.log('🔄 Nowe pytanie w showVotingScreen - resetuję hasAnswered, questionId:', questionId, 'currentQuestionId:', currentQuestionId);
+                log('🔄 Nowe pytanie w showVotingScreen - resetuję hasAnswered, questionId:', questionId, 'currentQuestionId:', currentQuestionId);
                 // WAŻNE: Zaktualizuj currentQuestionId PRZED sprawdzeniem localStorage
                 currentQuestionId = questionId;
                 const answeredKey = `voteBattle_answered_${questionId}`;
@@ -5124,10 +5176,10 @@
                         }
                     }
                 } catch (e) {
-                    console.warn('Błąd przy sprawdzaniu localStorage:', e);
+                    if(DEBUG) console.warn('Błąd przy sprawdzaniu localStorage:', e);
                 }
                 
-                console.log('🔍 DEBUG showVotingScreen - localStorage przed sprawdzeniem:', {
+                log('🔍 DEBUG showVotingScreen - localStorage przed sprawdzeniem:', {
                     answeredKey: answeredKey,
                     localStorageValue: localStorage.getItem(answeredKey),
                     allAnswerKeys: allAnswerKeysBefore
@@ -5135,7 +5187,7 @@
                 
                 hasAnswered = localStorage.getItem(answeredKey) === 'true';
                 
-                console.log('🔍 DEBUG showVotingScreen - hasAnswered po sprawdzeniu:', {
+                log('🔍 DEBUG showVotingScreen - hasAnswered po sprawdzeniu:', {
                     hasAnswered: hasAnswered,
                     answeredKey: answeredKey,
                     localStorageValue: localStorage.getItem(answeredKey)
@@ -5143,22 +5195,22 @@
                 
                 if (!hasAnswered) {
                     playerAnswerIndex = null;
-                    console.log('✅ Nowe pytanie - gracz jeszcze nie zagłosował, hasAnswered:', hasAnswered);
+                    log('✅ Nowe pytanie - gracz jeszcze nie zagłosował, hasAnswered:', hasAnswered);
                 } else {
                     // Przywróć indeks odpowiedzi gracza jeśli już zagłosował
                     const savedIndex = localStorage.getItem(`${answeredKey}_index`);
                     if (savedIndex !== null) {
                         playerAnswerIndex = parseInt(savedIndex, 10);
                     }
-                    console.log('✅ Nowe pytanie - gracz już zagłosował, przywracam indeks:', playerAnswerIndex);
+                    log('✅ Nowe pytanie - gracz już zagłosował, przywracam indeks:', playerAnswerIndex);
                 }
             } else {
                 // To samo pytanie - sprawdź czy gracz już zagłosował
-                console.log('🔍 DEBUG showVotingScreen - to samo pytanie, sprawdzam localStorage');
+                log('🔍 DEBUG showVotingScreen - to samo pytanie, sprawdzam localStorage');
                 const answeredKey = `voteBattle_answered_${questionId}`;
                 hasAnswered = localStorage.getItem(answeredKey) === 'true';
                 
-                console.log('🔍 DEBUG showVotingScreen - to samo pytanie, hasAnswered:', {
+                log('🔍 DEBUG showVotingScreen - to samo pytanie, hasAnswered:', {
                     hasAnswered: hasAnswered,
                     answeredKey: answeredKey,
                     localStorageValue: localStorage.getItem(answeredKey)
@@ -5311,8 +5363,8 @@
                 const imageASrc = skipImages ? '' : (question.imageSmallA || question.imageA || '');
                 const imageBSrc = skipImages ? '' : (question.imageSmallB || question.imageB || '');
                 
-                console.log('🖼️ HOT_OR_NOT vote.html - imageSmallA:', question.imageSmallA, 'imageA:', question.imageA);
-                console.log('🖼️ HOT_OR_NOT vote.html - imageSmallB:', question.imageSmallB, 'imageB:', question.imageB);
+                log('🖼️ HOT_OR_NOT vote.html - imageSmallA:', question.imageSmallA, 'imageA:', question.imageA);
+                log('🖼️ HOT_OR_NOT vote.html - imageSmallB:', question.imageSmallB, 'imageB:', question.imageB);
                 const answers = question.answers || [];
                 
                 // Funkcja do wykrywania orientacji obrazka (bardziej precyzyjna)
@@ -5332,7 +5384,7 @@
                         else callback('square');
                     };
                     img.onerror = () => {
-                        console.warn('⚠️ vote.html - Nie można załadować obrazka do wykrycia orientacji:', imageSrc);
+                        if(DEBUG) console.warn('⚠️ vote.html - Nie można załadować obrazka do wykrycia orientacji:', imageSrc);
                         callback('square');
                     };
                     const fullSrc = imageSrc.startsWith('/') || imageSrc.startsWith('http') ? imageSrc : '/uploads/' + imageSrc;
@@ -5344,15 +5396,15 @@
                     detectImageOrientation(orientBSrc, (orientB) => {
                         let layout = 'horizontal';
                         
-                        console.log('🖼️ HOT_OR_NOT vote.html - orientacje:', { orientA, orientB });
+                        log('🖼️ HOT_OR_NOT vote.html - orientacje:', { orientA, orientB });
                         
-                        // WAŻNE: Gdy oba zdjęcia są pionowe → układ poziomy (obok siebie)
+                        // Gdy oba zdjęcia są pionowe → układ pionowy (jeden pod drugim, pełna szerokość)
                         if(orientA === 'portrait' && orientB === 'portrait') {
-                            layout = 'horizontal';
-                        }
-                        // Jeśli oba są poziome → układ pionowy (jeden pod drugim)
-                        else if(orientA === 'landscape' && orientB === 'landscape') {
                             layout = 'vertical';
+                        }
+                        // Jeśli oba są poziome → układ poziomy (obok siebie)
+                        else if(orientA === 'landscape' && orientB === 'landscape') {
+                            layout = 'horizontal';
                         }
                         // Mieszane (jeden pionowy, drugi poziomy) → układ mieszany/kwadratowy
                         else if((orientA === 'portrait' && orientB === 'landscape') ||
@@ -5361,14 +5413,14 @@
                         }
                         // Jeśli jeden jest kwadratowy, użyj orientacji drugiego
                         else if(orientA === 'square' && orientB !== 'square') {
-                            layout = orientB === 'portrait' ? 'horizontal' : 'vertical';
+                            layout = orientB === 'portrait' ? 'vertical' : 'horizontal';
                         }
                         else if(orientB === 'square' && orientA !== 'square') {
-                            layout = orientA === 'portrait' ? 'horizontal' : 'vertical';
+                            layout = orientA === 'portrait' ? 'vertical' : 'horizontal';
                         }
-                        // Oba kwadratowe → układ pionowy (jeden pod drugim, domyślny)
+                        // Oba kwadratowe → układ poziomy (domyślny)
                         else {
-                            layout = 'vertical';
+                            layout = 'horizontal';
                         }
                         
                         // Na telefonie lub w orientacji pionowej urządzenia - sprawdź czy nie są oba pionowe
@@ -5380,14 +5432,14 @@
                             layout = 'vertical';
                         }
                         
-                        console.log('🖼️ HOT_OR_NOT vote.html - wybrany layout:', layout);
+                        log('🖼️ HOT_OR_NOT vote.html - wybrany layout:', layout);
                         grid.classList.add('hot-or-not-grid', `layout-${layout}`);
                         
                         // Popraw ścieżki obrazków
                         let fullImageASrc = (imageASrc && imageASrc.trim() !== '') ? imageASrc.trim() : '';
                         let fullImageBSrc = (imageBSrc && imageBSrc.trim() !== '') ? imageBSrc.trim() : '';
                         
-                        console.log('🖼️ HOT_OR_NOT vote.html - surowe ścieżki:', {
+                        log('🖼️ HOT_OR_NOT vote.html - surowe ścieżki:', {
                             'imageASrc': imageASrc,
                             'imageBSrc': imageBSrc,
                             'question.imageSmallA': question.imageSmallA,
@@ -5400,18 +5452,18 @@
                             if (!fullImageASrc.startsWith('/') && !fullImageASrc.startsWith('http')) {
                                 fullImageASrc = '/uploads/' + fullImageASrc;
                             } else if (fullImageASrc.startsWith('/uploads/')) {
-                                console.log('✅ vote.html imageA już ma prefiks /uploads/:', fullImageASrc);
+                                log('✅ vote.html imageA już ma prefiks /uploads/:', fullImageASrc);
                             }
                         }
                         if(fullImageBSrc && fullImageBSrc.trim() !== '') {
                             if (!fullImageBSrc.startsWith('/') && !fullImageBSrc.startsWith('http')) {
                                 fullImageBSrc = '/uploads/' + fullImageBSrc;
                             } else if (fullImageBSrc.startsWith('/uploads/')) {
-                                console.log('✅ vote.html imageB już ma prefiks /uploads/:', fullImageBSrc);
+                                log('✅ vote.html imageB już ma prefiks /uploads/:', fullImageBSrc);
                             }
                         }
                         
-                        console.log('🖼️ HOT_OR_NOT vote.html - finalne ścieżki:', {
+                        log('🖼️ HOT_OR_NOT vote.html - finalne ścieżki:', {
                             'A': fullImageASrc,
                             'B': fullImageBSrc,
                             'A empty': !fullImageASrc || fullImageASrc.trim() === '',
@@ -5422,11 +5474,11 @@
                         
                         // Renderuj obrazki - tylko img, bez dodatkowych divów obok
                         const imgAHTML = fullImageASrc && fullImageASrc.trim() !== '' ? 
-                            `<img src="${fullImageASrc}" alt="Opcja A" onerror="console.error('❌ Błąd ładowania obrazka A:', this.src); this.style.display='none'; const parent = this.parentElement; if(parent && !parent.querySelector('.no-image-placeholder')) { const placeholder = document.createElement('div'); placeholder.className = 'no-image-placeholder'; placeholder.style.cssText = 'display: flex; align-items: center; justify-content: center; height: 100%; width: 100%; color: rgba(255,255,255,0.5); font-size: clamp(0.9rem, 3vw, 1.2rem); position: absolute; top: 0; left: 0;'; placeholder.textContent = 'Brak obrazka'; parent.appendChild(placeholder); }" onload="console.log('✅ Obrazek A załadowany:', this.src); const placeholder = this.parentElement?.querySelector('.no-image-placeholder'); if(placeholder) placeholder.remove();">` : 
+                            `<img src="${fullImageASrc}" alt="Opcja A" onerror="console.error('❌ Błąd ładowania obrazka A:', this.src); this.style.display='none'; const parent = this.parentElement; if(parent && !parent.querySelector('.no-image-placeholder')) { const placeholder = document.createElement('div'); placeholder.className = 'no-image-placeholder'; placeholder.style.cssText = 'display: flex; align-items: center; justify-content: center; height: 100%; width: 100%; color: rgba(255,255,255,0.5); font-size: clamp(0.9rem, 3vw, 1.2rem); position: absolute; top: 0; left: 0;'; placeholder.textContent = 'Brak obrazka'; parent.appendChild(placeholder); }" onload="log('✅ Obrazek A załadowany:', this.src); const placeholder = this.parentElement?.querySelector('.no-image-placeholder'); if(placeholder) placeholder.remove();">` : 
                             `<div class="no-image-placeholder" style="display: flex; align-items: center; justify-content: center; height: 100%; width: 100%; color: rgba(255,255,255,0.5); font-size: clamp(0.9rem, 3vw, 1.2rem); position: absolute; top: 0; left: 0;">Brak obrazka</div>`;
                         
                         const imgBHTML = fullImageBSrc && fullImageBSrc.trim() !== '' ? 
-                            `<img src="${fullImageBSrc}" alt="Opcja B" onerror="console.error('❌ Błąd ładowania obrazka B:', this.src); this.style.display='none'; const parent = this.parentElement; if(parent && !parent.querySelector('.no-image-placeholder')) { const placeholder = document.createElement('div'); placeholder.className = 'no-image-placeholder'; placeholder.style.cssText = 'display: flex; align-items: center; justify-content: center; height: 100%; width: 100%; color: rgba(255,255,255,0.5); font-size: clamp(0.9rem, 3vw, 1.2rem); position: absolute; top: 0; left: 0;'; placeholder.textContent = 'Brak obrazka'; parent.appendChild(placeholder); }" onload="console.log('✅ Obrazek B załadowany:', this.src); const placeholder = this.parentElement?.querySelector('.no-image-placeholder'); if(placeholder) placeholder.remove();">` : 
+                            `<img src="${fullImageBSrc}" alt="Opcja B" onerror="console.error('❌ Błąd ładowania obrazka B:', this.src); this.style.display='none'; const parent = this.parentElement; if(parent && !parent.querySelector('.no-image-placeholder')) { const placeholder = document.createElement('div'); placeholder.className = 'no-image-placeholder'; placeholder.style.cssText = 'display: flex; align-items: center; justify-content: center; height: 100%; width: 100%; color: rgba(255,255,255,0.5); font-size: clamp(0.9rem, 3vw, 1.2rem); position: absolute; top: 0; left: 0;'; placeholder.textContent = 'Brak obrazka'; parent.appendChild(placeholder); }" onload="log('✅ Obrazek B załadowany:', this.src); const placeholder = this.parentElement?.querySelector('.no-image-placeholder'); if(placeholder) placeholder.remove();">` : 
                             `<div class="no-image-placeholder" style="display: flex; align-items: center; justify-content: center; height: 100%; width: 100%; color: rgba(255,255,255,0.5); font-size: clamp(0.9rem, 3vw, 1.2rem); position: absolute; top: 0; left: 0;">Brak obrazka</div>`;
                         
                         const cardA = document.createElement('div');
@@ -5481,7 +5533,7 @@
                     const imgUrl = new URL(imgSrc, window.location.origin);
                     imgUrl.searchParams.set('_t', Date.now());
                     heroImg.onerror = function() {
-                        console.warn('⚠️ Nie można załadować obrazka dla ESTIMATION:', imgSrc);
+                        if(DEBUG) console.warn('⚠️ Nie można załadować obrazka dla ESTIMATION:', imgSrc);
                         // Spróbuj bez cache bustera
                         heroImg.src = imgSrc;
                     };
@@ -5503,7 +5555,7 @@
                 if (!isPlayoffActive && !hasPlayoffAttr) {
                     qTextEl.innerHTML = (question.question || 'Wpisz liczbę...').replace(/\n/g, '<br>');
                 } else {
-                    console.log('📝 showVotingScreen ESTIMATION - POMIJAM nadpisanie (dogrywka aktywna)');
+                    log('📝 showVotingScreen ESTIMATION - POMIJAM nadpisanie (dogrywka aktywna)');
                 }
                 qTextEl.classList.remove('multi-line', 'two-lines', 'three-lines');
                 const min = Number(question.min) || 0;
@@ -5553,14 +5605,14 @@
                 };
             } else if (question.type === 'OPEN') {
                 // WAŻNE: Sprawdź czy dogrywka nie jest aktywna - jeśli tak, nie pokazuj pytania otwartego
-                console.log('🎤 showVotingScreen dla OPEN - sprawdzam dogrywkę:', {
+                log('🎤 showVotingScreen dla OPEN - sprawdzam dogrywkę:', {
                     currentGameStateExists: !!currentGameState,
                     playoffExists: !!(currentGameState && currentGameState.playoff),
                     playoffActive: !!(currentGameState && currentGameState.playoff && currentGameState.playoff.active)
                 });
                 
                 if (currentGameState && currentGameState.playoff && currentGameState.playoff.active) {
-                    console.log('🎤 ✅ Dogrywka aktywna podczas showVotingScreen dla OPEN - pomijam renderowanie pytania otwartego, wywołuję showPlayoffScreen');
+                    log('🎤 ✅ Dogrywka aktywna podczas showVotingScreen dla OPEN - pomijam renderowanie pytania otwartego, wywołuję showPlayoffScreen');
                     // UKRYJ OBRAZEK NATYCHMIAST - nawet jeśli został już ustawiony
                     if (heroContainer) {
                         heroContainer.style.setProperty('display', 'none', 'important');
@@ -5609,7 +5661,7 @@
                 }
                 // WAŻNE: NIE renderuj pytania otwartego jeśli dogrywka jest aktywna (powinno być już obsłużone wyżej, ale na wszelki wypadek)
                 if (currentGameState && currentGameState.playoff && currentGameState.playoff.active) {
-                    console.log('🎤 Dogrywka aktywna - pomijam renderowanie open-question-ui');
+                    log('🎤 Dogrywka aktywna - pomijam renderowanie open-question-ui');
                     return;
                 }
                 
@@ -5617,18 +5669,18 @@
                 // WAŻNE: NIE nadpisuj question-text jeśli dogrywka jest aktywna lub ma atrybut data-playoff-active
                 const isPlayoffActive = currentGameState && currentGameState.playoff && currentGameState.playoff.active;
                 const hasPlayoffAttr = qTextEl && qTextEl.getAttribute('data-playoff-active') === 'true';
-                console.log('📝 showVotingScreen OPEN - isPlayoffActive:', isPlayoffActive, 'hasPlayoffAttr:', hasPlayoffAttr);
+                log('📝 showVotingScreen OPEN - isPlayoffActive:', isPlayoffActive, 'hasPlayoffAttr:', hasPlayoffAttr);
                 if (!isPlayoffActive && !hasPlayoffAttr) {
-                    console.log('📝 showVotingScreen OPEN - nadpisuję tekst pytania:', question.question);
+                    log('📝 showVotingScreen OPEN - nadpisuję tekst pytania:', question.question);
                     qTextEl.innerHTML = (question.question || 'Wpisz odpowiedź...').replace(/\n/g, '<br>');
                     qTextEl.classList.remove('multi-line', 'two-lines', 'three-lines');
                     qTextEl.removeAttribute('data-playoff-active');
                 } else {
-                    console.log('📝 showVotingScreen OPEN - POMIJAM nadpisanie (dogrywka aktywna lub atrybut)');
+                    log('📝 showVotingScreen OPEN - POMIJAM nadpisanie (dogrywka aktywna lub atrybut)');
                     // Jeśli dogrywka jest aktywna, upewnij się że słowo dogrywki i napis DOGRYWKA są ustawione - styl jak normalne pytania
                     if (isPlayoffActive && qTextEl && qTextEl.getAttribute('data-playoff-active') !== 'true') {
                         const playoffWord = currentGameState.playoff?.word || '';
-                        console.log('📝 showVotingScreen OPEN - Przywracam słowo dogrywki i napis DOGRYWKA:', playoffWord);
+                        log('📝 showVotingScreen OPEN - Przywracam słowo dogrywki i napis DOGRYWKA:', playoffWord);
                         qTextEl.innerHTML = `
                             <div class="playoff-word" style="text-align: center; width: 100%; display: block; margin: 0 auto 10px auto;">${playoffWord}</div>
                             <div class="playoff-title-pulse" style="text-align: center; width: 100%; display: block; margin: 0 auto;">🎤 DOGRYWKA</div>
@@ -5693,7 +5745,7 @@
                 // Pytanie z literą – gracz wpisuje wyraz zaczynający się na przypisaną literę
                 // WAŻNE: Sprawdź czy dogrywka nie jest aktywna - jeśli tak, nie pokazuj pytania z literą
                 if (currentGameState && currentGameState.playoff && currentGameState.playoff.active) {
-                    console.log('🔤 ✅ Dogrywka aktywna podczas showVotingScreen dla LETTER - pomijam renderowanie, wywołuję showPlayoffScreen');
+                    log('🔤 ✅ Dogrywka aktywna podczas showVotingScreen dla LETTER - pomijam renderowanie, wywołuję showPlayoffScreen');
                     votingScreen.classList.remove('hot-or-not-mode');
                     votingScreen.classList.add('no-image');
                     votingScreen.classList.add('playoff-mode');
@@ -5735,7 +5787,7 @@
                 // Logi: połączenie 1/2 litery -> vote (czego brakuje)
                 if (question.type === 'LETTER') {
                     if (letterGame && letterGame.gameStarted && playerLetters && playerLetters.length > 0) {
-                        console.log('🔤 [LETTER vote] OK: letterGame otrzymany, gameStarted=true, playerLetters=', playerLetters);
+                        log('🔤 [LETTER vote] OK: letterGame otrzymany, gameStarted=true, playerLetters=', playerLetters);
                     } else {
                         const missing = [];
                         if (!currentGameState) missing.push('brak currentGameState');
@@ -5743,14 +5795,14 @@
                         else if (currentGameState.letterGame.questionId !== question.id) missing.push('letterGame.questionId!==question.id');
                         else if (!letterGame.gameStarted) missing.push('letterGame.gameStarted=false');
                         else if (!playerLetters || playerLetters.length === 0) missing.push('brak playerLetters dla socket.id');
-                        console.log('🔤 [LETTER vote] Oczekiwanie na litery – czego brakuje:', missing.join(', '), '| state.letterGame=', currentGameState?.letterGame);
+                        log('🔤 [LETTER vote] Oczekiwanie na litery – czego brakuje:', missing.join(', '), '| state.letterGame=', currentGameState?.letterGame);
                     }
                 }
 
                 // WAŻNE: Sprawdź czy dogrywka jest aktywna - jeśli tak, nie pokazuj pytania z literą
                 // isPlayoffActive jest już zadeklarowane wyżej (linia 5315)
                 if (isPlayoffActive) {
-                    console.log('🎤 Pytanie z literą - dogrywka aktywna, pomijam renderowanie pytania z literą');
+                    log('🎤 Pytanie z literą - dogrywka aktywna, pomijam renderowanie pytania z literą');
                     return; // showPlayoffScreen zostanie wywołane gdzie indziej
                 }
                 
@@ -6006,7 +6058,7 @@
                 }
                 }
                 
-                console.log('🖼️ vote.html - imgSrc:', imgSrc, 'question.image:', question.image, 'question.media:', question.media);
+                log('🖼️ vote.html - imgSrc:', imgSrc, 'question.image:', question.image, 'question.media:', question.media);
 
                 if (imgSrc && imgSrc.trim() !== '') {
                     // Popraw ścieżkę jeśli potrzeba
@@ -6018,12 +6070,12 @@
                     heroImg.src = imgSrc;
                     votingScreen.classList.remove('no-image');
                     triggerHeroReveal();
-                    console.log('✅ vote.html - wyświetlam obrazek:', imgSrc);
+                    log('✅ vote.html - wyświetlam obrazek:', imgSrc);
                 } else {
                     heroContainer.style.display = 'none';
                     heroImg.src = '';
                     votingScreen.classList.add('no-image');
-                    console.log('❌ vote.html - brak obrazka');
+                    log('❌ vote.html - brak obrazka');
                 }
                 
                 // Formatowanie pytania (ta sama logika co wyżej)
@@ -6181,7 +6233,7 @@
         // Globalny handler dla aktualizacji stanu statków (działa dla wszystkich pytań)
         socket.on('ships_game_update', (data) => {
             if (shipsGameState.questionId === data.questionId) {
-                console.log('🎯 ships_game_update:', { 
+                log('🎯 ships_game_update:', { 
                     questionId: data.questionId, 
                     currentTurn: data.currentTurn, 
                     hasShotThisTurn: data.hasShotThisTurn,
@@ -6227,7 +6279,7 @@
             if (roundInfo) {
                 const roundNumber = (shipsGameState.currentTurn || 0) + 1;
                 const showStatsValue = currentGameState ? currentGameState.showStats : false;
-                console.log('🎯 updateShipsRoundInfo:', {
+                log('🎯 updateShipsRoundInfo:', {
                     questionId: questionId,
                     currentTurn: shipsGameState.currentTurn,
                     roundNumber: roundNumber,
@@ -6256,7 +6308,7 @@
             // Nasłuchuj aktualizacji stanu gry tylko dla tego pytania SHIPS
             const stateUpdateHandler = (state) => {
                 if (state.activeQuestion && state.activeQuestion.type === 'SHIPS' && state.activeQuestion.id === questionId) {
-                    console.log('🎯 vote.html stateUpdateHandler dla SHIPS:', {
+                    log('🎯 vote.html stateUpdateHandler dla SHIPS:', {
                         questionId: questionId,
                         hasShipsGame: !!state.shipsGame,
                         currentTurn: state.shipsGame?.currentTurn,
@@ -6270,7 +6322,7 @@
                         shipsGameState.hasShotThisTurn = state.shipsGame.playersShot && Array.isArray(state.shipsGame.playersShot) && state.shipsGame.playersShot.includes(socket.id);
                         shipsGameState.gameEnded = state.shipsGame.gameEnded || false;
                         
-                        console.log('🎯 vote.html - zaktualizowano shipsGameState:', {
+                        log('🎯 vote.html - zaktualizowano shipsGameState:', {
                             oldTurn: oldTurn,
                             newTurn: shipsGameState.currentTurn,
                             showStats: state.showStats,
@@ -6299,7 +6351,7 @@
                             renderShipsAnswer(questionId, state);
                         }
                     } else {
-                        console.warn('⚠️ vote.html stateUpdateHandler - brak state.shipsGame lub złe questionId');
+                        if(DEBUG) console.warn('⚠️ vote.html stateUpdateHandler - brak state.shipsGame lub złe questionId');
                     }
                 }
             };
@@ -6329,7 +6381,7 @@
             const currentTurn = shipsGameState.currentTurn || 0;
             const roundNumber = currentTurn + 1; // Runda 1, 2, 3...
             
-            console.log('🎯 renderShipsBoard vote.html - currentTurn:', currentTurn, 'roundNumber:', roundNumber, 'shipsGameState:', shipsGameState);
+            log('🎯 renderShipsBoard vote.html - currentTurn:', currentTurn, 'roundNumber:', roundNumber, 'shipsGameState:', shipsGameState);
             
             // Dodaj nagłówek z numerem rundy (tylko jeśli nie ma już w kontenerze)
             const roundInfo = container.parentElement?.querySelector('.ships-round-info');
@@ -6410,7 +6462,7 @@
                             !shipsGameState.gameEnded && 
                             !showStatsValue;
             
-            console.log('🎯 renderShipsBoard - canShoot:', {
+            log('🎯 renderShipsBoard - canShoot:', {
                 hasShotThisTurn: shipsGameState.hasShotThisTurn,
                 gameEnded: shipsGameState.gameEnded,
                 showStats: showStatsValue,
@@ -6445,7 +6497,7 @@
         }
 
         function handleShipsShot(questionId, r, c) {
-            console.log('🎯 handleShipsShot:', { 
+            log('🎯 handleShipsShot:', { 
                 questionId, 
                 r, 
                 c, 
@@ -6457,18 +6509,18 @@
             
             // Sprawdź czy runda nie została zakończona (showStats = true oznacza zakończoną rundę)
             if (currentGameState && currentGameState.showStats) {
-                console.log('❌ Runda zakończona - nie można strzelać');
+                log('❌ Runda zakończona - nie można strzelać');
                 return;
             }
             
             if (shipsGameState.hasShotThisTurn || shipsGameState.gameEnded) {
-                console.log('❌ Nie można strzelać:', { hasShotThisTurn: shipsGameState.hasShotThisTurn, gameEnded: shipsGameState.gameEnded });
+                log('❌ Nie można strzelać:', { hasShotThisTurn: shipsGameState.hasShotThisTurn, gameEnded: shipsGameState.gameEnded });
                 return;
             }
             
             const key = `${r}_${c}`;
             if (shipsGameState.shots[key]) {
-                console.log('❌ Już strzelano w to miejsce');
+                log('❌ Już strzelano w to miejsce');
                 return; // Już strzelano tutaj
             }
             
@@ -6524,7 +6576,7 @@
         function renderShipsStats(questionId, state) {
             const statsContainer = document.getElementById(`ships-stats-container-${questionId}`);
             if (!statsContainer || !state.shipsGame) {
-                console.warn('⚠️ renderShipsStats - brak kontenera lub state.shipsGame:', {
+                if(DEBUG) console.warn('⚠️ renderShipsStats - brak kontenera lub state.shipsGame:', {
                     hasContainer: !!statsContainer,
                     hasShipsGame: !!state.shipsGame
                 });
@@ -6536,10 +6588,10 @@
             // Użyj statystyk z serwera
             const playerStats = state.shipsGame.playerStats || {};
             
-            let html = '<div class="ships-stats-table" style="width: 100%; padding: 15px; background: rgba(0,0,0,0.5); border-radius: 8px; border: 2px solid #00aaff; box-sizing: border-box;">';
-            html += '<h3 style="color: #00aaff; margin: 0 0 15px 0; text-align: center; font-size: 1.2em;">📊 Statystyki trafień</h3>';
-            html += '<table style="width: 100%; border-collapse: collapse; font-size: 0.95em;">';
-            html += '<tr style="border-bottom: 2px solid #00aaff;"><th style="text-align: left; padding: 10px 8px; color: #00aaff; font-size: 1.1em; font-weight: bold;">Gracz</th><th style="text-align: center; padding: 10px 8px; color: #00aaff; font-size: 1.1em; font-weight: bold;">Trafienia</th><th style="text-align: center; padding: 10px 8px; color: #00aaff; font-size: 1.1em; font-weight: bold;">Pudła</th><th style="text-align: center; padding: 10px 8px; color: #00aaff; font-size: 1.1em; font-weight: bold;">Razem</th></tr>';
+            let html = '<div class="ships-stats-table" style="width: 100%; padding: 12px; background: rgba(0,0,0,0.5); border-radius: 8px; border: 2px solid #00aaff; box-sizing: border-box;">';
+            html += '<h3 style="color: #00aaff; margin: 0 0 10px 0; text-align: center; font-size: clamp(1rem, 3vw, 1.2em);">📊 Statystyki trafień</h3>';
+            html += '<table class="ships-stats-inner-table" style="width: 100%; border-collapse: collapse;">';
+            html += '<tr style="border-bottom: 2px solid #00aaff;"><th style="text-align: left; padding: 6px 4px; color: #00aaff; font-weight: bold;">Gracz</th><th style="text-align: center; padding: 6px 4px; color: #00aaff; font-weight: bold;">Trafienia</th><th style="text-align: center; padding: 6px 4px; color: #00aaff; font-weight: bold;">Pudła</th><th style="text-align: center; padding: 6px 4px; color: #00aaff; font-weight: bold;">Razem</th></tr>';
             
             const statsArray = Object.values(playerStats).sort((a, b) => (b.hits + b.misses) - (a.hits + a.misses));
             
@@ -6547,7 +6599,8 @@
                 html += '<tr><td colspan="4" style="padding: 12px; color: rgba(255,255,255,0.5); text-align: center;">Brak trafień</td></tr>';
             } else {
                 statsArray.forEach(stats => {
-                    html += `<tr style="border-bottom: 1px solid rgba(0,170,255,0.3);"><td style="padding: 10px 8px; color: #fff; word-break: break-word;">${stats.nick}</td><td style="text-align: center; padding: 10px 8px; color: #00ff00; font-weight: bold;">${stats.hits}</td><td style="text-align: center; padding: 10px 8px; color: #ff0044;">${stats.misses}</td><td style="text-align: center; padding: 10px 8px; color: #fff; font-weight: bold;">${stats.hits + stats.misses}</td></tr>`;
+                    const safeNick = (stats.nick || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                    html += `<tr style="border-bottom: 1px solid rgba(0,170,255,0.3);"><td style="padding: 6px 4px; color: #fff; word-break: break-word;">${safeNick}</td><td style="text-align: center; padding: 6px 4px; color: #00ff00; font-weight: bold;">${stats.hits}</td><td style="text-align: center; padding: 6px 4px; color: #ff0044;">${stats.misses}</td><td style="text-align: center; padding: 6px 4px; color: #fff; font-weight: bold;">${stats.hits + stats.misses}</td></tr>`;
                 });
             }
             
@@ -6585,7 +6638,7 @@
         }
 
         function sendEstimationAnswer(value) {
-            console.log('🔍 DEBUG sendEstimationAnswer - START:', {
+            log('🔍 DEBUG sendEstimationAnswer - START:', {
                 value: value,
                 currentQuestionId: currentQuestionId,
                 hasAnswered: hasAnswered,
@@ -6594,11 +6647,11 @@
             });
             
             if (playerEliminated) {
-                console.log('❌ sendEstimationAnswer - gracz wyeliminowany, pomijam');
+                log('❌ sendEstimationAnswer - gracz wyeliminowany, pomijam');
                 return;
             }
             if (hasAnswered) {
-                console.log('⚠️ sendEstimationAnswer - już odpowiedziałeś, hasAnswered:', hasAnswered);
+                log('⚠️ sendEstimationAnswer - już odpowiedziałeś, hasAnswered:', hasAnswered);
                 return;
             }
             hasAnswered = true;
@@ -6606,9 +6659,9 @@
             const answeredKey = `voteBattle_answered_${currentQuestionId}`;
             try {
                 localStorage.setItem(answeredKey, 'true');
-                console.log('✅ sendEstimationAnswer - zapisano do localStorage:', answeredKey);
+                log('✅ sendEstimationAnswer - zapisano do localStorage:', answeredKey);
             } catch (e) {
-                console.warn('Nie można zapisać do localStorage:', e);
+                if(DEBUG) console.warn('Nie można zapisać do localStorage:', e);
             }
             socket.emit('send_answer', { value: Number(value), team: playerTeam });
             document.getElementById('estimation-submit')?.classList.add('answer-locked');
@@ -6617,7 +6670,7 @@
         }
 
         function sendOpenAnswer(text) {
-            console.log('🔍 DEBUG sendOpenAnswer - START:', {
+            log('🔍 DEBUG sendOpenAnswer - START:', {
                 text: text,
                 currentQuestionId: currentQuestionId,
                 hasAnswered: hasAnswered,
@@ -6626,11 +6679,11 @@
             });
             
             if (playerEliminated) {
-                console.log('❌ sendOpenAnswer - gracz wyeliminowany, pomijam');
+                log('❌ sendOpenAnswer - gracz wyeliminowany, pomijam');
                 return;
             }
             if (hasAnswered) {
-                console.log('⚠️ sendOpenAnswer - już odpowiedziałeś, hasAnswered:', hasAnswered);
+                log('⚠️ sendOpenAnswer - już odpowiedziałeś, hasAnswered:', hasAnswered);
                 return;
             }
             
@@ -6654,7 +6707,7 @@
             try {
                 localStorage.setItem(answeredKey, 'true');
             } catch (e) {
-                console.warn('Nie można zapisać do localStorage:', e);
+                if(DEBUG) console.warn('Nie można zapisać do localStorage:', e);
             }
             socket.emit('send_answer', { text: trimmedText, team: playerTeam });
             document.getElementById('open-submit')?.classList.add('answer-locked');
@@ -6662,7 +6715,7 @@
         }
         
         function sendLetterAnswer(textOrArray) {
-            console.log('🔍 DEBUG sendLetterAnswer - START:', {
+            log('🔍 DEBUG sendLetterAnswer - START:', {
                 textOrArray: textOrArray,
                 currentQuestionId: currentQuestionId,
                 hasAnswered: hasAnswered,
@@ -6671,11 +6724,11 @@
             });
             
             if (playerEliminated) {
-                console.log('❌ sendLetterAnswer - gracz wyeliminowany, pomijam');
+                log('❌ sendLetterAnswer - gracz wyeliminowany, pomijam');
                 return;
             }
             if (hasAnswered) {
-                console.log('⚠️ sendLetterAnswer - już odpowiedziałeś, hasAnswered:', hasAnswered);
+                log('⚠️ sendLetterAnswer - już odpowiedziałeś, hasAnswered:', hasAnswered);
                 return;
             }
             
@@ -6708,12 +6761,12 @@
             try {
                 localStorage.setItem(answeredKey, 'true');
             } catch (e) {
-                console.warn('Nie można zapisać do localStorage:', e);
+                if(DEBUG) console.warn('Nie można zapisać do localStorage:', e);
             }
             const letterCount = (currentGameState && currentGameState.letterGame && currentGameState.letterGame.letterCount) || 1;
             // Dla 2 liter zawsze wyślij tablicę z 2 elementami (nawet jeśli jeden jest pusty - serwer zwaliduje)
             const answerData = letterCount === 2 ? (words.length >= 2 ? [words[0], words[1]] : [words[0] || '', '']) : (words[0] || '');
-            console.log('🔤 [vote] Wysyłam odpowiedź LETTER:', { letterCount, words, answerData, answerDataType: typeof answerData, isArray: Array.isArray(answerData) });
+            log('🔤 [vote] Wysyłam odpowiedź LETTER:', { letterCount, words, answerData, answerDataType: typeof answerData, isArray: Array.isArray(answerData) });
             // answeredKey jest już zadeklarowane i zapisane wcześniej (linia 5995) - nie trzeba zapisywać ponownie
             socket.emit('send_answer', { text: answerData, team: playerTeam });
             const letterSubmitBtn = document.getElementById('letter-submit');
@@ -6732,7 +6785,7 @@
 
         // === WYSYŁANIE ODPOWIEDZI ===
         function sendAnswer(index, btn) {
-            console.log('🔍 DEBUG sendAnswer - START:', {
+            log('🔍 DEBUG sendAnswer - START:', {
                 index: index,
                 currentQuestionId: currentQuestionId,
                 hasAnswered: hasAnswered,
@@ -6742,15 +6795,15 @@
             });
             
             if (playerEliminated) {
-                console.log('❌ sendAnswer - gracz wyeliminowany, pomijam');
+                log('❌ sendAnswer - gracz wyeliminowany, pomijam');
                 return;
             }
             if (hasAnswered) {
-                console.log('⚠️ Już odpowiedziałeś na to pytanie - hasAnswered:', hasAnswered, 'currentQuestionId:', currentQuestionId);
+                log('⚠️ Już odpowiedziałeś na to pytanie - hasAnswered:', hasAnswered, 'currentQuestionId:', currentQuestionId);
                 // DEBUG: Sprawdź localStorage
                 if (currentQuestionId) {
                     const answeredKey = `voteBattle_answered_${currentQuestionId}`;
-                    console.log('🔍 DEBUG - localStorage check:', {
+                    log('🔍 DEBUG - localStorage check:', {
                         answeredKey: answeredKey,
                         value: localStorage.getItem(answeredKey),
                         allKeys: Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i)).filter(k => k && k.startsWith('voteBattle_answered_'))
@@ -6766,17 +6819,17 @@
             try {
                 localStorage.setItem(answeredKey, 'true');
                 localStorage.setItem(`${answeredKey}_index`, index.toString());
-                console.log('✅ sendAnswer - zapisano do localStorage:', {
+                log('✅ sendAnswer - zapisano do localStorage:', {
                     answeredKey: answeredKey,
                     indexKey: `${answeredKey}_index`,
                     indexValue: index.toString()
                 });
             } catch (e) {
-                console.warn('Nie można zapisać do localStorage:', e);
+                if(DEBUG) console.warn('Nie można zapisać do localStorage:', e);
             }
             socket.emit('send_answer', { index, team: playerTeam });
             
-            console.log('✅ Wysłano odpowiedź:', index);
+            log('✅ Wysłano odpowiedź:', index);
             
             // Zaznacz wybraną odpowiedź
             if(btn.classList.contains('hot-image-card')) {
@@ -6800,7 +6853,7 @@
 
         // === WYBÓR DRUŻYNY ===
         function selectTeam(team) {
-            console.log('🏆 Wybrano drużynę:', team);
+            log('🏆 Wybrano drużynę:', team);
             playerTeam = team;
             socket.emit('player_join_team', team);
             
@@ -6831,30 +6884,30 @@
 
         socket.on('team_selected', (team) => {
             playerTeam = team;
-            console.log('✅ Serwer potwierdził wybór drużyny:', team);
+            log('✅ Serwer potwierdził wybór drużyny:', team);
             
             // Zapisz drużynę w localStorage
             try {
                 localStorage.setItem('voteBattle_team', team);
             } catch (e) {
-                console.warn('Nie można zapisać drużyny do localStorage:', e);
+                if(DEBUG) console.warn('Nie można zapisać drużyny do localStorage:', e);
             }
         });
         
         // Event resetu trybu drużynowego - wyczyść localStorage i wymuś ponowny wybór
         socket.on('team_mode_reset', (data) => {
-            console.log('🔄 Otrzymano team_mode_reset - resetuję drużynę gracza');
+            log('🔄 Otrzymano team_mode_reset - resetuję drużynę gracza');
             playerTeam = null;
             try {
                 localStorage.removeItem('voteBattle_team');
-                console.log('✅ Usunięto drużynę z localStorage');
+                log('✅ Usunięto drużynę z localStorage');
             } catch (e) {
-                console.warn('Nie można usunąć drużyny z localStorage:', e);
+                if(DEBUG) console.warn('Nie można usunąć drużyny z localStorage:', e);
             }
             
             // Jeśli gracz jest zarejestrowany, pokaż ekran wyboru drużyny
             if (playerNick) {
-                console.log('🎯 Pokazuję ekran wyboru drużyny po resecie');
+                log('🎯 Pokazuję ekran wyboru drużyny po resecie');
                 // Poproś serwer o aktualny stan
                 socket.emit('request_state');
             }
@@ -6862,7 +6915,7 @@
         
         // Event pełnego resetu gry - wyczyść nick, drużynę i pokaż ekran logowania
         socket.on('game_reset', () => {
-            console.log('🔄 PEŁNY RESET GRY - czyszczenie nicka, drużyny i wszystkich odpowiedzi');
+            log('🔄 PEŁNY RESET GRY - czyszczenie nicka, drużyny i wszystkich odpowiedzi');
             playerNick = '';
             playerTeam = null;
             playerScore = 0;
@@ -6897,7 +6950,7 @@
                     }
                 }
                 
-                console.log('🔍 DEBUG game_reset - wszystkie klucze w localStorage przed czyszczeniem:', {
+                log('🔍 DEBUG game_reset - wszystkie klucze w localStorage przed czyszczeniem:', {
                     totalKeys: allKeysSnapshot.length,
                     allKeys: allKeysSnapshot
                 });
@@ -6906,7 +6959,7 @@
                 // Użyj snapshotu kluczy, aby uniknąć problemów z iteracją podczas usuwania
                 const keysToRemove = allKeysSnapshot.filter(key => key.startsWith('voteBattle_answered_'));
                 
-                console.log('🔍 DEBUG game_reset - znalezione klucze odpowiedzi do usunięcia:', {
+                log('🔍 DEBUG game_reset - znalezione klucze odpowiedzi do usunięcia:', {
                     answerKeys: keysToRemove,
                     answerKeysCount: keysToRemove.length
                 });
@@ -6914,7 +6967,7 @@
                 // Usuń wszystkie klucze odpowiedzi (włącznie z _index)
                 keysToRemove.forEach(key => {
                     localStorage.removeItem(key);
-                    console.log('🗑️ Usunięto klucz:', key);
+                    log('🗑️ Usunięto klucz:', key);
                 });
                 
                 // Usuń podstawowe klucze
@@ -6933,7 +6986,7 @@
                     }
                 }
                 
-                console.log('✅ Wyczyszczono localStorage (nick, drużyna, tryb drużynowy, odpowiedzi):', {
+                log('✅ Wyczyszczono localStorage (nick, drużyna, tryb drużynowy, odpowiedzi):', {
                     removedAnswerKeys: keysToRemove.length,
                     keys: keysToRemove,
                     remainingAnswerKeys: remainingAnswerKeys.length > 0 ? remainingAnswerKeys : 'BRAK'
@@ -6944,7 +6997,7 @@
                     // WAŻNE: Spróbuj usunąć ponownie (może być problem z synchronizacją)
                     remainingAnswerKeys.forEach(item => {
                         localStorage.removeItem(item.key);
-                        console.log('🗑️ Ponowne usunięcie klucza:', item.key);
+                        log('🗑️ Ponowne usunięcie klucza:', item.key);
                     });
                     
                     // Sprawdź jeszcze raz po ponownym usunięciu
@@ -6961,7 +7014,7 @@
                         finalCheck.forEach(key => {
                             try {
                                 localStorage.removeItem(key);
-                                console.log('🗑️ Ostateczne usunięcie klucza:', key);
+                                log('🗑️ Ostateczne usunięcie klucza:', key);
                             } catch (e) {
                                 console.error('❌ Nie można usunąć klucza:', key, e);
                             }
@@ -6972,7 +7025,7 @@
                 console.error('❌ Błąd przy czyszczeniu localStorage:', e);
                 // WAŻNE: W przypadku błędu spróbuj użyć alternatywnej metody
                 try {
-                    console.warn('⚠️ Próbuję alternatywnej metody czyszczenia...');
+                    if(DEBUG) console.warn('⚠️ Próbuję alternatywnej metody czyszczenia...');
                     const keysToClear = [];
                     for (let i = 0; i < localStorage.length; i++) {
                         const key = localStorage.key(i);
@@ -6987,7 +7040,7 @@
                             console.error('❌ Nie można usunąć klucza:', key, e2);
                         }
                     });
-                    console.log('✅ Alternatywne czyszczenie zakończone, usunięto:', keysToClear.length, 'kluczy');
+                    log('✅ Alternatywne czyszczenie zakończone, usunięto:', keysToClear.length, 'kluczy');
                 } catch (e2) {
                     console.error('❌ Alternatywne czyszczenie też nie powiodło się:', e2);
                 }
@@ -7021,12 +7074,12 @@
                 teamScoreDisplay.style.display = 'none';
             }
             
-            console.log('✅ Ekran logowania pokazany po pełnym resecie, tryb drużynowy wyłączony');
+            log('✅ Ekran logowania pokazany po pełnym resecie, tryb drużynowy wyłączony');
             
             // WAŻNE: Po resecie upewnij się że hasAnswered jest false i currentQuestionId jest null
             // To zapewni że przy następnym pytaniu nie będzie problemu z localStorage
             setTimeout(() => {
-                console.log('🔍 DEBUG game_reset - finalne sprawdzenie po resecie:', {
+                log('🔍 DEBUG game_reset - finalne sprawdzenie po resecie:', {
                     hasAnswered: hasAnswered,
                     currentQuestionId: currentQuestionId,
                     playerAnswerIndex: playerAnswerIndex,
@@ -7046,7 +7099,7 @@
                 }
                 
                 if (finalRemainingKeys.length > 0) {
-                    console.warn('⚠️ Po resecie nadal są klucze odpowiedzi - usuwam ponownie:', finalRemainingKeys);
+                    if(DEBUG) console.warn('⚠️ Po resecie nadal są klucze odpowiedzi - usuwam ponownie:', finalRemainingKeys);
                     finalRemainingKeys.forEach(key => {
                         localStorage.removeItem(key);
                         // Usuń też klucz _index jeśli istnieje
@@ -7074,10 +7127,10 @@
         
         // === POKAZANIE EKRANU WYBORU DRUŻYNY ===
         function showTeamSelectionScreen() {
-            console.log('🏆 showTeamSelectionScreen wywołane, currentGameState:', currentGameState);
+            log('🏆 showTeamSelectionScreen wywołane, currentGameState:', currentGameState);
             
             if (!currentGameState) {
-                console.log('⚠️ Brak currentGameState - nie można pokazać wyboru drużyny');
+                log('⚠️ Brak currentGameState - nie można pokazać wyboru drużyny');
                 // Spróbuj poczekać na stan
                 setTimeout(() => {
                     if (currentGameState) {
@@ -7099,13 +7152,13 @@
             if (btnA) btnA.textContent = teamAName;
             if (btnB) btnB.textContent = teamBName;
             
-            console.log('🏆 Pokazuję ekran wyboru drużyn:', teamAName, 'vs', teamBName);
+            log('🏆 Pokazuję ekran wyboru drużyn:', teamAName, 'vs', teamBName);
             showScreen('team-selection');
             
             // Debug - sprawdź czy ekran jest widoczny
             setTimeout(() => {
                 const screen = document.getElementById('team-selection-screen');
-                console.log('🔍 Ekran team-selection:', screen ? screen.style.display : 'nie znaleziono');
+                log('🔍 Ekran team-selection:', screen ? screen.style.display : 'nie znaleziono');
             }, 100);
         }
 
@@ -7229,7 +7282,7 @@
 
         // === PODIUM ===
         function showPodiumScreen(winners, step) {
-            console.log('🥇 showPodiumScreen wywołane - winners:', winners, 'step:', step, 'currentPodiumStep:', currentPodiumStep, 'teamBattleMode:', currentGameState?.teamBattleMode);
+            log('🥇 showPodiumScreen wywołane - winners:', winners, 'step:', step, 'currentPodiumStep:', currentPodiumStep, 'teamBattleMode:', currentGameState?.teamBattleMode);
             
             showScreen('podium');
             
@@ -7252,7 +7305,7 @@
                 podiumTitle.style.setProperty('background', '-webkit-linear-gradient(#f1c40f, #e67e22)', 'important');
                 podiumTitle.style.setProperty('-webkit-background-clip', 'text', 'important');
                 podiumTitle.style.setProperty('-webkit-text-fill-color', 'transparent', 'important');
-                console.log('✅ Ustawiono widoczność nagłówka PODIUM:', {
+                log('✅ Ustawiono widoczność nagłówka PODIUM:', {
                     display: podiumTitle.style.display,
                     visibility: podiumTitle.style.visibility,
                     opacity: podiumTitle.style.opacity,
@@ -7283,7 +7336,7 @@
                     titleEl.style.setProperty('font-size', 'clamp(1.3rem, 5vw, 2rem)', 'important');
                     titleEl.style.setProperty('font-weight', '900', 'important');
                     titleEl.style.setProperty('margin-bottom', '20px', 'important');
-                    console.log('✅ Tryb drużynowy - ustawiono widoczność nagłówka PODIUM:', {
+                    log('✅ Tryb drużynowy - ustawiono widoczność nagłówka PODIUM:', {
                         display: titleEl.style.display,
                         computedDisplay: window.getComputedStyle(titleEl).display
                     });
@@ -7295,7 +7348,7 @@
                     // Winners zawiera drużyny posortowane według wyniku
                     winnerTeam = winners[0] || { name: '---', score: 0 };
                     secondTeam = winners[1] || { name: '---', score: 0 };
-                    console.log('🏆 Używam danych z winners array:', { winnerTeam, secondTeam });
+                    log('🏆 Używam danych z winners array:', { winnerTeam, secondTeam });
                 } else {
                     // Fallback: użyj teams z currentGameState
                     const teams = currentGameState?.teams || {};
@@ -7306,7 +7359,7 @@
                     const sortedTeams = [teamA, teamB].sort((a, b) => (b.score || 0) - (a.score || 0));
                     winnerTeam = sortedTeams[0];
                     secondTeam = sortedTeams[1];
-                    console.log('🏆 Używam danych z teams (fallback):', { winnerTeam, secondTeam });
+                    log('🏆 Używam danych z teams (fallback):', { winnerTeam, secondTeam });
                 }
                 
                 // Pokaż indywidualny wynik gracza
@@ -7325,13 +7378,13 @@
                 if (nick1El) nick1El.textContent = winnerTeam.name || '---';
                 if (score1El) score1El.textContent = (winnerTeam.score || 0) + ' pkt';
                 
-                console.log('🏆 Dane podjum drużynowego ustawione:', {
+                log('🏆 Dane podjum drużynowego ustawione:', {
                     miejsce1: { nick: nick1El?.textContent, score: score1El?.textContent },
                     miejsce2: { nick: nick2El?.textContent, score: score2El?.textContent }
                 });
                 
                 if (step === 0) {
-                    console.log('🔄 RESET PODIUM TEAM - ukrywam wszystkie miejsca');
+                    log('🔄 RESET PODIUM TEAM - ukrywam wszystkie miejsca');
                     if (p1) {
                         p1.classList.remove('revealed');
                         p1.style.setProperty('display', 'none', 'important');
@@ -7351,7 +7404,7 @@
                 
                 // W trybie drużynowym: step 2 = miejsce 2, step 1 = miejsce 1
                 if (step === 2) {
-                    console.log('🥈 POKAZUJĘ 2. MIEJSCE DRUŻYNY (step=2)', {
+                    log('🥈 POKAZUJĘ 2. MIEJSCE DRUŻYNY (step=2)', {
                         p2: !!p2,
                         p2Element: p2,
                         winners: winners,
@@ -7365,7 +7418,7 @@
                             podiumScreen.style.setProperty('flex-direction', 'column', 'important');
                             podiumScreen.style.setProperty('visibility', 'visible', 'important');
                             podiumScreen.style.setProperty('opacity', '1', 'important');
-                            console.log('✅ Kontener podium-screen ustawiony na flex');
+                            log('✅ Kontener podium-screen ustawiony na flex');
                         }
                         
                         // Upewnij się że dane są ustawione
@@ -7373,11 +7426,11 @@
                         const score2El = document.getElementById('score-2');
                         if (nick2El && secondTeam) {
                             nick2El.textContent = secondTeam.name || '---';
-                            console.log('✅ Ustawiono nick-2:', nick2El.textContent);
+                            log('✅ Ustawiono nick-2:', nick2El.textContent);
                         }
                         if (score2El && secondTeam) {
                             score2El.textContent = (secondTeam.score || 0) + ' pkt';
-                            console.log('✅ Ustawiono score-2:', score2El.textContent);
+                            log('✅ Ustawiono score-2:', score2El.textContent);
                         }
                         
                         // Wymuś widoczność przed dodaniem klasy revealed
@@ -7393,7 +7446,7 @@
                             p2.classList.add('revealed');
                         }
                         
-                        console.log('✅ Miejsce 2 - ustawiono style:', {
+                        log('✅ Miejsce 2 - ustawiono style:', {
                             display: p2.style.display,
                             visibility: p2.style.visibility,
                             opacity: p2.style.opacity,
@@ -7405,7 +7458,7 @@
                         setTimeout(() => {
                             const computed = window.getComputedStyle(p2);
                             const parentComputed = p2.parentElement ? window.getComputedStyle(p2.parentElement) : null;
-                            console.log('✅ Miejsce 2 - szczegółowy stan po 100ms:', {
+                            log('✅ Miejsce 2 - szczegółowy stan po 100ms:', {
                                 inlineDisplay: p2.style.display,
                                 computedDisplay: computed.display,
                                 computedVisibility: computed.visibility,
@@ -7425,7 +7478,7 @@
                             
                             // Jeśli nadal nie jest widoczne, wymuś jeszcze raz
                             if (computed.display === 'none' || p2.offsetWidth === 0 || computed.visibility === 'hidden') {
-                                console.warn('⚠️ Miejsce 2 nadal niewidoczne - wymuszam ponownie');
+                                if(DEBUG) console.warn('⚠️ Miejsce 2 nadal niewidoczne - wymuszam ponownie');
                                 p2.style.setProperty('display', 'block', 'important');
                                 p2.style.setProperty('visibility', 'visible', 'important');
                                 p2.style.setProperty('opacity', '1', 'important');
@@ -7434,7 +7487,7 @@
                                 // Sprawdź jeszcze raz po wymuszeniu
                                 setTimeout(() => {
                                     const recomputed = window.getComputedStyle(p2);
-                                    console.log('🔄 Po wymuszeniu - miejsce 2:', {
+                                    log('🔄 Po wymuszeniu - miejsce 2:', {
                                         display: recomputed.display,
                                         visibility: recomputed.visibility,
                                         opacity: recomputed.opacity,
@@ -7450,7 +7503,7 @@
                 }
                 
                 if (step === 1) {
-                    console.log('🥇 POKAZUJĘ 1. MIEJSCE DRUŻYNY (step=1)', {
+                    log('🥇 POKAZUJĘ 1. MIEJSCE DRUŻYNY (step=1)', {
                         p1: !!p1,
                         p1Element: p1,
                         p2: !!p2,
@@ -7465,7 +7518,7 @@
                             podiumScreen.style.setProperty('flex-direction', 'column', 'important');
                             podiumScreen.style.setProperty('visibility', 'visible', 'important');
                             podiumScreen.style.setProperty('opacity', '1', 'important');
-                            console.log('✅ Kontener podium-screen ustawiony na flex');
+                            log('✅ Kontener podium-screen ustawiony na flex');
                         }
                         
                         // Upewnij się że dane są ustawione
@@ -7473,11 +7526,11 @@
                         const score1El = document.getElementById('score-1');
                         if (nick1El && winnerTeam) {
                             nick1El.textContent = winnerTeam.name || '---';
-                            console.log('✅ Ustawiono nick-1:', nick1El.textContent);
+                            log('✅ Ustawiono nick-1:', nick1El.textContent);
                         }
                         if (score1El && winnerTeam) {
                             score1El.textContent = (winnerTeam.score || 0) + ' pkt';
-                            console.log('✅ Ustawiono score-1:', score1El.textContent);
+                            log('✅ Ustawiono score-1:', score1El.textContent);
                         }
                         
                         // Wymuś widoczność przed dodaniem klasy revealed
@@ -7515,10 +7568,10 @@
                             if (!p2.classList.contains('revealed')) {
                                 p2.classList.add('revealed');
                             }
-                            console.log('✅ Miejsce 2 również ustawione jako widoczne');
+                            log('✅ Miejsce 2 również ustawione jako widoczne');
                         }
                         
-                        console.log('✅ Miejsce 1 - ustawiono style:', {
+                        log('✅ Miejsce 1 - ustawiono style:', {
                             display: p1.style.display,
                             visibility: p1.style.visibility,
                             opacity: p1.style.opacity,
@@ -7530,7 +7583,7 @@
                         setTimeout(() => {
                             const computed = window.getComputedStyle(p1);
                             const parentComputed = p1.parentElement ? window.getComputedStyle(p1.parentElement) : null;
-                            console.log('✅ Miejsce 1 - szczegółowy stan po 100ms:', {
+                            log('✅ Miejsce 1 - szczegółowy stan po 100ms:', {
                                 inlineDisplay: p1.style.display,
                                 computedDisplay: computed.display,
                                 computedVisibility: computed.visibility,
@@ -7550,7 +7603,7 @@
                             
                             // Jeśli nadal nie jest widoczne, wymuś jeszcze raz
                             if (computed.display === 'none' || p1.offsetWidth === 0 || computed.visibility === 'hidden') {
-                                console.warn('⚠️ Miejsce 1 nadal niewidoczne - wymuszam ponownie');
+                                if(DEBUG) console.warn('⚠️ Miejsce 1 nadal niewidoczne - wymuszam ponownie');
                                 p1.style.setProperty('display', 'block', 'important');
                                 p1.style.setProperty('visibility', 'visible', 'important');
                                 p1.style.setProperty('opacity', '1', 'important');
@@ -7559,7 +7612,7 @@
                                 // Sprawdź jeszcze raz po wymuszeniu
                                 setTimeout(() => {
                                     const recomputed = window.getComputedStyle(p1);
-                                    console.log('🔄 Po wymuszeniu - miejsce 1:', {
+                                    log('🔄 Po wymuszeniu - miejsce 1:', {
                                         display: recomputed.display,
                                         visibility: recomputed.visibility,
                                         opacity: recomputed.opacity,
@@ -7602,7 +7655,7 @@
                 document.getElementById('score-3').textContent = safeWinners[2].score + ' pkt';
                 
                 if (step === 0) {
-                    console.log('🔄 RESET PODIUM - ukrywam wszystkie miejsca');
+                    log('🔄 RESET PODIUM - ukrywam wszystkie miejsca');
                     p1.classList.remove('revealed');
                     p2.classList.remove('revealed');
                     p3.classList.remove('revealed');
@@ -7616,17 +7669,17 @@
                 }
                 
                 if (step === 3 && !p3.classList.contains('revealed')) {
-                    console.log('🥉 POKAZUJĘ 3. MIEJSCE (step=3)');
+                    log('🥉 POKAZUJĘ 3. MIEJSCE (step=3)');
                     p3.classList.add('revealed');
                 }
                 
                 if (step === 2 && !p2.classList.contains('revealed')) {
-                    console.log('🥈 POKAZUJĘ 2. MIEJSCE (step=2)');
+                    log('🥈 POKAZUJĘ 2. MIEJSCE (step=2)');
                     p2.classList.add('revealed');
                 }
                 
                 if (step === 1 && !p1.classList.contains('revealed')) {
-                    console.log('🥇 POKAZUJĘ 1. MIEJSCE (step=1)');
+                    log('🥇 POKAZUJĘ 1. MIEJSCE (step=1)');
                     p1.classList.add('revealed');
                 }
             }

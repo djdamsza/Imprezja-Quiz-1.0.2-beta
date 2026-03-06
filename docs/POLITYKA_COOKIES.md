@@ -80,6 +80,7 @@ Przy pierwszej wizycie na stronie możesz zobaczyć komunikat (tzw. cookie banne
 
 Strona może zawierać elementy zewnętrzne (np. wbudowane filmy, mapy, przyciski społecznościowe), które używają własnych cookies. Są one objęte polityką prywatności tych podmiotów, np.:
 
+- **Stripe** – przy dokonywaniu płatności (checkout.stripe.com); cookies niezbędne do realizacji transakcji
 - **YouTube** – przy osadzonych filmach
 - **Facebook** – przy przyciskach „Lubię to” / „Udostępnij”
 - **Google** – przy mapach, Analytics
@@ -100,6 +101,6 @@ W sprawach dotyczących cookies możesz skontaktować się z nami pod adresem bi
 
 ---
 
-*Ostatnia aktualizacja: 11 lutego 2026 r.*
+*Ostatnia aktualizacja: 18 lutego 2026 r.*
 
 © Damian Nowaczyk. Wszelkie prawa zastrzeżone.

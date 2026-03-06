@@ -1,0 +1,99 @@
+{
+  "tileCount": 8,
+  "banks": [
+    {
+      "id": "b1",
+      "name": "Bank 1",
+      "tiles": [
+        {
+          "id": "t0",
+          "color": "#000080",
+          "label": "STAR TREK",
+          "image": "🌟",
+          "audio": "/uploads/1772637789935-luis_humanoide-space-fleet-sci-fi-orchestral-music-166953.mp3",
+          "volume": 45,
+          "isBackground": true,
+          "loop": false,
+          "fadeOut": false
+        },
+        {
+          "id": "t1",
+          "color": "#ff0000",
+          "label": "VADER",
+          "image": "💥",
+          "audio": "/uploads/1772637844735-star_lWGPFKZ.mp3",
+          "volume": 100,
+          "isBackground": false,
+          "loop": false,
+          "fadeOut": false
+        },
+        {
+          "id": "t2",
+          "color": "#ffffff",
+          "label": "HOLLY",
+          "image": "",
+          "audio": "/uploads/1772637884600-heavenly-music-gaming-sound-effect-hd-mp3cut.mp3",
+          "volume": 77,
+          "isBackground": false,
+          "loop": false,
+          "fadeOut": false
+        },
+        {
+          "id": "t3",
+          "color": "#0000ff",
+          "label": "VADER FATHER",
+          "image": "😱",
+          "audio": "/uploads/1772637911370-i-am-your-father_rCXrfcX.mp3",
+          "volume": 100,
+          "isBackground": false,
+          "loop": false,
+          "fadeOut": false
+        },
+        {
+          "id": "t4",
+          "color": "#000000",
+          "label": "SNOOP DOGG",
+          "image": "😊",
+          "audio": "/uploads/1772637989536-tmpbxydyrz3.mp3",
+          "volume": 100,
+          "isBackground": false,
+          "loop": false,
+          "fadeOut": false
+        },
+        {
+          "id": "t5",
+          "color": "#008080",
+          "label": "RESPECT",
+          "image": "👍",
+          "audio": "/uploads/1772638017254-gta-san-andreas-abertura-oficial.mp3",
+          "volume": 100,
+          "isBackground": false,
+          "loop": false,
+          "fadeOut": false
+        },
+        {
+          "id": "t6",
+          "color": "#0000ff",
+          "label": "WRONG",
+          "image": "⚡",
+          "audio": "/uploads/1772638046800-downer_noise.mp3",
+          "volume": 100,
+          "isBackground": false,
+          "loop": false,
+          "fadeOut": false
+        },
+        {
+          "id": "t7",
+          "color": "#00ffff",
+          "label": "Cisza",
+          "image": "📢",
+          "audio": "/uploads/1772638130435-awkward-cricket-sound-effect.mp3",
+          "volume": 100,
+          "isBackground": false,
+          "loop": false,
+          "fadeOut": false
+        }
+      ]
+    }
+  ]
+}

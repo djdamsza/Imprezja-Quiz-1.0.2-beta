@@ -262,7 +262,7 @@ Zamknij inne aplikacje używające portu 3000 lub zmień port w konfiguracji (wy
 
 ### Uninstaller Windows nie działa (błąd NSIS, exe.exe)
 
-Użyj instrukcji z pliku **NAPRAW_UNINSTALLER_WINDOWS.md** – ręczne usunięcie starej instalacji i ponowna instalacja nowej wersji.
+Uruchom **`napraw-uninstaller.bat`** (jako administrator) lub usuń ręcznie foldery `%APPDATA%\Imprezja Quiz` i folder instalacji, potem zainstaluj ponownie. Szczegóły w **FAQ.md** (sekcja „Uninstaller Windows nie działa”).
 
 ### Dźwięki nie grają
 

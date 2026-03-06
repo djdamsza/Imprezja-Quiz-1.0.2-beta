@@ -1,0 +1,34 @@
+<!-- Lekki baner cookies – imprezja.pl (~2 KB zamiast CookieYes ~34 KB) -->
+<!-- Wklej przed </body> lub w motywie (footer) -->
+<div id="imp-cookie-banner" role="dialog" aria-label="Informacja o cookies" aria-describedby="imp-cookie-text" style="display:none;">
+  <div id="imp-cookie-inner">
+    <p id="imp-cookie-text">Ta strona używa plików cookies, aby działać poprawnie i analizować ruch. Kontynuując, wyrażasz zgodę na ich użycie. <a href="/polityka-prywatnosci/" style="color:inherit;text-decoration:underline;">Polityka cookies</a></p>
+    <div id="imp-cookie-btns">
+      <button type="button" id="imp-cookie-accept" aria-label="Akceptuję cookies">Akceptuję</button>
+      <button type="button" id="imp-cookie-decline" aria-label="Odrzuć opcjonalne cookies">Tylko niezbędne</button>
+    </div>
+  </div>
+</div>
+<style>
+#imp-cookie-banner{position:fixed;bottom:0;left:0;right:0;z-index:999999;background:rgba(26,26,46,.97);color:#fff;padding:16px 20px;font-family:system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.5;box-shadow:0 -4px 20px rgba(0,0,0,.3);}
+#imp-cookie-inner{max-width:900px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;gap:16px;justify-content:space-between;}
+#imp-cookie-text{margin:0;flex:1;min-width:200px;}
+#imp-cookie-text a:hover{opacity:.9;}
+#imp-cookie-btns{display:flex;gap:10px;flex-shrink:0;}
+#imp-cookie-accept,#imp-cookie-decline{padding:10px 20px;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;}
+#imp-cookie-accept{background:#f1c40f;color:#1a1a2e;}
+#imp-cookie-accept:hover{background:#e6b80a;}
+#imp-cookie-decline{background:rgba(255,255,255,.15);color:#fff;border:2px solid rgba(255,255,255,.4);}
+#imp-cookie-decline:hover{background:rgba(255,255,255,.25);}
+@media(max-width:600px){#imp-cookie-inner{flex-direction:column;align-items:stretch;}#imp-cookie-btns{justify-content:center;}}
+</style>
+<script>
+(function(){
+  var k='imp_cookie_consent',b=document.getElementById('imp-cookie-banner'),a=document.getElementById('imp-cookie-accept'),d=document.getElementById('imp-cookie-decline');
+  if(localStorage.getItem(k)){b.style.display='none';return;}
+  b.style.display='block';
+  function hide(){b.style.display='none';}
+  a.onclick=function(){localStorage.setItem(k,'all');hide();if(typeof window.impCookieAccept==='function')window.impCookieAccept('all');};
+  d.onclick=function(){localStorage.setItem(k,'essential');hide();if(typeof window.impCookieAccept==='function')window.impCookieAccept('essential');};
+})();
+</script>

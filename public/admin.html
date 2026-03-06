@@ -29,7 +29,7 @@
             background: var(--bg-dark);
             min-height: 100vh;
             color: var(--text-white);
-            padding-bottom: 180px; /* Miejsce na przyciski Reset i END GAME na dole */
+            padding-bottom: 100px;
         }
 
         .container {
@@ -350,6 +350,24 @@
         .reset-button-fixed .btn-bug-report:hover {
             background: #2980b9;
         }
+        .admin-section, .rozgrywka-section { padding: 0 10px 20px; }
+        .rozgrywka-section { display: none; }
+        .section-top-btn { margin-bottom: 16px; }
+        .toggle-slider-wrap { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .toggle-slider { display: flex; background: var(--glass-bg); border: 2px solid var(--glass-border); border-radius: 10px; overflow: hidden; }
+        .toggle-slider span { padding: 10px 20px; cursor: pointer; font-weight: 700; transition: background 0.2s, color 0.2s; }
+        .toggle-slider span.active { background: var(--accent-gold); color: #000; }
+        .toggle-slider span:not(.active) { color: var(--text-muted); }
+        .toggle-slider span:not(.active):hover { background: rgba(255,255,255,0.08); }
+        .poradnik-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 500; display: none; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
+        .poradnik-overlay.visible { display: flex; }
+        .poradnik-modal { background: var(--bg-dark); border: 2px solid var(--accent-gold); border-radius: 12px; max-width: 560px; width: 100%; max-height: 85vh; overflow-y: auto; padding: 20px; }
+        .poradnik-modal h3 { margin: 0 0 12px 0; color: var(--accent-gold); }
+        .poradnik-modal p, .poradnik-modal ul { margin: 0 0 10px 0; font-size: 0.9rem; color: var(--text-muted); line-height: 1.5; }
+        .poradnik-modal .btn-close-poradnik { margin-top: 16px; }
+        .volume-slider-wrap { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .volume-slider-wrap input[type="range"] { width: 120px; }
+        .volume-slider-wrap label { font-size: 0.9rem; color: var(--text-muted); min-width: 80px; }
         
         /* Znaczek odchaczenia z lewej strony pytania */
         .question-checkmark {
@@ -390,6 +408,10 @@
         .legend-grid { display: flex; flex-wrap: wrap; gap: 10px 20px; font-size: 0.9rem; color: var(--text-muted); }
         .legend-item { display: flex; align-items: center; gap: 6px; }
 
+        /* Przycisk pełnego ekranu – prawy dolny róg, znika w fullscreen */
+        #btn-fs-admin { position: fixed; bottom: 10px; right: 10px; z-index: 9999; background: rgba(50,50,50,0.8); color: #fff; border: 1px solid #777; padding: 10px 14px; border-radius: 6px; font-size: 12px; cursor: pointer; }
+        #btn-fs-admin:hover { background: #444; }
+
         /* Ranking i Podium na adminie (jak na TV) */
         .admin-ranking-podium { background: var(--glass-bg); padding: 12px 15px; margin-top: 10px; border-radius: 8px; border: 1px solid var(--glass-border); }
         .admin-ranking-podium h3 { margin: 0 0 8px 0; font-size: 0.95rem; color: var(--accent-gold); }
@@ -417,6 +439,7 @@
     </style>
 </head>
 <body>
+    <button id="btn-fs-admin" type="button" onclick="toggleFullscreenAdmin()" title="Pełny ekran">⛶ Pełny ekran</button>
     <div class="container">
         <header id="admin-header">
             <h1>🎮 PANEL ADMINA</h1>
@@ -427,7 +450,7 @@
                 </button>
                 <div class="status">
                     <span id="connection-status">🔴 Rozłączony</span>
-                    <span id="users-count">👥 0</span>
+                    <span id="users-count">👥 0 graczy</span>
                 </div>
             </div>
         </header>
@@ -437,52 +460,30 @@
             ⚠️ Utracono połączenie – przyciski mogą nie działać. <a href="#" onclick="location.reload(); return false;" style="color: #fff; text-decoration: underline;">Odśwież stronę</a>, aby kontynuować.
         </div>
 
-        <!-- SEKCJA LICENCJI -->
-        <section class="wifi-generator" id="license-section" style="background: var(--glass-bg); border: 2px solid var(--glass-border); border-radius: 12px; padding: 20px; margin-top: 20px;">
-            <h2>🔐 Licencja</h2>
-            <div id="license-status" style="margin-bottom: 15px; padding: 12px; border-radius: 6px; font-size: 0.95rem;">
-                <span id="license-status-text">Sprawdzanie...</span>
-            </div>
-            <div id="license-activation" style="display: none;">
-                <div class="wifi-input-group">
-                    <input type="text" id="license-key-input" class="wifi-input" placeholder="IMPREZJA-RSA-... lub IMPREZJA-XXXX-XXXX-XXXX-XXXX" autocomplete="off" style="font-family: monospace; letter-spacing: 1px;">
-                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
-                        <button onclick="activateLicense()" class="btn btn-primary">Aktywuj licencję</button>
-                    </div>
-                </div>
-                <div id="license-error" style="margin-top: 10px; color: #e74c3c; display: none; font-size: 0.9rem;"></div>
-            </div>
-            <div id="license-info" style="margin-top: 15px; font-size: 0.85rem; color: var(--text-muted); display: none;">
-                <div><strong>ID komputera:</strong> <code id="machine-id-display" style="font-family: monospace; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px;"></code></div>
-            </div>
-            <div style="margin-top: 15px;">
-                <a href="https://nowajakoscrozrywki.pl/produkt/imprezja-quiz/" target="_blank" rel="noopener noreferrer" class="btn btn-success" style="text-decoration: none; display: inline-flex; align-items: center;">🛒 Kup licencję</a>
-            </div>
-        </section>
+        <!-- Banner licencji (tylko przy starcie, znika po 5 s; nie dla dożywotniej) -->
+        <div id="license-expiry-banner" style="display: none; position: fixed; top: 60px; left: 0; right: 0; z-index: 98; background: #f1c40f; color: #000; padding: 12px 20px; text-align: center; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">Info: Licencja wygasa za <span id="license-expiry-days">0</span> dni.</div>
 
-        <!-- SEKCJA AKTUALIZACJI -->
-        <section class="wifi-generator" id="updates-section" style="background: var(--glass-bg); border: 2px solid var(--glass-border); border-radius: 12px; padding: 20px; margin-top: 20px;">
-            <h2>🔄 Aktualizacje</h2>
-            <div style="margin-bottom: 12px; padding: 10px 14px; background: rgba(241, 196, 15, 0.12); border-radius: 8px; border-left: 4px solid var(--accent-gold); font-size: 0.85rem; color: var(--text-muted);">
-                <strong>⚠️ Uwaga:</strong> Nie zalecam aktualizacji w trakcie imprezy – lepiej zrobić to na spokojnie i przetestować.
-            </div>
-            <div id="update-status" style="margin-bottom: 12px; padding: 12px; border-radius: 6px; font-size: 0.95rem; min-height: 24px;">
-                <span id="update-status-text"></span>
-                <span id="update-status-link"></span>
-            </div>
-            <button type="button" onclick="checkForUpdates()" class="btn btn-primary" id="check-updates-btn">🔍 Sprawdź aktualizacje</button>
-        </section>
+        <!-- Banner błędu tunelu – zawsze widoczny na górze aż użytkownik zamknie -->
+        <div id="tunnel-error-banner" style="display: none; position: fixed; top: 60px; left: 0; right: 0; z-index: 97; background: #c0392b; color: white; padding: 14px 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+            <div style="font-weight: bold; margin-bottom: 8px;">❌ Błąd tunelu</div>
+            <div id="tunnel-error-text" style="font-size: 0.9rem; white-space: pre-wrap; max-height: 120px; overflow-y: auto;"></div>
+            <div id="tunnel-error-logpath" style="margin-top: 8px; font-size: 0.8rem; opacity: 0.9;"></div>
+            <button type="button" onclick="document.getElementById('tunnel-error-banner').style.display='none'" style="margin-top: 10px; padding: 6px 14px; background: rgba(255,255,255,0.2); border: 1px solid white; color: white; border-radius: 6px; cursor: pointer;">Zamknij</button>
+        </div>
+
+        <!-- ========== SEKCJA 1: ADMINISTRACYJNE ========== -->
+        <div id="admin-section" class="admin-section">
+            <button type="button" onclick="openPoradnik()" class="btn btn-secondary section-top-btn">📖 PORADNIK ADMINA</button>
 
         <!-- GENERATOR QR WIFI -->
         <section class="wifi-generator">
             <h2>📶 Generator QR WiFi</h2>
             <div class="wifi-input-group">
-                <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-                    <input type="text" id="wifi-ssid" class="wifi-input" placeholder="Nazwa sieci WiFi..." autocomplete="off" style="flex: 1; min-width: 180px;">
-                    <button type="button" onclick="fillCurrentWiFiSSID()" class="btn btn-secondary" title="Wpisz nazwę aktualnie połączonej sieci">Wpisz aktualną sieć</button>
-                </div>
-                <input type="password" id="wifi-password" class="wifi-input" placeholder="Hasło WiFi (opcjonalne)..." autocomplete="off" style="margin-top: 10px;">
-                <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 6px;">Ostatnio wpisane wartości są zapamiętywane.</p>
+                <input type="text" id="wifi-ssid" class="wifi-input" list="wifi-ssid-list" placeholder="Nazwa sieci WiFi..." autocomplete="on" style="flex: 1; min-width: 180px;">
+                <datalist id="wifi-ssid-list"></datalist>
+                <div id="wifi-ssid-message" style="margin-top: 6px; font-size: 0.85rem; color: #e74c3c; display: none;"></div>
+                <input type="password" id="wifi-password" class="wifi-input" list="wifi-password-list" placeholder="Hasło WiFi (opcjonalne)..." autocomplete="on" style="margin-top: 10px;">
+                <datalist id="wifi-password-list"></datalist>
                 <select id="wifi-type" class="wifi-input" style="margin-top: 10px;">
                     <option value="WPA2">WPA2-Personal (domyślne)</option>
                     <option value="WPA">WPA/WPA2/WPA3 (ogólne)</option>
@@ -491,48 +492,72 @@
                 <button onclick="generateWiFiQR()" class="btn btn-wifi">Generuj</button>
             </div>
             <div id="wifi-qr-container"></div>
-            <div style="margin-top: 15px; padding: 10px; background: rgba(241, 196, 15, 0.15); border-radius: 6px; border: 1px solid rgba(241, 196, 15, 0.3); font-size: 0.85rem; color: var(--text-muted);">
-                <strong>ℹ️ Uwaga:</strong> Niektóre routery (np. Xiaomi) mogą mieć problemy z łączeniem przez QR kod WiFi. Jeśli QR kod nie działa, spróbuj połączyć się ręcznie lub użyj innego routera.
-            </div>
-
         </section>
 
-        <!-- QR DO GRY W SIECI LOKALNEJ (Wi‑Fi) -->
+        <!-- QR DO GRY W SIECI LOKALNEJ -->
         <section class="wifi-generator">
             <h2>📶 QR do gry w sieci lokalnej</h2>
-            <p style="margin-bottom: 12px; color: var(--text-muted); font-size: 0.9rem;">Pokaż na ekranie TV kod QR do gry przez Wi‑Fi (ten sam adres co w sieci lokalnej). Może być włączony razem z tunelem – wtedy wyświetlają się oba kody. Gdy włączysz „Pokaż QR na telefonach”, ten sam kod pojawi się też u zalogowanych graczy.</p>
             <button type="button" id="local-qr-btn" onclick="toggleLocalQR()" class="btn btn-primary">Pokaż QR sieci lokalnej na ekranie</button>
             <div id="local-qr-status" style="margin-top: 10px; font-size: 0.9rem; color: var(--text-muted);"></div>
         </section>
 
-        <!-- TUNEL (sieć komórkowa) – Pinggy, jeden klik na Mac/Linux -->
+        <!-- TUNEL LTE (szczegóły i adres w Poradniku admina) -->
         <section class="wifi-generator">
-            <h2>🌐 Tunel (gra przez sieć komórkową)</h2>
-            <p style="margin-bottom: 14px; color: var(--text-muted); font-size: 0.9rem;">Gracze mogą dołączyć przez internet (np. LTE) bez Wi‑Fi. <strong>Na Macu</strong> jednym kliknięciem uruchom tunel (Pinggy) – bez wpisywania haseł, od razu działa.</p>
-            <div style="margin-bottom: 14px; padding: 10px 14px; background: rgba(241, 196, 15, 0.12); border-radius: 8px; border-left: 4px solid var(--accent-gold); font-size: 0.85rem; color: var(--text-muted);">
-                <strong>⚠️ Wymagania:</strong> Tunel wymaga <strong>dostępu do internetu</strong> na komputerze prowadzącym grę – sieć lokalna (Wi‑Fi bez internetu) nie wystarczy.<br>
-                <strong>⏱️ Limit czasu:</strong> Wersja darmowa Pinggy ma limit ok. <strong>60 minut</strong> na jedno połączenie – po tym czasie tunel się rozłączy i trzeba go uruchomić ponownie (adres URL się zmieni).
-            </div>
+            <h2>🌐 Tunel LTE</h2>
+            <p style="margin-bottom: 10px; font-size: 0.85rem; color: var(--text-muted);">Cloudflare Tunnel – bezpłatny, bez hasła, bez limitu czasu.</p>
             <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
                 <button type="button" id="tunnel-start-btn" onclick="startTunnelOneClick()" class="btn btn-danger">🌐 Uruchom tunel i generuj QR</button>
                 <button type="button" id="tunnel-stop-btn" onclick="stopTunnelOneClick()" class="btn btn-danger" style="display: none;">Zatrzymaj tunel</button>
             </div>
-            <div id="pinggy-status" style="margin-top: 12px; font-size: 0.9rem; color: var(--text-muted);"></div>
-            <div id="pinggy-url-display" style="margin-top: 8px; word-break: break-all; font-weight: 600; color: var(--accent-gold); display: none;"></div>
-            <details style="margin-top: 14px; font-size: 0.85rem; color: var(--text-muted);">
-                <summary>Na Windows lub gdy „Uruchom tunel” nie działa – wklej adres ręcznie</summary>
-                <p style="margin-top: 10px;">Uruchom w PowerShell (Windows) lub terminalu (Mac): <code>ssh -p 443 -R0:localhost:3000 a.pinggy.io</code>. Przy pierwszym połączeniu wpisz <strong>yes</strong>. Skopiuj wyświetlony adres (np. https://xxx.a.pinggy.io) i wklej poniżej.</p>
-                <div class="wifi-input-group" style="margin-top: 10px;">
-                    <input type="url" id="pinggy-url" class="wifi-input" placeholder="https://xxx.a.pinggy.io" autocomplete="off">
-                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                        <button type="button" onclick="setPinggyUrl()" class="btn btn-wifi">Ustaw URL</button>
-                        <button type="button" onclick="clearPinggyUrl()" class="btn btn-secondary">Wyczyść</button>
-                    </div>
-                </div>
-            </details>
+            <div id="pinggy-status" style="margin-top: 10px; font-size: 0.9rem; color: var(--text-muted);">Tunel wyłączony – kod QR prowadzi na adres lokalny (Wi‑Fi).</div>
+            <div id="pinggy-url-display" style="margin-top: 6px; font-family: monospace; font-size: 0.85rem; word-break: break-all; display: none;"></div>
+</section>
+
+        <!-- TEAM BATTLE -->
+        <section class="team-battle-config">
+            <h2>⚔️ Team Battle – ustawienia drużyn</h2>
+            <div class="form-group">
+                <label for="team-a-name">Nazwa Drużyny A:</label>
+                <input type="text" id="team-a-name" value="Team Panny Młodej" placeholder="Drużyna A" class="wifi-input">
+            </div>
+            <div class="form-group">
+                <label for="team-b-name">Nazwa Drużyny B:</label>
+                <input type="text" id="team-b-name" value="Team Pana Młodego" placeholder="Drużyna B" class="wifi-input">
+            </div>
+            <button id="activate-team-mode-btn" onclick="activateTeamMode()" class="btn btn-primary">AKTYWUJ TRYB DRUŻYNOWY</button>
+            <div id="admin-team-counts" style="margin-top: 15px; padding: 12px; background: rgba(0,102,204,0.15); border-radius: 8px; border: 1px solid rgba(0,102,204,0.3); display: none;">
+                <h4 style="margin: 0 0 8px 0; font-size: 0.95rem; color: var(--accent-gold);">👥 Liczba graczy w drużynach</h4>
+                <div id="admin-team-counts-content" style="font-size: 0.9rem; color: var(--text-white);"></div>
+            </div>
         </section>
 
-        <!-- WYBÓR QUIZU - ZMODYFIKOWANA STRUKTURA -->
+        <!-- Pokaż QR admin na telefonach -->
+        <section class="team-battle-config">
+            <h2>📱 Pokaż QR admin na telefonach</h2>
+            <button onclick="toggleShowQROnPhones()" class="btn btn-primary" id="show-qr-phones-btn" style="width: auto;">📱 Pokaż QR code na telefonach</button>
+        </section>
+
+        <!-- Obrazki na telefonach – suwak TAK/NIE (wyśrodkowany) -->
+        <section class="team-battle-config" style="display: flex; flex-direction: column; align-items: center;">
+            <h2>🖼️ Obrazki na telefonach</h2>
+            <div class="toggle-slider-wrap" style="justify-content: center;">
+                <span style="font-size: 0.95rem;">Wyślij obrazki pytań na telefony:</span>
+                <div class="toggle-slider" id="images-on-phones-slider">
+                    <span id="images-phones-tak" class="active" onclick="setImagesOnPhones(true)">TAK</span>
+                    <span id="images-phones-nie" onclick="setImagesOnPhones(false)">NIE</span>
+                </div>
+            </div>
+        </section>
+
+        <button type="button" onclick="goToRozgrywka()" class="btn btn-primary" style="width: 100%; margin-top: 20px; padding: 14px; font-size: 1.1rem;">▶️ START – przejdź do rozgrywki</button>
+        </div>
+        <!-- /admin-section -->
+
+        <!-- ========== SEKCJA 2: ROZGRYWKA ========== -->
+        <div id="rozgrywka-section" class="rozgrywka-section">
+            <button type="button" onclick="goToAdmin()" class="btn btn-secondary section-top-btn">← ADMIN (powrót do ustawień)</button>
+
+        <!-- WYBÓR QUIZU -->
         <section class="quiz-selector">
             <h2>📂 Wybierz Quiz</h2>
             <div class="quiz-controls-wrapper">
@@ -543,43 +568,18 @@
             </div>
         </section>
 
-        <!-- KONFIGURACJA TEAM BATTLE -->
-        <section class="team-battle-config">
-            <h2>⚔️ Konfiguracja Team Battle</h2>
-            <div class="form-group">
-                <label for="team-a-name">Nazwa Drużyny A:</label>
-                <input type="text" id="team-a-name" value="Team Panny Młodej" placeholder="Drużyna A" class="wifi-input">
+        <!-- Odpal muzykę + głośność master (wyśrodkowane) -->
+        <section class="wifi-generator" style="display: flex; flex-direction: column; align-items: center;">
+            <h2>🔊 Muzyka i głośność</h2>
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 12px; width: 100%; max-width: 360px;">
+                <button type="button" onclick="playIntroMusic()" class="btn btn-secondary">▶️ Odpal muzykę</button>
+                <div class="volume-slider-wrap" style="justify-content: center; width: 100%;">
+                    <label for="master-volume">Głośność (master):</label>
+                    <input type="range" id="master-volume" min="0" max="100" value="80" style="flex: 1; min-width: 140px;">
+                    <span id="master-volume-value">80</span>%
+                </div>
             </div>
-            <div class="form-group">
-                <label for="team-b-name">Nazwa Drużyny B:</label>
-                <input type="text" id="team-b-name" value="Team Pana Młodego" placeholder="Drużyna B" class="wifi-input">
-            </div>
-            <button id="activate-team-mode-btn" onclick="activateTeamMode()" class="btn btn-primary">AKTYWUJ TRYB DRUŻYNOWY</button>
-            <!-- Wyświetlanie liczby graczy w drużynach (tylko gdy tryb drużynowy aktywny) -->
-            <div id="admin-team-counts" style="margin-top: 15px; padding: 12px; background: rgba(0,102,204,0.15); border-radius: 8px; border: 1px solid rgba(0,102,204,0.3); display: none;">
-                <h4 style="margin: 0 0 8px 0; font-size: 0.95rem; color: var(--accent-gold);">👥 Liczba graczy w drużynach</h4>
-                <div id="admin-team-counts-content" style="font-size: 0.9rem; color: var(--text-white);"></div>
-            </div>
-        </section>
-
-        <!-- Pokaż QR na telefonach (u graczy po dołączeniu) -->
-        <section class="team-battle-config" style="border-bottom: 2px solid var(--glass-border);">
-            <h2>📱 Pokaż QR code na telefonach</h2>
-            <p style="margin-bottom: 15px; color: var(--text-muted); font-size: 0.95rem;">Po włączeniu na ekranach zalogowanych graczy (ekran oczekiwania) pojawią się te same kody QR co na ekranie TV (WiFi, gra w sieci lokalnej, tunel). Gracze mogą w ten sposób przekazać dalej link do gry innym osobom.</p>
-            <button onclick="toggleShowQROnPhones()" class="btn btn-primary" id="show-qr-phones-btn" style="width: auto;">📱 Pokaż QR code na telefonach</button>
-        </section>
-
-        <!-- Nie wysyłaj obrazków na telefony -->
-        <section class="team-battle-config" style="border-bottom: 2px solid var(--glass-border);">
-            <h2>🖼️ Obrazki na telefonach</h2>
-            <p style="margin-bottom: 15px; color: var(--text-muted); font-size: 0.95rem;">Gdy wyłączone, telefony nie ładują obrazków pytań (np. zdjęć, okładek). <strong>Zalecane przy większej liczbie graczy</strong> – ogranicza obciążenie sieci. Obrazki nadal wyświetlają się na ekranie TV.</p>
-            <button onclick="toggleSendImagesToPhones()" class="btn btn-primary" id="send-images-phones-btn" style="width: auto;">🖼️ Nie wysyłaj obrazków na telefony</button>
-        </section>
-        
-        <!-- Link do otwarcia admina na komputerze (jak przy edytorze na Screen) -->
-        <section class="team-battle-config" style="border-bottom: 2px solid var(--glass-border); padding: 12px 0;">
-            <p style="margin-bottom: 10px; color: var(--text-muted); font-size: 0.95rem;">Możesz sterować grą także z komputera – kod QR do panelu admina pozostanie wtedy widoczny (sterowanie z telefonu i komputera jednocześnie).</p>
-            <a href="/admin.html?computer=1" target="_blank" rel="noopener" class="btn btn-secondary" style="display: inline-block; text-decoration: none; color: inherit;">🖥️ Otwórz panel admina na tym komputerze</a>
+            <p style="font-size: 0.8rem; color: var(--text-muted); text-align: center;">Intro gra ok. 30% ciszej. Suwak zmienia głośność na ekranie TV w czasie rzeczywistym.</p>
         </section>
 
         <!-- PANEL KONTROLNY -->
@@ -589,7 +589,8 @@
                     <button type="button" onclick="startGame()" class="btn btn-primary" style="width: 100%;">▶️ Rozpocznij rozgrywkę</button>
                 </div>
                 <button onclick="sendCommand('admin_intro')" class="btn btn-secondary">🎬 Ekran Start</button>
-                <button onclick="sendCommand('admin_idle')" class="btn btn-secondary">⏸️ Pauza</button>
+                <button type="button" id="btn-players-qr-screen" onclick="togglePlayersQRScreen()" class="btn btn-secondary">👥 QR + nicki na ekranie</button>
+                <button onclick="sendCommand('admin_idle')" class="btn btn-secondary">⏸️ Pauza muzyka</button>
                 <button onclick="showPodium()" class="btn btn-gold">🏆 Podium</button>
             </div>
 
@@ -679,6 +680,7 @@
                 <button onclick="shipsShowAnswer()" class="btn btn-success" id="ships-show-answer-btn" style="display: none;">⚓ Pokaż statki</button>
                 <button onclick="startLetterGame(1)" class="btn btn-info" id="letter-btn-1" style="display: none;">🔤 Wyślij 1 literę</button>
                 <button onclick="startLetterGame(2)" class="btn btn-info" id="letter-btn-2" style="display: none;">🔤 Wyślij 2 litery</button>
+                <button onclick="repeatMusic()" class="btn btn-secondary" id="repeat-music-btn" style="display: none;">🔁 Powtórz dźwięk</button>
                 <button onclick="showRankingPopup()" class="btn btn-primary">🏆 Ranking</button>
             </div>
             
@@ -687,169 +689,69 @@
             </div>
         </section>
         
-        <!-- RESET GRY i END GAME - na dole strony -->
-        <div class="reset-button-fixed hidden">
-            <p style="margin-bottom: 10px; color: rgba(0,0,0,0.9); font-size: 0.9rem; font-weight: 600;">⚠️ Opcja niebezpieczna:</p>
-            <button onclick="resetGame()" class="btn btn-danger" style="font-size: 1rem; padding: 12px 20px;">🔴 RESET GRY (Pełny reset: punkty, nick, drużyna)</button>
-            <p style="margin: 16px 0 8px 0; color: rgba(0,0,0,0.9); font-size: 0.9rem; font-weight: 600;">⛔ Zakończenie serwera:</p>
-            <button onclick="endGame()" class="btn btn-end-game" style="font-size: 1rem; padding: 12px 20px;">⛔ END GAME (Wyłączenie serwera i wszystkich połączeń)</button>
-            <div class="bug-report-section" style="margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(0,0,0,0.15);">
-                <p style="margin-bottom: 8px; color: rgba(0,0,0,0.9); font-size: 0.9rem; font-weight: 600;">📋 Raport o błędach (różne komputery / tryby gry):</p>
-                <textarea id="bug-report-description" placeholder="Opis problemu (opcjonalnie): np. co się nie udało, na jakim urządzeniu, w jakim trybie..." style="width: 100%; max-width: 500px; min-height: 60px; padding: 8px; font-size: 0.85rem; border-radius: 6px; border: 1px solid rgba(0,0,0,0.2); margin-bottom: 8px; box-sizing: border-box;" rows="2"></textarea>
-                <button type="button" onclick="sendBugReport()" class="btn btn-bug-report" style="font-size: 0.9rem; padding: 10px 18px; background: #3498db; border: none; border-radius: 8px; color: #fff; cursor: pointer;">📤 Wyślij raport na biuro@imprezja.pl</button>
+        <!-- Przycisk Reset na dole strony (z potwierdzeniem); poniżej miejsce na przewinięcie -->
+        <div class="reset-single-wrap" style="padding: 20px 10px 120px; text-align: center;">
+            <button type="button" id="btn-reset-game" class="btn btn-danger" onclick="confirmResetGame()" style="font-size: 1rem; padding: 12px 24px;">🔴 RESET GRY</button>
+        </div>
+        </div>
+        <!-- /rozgrywka-section -->
+
+        <!-- PORADNIK ADMINA (modal) -->
+        <div id="poradnik-overlay" class="poradnik-overlay" onclick="if(event.target===this) closePoradnik()">
+            <div class="poradnik-modal">
+                <h3>📖 Poradnik admina</h3>
+                <p><strong>Generator QR WiFi</strong> – Wpisz nazwę sieci (SSID) i ewentualnie hasło, wybierz typ (WPA2), kliknij Generuj. Otrzymasz kod QR do wydruku lub pokazania na ekranie. Niektóre routery (np. Xiaomi) mogą mieć problemy z łączeniem przez QR – wtedy warto łączyć się ręcznie lub użyć innego routera. Ostatnio wpisane sieci są zapamiętywane (autouzupełnianie).</p>
+                <p><strong>QR do gry w sieci lokalnej</strong> – Pokazuje na ekranie TV kod QR do gry przez Wi‑Fi. Ten sam adres co w sieci lokalnej. Może być włączony razem z tunelem – wtedy wyświetlają się oba kody. Opcja „Pokaż QR na telefonach” pokaże ten sam kod także zalogowanym graczom na ekranie oczekiwania.</p>
+                <p><strong>Tunel LTE</strong> – Gracze mogą dołączyć przez internet (np. LTE) bez Wi‑Fi. Kliknij „Uruchom tunel i generuj QR” – aplikacja uruchamia Cloudflare Tunnel (bezpłatny, bez hasła, bez limitu czasu). Tunel wymaga dostępu do internetu na komputerze prowadzącym. Aktualny adres tunelu pojawia się na ekranie TV w kodzie QR po uruchomieniu. Po zatrzymaniu tunelu lub zamknięciu aplikacji adres URL ulegnie zmianie – należy wygenerować go ponownie.</p>
+                <p><strong>Team Battle</strong> – Ustaw nazwy drużyn i aktywuj tryb drużynowy. Gracze wybierają drużynę przy logowaniu. Wyniki są zliczane per drużyna.</p>
+                <p><strong>Pokaż QR admin na telefonach</strong> – Na ekranach zalogowanych graczy (ekran oczekiwania) pojawią się te same kody QR co na TV (WiFi, gra, tunel). Gracze mogą przekazać link dalej.</p>
+                <p><strong>Obrazki na telefonach</strong> – Gdy ustawione na TAK, telefony ładują obrazki pytań (zdjęcia, okładki). Gdy NIE – telefony nie ładują obrazków (mniejsze obciążenie sieci, zalecane przy dużej liczbie graczy). Obrazki i tak wyświetlają się na ekranie TV.</p>
+                <button type="button" class="btn btn-secondary btn-close-poradnik" onclick="closePoradnik()">Zamknij</button>
             </div>
         </div>
     </div>
 
     <script>
+        const DEBUG = false;
+        const log = (...a) => DEBUG && log(...a);
         const socket = io();
+        function toggleFullscreenAdmin() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+                document.getElementById('btn-fs-admin').style.display = 'none';
+            } else {
+                document.exitFullscreen();
+            }
+        }
+        document.addEventListener('fullscreenchange', () => {
+            const btn = document.getElementById('btn-fs-admin');
+            if (btn) btn.style.display = document.fullscreenElement ? 'none' : '';
+        });
         let questions = [];
         let currentQuestionIndex = -1;
         let activeQuestionIndex = -1;
         let usedQuestions = new Set();
         
-        // === OBSŁUGA LICENCJI ===
-        async function checkLicenseStatus() {
-            try {
-                const response = await fetch('/api/license/status');
-                const status = await response.json();
-                updateLicenseUI(status);
-                
-                // Pobierz machine ID
-                const machineIdResponse = await fetch('/api/license/machine-id');
-                const machineData = await machineIdResponse.json();
-                document.getElementById('machine-id-display').textContent = machineData.machineId;
-                document.getElementById('license-info').style.display = 'block';
-                
-                return status;
-            } catch (err) {
-                console.error('Błąd sprawdzania licencji:', err);
-                document.getElementById('license-status-text').textContent = '❌ Błąd sprawdzania licencji';
-                return null;
-            }
-        }
-        
-        function updateLicenseUI(status) {
-            const statusEl = document.getElementById('license-status');
-            const statusTextEl = document.getElementById('license-status-text');
-            const activationEl = document.getElementById('license-activation');
-            
-            if (status.valid) {
-                if (status.type === 'trial') {
-                    statusEl.style.background = 'rgba(241, 196, 15, 0.15)';
-                    statusEl.style.border = '1px solid rgba(241, 196, 15, 0.3)';
-                    statusTextEl.innerHTML = `✅ <strong>Okres testowy aktywny</strong><br>Pozostało dni: <strong>${status.daysLeft}</strong>`;
-                    activationEl.style.display = 'block';
-                } else if (status.type === 'test') {
-                    statusEl.style.background = 'rgba(155, 89, 182, 0.15)';
-                    statusEl.style.border = '1px solid rgba(155, 89, 182, 0.3)';
-                    statusTextEl.innerHTML = `✅ <strong>Licencja testowa</strong> (klucz deweloperski – tylko do sprawdzenia działania)`;
-                    activationEl.style.display = 'block';
-                } else {
-                    statusEl.style.background = 'rgba(46, 204, 113, 0.15)';
-                    statusEl.style.border = '1px solid rgba(46, 204, 113, 0.3)';
-                    const typeLabel = status.typeLabel || 'pełna';
-                    if (status.expires) {
-                        const expiresDate = new Date(status.expires);
-                        statusTextEl.innerHTML = `✅ <strong>Licencja aktywna</strong> (${typeLabel})<br>Wygasa: ${expiresDate.toLocaleDateString()}`;
-                    } else {
-                        statusTextEl.innerHTML = `✅ <strong>Licencja aktywna</strong> (${typeLabel})<br>${typeLabel === 'dożywotnia' ? 'Licencja bezterminowa' : ''}`;
-                    }
-                    activationEl.style.display = 'none';
-                }
-            } else {
-                statusEl.style.background = 'rgba(231, 76, 60, 0.15)';
-                statusEl.style.border = '1px solid rgba(231, 76, 60, 0.3)';
-                statusTextEl.innerHTML = `❌ <strong>Licencja nieważna</strong><br>${status.reason || (status.trial && status.trial.reason) || 'Nieznany błąd'}`;
-                activationEl.style.display = 'block';
-            }
-        }
-        
-        async function activateLicense() {
-            const keyInput = document.getElementById('license-key-input');
-            const key = keyInput.value.trim();
-            const errorEl = document.getElementById('license-error');
-            
-            if (!key) {
-                errorEl.textContent = 'Wprowadź klucz licencyjny';
-                errorEl.style.display = 'block';
-                return;
-            }
-            
-            try {
-                const response = await fetch('/api/license/activate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ key })
-                });
-                
-                const result = await response.json();
-                
-                if (response.ok && result.success) {
-                    errorEl.style.display = 'none';
-                    keyInput.value = '';
-                    await checkLicenseStatus();
-                } else {
-                    errorEl.textContent = result.error || 'Błąd aktywacji licencji';
-                    errorEl.style.display = 'block';
-                }
-            } catch (err) {
-                errorEl.textContent = 'Błąd połączenia z serwerem';
-                errorEl.style.display = 'block';
-            }
-        }
-        
-        // === SPRAWDZANIE AKTUALIZACJI ===
-        async function checkForUpdates() {
-            const statusEl = document.getElementById('update-status');
-            const statusTextEl = document.getElementById('update-status-text');
-            const statusLinkEl = document.getElementById('update-status-link');
-            const btn = document.getElementById('check-updates-btn');
-            if (!statusEl || !statusTextEl || !btn) return;
-            statusTextEl.textContent = 'Sprawdzam...';
-            if (statusLinkEl) statusLinkEl.innerHTML = '';
-            statusEl.style.background = 'rgba(241, 196, 15, 0.15)';
-            statusEl.style.border = '1px solid rgba(241, 196, 15, 0.3)';
-            btn.disabled = true;
-            try {
-                const response = await fetch('/api/check-updates', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-                const result = await response.json();
-                if (result.error) {
-                    statusTextEl.textContent = 'ℹ️ Nie można sprawdzić aktualizacji.';
-                    if (statusLinkEl && result.manualUrl) {
-                        statusLinkEl.innerHTML = ' <a href="' + result.manualUrl + '" target="_blank" rel="noopener noreferrer" style="color: var(--accent-gold); text-decoration: underline;">Pobierz najnowszą wersję ręcznie →</a>';
-                    } else {
-                        if (statusLinkEl) statusLinkEl.textContent = ' ' + (result.error || result.message);
-                    }
-                    statusEl.style.background = 'rgba(255, 255, 255, 0.08)';
-                    statusEl.style.border = '1px solid var(--glass-border)';
-                } else if (result.available) {
-                    statusTextEl.textContent = '✅ ' + (result.message || 'Dostępna wersja ' + (result.version || ''));
-                    if (statusLinkEl) statusLinkEl.innerHTML = '';
-                    statusEl.style.background = 'rgba(46, 204, 113, 0.15)';
-                    statusEl.style.border = '1px solid rgba(46, 204, 113, 0.3)';
-                } else {
-                    statusTextEl.textContent = '✅ ' + (result.message || 'Masz najnowszą wersję.');
-                    if (statusLinkEl) statusLinkEl.innerHTML = '';
-                    statusEl.style.background = 'rgba(46, 204, 113, 0.15)';
-                    statusEl.style.border = '1px solid rgba(46, 204, 113, 0.3)';
-                }
-            } catch (err) {
-                statusTextEl.textContent = '❌ Błąd: ' + (err.message || 'Brak połączenia');
-                if (statusLinkEl) {
-                    statusLinkEl.innerHTML = ' <a href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/latest" target="_blank" rel="noopener noreferrer" style="color: var(--accent-gold); text-decoration: underline;">Pobierz ręcznie →</a>';
-                }
-                statusEl.style.background = 'rgba(231, 76, 60, 0.15)';
-                statusEl.style.border = '1px solid rgba(231, 76, 60, 0.3)';
-            }
-            btn.disabled = false;
-        }
-        
-        // Sprawdź licencję przy starcie
+        // === BANNER LICENCJI (przy starcie admina, 5 s; nie dla dożywotniej) ===
         window.addEventListener('DOMContentLoaded', () => {
-            checkLicenseStatus();
-            // Odświeżaj status co 5 minut
-            setInterval(checkLicenseStatus, 5 * 60 * 1000);
+            (async function showLicenseExpiryBannerOnce() {
+                const banner = document.getElementById('license-expiry-banner');
+                const daysEl = document.getElementById('license-expiry-days');
+                if (!banner || !daysEl) return;
+                try {
+                    const response = await fetch('/api/license/status');
+                    const status = await response.json();
+                    if (!status.valid) return;
+                    if (status.type === 'lifetime' || status.type === 'perpetual') return;
+                    let days = 0;
+                    if (status.daysLeft != null) days = Math.max(0, status.daysLeft);
+                    else if (status.expires) days = Math.max(0, Math.ceil((status.expires - Date.now()) / (24 * 60 * 60 * 1000)));
+                    if (days <= 0) return;
+                    daysEl.textContent = days;
+                    banner.style.display = 'block';
+                    setTimeout(function() { banner.style.display = 'none'; }, 5000);
+                } catch (e) { /* ignore */ }
+            })();
         });
         
         // Przełącznik wielkości czcionek
@@ -876,6 +778,65 @@
             }
         }
         
+        // Sekcje Administracyjne / Rozgrywka – zapamiętaj wybory
+        function goToRozgrywka() {
+            document.getElementById('admin-section').style.display = 'none';
+            document.getElementById('rozgrywka-section').style.display = 'block';
+            localStorage.setItem('adminActiveSection', 'rozgrywka');
+            var slider = document.getElementById('master-volume');
+            if (slider && typeof setMasterVolume === 'function') setMasterVolume(slider.value);
+            window.scrollTo(0, 0);
+        }
+        function goToAdmin() {
+            document.getElementById('admin-section').style.display = 'block';
+            document.getElementById('rozgrywka-section').style.display = 'none';
+            localStorage.setItem('adminActiveSection', 'admin');
+        }
+        function openPoradnik() {
+            document.getElementById('poradnik-overlay').classList.add('visible');
+        }
+        function closePoradnik() {
+            document.getElementById('poradnik-overlay').classList.remove('visible');
+        }
+        let imagesOnPhonesEnabled = true;
+        function setImagesOnPhones(yes) {
+            if (imagesOnPhonesEnabled === yes) return;
+            imagesOnPhonesEnabled = yes;
+            document.getElementById('images-phones-tak').classList.toggle('active', yes);
+            document.getElementById('images-phones-nie').classList.toggle('active', !yes);
+            socket.emit('admin_toggle_send_images_to_phones');
+        }
+        function playIntroMusic() {
+            const vol = parseInt(document.getElementById('master-volume').value, 10) || 80;
+            socket.emit('admin_play_intro_music', { volume: Math.round(vol * 0.7) });
+        }
+        function setMasterVolume(val) {
+            const v = Math.max(0, Math.min(100, parseInt(val, 10)));
+            const slider = document.getElementById('master-volume');
+            const label = document.getElementById('master-volume-value');
+            if (slider) slider.value = v;
+            if (label) label.textContent = v;
+            localStorage.setItem('adminMasterVolume', String(v));
+            if (typeof socket !== 'undefined' && socket.connected) {
+                socket.emit('admin_set_master_volume', v);
+            }
+        }
+        window.addEventListener('DOMContentLoaded', () => {
+            const isPhone = window.innerWidth < 768 || (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
+            const section = isPhone ? 'admin' : (localStorage.getItem('adminActiveSection') || 'admin');
+            if (section === 'rozgrywka') {
+                document.getElementById('admin-section').style.display = 'none';
+                document.getElementById('rozgrywka-section').style.display = 'block';
+            }
+            const savedVol = localStorage.getItem('adminMasterVolume');
+            if (savedVol != null) setMasterVolume(savedVol);
+            var masterSlider = document.getElementById('master-volume');
+            if (masterSlider) {
+                masterSlider.addEventListener('input', function() { setMasterVolume(this.value); });
+                masterSlider.addEventListener('change', function() { setMasterVolume(this.value); });
+            }
+            });
+
         // Wczytaj zapisaną wielkość czcionek
         window.addEventListener('DOMContentLoaded', () => {
             const savedSize = localStorage.getItem('adminFontSize') || 'large';
@@ -933,39 +894,6 @@
             }
         }, { passive: true });
         
-        // Panel Reset widoczny tylko na dole strony, znika gdy nie jesteś na samym dole
-        const resetButton = document.querySelector('.reset-button-fixed');
-        const RESET_VISIBLE_THRESHOLD = 150; // Pokaż reset tylko gdy jesteś w dolnych 150px strony
-        window.addEventListener('scroll', () => {
-            if (!resetButton) return;
-            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-            const windowHeight = window.innerHeight;
-            const documentHeight = document.documentElement.scrollHeight;
-            const distanceFromBottom = documentHeight - (scrollTop + windowHeight);
-            
-            // Pokaż panel Reset tylko gdy jesteś blisko dołu strony
-            if (distanceFromBottom <= RESET_VISIBLE_THRESHOLD) {
-                resetButton.classList.remove('hidden');
-            } else {
-                resetButton.classList.add('hidden');
-            }
-        }, { passive: true });
-        
-        // Sprawdź pozycję przy załadowaniu strony
-        window.addEventListener('load', () => {
-            if (!resetButton) return;
-            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-            const windowHeight = window.innerHeight;
-            const documentHeight = document.documentElement.scrollHeight;
-            const distanceFromBottom = documentHeight - (scrollTop + windowHeight);
-            
-            if (distanceFromBottom <= RESET_VISIBLE_THRESHOLD) {
-                resetButton.classList.remove('hidden');
-            } else {
-                resetButton.classList.add('hidden');
-            }
-        });
-
         const isAdminFromComputer = () => /[?&]computer=1/i.test(window.location.search || '');
         
         socket.on('connect', () => {
@@ -980,11 +908,11 @@
         let teamModeActivated = false;
         socket.on('team_mode_activated', (data) => {
             if (teamModeActivated) {
-                console.log('⚠️ team_mode_activated już obsłużony, pomijam duplikat');
+                log('⚠️ team_mode_activated już obsłużony, pomijam duplikat');
                 return;
             }
             teamModeActivated = true;
-            console.log('✅ Tryb drużynowy aktywowany:', data);
+            log('✅ Tryb drużynowy aktywowany:', data);
             const statusEl = document.getElementById('connection-status');
             if (statusEl) {
                 statusEl.textContent = `🟢 Online | ⚔️ ${data.teamA} vs ${data.teamB}`;
@@ -999,18 +927,6 @@
         });
         
         // Event listener dla przycisku trybu drużynowego (po załadowaniu DOM)
-        // UWAGA: Nie dodajemy event listenera, bo przycisk już ma onclick="activateTeamMode()"
-        // Dodanie obu powodowałoby podwójne wywołanie
-        // document.addEventListener('DOMContentLoaded', () => {
-        //     const teamModeBtn = document.getElementById('activate-team-mode-btn');
-        //     if (teamModeBtn) {
-        //         teamModeBtn.addEventListener('click', activateTeamMode);
-        //         console.log('✅ Event listener dodany do przycisku trybu drużynowego');
-        //     } else {
-        //         console.warn('⚠️ Nie znaleziono przycisku activate-team-mode-btn');
-        //     }
-        // });
-        
         // Wczytaj zapisane wartości przy starcie strony
         window.addEventListener('DOMContentLoaded', () => {
             loadSavedWiFiSSID();
@@ -1031,11 +947,20 @@
                     document.getElementById('wifi-ssid').value = data.ssid;
                     saveWiFiSSID(data.ssid, document.getElementById('wifi-password').value);
                 } else {
-                    alert('Nie można pobrać nazwy sieci. Upewnij się, że komputer jest połączony z WiFi.');
+                    showWifiMessage('Nie można pobrać nazwy sieci. Upewnij się, że komputer jest połączony z WiFi.');
                 }
             } catch (e) {
-                alert('Błąd: ' + (e.message || 'Nie można pobrać sieci'));
+                showWifiMessage('Błąd: ' + (e.message || 'Nie można pobrać sieci'));
             }
+        }
+        function showWifiMessage(text) {
+            const el = document.getElementById('wifi-ssid-message');
+            if (!el) return;
+            el.textContent = text;
+            el.style.display = 'block';
+            el.style.color = '#e74c3c';
+            clearTimeout(window._wifiMsgT);
+            window._wifiMsgT = setTimeout(function() { el.style.display = 'none'; }, 5000);
         }
 
         socket.on('disconnect', () => {
@@ -1045,35 +970,44 @@
             if (banner) banner.style.display = 'block';
         });
 
-            // Wczytaj zapisaną nazwę sieci WiFi z localStorage
+            const WIFI_HISTORY_KEY = 'imprezja_wifi_history';
+        const WIFI_HISTORY_MAX = 15;
+
         function loadSavedWiFiSSID() {
             const savedSSID = localStorage.getItem('lastWiFiSSID');
             const savedPassword = localStorage.getItem('lastWiFiPassword');
-            if (savedSSID) {
-                document.getElementById('wifi-ssid').value = savedSSID;
-            }
-            if (savedPassword) {
-                document.getElementById('wifi-password').value = savedPassword;
-            }
+            if (savedSSID) document.getElementById('wifi-ssid').value = savedSSID;
+            if (savedPassword) document.getElementById('wifi-password').value = savedPassword;
+            const raw = localStorage.getItem(WIFI_HISTORY_KEY);
+            let list = [];
+            try { if (raw) list = JSON.parse(raw); } catch (_) {}
+            const ssids = [...new Set(list.map(x => x.s).filter(Boolean))].slice(0, WIFI_HISTORY_MAX);
+            const passList = [...new Set(list.map(x => x.p).filter(Boolean))].slice(0, WIFI_HISTORY_MAX);
+            const dlSsid = document.getElementById('wifi-ssid-list');
+            const dlPass = document.getElementById('wifi-password-list');
+            if (dlSsid) { dlSsid.innerHTML = ''; ssids.forEach(s => { const o = document.createElement('option'); o.value = s; dlSsid.appendChild(o); }); }
+            if (dlPass) { dlPass.innerHTML = ''; passList.forEach(p => { const o = document.createElement('option'); o.value = p; dlPass.appendChild(o); }); }
         }
-        
-        // Zapisz nazwę sieci WiFi do localStorage
+
         function saveWiFiSSID(ssid, password = null) {
-            if (ssid && ssid.trim() !== '') {
-                localStorage.setItem('lastWiFiSSID', ssid.trim());
-            }
-            if (password && password.trim() !== '') {
-                localStorage.setItem('lastWiFiPassword', password.trim());
-            } else {
-                localStorage.removeItem('lastWiFiPassword');
-            }
+            const s = (ssid && ssid.trim()) ? ssid.trim() : '';
+            const p = (password && password.trim()) ? password.trim() : '';
+            if (s) localStorage.setItem('lastWiFiSSID', s);
+            if (p) localStorage.setItem('lastWiFiPassword', p); else localStorage.removeItem('lastWiFiPassword');
+            if (!s) return;
+            let list = [];
+            try { const raw = localStorage.getItem(WIFI_HISTORY_KEY); if (raw) list = JSON.parse(raw); } catch (_) {}
+            list.unshift({ s: s, p: p || '' });
+            list = list.slice(0, WIFI_HISTORY_MAX);
+            localStorage.setItem(WIFI_HISTORY_KEY, JSON.stringify(list));
+            loadSavedWiFiSSID();
         }
         
         function generateWiFiQR() {
             const ssid = document.getElementById('wifi-ssid').value.trim();
             const password = document.getElementById('wifi-password').value.trim();
             const wifiType = document.getElementById('wifi-type').value || 'WPA2';
-            if (!ssid) return alert('Wpisz nazwę sieci!');
+            if (!ssid) { showWifiMessage('Wpisz nazwę sieci!'); return; }
             // Zapisz do localStorage
             saveWiFiSSID(ssid, password);
             // Wyślij obiekt z ssid, password i wifiType
@@ -1090,17 +1024,37 @@
             container.innerHTML = `<img src="${data.qrCode}" alt="QR Code"><br><small>Sieć: ${data.ssid}</small>${passwordInfo}`;
         });
 
+        let tunnelWaitTimeout = null;
         function startTunnelOneClick() {
             const btn = document.getElementById('tunnel-start-btn');
             const status = document.getElementById('pinggy-status');
             if (btn) btn.disabled = true;
             if (status) { status.textContent = 'Uruchamianie tunelu… (ok. 5–15 s)'; status.style.color = 'var(--text-muted)'; }
+            document.getElementById('tunnel-error-banner').style.display = 'none';
+            if (tunnelWaitTimeout) clearTimeout(tunnelWaitTimeout);
+            tunnelWaitTimeout = setTimeout(function() {
+                tunnelWaitTimeout = null;
+                const banner = document.getElementById('tunnel-error-banner');
+                const textEl = document.getElementById('tunnel-error-text');
+                const logEl = document.getElementById('tunnel-error-logpath');
+                if (banner && textEl && document.getElementById('tunnel-start-btn') && document.getElementById('tunnel-start-btn').disabled) {
+                    textEl.textContent = 'Tunel nie odpowiedział w 26 s. Sprawdź: OpenSSH (Win+R → optionalfeatures lub PowerShell: Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0), port 443, zapora. Więcej w FAQ.';
+                    if (logEl) logEl.textContent = 'Log zapisany w katalogu danych aplikacji (Windows: %APPDATA%\\Imprezja Quiz\\tunnel.log). Otwórz ten plik i wklej treść przy zgłoszeniu.';
+                    banner.style.display = 'block';
+                    if (btn) btn.disabled = false;
+                }
+            }, 26000);
             socket.emit('admin_start_tunnel');
+        }
+        function clearTunnelWaitTimeout() {
+            if (tunnelWaitTimeout) { clearTimeout(tunnelWaitTimeout); tunnelWaitTimeout = null; }
         }
         function stopTunnelOneClick() {
             socket.emit('admin_stop_tunnel');
         }
         socket.on('tunnel_started', (data) => {
+            clearTunnelWaitTimeout();
+            document.getElementById('tunnel-error-banner').style.display = 'none';
             const startBtn = document.getElementById('tunnel-start-btn');
             const stopBtn = document.getElementById('tunnel-stop-btn');
             const status = document.getElementById('pinggy-status');
@@ -1123,10 +1077,25 @@
             if (urlDisplay) urlDisplay.style.display = 'none';
         });
         socket.on('tunnel_error', (data) => {
+            clearTunnelWaitTimeout();
             const startBtn = document.getElementById('tunnel-start-btn');
             const status = document.getElementById('pinggy-status');
+            const msg = data.message || 'Błąd tunelu.';
             if (startBtn) startBtn.disabled = false;
-            if (status) { status.textContent = '❌ ' + (data.message || 'Błąd tunelu.'); status.style.color = '#e74c3c'; }
+            if (status) {
+                status.textContent = '❌ ' + (msg.length > 200 ? msg.slice(0, 197) + '…' : msg);
+                status.style.color = '#e74c3c';
+                status.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+            var banner = document.getElementById('tunnel-error-banner');
+            var textEl = document.getElementById('tunnel-error-text');
+            var logEl = document.getElementById('tunnel-error-logpath');
+            if (banner && textEl) {
+                textEl.textContent = msg.length > 800 ? msg.slice(0, 797) + '…' : msg;
+                if (logEl) logEl.textContent = data.logPath ? 'Log: ' + data.logPath : '';
+                banner.style.display = 'block';
+            }
+            try { alert('Błąd tunelu:\n\n' + (msg.length > 500 ? msg.slice(0, 497) + '…' : msg)); } catch (_) {}
         });
         let localQRVisible = false;
         function toggleLocalQR() {
@@ -1160,7 +1129,7 @@
             }
         });
 
-        socket.on('users_count', (count) => { document.getElementById('users-count').textContent = `👥 ${count}`; });
+        socket.on('users_count', (count) => { document.getElementById('users-count').textContent = `👥 ${count} graczy`; });
 
         socket.on('files_list', (files) => {
             const select = document.getElementById('quiz-select');
@@ -1274,7 +1243,7 @@
                 list.appendChild(panel);
             }
             panel.style.display = 'flex';
-            console.log('✅ placeQuestionControlUnderActive: panel umieszczony pod pytaniem', idx + 1);
+            log('✅ placeQuestionControlUnderActive: panel umieszczony pod pytaniem', idx + 1);
         }
 
         function updateQuestionButtonsActiveClass() {
@@ -1316,7 +1285,7 @@
         function startLetterGame(letterCount) {
             // letterCount: 1 lub 2 - uruchom grę z tą liczbą liter
             if (letterCount !== 1 && letterCount !== 2) letterCount = 1;
-            console.log('🔤 [admin] Wyślij litery: admin_start_letter_game(' + letterCount + ')');
+            log('🔤 [admin] Wyślij litery: admin_start_letter_game(' + letterCount + ')');
             socket.emit('admin_start_letter_game', letterCount);
         }
         
@@ -1326,7 +1295,7 @@
             usedQuestions.add(index);
             const question = questions[index];
             if (question && question.type === 'LETTER') {
-                console.log('🔤 [admin] Start pytania LETTER (index ' + index + ') – potem kliknij "Wyślij 1 literę" lub "Wyślij 2 litery"');
+                log('🔤 [admin] Start pytania LETTER (index ' + index + ') – potem kliknij "Wyślij 1 literę" lub "Wyślij 2 litery"');
             }
             // Dla LETTER wysyłamy tylko index - litery wyśle admin przyciskiem "Wyślij 1 literę" / "Wyślij 2 litery"
             socket.emit('admin_start_question', index);
@@ -1494,7 +1463,7 @@
         
         socket.on('update_state', (state) => {
             try {
-            if (state.tunnelUrl != null) {
+            if ('tunnelUrl' in state) {
                 const el = document.getElementById('pinggy-url');
                 if (el && el.value !== state.tunnelUrl) el.value = state.tunnelUrl;
                 const status = document.getElementById('pinggy-status');
@@ -1509,7 +1478,7 @@
                 } else {
                     if (status) { status.textContent = 'Tunel wyłączony – kod QR prowadzi na adres lokalny (Wi‑Fi).'; status.style.color = 'var(--text-muted)'; }
                     if (urlDisplay) urlDisplay.style.display = 'none';
-                    if (startBtn) startBtn.style.display = 'inline-block';
+                    if (startBtn) { startBtn.style.display = 'inline-block'; startBtn.disabled = false; }
                     if (stopBtn) stopBtn.style.display = 'none';
                 }
             }
@@ -1532,14 +1501,14 @@
             if (state.activeQuestion && state.activeQuestion.type === 'LETTER') {
                 const lg = state.letterGame;
                 if (lg) {
-                    console.log('🔤 [admin] update_state LETTER:', {
+                    log('🔤 [admin] update_state LETTER:', {
                         questionId: lg.questionId,
                         gameStarted: !!lg.gameStarted,
                         letterCount: lg.letterCount,
                         playerLettersCount: lg.playerLetters ? Object.keys(lg.playerLetters).length : 0
                     });
                 } else {
-                    console.log('🔤 [admin] update_state LETTER – brak state.letterGame');
+                    log('🔤 [admin] update_state LETTER – brak state.letterGame');
                 }
             }
 
@@ -1553,13 +1522,13 @@
                 if (podiumControlsIndividual) podiumControlsIndividual.style.display = 'none';
                 if (podiumControlsTeam) podiumControlsTeam.style.display = 'flex';
                 if (podiumStep3Btn) podiumStep3Btn.style.display = 'none';
-                console.log('🏆 Tryb drużynowy - pokazuję tylko przyciski 2 i 1');
+                log('🏆 Tryb drużynowy - pokazuję tylko przyciski 2 i 1');
             } else {
                 // Tryb indywidualny - pokaż przyciski 3, 2 i 1
                 if (podiumControlsIndividual) podiumControlsIndividual.style.display = 'flex';
                 if (podiumControlsTeam) podiumControlsTeam.style.display = 'none';
                 if (podiumStep3Btn) podiumStep3Btn.style.display = '';
-                console.log('🏆 Tryb indywidualny - pokazuję przyciski 3, 2 i 1');
+                log('🏆 Tryb indywidualny - pokazuję przyciski 3, 2 i 1');
             }
             
             // Aktualizuj stan przycisku „Pokaż QR na telefonach”
@@ -1571,6 +1540,17 @@
                 } else {
                     showQrPhonesBtn.textContent = '📱 Pokaż QR code na telefonach';
                     showQrPhonesBtn.style.background = '#17a2b8';
+                }
+            }
+            // Aktualizuj stan przycisku „QR + nicki na ekranie”
+            const playersQrBtn = document.getElementById('btn-players-qr-screen');
+            if (playersQrBtn) {
+                if (state.showPlayersWithQR) {
+                    playersQrBtn.textContent = '👥 Ukryj QR + nicki z ekranu';
+                    playersQrBtn.style.background = '#28a745';
+                } else {
+                    playersQrBtn.textContent = '👥 QR + nicki na ekranie';
+                    playersQrBtn.style.background = '';
                 }
             }
             // Aktualizuj stan przycisku „Obrazki na telefonach”
@@ -1654,6 +1634,12 @@
                         letterBtn1.style.display = 'none';
                         letterBtn2.style.display = 'none';
                     }
+                }
+                // Przycisk Powtórz dźwięk – tylko dla pytań muzycznych z audio
+                const repeatMusicBtn = document.getElementById('repeat-music-btn');
+                if (repeatMusicBtn) {
+                    const isMusic = q && (q.type === 'MUSIC' || q.type === 'M') && q.audio;
+                    repeatMusicBtn.style.display = isMusic ? 'inline-block' : 'none';
                 }
                 // Ponowne ustawienie przycisków LETTER po odrysowaniu (panel mógł być dopiero przeniesiony)
                 if (q && q.type === 'LETTER' && state.letterGame && !state.letterGame.gameStarted) {
@@ -1931,9 +1917,9 @@
             }
         }
         function shipsNextTurn() {
-            console.log('🔄 shipsNextTurn WYWOŁANE - sprawdzam stan...');
+            log('🔄 shipsNextTurn WYWOŁANE - sprawdzam stan...');
             const q = questions[activeQuestionIndex];
-            console.log('🔄 shipsNextTurn - pytanie:', {
+            log('🔄 shipsNextTurn - pytanie:', {
                 hasQ: !!q,
                 type: q?.type,
                 id: q?.id,
@@ -1941,9 +1927,9 @@
                 questionsLength: questions.length
             });
             if (q && q.type === 'SHIPS') {
-                console.log('🔄 shipsNextTurn - wysyłam ships_next_turn dla pytania:', q.id);
+                log('🔄 shipsNextTurn - wysyłam ships_next_turn dla pytania:', q.id);
                 socket.emit('ships_next_turn', { questionId: q.id });
-                console.log('✅ shipsNextTurn - ships_next_turn wysłane');
+                log('✅ shipsNextTurn - ships_next_turn wysłane');
             } else {
                 console.error('❌ shipsNextTurn - pytanie nie jest typu SHIPS:', q);
                 alert('Błąd: Pytanie nie jest typu SHIPS lub nie ma aktywnego pytania');
@@ -1965,6 +1951,9 @@
             if (q && q.type === 'SHIPS') {
                 socket.emit('admin_show_ships_answer');
             }
+        }
+        function repeatMusic() {
+            socket.emit('admin_repeat_music');
         }
         function showCorrect() { 
             socket.emit('admin_show_correct');
@@ -2008,11 +1997,13 @@
         
         function sendCommand(cmd) { socket.emit(cmd); }
         
-        function resetGame() {
-            if (confirm('⚠️ CZY NA PEWNO CHCESZ ZRESETOWAĆ GRĘ?\n\nTo spowoduje:\n• Wyzerowanie wszystkich punktów\n• Wymuszenie ponownego wprowadzenia nicka przez wszystkich graczy\n• Usunięcie przydziałów drużyn\n• Wyzerowanie wyników drużyn\n\nTa operacja jest nieodwracalna!')) {
-                socket.emit('admin_reset_game');
-                alert('✅ Reset gry został wykonany. Wszyscy gracze muszą ponownie wprowadzić swój nick.');
+        function confirmResetGame() {
+            if (confirm('⚠️ Czy na pewno chcesz zresetować grę?\n\nWyzerowanie punktów, nicków i drużyn. Wszyscy gracze będą musieli ponownie się zalogować.')) {
+                resetGame();
             }
+        }
+        function resetGame() {
+            socket.emit('admin_reset_game');
         }
         function endGame() {
             if (confirm('⛔ CZY NA PEWNO CHCESZ ZAKOŃCZYĆ GRĘ I WYŁĄCZYĆ SERWER?\n\nSerwer zostanie zatrzymany, wszystkie połączenia (ekran, telefony, admin) zostaną zamknięte.\nAby uruchomić grę ponownie, trzeba będzie uruchomić serwer od nowa (np. start.command).\n\nKontynuować?')) {
@@ -2023,6 +2014,9 @@
         
         function toggleShowQROnPhones() {
             socket.emit('admin_toggle_show_qr_on_phones');
+        }
+        function togglePlayersQRScreen() {
+            socket.emit('admin_toggle_show_players_with_qr');
         }
         function toggleSendImagesToPhones() {
             socket.emit('admin_toggle_send_images_to_phones');
@@ -2039,7 +2033,7 @@
         function showPodium() { 
             // Sprawdź czy tryb drużynowy jest aktywny
             const isTeamBattle = currentGameState?.teamBattleMode || false;
-            console.log('🏆 showPodium wywołane, teamBattleMode:', isTeamBattle);
+            log('🏆 showPodium wywołane, teamBattleMode:', isTeamBattle);
             
             if (isTeamBattle) {
                 // Tryb drużynowy - resetuj podjum i pokaż popup z przyciskami 2 i 1
@@ -2064,7 +2058,7 @@
             if (popup) popup.style.display = 'none';
         }
         function sendPodiumStep(step) { 
-            console.log('🏆 sendPodiumStep wywołane, step:', step, 'teamBattleMode:', currentGameState?.teamBattleMode);
+            log('🏆 sendPodiumStep wywołane, step:', step, 'teamBattleMode:', currentGameState?.teamBattleMode);
             socket.emit('admin_podium_step', step); 
         }
         function showThanksScreen() {
@@ -2077,12 +2071,12 @@
         window.activateTeamMode = function() {
             // Zabezpieczenie przed podwójnym wywołaniem (onclick + event listener)
             if (isActivatingTeamMode) {
-                console.log('⚠️ activateTeamMode już w trakcie wykonywania, pomijam');
+                log('⚠️ activateTeamMode już w trakcie wykonywania, pomijam');
                 return;
             }
             
             isActivatingTeamMode = true;
-            console.log('🔘 activateTeamMode wywołane');
+            log('🔘 activateTeamMode wywołane');
             
             if (!socket || !socket.connected) {
                 console.error('❌ Socket nie jest połączony');
@@ -2104,10 +2098,10 @@
             const teamA = teamAInput.value.trim();
             const teamB = teamBInput.value.trim();
             
-            console.log('📝 Wprowadzone nazwy:', { teamA, teamB });
+            log('📝 Wprowadzone nazwy:', { teamA, teamB });
             
             if (teamA && teamB) {
-                console.log('✅ Wysyłam admin_set_teams:', { teamA, teamB });
+                log('✅ Wysyłam admin_set_teams:', { teamA, teamB });
                 socket.emit('admin_set_teams', { teamA, teamB });
                 // Reset flag po 500ms (na wypadek kolejnej aktywacji)
                 setTimeout(() => { isActivatingTeamMode = false; }, 500);
@@ -2118,7 +2112,6 @@
             }
         };
     </script>
-    <footer style="position: fixed; bottom: 10px; left: 0; right: 0; text-align: center; font-size: 0.75rem; color: rgba(255,255,255,0.4);">© Damian Nowaczyk. Wszelkie prawa zastrzeżone.</footer>
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function() {});

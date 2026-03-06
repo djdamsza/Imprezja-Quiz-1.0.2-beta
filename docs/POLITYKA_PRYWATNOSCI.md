@@ -72,8 +72,8 @@ Imprezja Quiz działa **głównie offline** w sieci lokalnej. Następujące dane
 
 Twoje dane osobowe mogą być udostępniane:
 
-- **Operatorom płatności** (np. Stripe, Przelewy24, PayPal) – w zakresie niezbędnym do realizacji płatności
-- **Dostawcom usług IT** (hosting, e-mail) – w celu świadczenia usług technicznych
+- **Operatorom płatności** (np. Stripe, Przelewy24, PayPal) – w zakresie niezbędnym do realizacji płatności (Stripe Checkout, subskrypcje)
+- **Dostawcom usług IT** (hosting stripe-shop, usługa e-mail np. Resend do wysyłki klucza licencyjnego) – w celu świadczenia usług technicznych
 - **Organom państwowym** – wyłącznie na podstawie obowiązujących przepisów prawa
 
 Nie sprzedajemy ani nie udostępniamy danych osobowych podmiotom trzecim w celach marketingowych.
@@ -117,6 +117,6 @@ Zastrzegamy sobie prawo do aktualizacji polityki prywatności. O istotnych zmian
 
 ---
 
-*Ostatnia aktualizacja: 11 lutego 2026 r.*
+*Ostatnia aktualizacja: 18 lutego 2026 r.*
 
 © Damian Nowaczyk. Wszelkie prawa zastrzeżone.

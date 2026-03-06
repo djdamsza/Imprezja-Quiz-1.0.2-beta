@@ -28,16 +28,21 @@
         .answer-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
         .answer-row input[type="text"] { flex: 1; }
         .answer-row input[type="number"] { width: 70px; }
-        .btn { padding: 10px 20px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 14px; font-family: inherit; }
-        .btn:hover { opacity: 0.9; }
+        .btn { padding: 10px 20px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; font-size: 14px; font-family: inherit; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 14px rgba(0,0,0,0.25); }
+        .btn:active { transform: translateY(0); }
         .btn-primary { background: linear-gradient(135deg, var(--accent-gold), var(--accent-orange)); color: #000; }
+        .btn-primary:hover { box-shadow: 0 6px 18px rgba(255, 204, 0, 0.25); }
         .btn-success { background: #2ecc71; color: #000; }
+        .btn-success:hover { box-shadow: 0 6px 18px rgba(46, 204, 113, 0.3); }
         .btn-danger { background: #e74c3c; color: white; }
+        .btn-danger:hover { box-shadow: 0 6px 18px rgba(231, 76, 60, 0.3); }
         .btn-secondary { background: var(--glass-bg); color: var(--text-white); border: 1px solid var(--glass-border); }
+        .btn-secondary:hover { border-color: var(--accent-gold); background: rgba(255, 204, 0, 0.1); }
         .btn-sm { padding: 6px 12px; font-size: 12px; }
         .btn-move { padding: 8px 10px; min-width: 36px; min-height: 36px; }
         .btn-move svg { width: 18px; height: 18px; display: block; }
-        .btn-move:hover { background: rgba(255, 204, 0, 0.25); border-color: var(--accent-gold); }
+        .btn-move:hover { background: rgba(255, 204, 0, 0.25); border-color: var(--accent-gold); box-shadow: 0 2px 10px rgba(255, 204, 0, 0.2); }
         .panel-row { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 15px; }
         .control-panel { background: rgba(0,0,0,0.2); padding: 20px; border-radius: 12px; border: 1px solid var(--glass-border); margin-bottom: 25px; }
         .form-group { margin-bottom: 10px; }
@@ -49,16 +54,16 @@
         .status.loading { background: rgba(241, 196, 15, 0.2); border: 1px solid var(--accent-gold); }
         .validation-error { border-color: #e74c3c !important; box-shadow: 0 0 0 2px rgba(231,76,60,0.3); }
         .btn-auto-points { padding: 6px 12px; font-size: 12px; background: rgba(255,204,0,0.2); color: var(--accent-gold); border: 1px solid var(--accent-gold); }
-        .btn-auto-points:hover { background: rgba(255,204,0,0.35); }
-        .btn-star { padding: 6px 10px; font-size: 18px; background: transparent; border: none; cursor: pointer; color: var(--text-muted); transition: color 0.2s; }
-        .btn-star:hover { color: var(--accent-gold); }
-        .btn-star.in-golden { color: var(--accent-gold); }
-        .drop-zone { border: 2px dashed var(--glass-border); border-radius: 12px; padding: 25px; text-align: center; background: rgba(0,0,0,0.2); margin-bottom: 25px; transition: all 0.2s; cursor: pointer; }
-        .drop-zone:hover, .drop-zone.dragover { border-color: var(--accent-gold); background: rgba(255,204,0,0.08); }
+        .btn-auto-points:hover { background: rgba(255,204,0,0.35); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(255, 204, 0, 0.2); }
+        .btn-star { padding: 8px 14px; font-size: 12px; background: rgba(255, 204, 0, 0.15); border: 1px solid var(--accent-gold); border-radius: 6px; cursor: pointer; color: var(--accent-gold); transition: all 0.2s ease; white-space: nowrap; }
+        .btn-star:hover { background: rgba(255, 204, 0, 0.3); color: var(--accent-gold); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(255, 204, 0, 0.25); }
+        .btn-star.in-golden { background: rgba(255, 204, 0, 0.25); color: var(--accent-gold); }
+        .drop-zone { border: 2px dashed var(--glass-border); border-radius: 12px; padding: 25px; text-align: center; background: rgba(0,0,0,0.2); margin-bottom: 25px; transition: all 0.2s ease; cursor: pointer; }
+        .drop-zone:hover, .drop-zone.dragover { border-color: var(--accent-gold); background: rgba(255,204,0,0.08); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(255, 204, 0, 0.12); }
         .drop-zone p { margin: 0; color: var(--text-muted); font-size: 0.95em; }
         .drop-zone .drop-icon { font-size: 2em; margin-bottom: 8px; opacity: 0.8; }
-        a.back-link { display: inline-block; margin-bottom: 20px; color: var(--accent-gold); text-decoration: none; }
-        a.back-link:hover { text-decoration: underline; }
+        a.back-link { display: inline-block; margin-bottom: 20px; color: var(--accent-gold); text-decoration: none; transition: all 0.2s ease; }
+        a.back-link:hover { text-decoration: underline; transform: translateX(4px); }
     </style>
 </head>
 <body>
@@ -105,11 +110,13 @@
         </div>
     </div>
 
+    <h3 style="margin: 25px 0 12px 0; color: var(--accent-gold); border-bottom: 2px solid var(--glass-border); padding-bottom: 8px;">📋 Lista główna (pytania z pliku, np. Astronomia)</h3>
+    <p id="main-list-desc" style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 12px;">Wybierz plik powyżej i wczytaj. Przy każdym pytaniu: <strong>⭐ DODAJ PYTANIE DO ZŁOTEJ LISTY</strong> – zapisuje je na złotej liście (na dole).</p>
     <div id="questions-container"></div>
 
-    <div class="control-panel" style="margin-top: 30px; border-left-color: var(--accent-gold);">
-        <h3 style="margin: 0 0 15px 0; color: var(--accent-gold);">⭐ Złota Lista (max 10)</h3>
-        <p style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 15px;">Ulubione pytania – kliknij ☆ przy pytaniu, aby dodać. Edytuj i zapisz.</p>
+    <div id="golden-list-panel" class="control-panel" style="margin-top: 30px; border-left: 5px solid var(--accent-gold); display: none;">
+        <h3 style="margin: 0 0 15px 0; color: var(--accent-gold);">⭐ Złota lista (max 10)</h3>
+        <p style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 15px;">Edytowalna jak każda inna lista. Wyświetla się w panelu admina na dole strony i można z niej korzystać w każdej rozgrywce.</p>
         <div id="golden-questions-container"></div>
         <div class="panel-row" style="margin-top: 15px;">
             <button class="btn btn-primary btn-sm" onclick="addGoldenQuestion()" style="margin-right:10px;">➕ Dodaj pytanie</button>
@@ -162,6 +169,8 @@
 
     let goldenList = [];
     const MAX_GOLDEN = 10;
+    /** Gdy true, wczytano "Złota lista" – ukrywamy przyciski "DODAJ DO ZŁOTEJ LISTY" i dolną sekcję złotej listy (żeby nie dublować pytań). */
+    let isEditingGoldenList = false;
 
     function getQuestionDataFromCard(card) {
         if (!card) return null;
@@ -185,28 +194,32 @@
             const q = getQuestionDataFromCard(card);
             const star = card.querySelector('.btn-star');
             if (star) {
-                star.textContent = isQuestionInGolden(q) ? '★' : '☆';
+                star.textContent = isQuestionInGolden(q) ? '★ W ZŁOTEJ LIŚCIE' : '⭐ DODAJ DO ZŁOTEJ LISTY';
                 star.classList.toggle('in-golden', isQuestionInGolden(q));
             }
         });
     }
 
-    function toggleGolden(qId) {
+    async function toggleGolden(qId) {
         const card = document.getElementById('card-' + qId);
         if (!card) return;
         const q = getQuestionDataFromCard(card);
         if (!q.question.trim()) return showStatus('Dodaj treść pytania przed dodaniem do złotej listy', 'error');
         if (isQuestionInGolden(q)) {
             goldenList = goldenList.filter(g => !(g.question === q.question && JSON.stringify(g.answers) === JSON.stringify(q.answers)));
-            renderGoldenList();
         } else if (goldenList.length >= MAX_GOLDEN) {
             showStatus('Złota lista może mieć max ' + MAX_GOLDEN + ' pytań', 'error');
+            return;
         } else {
             goldenList.push(JSON.parse(JSON.stringify(q)));
-            renderGoldenList();
         }
-        updateGoldenStars();
-        showStatus('Złota lista: ' + goldenList.length + '/' + MAX_GOLDEN, 'success');
+        try {
+            await saveGoldenListToServer();
+            updateGoldenStars();
+            showStatus('Złota lista: ' + goldenList.length + '/' + MAX_GOLDEN + ' (zapisano)', 'success');
+        } catch (err) {
+            showStatus('Błąd zapisu złotej listy: ' + err.message, 'error');
+        }
     }
 
     function addGoldenQuestion(data) {
@@ -311,18 +324,24 @@
         }
     }
 
+    /** Zapisuje aktualną tablicę goldenList na serwer (bez odczytu z DOM). */
+    async function saveGoldenListToServer() {
+        const valid = goldenList.filter(q => q && (q.question || '').trim()).slice(0, MAX_GOLDEN);
+        const res = await fetch('/api/familiada/golden', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(valid)
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || 'Błąd zapisu');
+        goldenList = valid;
+        return result;
+    }
+
     async function saveGoldenList() {
         goldenListFromDom();
-        const valid = goldenList.filter(q => q.question.trim()).slice(0, MAX_GOLDEN);
         try {
-            const res = await fetch('/api/familiada/golden', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(valid)
-            });
-            const result = await res.json();
-            if (!res.ok) throw new Error(result.error || 'Błąd zapisu');
-            goldenList = valid;
+            const result = await saveGoldenListToServer();
             renderGoldenList();
             updateGoldenStars();
             showStatus('Zapisano złotą listę (' + result.count + ' pytań)', 'success');
@@ -344,7 +363,9 @@
             </div>
         `).join('');
 
-        const num = document.querySelectorAll('.question-card').length + 1;
+        const num = document.querySelectorAll('#questions-container .question-card').length + 1;
+        const showStarBtn = !isEditingGoldenList;
+        const starBtnHtml = showStarBtn ? `<button class="btn btn-star" id="star-${qId}" onclick="toggleGolden('${qId}')" title="Dodaj pytanie do złotej listy">⭐ DODAJ DO ZŁOTEJ LISTY</button>` : '';
         const card = document.createElement('div');
         card.className = 'question-card';
         card.id = 'card-' + qId;
@@ -352,7 +373,7 @@
             <div class="card-header">
                 <span class="q-number">Pytanie ${num}</span>
                 <div style="display: flex; gap: 6px; align-items: center;">
-                    <button class="btn btn-star" id="star-${qId}" onclick="toggleGolden('${qId}')" title="Dodaj do złotej listy">☆</button>
+                    ${starBtnHtml}
                     <button class="btn btn-secondary btn-move" onclick="moveQuestionUp('${qId}')" title="Przesuń w górę"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 14l5-5 5 5z"/></svg></button>
                     <button class="btn btn-secondary btn-move" onclick="moveQuestionDown('${qId}')" title="Przesuń w dół"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg></button>
                     <button class="btn btn-danger btn-sm" onclick="removeQuestion('${qId}')">Usuń</button>
@@ -410,7 +431,7 @@
     }
 
     function updateQuestionNumbers() {
-        document.querySelectorAll('.question-card').forEach((card, i) => {
+        document.querySelectorAll('#questions-container .question-card').forEach((card, i) => {
             const span = card.querySelector('.q-number');
             if (span) span.textContent = 'Pytanie ' + (i + 1);
         });
@@ -456,7 +477,7 @@
     /** Walidacja przed zapisem. Zwraca { ok, errors } */
     function validateBeforeSave() {
         const errors = [];
-        const cards = document.querySelectorAll('.question-card');
+        const cards = document.querySelectorAll('#questions-container .question-card');
         cards.forEach((card, qIdx) => {
             const qText = (card.querySelector('.q-text')?.value ?? '').trim();
             const rows = card.querySelectorAll('.answer-row');
@@ -489,7 +510,7 @@
 
     function collectData() {
         const questions = [];
-        document.querySelectorAll('.question-card').forEach(card => {
+        document.querySelectorAll('#questions-container .question-card').forEach(card => {
             const qText = (card.querySelector('.q-text')?.value ?? '').trim();
             const answers = [];
             card.querySelectorAll('.answer-row').forEach(row => {
@@ -512,11 +533,12 @@
             (files || []).forEach(f => {
                 const opt = document.createElement('option');
                 opt.value = f;
-                opt.innerText = f.replace('.json', '');
+                opt.innerText = (f.toLowerCase() === 'familiada-golden.json') ? 'Złota lista' : f.replace('.json', '');
                 sel.appendChild(opt);
             });
             if (files && files.includes(curr)) sel.value = curr;
-            document.getElementById('delete-btn').disabled = !sel.value;
+            const isGolden = sel.value && sel.value.toLowerCase() === 'familiada-golden.json';
+            document.getElementById('delete-btn').disabled = !sel.value || isGolden;
         } catch (err) {
             console.error('Błąd listy plików:', err);
         }
@@ -527,6 +549,7 @@
         const url = file ? '/api/familiada/data?file=' + encodeURIComponent(file) : '/api/familiada/data';
         showStatus('Ładowanie...', 'loading');
         try {
+            isEditingGoldenList = !!(file && file.toLowerCase() === 'familiada-golden.json');
             const res = await fetch(url);
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Błąd ładowania');
@@ -537,6 +560,12 @@
                 addQuestion();
             }
             if (file) document.getElementById('filename').value = file.replace('.json', '');
+            const goldenPanel = document.getElementById('golden-list-panel');
+            if (goldenPanel) goldenPanel.style.display = 'none';
+            const mainListDesc = document.getElementById('main-list-desc');
+            if (mainListDesc) mainListDesc.textContent = isEditingGoldenList
+                ? 'Edytujesz złotą listę. Zmiany zapisuj przyciskiem „Zapisz” poniżej.'
+                : 'Wybierz plik powyżej i wczytaj. Przy każdym pytaniu: ⭐ DODAJ PYTANIE DO ZŁOTEJ LISTY – zapisuje je na złotej liście (na dole).';
             showStatus('Wczytano ' + (data?.length || 0) + ' pytań', 'success');
         } catch (err) {
             showStatus('Błąd: ' + err.message, 'error');
@@ -544,7 +573,7 @@
     }
 
     function clearValidationHighlights() {
-        document.querySelectorAll('.question-card.validation-error').forEach(c => c.classList.remove('validation-error'));
+        document.querySelectorAll('#questions-container .question-card.validation-error').forEach(c => c.classList.remove('validation-error'));
     }
 
     async function saveToServer() {
@@ -557,7 +586,7 @@
             let firstErrorCard = null;
             v.errors.forEach(e => {
                 if (e.qNum) {
-                    const card = document.querySelectorAll('.question-card')[e.qNum - 1];
+                    const card = document.querySelectorAll('#questions-container .question-card')[e.qNum - 1];
                     if (card) {
                         card.classList.add('validation-error');
                         if (!firstErrorCard) firstErrorCard = card;
@@ -588,7 +617,9 @@
             if (filename) {
                 await refreshFilesList();
                 document.getElementById('server-files-list').value = filename;
-                document.getElementById('delete-btn').disabled = false;
+                const isGolden = filename && filename.toLowerCase() === 'familiada-golden.json';
+                document.getElementById('delete-btn').disabled = isGolden;
+                if (isGolden) await loadGoldenList();
             }
             showStatus('Zapisano ' + result.count + ' pytań', 'success');
         } catch (err) {
@@ -822,7 +853,8 @@
     }
 
     document.getElementById('server-files-list').addEventListener('change', function() {
-        document.getElementById('delete-btn').disabled = !this.value;
+        const isGolden = this.value && this.value.toLowerCase() === 'familiada-golden.json';
+        document.getElementById('delete-btn').disabled = !this.value || isGolden;
     });
 
     (function initDropZone() {

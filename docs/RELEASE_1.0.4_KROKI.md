@@ -14,8 +14,9 @@ Przeciągnij do sekcji „Attach binaries”:
 - `dist/Imprezja Quiz Setup 1.0.4.exe` (Windows)
 - `dist/Imprezja Quiz-1.0.4-arm64.dmg` (macOS Apple Silicon)
 - `dist/Imprezja Quiz-1.0.4.dmg` (macOS Intel)
+- `napraw-uninstaller.bat` – **ważne:** bez tego link na stronie wyświetla kod zamiast pobrać plik
 
-**Uwaga:** GitHub może zmienić nazwy plików (spacje → kropki). Linki w HTML używają nazw z Release: `Imprezja.Quiz.Setup.1.0.4.exe`
+**Uwaga:** GitHub może zmienić nazwy plików (spacje → kropki). Linki w HTML używają nazw z Release.
 
 ## 3. Opublikuj
 

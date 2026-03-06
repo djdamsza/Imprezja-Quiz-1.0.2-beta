@@ -14,8 +14,52 @@ const path = require('path');
 const os = require('os');
 
 const LICENSE_FILE = path.join(os.homedir(), '.imprezja-license');
+/** Główny plik trialu – odinstalowanie aplikacji go nie usuwa. Usunięcie przez użytkownika jest wykrywane dzięki zapasowemu rekordowi. */
 const TRIAL_START_FILE = path.join(os.homedir(), '.imprezja-trial-start');
 const TRIAL_DAYS = 14;
+
+/** Ścieżka do zapasowego rekordu trialu (najwcześniejsza data startu na tym komputerze). Trudniejsza do znalezienia – w podkatalogu aplikacji. */
+function getTrialRecordPath() {
+    const home = os.homedir();
+    const platform = process.platform;
+    if (platform === 'win32') {
+        const appData = process.env.APPDATA || path.join(home, 'AppData', 'Roaming');
+        return path.join(appData, 'Imprezja', 'state.json');
+    }
+    if (platform === 'darwin') {
+        return path.join(home, 'Library', 'Application Support', 'Imprezja', 'state.json');
+    }
+    return path.join(home, '.local', 'share', 'imprezja', 'state.json');
+}
+
+/** Odczyt zapasowego rekordu: { machineId, firstTrialStart }. Zwraca null przy błędzie lub braku pliku. */
+function readTrialRecord() {
+    try {
+        const p = getTrialRecordPath();
+        if (!fs.existsSync(p)) return null;
+        const data = JSON.parse(fs.readFileSync(p, 'utf8'));
+        const first = typeof data.firstTrialStart === 'number' ? data.firstTrialStart : parseInt(data.firstTrialStart, 10);
+        if (!data.machineId || !first || isNaN(first)) return null;
+        return { machineId: data.machineId, firstTrialStart: first };
+    } catch (_) {
+        return null;
+    }
+}
+
+/** Zapis zapasowego rekordu. Zapisuje tylko jeśli plik nie istnieje (first run) lub podana data jest wcześniejsza od zapisanej – żeby nie nadpisać starszej daty. */
+function writeTrialRecordIfEarliest(machineId, trialStart) {
+    try {
+        const p = getTrialRecordPath();
+        const dir = path.dirname(p);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        const existing = readTrialRecord();
+        if (existing && existing.machineId === machineId && existing.firstTrialStart <= trialStart) return;
+        const toWrite = existing && existing.machineId === machineId
+            ? { machineId, firstTrialStart: Math.min(existing.firstTrialStart, trialStart) }
+            : { machineId, firstTrialStart: trialStart };
+        fs.writeFileSync(p, JSON.stringify(toWrite, null, 0), 'utf8');
+    } catch (_) {}
+}
 
 /** Klucz publiczny RSA – służy TYLKO do weryfikacji (nie można generować kluczy) */
 const PUBLIC_KEY_PEM = (process.env.IMPREZJA_LICENSE_PUBLIC_KEY || `-----BEGIN PUBLIC KEY-----
@@ -65,6 +109,7 @@ function checkTrialPeriod() {
     let trialStart = null;
     let storedMachineId = null;
     let formatVersion = TRIAL_FORMAT_VERSION;
+    const backupRecord = readTrialRecord();
 
     try {
         if (fs.existsSync(TRIAL_START_FILE)) {
@@ -81,20 +126,32 @@ function checkTrialPeriod() {
             }
             if (!trialStart || isNaN(trialStart)) trialStart = null;
         }
+
         if (trialStart == null) {
-            trialStart = Date.now();
-            storedMachineId = currentMachineId;
-            fs.writeFileSync(TRIAL_START_FILE, JSON.stringify({ trialStart, machineId: currentMachineId, trialFormatVersion: TRIAL_FORMAT_VERSION }));
+            /* Główny plik brak – sprawdź zapasowy rekord (wykrycie usunięcia pliku trialu) */
+            if (backupRecord && backupRecord.machineId === currentMachineId) {
+                trialStart = backupRecord.firstTrialStart;
+                /* Nie tworzymy na nowo pliku – użytkownik usunął go celowo; liczymy od zapisanej daty */
+            } else {
+                trialStart = Date.now();
+                storedMachineId = currentMachineId;
+                fs.writeFileSync(TRIAL_START_FILE, JSON.stringify({ trialStart, machineId: currentMachineId, trialFormatVersion: TRIAL_FORMAT_VERSION }));
+                writeTrialRecordIfEarliest(currentMachineId, trialStart);
+            }
         } else if (storedMachineId && storedMachineId !== currentMachineId) {
-            /* Migracja: stary format (v1) używał innego algorytmu – aktualizujemy ID i kontynuujemy trial */
             if (formatVersion < TRIAL_FORMAT_VERSION) {
                 storedMachineId = currentMachineId;
                 fs.writeFileSync(TRIAL_START_FILE, JSON.stringify({ trialStart, machineId: currentMachineId, trialFormatVersion: TRIAL_FORMAT_VERSION }));
             } else {
-                /* v2+: inny komputer (nowy sprzęt, klon VM) – trial nie przenosi się */
                 return { valid: false, daysLeft: 0, reason: 'Okres testowy przypisany do innego komputera. Wykup licencję.' };
             }
         }
+
+        /* Użyj najwcześniejszej znanej daty (zapasowy rekord chroni przed cofnięciem daty w głównym pliku) */
+        if (backupRecord && backupRecord.machineId === currentMachineId && backupRecord.firstTrialStart < trialStart) {
+            trialStart = backupRecord.firstTrialStart;
+        }
+        writeTrialRecordIfEarliest(currentMachineId, trialStart);
     } catch (err) {
         console.warn('⚠️ Błąd odczytu pliku trial:', err.message);
         return { valid: false, daysLeft: 0, reason: 'Błąd odczytu pliku trial' };
