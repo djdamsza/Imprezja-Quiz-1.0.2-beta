@@ -4445,6 +4445,9 @@ io.on('connection', (socket) => {
     socket.on('admin_play_intro_music', (data) => {
         io.emit('admin_play_intro_music', data || { volume: 70 });
     });
+    socket.on('admin_stop_music', () => {
+        io.emit('admin_stop_music');
+    });
     socket.on('admin_set_master_volume', (vol) => {
         const v = Math.max(0, Math.min(100, parseInt(vol, 10)));
         io.emit('admin_master_volume', v);
