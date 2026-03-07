@@ -535,16 +535,6 @@ if (dataDir) {
                 console.log('   📋 Skopiowano domyślne przypisanie banków NJR Sampler');
             } catch (_) {}
         }
-        // Bank assignment NJR Sampler – kopiuj z aplikacji jeśli brak w danych
-        const appBankAssignment = path.join(appPathForCopy, 'public', 'njr-sampler-bank-assignment.json');
-        if (fs.existsSync(appBankAssignment) && !fs.existsSync(NJR_SAMPLER_BANK_ASSIGNMENT_FILE)) {
-            try {
-                const dir = path.dirname(NJR_SAMPLER_BANK_ASSIGNMENT_FILE);
-                if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-                fs.copyFileSync(appBankAssignment, NJR_SAMPLER_BANK_ASSIGNMENT_FILE);
-                console.log('   📋 Skopiowano bank-assignment NJR Sampler z aplikacji');
-            } catch (_) {}
-        }
         if (overwriteConfigs && CONFIGS_SYNCED_VERSION_FILE && appVersionForSync) {
             try {
                 fs.writeFileSync(CONFIGS_SYNCED_VERSION_FILE, appVersionForSync, 'utf8');
