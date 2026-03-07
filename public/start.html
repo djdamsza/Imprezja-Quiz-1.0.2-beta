@@ -105,12 +105,12 @@
         .mode-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            grid-template-rows: repeat(2, 1fr);
             gap: 16px;
             width: 100%;
             max-width: 900px;
             flex: 1;
             min-height: 0;
+            align-content: start;
         }
         .mode-btn {
             display: flex;
@@ -154,6 +154,11 @@
         .mode-btn.bitwa-wokalna:hover { border-color: #9b59b6; background: rgba(155, 89, 182, 0.15); }
         .mode-btn.whitney { border-color: rgba(0, 188, 212, 0.4); }
         .mode-btn.whitney:hover { border-color: #00bcd4; background: rgba(0, 188, 212, 0.15); }
+        .mode-btn.statki-solo { border-color: rgba(14, 165, 233, 0.4); grid-column: 2; }
+        .mode-btn.statki-solo:hover { border-color: #0ea5e9; background: rgba(14, 165, 233, 0.15); }
+        @media (max-width: 900px) {
+            .mode-btn.statki-solo { grid-column: auto; }
+        }
         .bottom-row {
             flex-shrink: 0;
             display: flex;
@@ -174,7 +179,7 @@
         .btn-updates:hover { background: rgba(255,255,255,0.15); border-color: rgba(255,215,0,0.4); }
         #update-result { font-size: 0.85rem; padding: 8px 12px; border-radius: 6px; display: none; }
         @media (max-width: 900px) {
-            .mode-grid { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(3, 1fr); }
+            .mode-grid { grid-template-columns: repeat(2, 1fr); }
         }
         @media (max-width: 600px) {
             html, body { overflow: auto; }
@@ -335,6 +340,11 @@
                 <span class="mode-icon">🥁</span>
                 <span class="mode-title">Whitney</span>
                 <span class="mode-desc">8 kafelków na telefonie. QR – odtwarzaj z komputera.</span>
+            </a>
+            <a href="/Screen.html" class="mode-btn statki-solo">
+                <span class="mode-icon">⚓</span>
+                <span class="mode-title">Statki Solo</span>
+                <span class="mode-desc">Gra w statki bez telefonów. Admin celuje, Screen pokazuje mapę. Nagrody za trafienia.</span>
             </a>
         </div>
         <div class="bottom-row">
