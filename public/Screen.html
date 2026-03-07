@@ -1891,8 +1891,8 @@
         // --- POPRAWIONE NAZWY PLIKÓW (Z PODKREŚLNIKAMI) ---
         function playSFX(name) {
             if(!audioEnabled)return;
-            // Dźwięki w uploads/sfx/
             sfxPlayer.src = `/uploads/sfx/${name}.mp3`;
+            sfxPlayer.volume = lastMasterVolume / 100;
             sfxPlayer.play().catch(e => console.error("SFX Error:", e));
         }
 
@@ -1960,6 +1960,11 @@
             if (isNaN(v)) v = 80;
             lastMasterVolume = Math.min(100, Math.max(0, v));
             if (musicPlayer) musicPlayer.volume = lastMasterVolume / 100;
+            if (sfxPlayer) sfxPlayer.volume = lastMasterVolume / 100;
+        });
+        socket.on('admin_stop_music', () => {
+            if (sfxPlayer) { sfxPlayer.pause(); sfxPlayer.currentTime = 0; }
+            if (musicPlayer) { musicPlayer.pause(); musicPlayer.currentTime = 0; }
         });
 
         socket.on('qr_admin', (data) => {
