@@ -57,9 +57,19 @@ h1{flex:1;text-align:center;font-size:1.4rem;color:#7dd3fc;font-weight:800}
 .rewards-empty{color:#334155;font-size:.82rem;font-style:italic;padding:12px 0}
 /* Soundtrack */
 .soundtrack-wrap{margin-top:12px}
-.soundtrack-inp{width:100%;padding:9px 12px;background:#001020;border:1.5px solid #1e3a5f;border-radius:8px;color:#e2e8f0;font-size:.9rem}
+.soundtrack-inp{flex:1;padding:9px 12px;background:#001020;border:1.5px solid #1e3a5f;border-radius:8px;color:#e2e8f0;font-size:.9rem}
 .soundtrack-inp:focus{outline:none;border-color:#0ea5e9}
 .soundtrack-note{font-size:.75rem;color:#475569;margin-top:5px}
+.st-row{display:flex;gap:8px;margin-bottom:8px;align-items:center}
+.st-btn{padding:8px 12px;border-radius:8px;border:1.5px solid #1e3a5f;background:#001020;color:#7dd3fc;cursor:pointer;font-size:.85rem;white-space:nowrap;transition:all .15s}
+.st-btn:hover{border-color:#0ea5e9;color:#fff}
+.st-search{width:100%;padding:8px 10px;background:#001020;border:1.5px solid #1e3a5f;border-radius:8px;color:#e2e8f0;font-size:.85rem;margin-bottom:6px}
+.st-search:focus{outline:none;border-color:#0ea5e9}
+.st-browser{display:none;flex-wrap:wrap;gap:6px;max-height:130px;overflow-y:auto;margin-bottom:6px}
+.st-chip{padding:5px 10px;font-size:.78rem;background:rgba(14,165,233,.18);border:1px solid rgba(14,165,233,.35);border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;color:#7dd3fc}
+.st-chip:hover{background:rgba(14,165,233,.3)}
+.st-chip-play{opacity:.8;font-size:.72rem;padding:2px 4px;border-radius:4px}
+.st-chip-play:hover{background:rgba(255,255,255,.15)}
 /* Buttons */
 .btn-save{display:block;width:100%;max-width:900px;margin-top:20px;padding:16px;background:linear-gradient(135deg,#0ea5e9,#0284c7);color:#fff;border:none;border-radius:12px;font-size:1.1rem;font-weight:800;cursor:pointer;transition:all .2s}
 .btn-save:hover{box-shadow:0 6px 24px rgba(14,165,233,.5);transform:translateY(-1px)}
@@ -104,8 +114,14 @@ h1{flex:1;text-align:center;font-size:1.4rem;color:#7dd3fc;font-weight:800}
         <div class="panel" style="margin-top:16px">
             <h2>🎵 Soundtrack (tło muzyczne)</h2>
             <div class="soundtrack-wrap">
-                <input class="soundtrack-inp" type="text" id="soundtrack-inp" placeholder="URL lub nazwa pliku .mp3 z katalogu /uploads/">
-                <p class="soundtrack-note">Odtwarzany przez admina podczas gry. Przykład: <code>sfx/seabattle.mp3</code> lub pełny URL.</p>
+                <div class="st-row">
+                    <input class="soundtrack-inp" type="text" id="soundtrack-inp" placeholder="URL lub /uploads/sfx/seabattle.mp3">
+                    <button class="st-btn" id="st-play-btn" title="Odsłuchaj" onclick="stTogglePlay()">▶</button>
+                    <button class="st-btn" onclick="stStopPlay()" title="Stop">⏹</button>
+                </div>
+                <input class="st-search" type="text" id="st-search" placeholder="🔍 Szukaj w uploads… (np. seabattle)">
+                <div class="st-browser" id="st-browser"></div>
+                <p class="soundtrack-note">Odtwarzany przez admina podczas gry. Wpisz fragment nazwy aby wyszukać pliki z /uploads/.</p>
             </div>
         </div>
     </div>
@@ -448,6 +464,73 @@ async function saveConfig() {
     btn.disabled = false;
     setTimeout(() => msg.style.display = 'none', 5000);
 }
+
+// ── Soundtrack search ──────────────────────────────────────
+const stAudio = new Audio();
+let stPreviewPath = null;
+
+function stDebounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+
+async function stSearch(q) {
+    const browser = document.getElementById('st-browser');
+    try {
+        const r = await fetch('/api/njr-sampler/audio-files?q=' + encodeURIComponent(q || ''));
+        const d = await r.json();
+        const files = d.files || [];
+        if (!files.length) { browser.style.display = 'none'; return; }
+        browser.innerHTML = files.map(f => `
+            <span class="st-chip" data-path="${(f.path||'').replace(/"/g,'&quot;')}">
+                <span class="st-chip-play" title="Odsłuchaj">▶</span>
+                <span>${(f.name||'').replace(/</g,'&lt;')}</span>
+            </span>`).join('');
+        browser.style.display = 'flex';
+        browser.onclick = (e) => {
+            const chip = e.target.closest('.st-chip');
+            if (!chip) return;
+            if (e.target.classList.contains('st-chip-play')) {
+                e.stopPropagation();
+                stPreviewFromPath(chip.dataset.path);
+            } else {
+                stPickFile(chip.dataset.path);
+            }
+        };
+    } catch(err) { browser.style.display = 'none'; }
+}
+
+function stPickFile(path) {
+    const url = path.startsWith('/') ? path : '/uploads/' + path;
+    document.getElementById('soundtrack-inp').value = url;
+    document.getElementById('st-browser').style.display = 'none';
+}
+
+function stPreviewFromPath(path) {
+    const base = window.location.origin;
+    const rawPath = path.startsWith('/') ? path : '/uploads/' + path;
+    const url = /\.(vdjsample|ogg)$/i.test(rawPath)
+        ? (base + '/api/audio/stream?path=' + encodeURIComponent(rawPath))
+        : (base + rawPath);
+    if (stPreviewPath === path && !stAudio.paused) { stAudio.pause(); stPreviewPath = null; return; }
+    stPreviewPath = path;
+    stAudio.src = url; stAudio.volume = 0.7; stAudio.load(); stAudio.play().catch(()=>{});
+}
+
+function stTogglePlay() {
+    const val = document.getElementById('soundtrack-inp').value.trim();
+    if (!val) return;
+    if (!stAudio.paused) { stAudio.pause(); document.getElementById('st-play-btn').textContent = '▶'; return; }
+    const base = window.location.origin;
+    const rawPath = val.startsWith('http') ? val : (val.startsWith('/') ? val : '/uploads/' + val);
+    const url = val.startsWith('http') ? val : (base + rawPath);
+    stAudio.src = url; stAudio.volume = 0.7; stAudio.load();
+    stAudio.play().catch(()=>{});
+    document.getElementById('st-play-btn').textContent = '⏸';
+    stAudio.onended = () => { document.getElementById('st-play-btn').textContent = '▶'; };
+}
+
+function stStopPlay() { stAudio.pause(); stAudio.currentTime = 0; document.getElementById('st-play-btn').textContent = '▶'; }
+
+document.getElementById('st-search').addEventListener('input', stDebounce(e => stSearch(e.target.value), 300));
+document.getElementById('st-search').addEventListener('focus', () => stSearch(document.getElementById('st-search').value || 'seabattle'));
 
 // ── Załaduj istniejącą konfigurację ────────────────────────
 async function loadExisting() {
