@@ -347,6 +347,7 @@ function toggleMusic() {
     } else {
         const src = config.soundtrack.startsWith('http') ? config.soundtrack : '/uploads/' + config.soundtrack;
         audioEl.src = src; audioEl.volume = parseFloat(volSlider.value);
+        audioEl.loop = !!config.soundtrackLoop;
         audioEl.play().catch(()=>{});
         musicPlaying = true;
         document.getElementById('btn-music-toggle').textContent = '⏸ Zatrzymaj muzykę';
