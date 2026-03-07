@@ -1576,6 +1576,39 @@ app.post('/api/statki-solo/config', express.json(), (req, res) => {
     }
 });
 
+app.get('/api/statki-solo/connection-info', (req, res) => {
+    res.json({
+        pinggyAvailable: !!currentPinggyUrl,
+        localUrl: (httpsServer ? `https://${IP}:${PORT_HTTPS}` : `http://${IP}:${PORT}`) + '/statki-solo/admin.html'
+    });
+});
+
+app.get('/api/statki-solo/phone-qr', async (req, res) => {
+    try {
+        const mode = (req.query.mode || '').toLowerCase();
+        const path = req.query.path || '/statki-solo/admin.html';
+        let baseUrl;
+        if (mode === 'local') {
+            baseUrl = httpsServer ? `https://${IP}:${PORT_HTTPS}` : `http://${IP}:${PORT}`;
+        } else if (mode === 'pinggy') {
+            const pinggyOrigin = currentPinggyUrl
+                ? (normalizePinggyUrl(currentPinggyUrl) || (() => { try { return new URL(currentPinggyUrl).origin; } catch (_) { return currentPinggyUrl.replace(/\/$/, '').replace(/\/[^/].*$/, ''); } })())
+                : null;
+            if (!pinggyOrigin) return res.status(400).json({ error: 'Tunel Pinggy nie jest uruchomiony.' });
+            baseUrl = pinggyOrigin;
+        } else {
+            baseUrl = currentPinggyUrl
+                ? (normalizePinggyUrl(currentPinggyUrl) || (() => { try { return new URL(currentPinggyUrl).origin; } catch (_) { return currentPinggyUrl.replace(/\/$/, '').replace(/\/[^/].*$/, ''); } })())
+                : (httpsServer ? `https://${IP}:${PORT_HTTPS}` : `http://${IP}:${PORT}`);
+        }
+        const phoneUrl = `${baseUrl.replace(/\/$/, '')}${path}`;
+        const qrCode = await QRCode.toDataURL(phoneUrl, { width: 280, margin: 2 });
+        res.json({ url: phoneUrl, qrCode });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Sprawdź aktualizacje (tylko w aplikacji Electron – in-process)
 app.get('/api/version', (req, res) => {
     try {
