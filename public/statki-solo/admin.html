@@ -8,85 +8,105 @@
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{width:100%;height:100%;overflow:hidden;background:#000c1a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;user-select:none}
 
-/* ── Ekrany ── */
 .screen{position:fixed;inset:0;display:none;flex-direction:column}
 .screen.active{display:flex}
 
-/* ── Start ── */
+/* ── Start screen ── */
 #s-loading{align-items:center;justify-content:center;gap:12px}
 #s-loading p{color:#475569}
-#s-start{align-items:center;justify-content:center;gap:18px;padding:24px 20px}
-#s-start h1{font-size:1.6rem;font-weight:800;color:#7dd3fc}
-.board-summary{background:rgba(14,165,233,.1);border:1px solid rgba(14,165,233,.3);border-radius:12px;padding:14px 20px;text-align:center;color:#94a3b8;font-size:.9rem;line-height:1.6;width:100%;max-width:340px}
+#s-start{align-items:center;justify-content:center;gap:16px;padding:20px}
+#s-start h1{font-size:1.5rem;font-weight:800;color:#7dd3fc}
+.board-summary{background:rgba(14,165,233,.1);border:1px solid rgba(14,165,233,.3);border-radius:12px;padding:12px 18px;text-align:center;color:#94a3b8;font-size:.88rem;line-height:1.6;width:100%;max-width:340px}
 .board-summary strong{color:#7dd3fc}
-.music-panel{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px 18px;width:100%;max-width:340px}
-.music-panel h3{color:#94a3b8;font-size:.78rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px}
-.volume-row{display:flex;align-items:center;gap:10px}
-.volume-row input[type=range]{flex:1;accent-color:#0ea5e9;cursor:pointer}
-.vol-val{color:#7dd3fc;font-size:.85rem;min-width:36px;text-align:right}
-.btn-play{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:10px;background:rgba(14,165,233,.15);border:1px solid rgba(14,165,233,.3);border-radius:8px;color:#7dd3fc;cursor:pointer;font-size:.9rem;margin-top:10px}
+.music-panel{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:12px 16px;width:100%;max-width:340px}
+.music-panel h3{color:#94a3b8;font-size:.75rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px}
+.volume-row{display:flex;align-items:center;gap:8px}
+.volume-row input[type=range]{flex:1;accent-color:#0ea5e9;cursor:pointer;height:4px}
+.vol-val{color:#7dd3fc;font-size:.82rem;min-width:36px;text-align:right}
+.btn-play{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:9px;background:rgba(14,165,233,.15);border:1px solid rgba(14,165,233,.3);border-radius:8px;color:#7dd3fc;cursor:pointer;font-size:.88rem;margin-top:8px}
 .btn-play:hover{background:rgba(14,165,233,.25)}
-.btn-main{width:100%;max-width:340px;padding:17px;font-size:1.1rem;font-weight:800;border:none;border-radius:14px;cursor:pointer;transition:all .2s}
+.btn-main{width:100%;max-width:340px;padding:15px;font-size:1.05rem;font-weight:800;border:none;border-radius:14px;cursor:pointer;transition:all .2s}
 .btn-blue{background:linear-gradient(135deg,#0ea5e9,#0284c7);color:#fff;box-shadow:0 6px 24px rgba(14,165,233,.35)}
 .btn-blue:hover{box-shadow:0 8px 32px rgba(14,165,233,.55);transform:translateY(-1px)}
 .btn-blue:disabled{opacity:.4;pointer-events:none}
-.btn-red{background:rgba(239,68,68,.12);border:2px solid #ef4444;color:#ef4444;padding:12px;font-size:.95rem}
+.btn-fs{background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.2);color:#94a3b8;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-fs:hover{background:rgba(255,255,255,.1);color:#fff}
+/* End button — only visible outside fullscreen */
+.btn-end{background:rgba(239,68,68,.1);border:2px solid rgba(239,68,68,.4);color:#f87171;font-size:.88rem;padding:10px}
+.btn-end:hover{background:rgba(239,68,68,.2)}
 
-/* ── Drum ── */
+/* ── Drum screens ── */
 #s-col,#s-row{background:#000c1a}
-.phase-header{flex-shrink:0;display:flex;align-items:center;padding:14px 16px 10px;gap:10px;border-bottom:1px solid rgba(255,255,255,.05)}
-.phase-title{flex:1;text-align:center;color:#64748b;font-size:.95rem;font-weight:600}
-.phase-badge{font-size:.72rem;color:#0ea5e9;background:rgba(14,165,233,.15);padding:3px 10px;border-radius:20px;border:1px solid rgba(14,165,233,.25)}
-.btn-back{background:none;border:none;color:#475569;font-size:.9rem;cursor:pointer;padding:4px 10px;border-radius:6px}
+.phase-header{flex-shrink:0;display:flex;align-items:center;padding:12px 14px 8px;gap:8px;border-bottom:1px solid rgba(255,255,255,.05)}
+.phase-title{flex:1;text-align:center;color:#64748b;font-size:.9rem;font-weight:600}
+.phase-badge{font-size:.7rem;color:#0ea5e9;background:rgba(14,165,233,.15);padding:3px 10px;border-radius:20px;border:1px solid rgba(14,165,233,.25);white-space:nowrap}
+.btn-back{background:none;border:none;color:#475569;font-size:.85rem;cursor:pointer;padding:4px 8px;border-radius:6px;white-space:nowrap}
 .btn-back:hover{color:#94a3b8}
-.btn-end-float{position:fixed;bottom:18px;right:18px;background:rgba(239,68,68,.12);border:1.5px solid #ef4444;color:#ef4444;font-size:.78rem;font-weight:700;padding:8px 16px;border-radius:10px;cursor:pointer;z-index:30}
-.btn-end-float:hover{background:rgba(239,68,68,.22)}
+
+/* Target display — bottom info bar */
+.target-bar{flex-shrink:0;padding:10px 16px 14px;background:#000c1a;border-top:1px solid rgba(255,255,255,.06);text-align:center}
+.tbar-label{font-size:.72rem;color:#475569;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px}
+.tbar-coord{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:6px}
+.tbar-box{min-width:52px;padding:6px 12px;border-radius:10px;font-size:1.8rem;font-weight:900;line-height:1;border:2px solid rgba(14,165,233,.5);background:rgba(14,165,233,.12);color:#7dd3fc;text-align:center}
+.tbar-box.fire{border-color:rgba(239,68,68,.5);background:rgba(239,68,68,.1);color:#fca5a5}
+.tbar-box.chosen{border-color:rgba(251,191,36,.5);background:rgba(251,191,36,.08);color:#fbbf24}
+.tbar-sep{color:#475569;font-size:1.2rem;font-weight:300}
+.tbar-hint{font-size:.7rem;color:#334155;letter-spacing:.04em}
+.tbar-hint.ready{color:#22c55e;font-weight:700;font-size:.75rem}
+.tbar-warn{font-size:.75rem;color:#ef4444;font-weight:700;margin-top:4px}
 
 /* Drum container */
-.drum-outer{flex:1;position:relative;overflow:hidden;--item-h:120px}
-.drum-outer::before,.drum-outer::after{content:'';position:absolute;left:0;right:0;height:30%;z-index:4;pointer-events:none}
+.drum-outer{flex:1;position:relative;overflow:hidden;--item-h:120px;min-height:0}
+.drum-outer::before,.drum-outer::after{content:'';position:absolute;left:0;right:0;height:28%;z-index:4;pointer-events:none}
 .drum-outer::before{top:0;background:linear-gradient(to bottom,#000c1a 0%,rgba(0,12,26,0) 100%)}
 .drum-outer::after{bottom:0;background:linear-gradient(to top,#000c1a 0%,rgba(0,12,26,0) 100%)}
-
-/* Center hot-zone */
-.drum-zone{position:absolute;left:12px;right:12px;top:50%;transform:translateY(-50%);height:var(--item-h);background:rgba(14,165,233,.13);border:2px solid rgba(14,165,233,.55);border-radius:18px;box-shadow:0 0 32px rgba(14,165,233,.25),inset 0 0 20px rgba(14,165,233,.07);z-index:3;pointer-events:none;transition:height .15s}
-/* Red zone when in row-phase (phase 2) and column already chosen */
-.drum-zone.phase-row{background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.5);box-shadow:0 0 32px rgba(239,68,68,.2),inset 0 0 20px rgba(239,68,68,.05)}
-
+.drum-zone{position:absolute;left:12px;right:12px;top:50%;transform:translateY(-50%);height:var(--item-h);background:rgba(14,165,233,.13);border:2px solid rgba(14,165,233,.55);border-radius:18px;box-shadow:0 0 28px rgba(14,165,233,.22),inset 0 0 16px rgba(14,165,233,.06);z-index:3;pointer-events:none;transition:background .3s,border-color .3s,box-shadow .3s}
+.drum-zone.phase-fire{background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.55);box-shadow:0 0 28px rgba(239,68,68,.22),inset 0 0 16px rgba(239,68,68,.05)}
+.drum-zone.zone-blocked{background:rgba(100,116,139,.08);border-color:rgba(100,116,139,.3);box-shadow:none}
 .drum-track{position:absolute;left:0;right:0;touch-action:none;cursor:grab;display:flex;flex-direction:column;align-items:center;will-change:transform}
 .drum-track.dragging{cursor:grabbing}
-.drum-item{width:calc(100% - 24px);display:flex;align-items:center;justify-content:center;border-radius:16px;border:2px solid transparent;flex-shrink:0;position:relative;transition:opacity .12s,transform .12s}
+.drum-item{width:calc(100% - 24px);display:flex;align-items:center;justify-content:center;border-radius:16px;border:2px solid transparent;flex-shrink:0;position:relative;transition:opacity .12s}
 .drum-item.active{border-color:rgba(14,165,233,.4);cursor:pointer}
-.drum-item.active.phase-row-item{border-color:rgba(239,68,68,.5)}
-.drum-item.active::after{content:'dotknij';position:absolute;bottom:10px;left:0;right:0;text-align:center;font-size:.65rem;color:rgba(14,165,233,.7);letter-spacing:.1em;text-transform:uppercase;font-weight:600;animation:hint-in .4s ease both}
-.drum-item.active.phase-row-item::after{color:rgba(239,68,68,.7)}
-.drum-item.shot-here{opacity:.3 !important}
-.drum-val{font-size:4rem;font-weight:900;line-height:1;letter-spacing:-2px;color:#fff;text-shadow:0 0 30px rgba(14,165,233,.6);pointer-events:none}
-.phase-row-item .drum-val{text-shadow:0 0 30px rgba(239,68,68,.5);color:#fca5a5}
-@keyframes tap-flash{0%{background:rgba(14,165,233,.35)}100%{background:transparent}}
+.drum-item.active.phase-fire{border-color:rgba(239,68,68,.5)}
+.drum-item.active::after{content:'dotknij';position:absolute;bottom:8px;left:0;right:0;text-align:center;font-size:.62rem;color:rgba(14,165,233,.7);letter-spacing:.1em;text-transform:uppercase;font-weight:600;animation:hint-in .4s ease both}
+.drum-item.active.phase-fire::after{content:'STRZELAJ';color:rgba(239,68,68,.8);font-size:.7rem}
+.drum-item.active.blocked::after{content:'już strzelano';color:rgba(100,116,139,.8)}
+.drum-item.blocked{opacity:.25 !important}
+.drum-val{font-size:4rem;font-weight:900;line-height:1;letter-spacing:-2px;color:#fff;text-shadow:0 0 28px rgba(14,165,233,.55);pointer-events:none}
+.phase-fire .drum-val{text-shadow:0 0 28px rgba(239,68,68,.5);color:#fca5a5}
+@keyframes tap-flash{0%{background:rgba(14,165,233,.3)}100%{background:transparent}}
 @keyframes hint-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
-.drum-item.tapped{animation:tap-flash .25s ease}
+.drum-item.tapped{animation:tap-flash .22s ease}
 
-/* ── Wynik ── */
-#s-result{align-items:center;justify-content:center;gap:14px;padding:24px 20px;text-align:center}
-.r-icon{font-size:clamp(50px,18vw,90px)}
-.r-text{font-size:clamp(22px,8vw,48px);font-weight:900}
-.r-reward{font-size:clamp(16px,5vw,28px);font-weight:700;color:#fbbf24}
-.r-coord{font-size:clamp(13px,3.5vw,18px);color:#64748b}
+/* ── Result ── */
+#s-result{align-items:center;justify-content:center;gap:12px;padding:20px;text-align:center}
+.r-icon{font-size:clamp(46px,16vw,84px)}
+.r-text{font-size:clamp(20px,7vw,44px);font-weight:900}
+.r-reward{font-size:clamp(14px,4.5vw,26px);font-weight:700;color:#fbbf24}
+.r-coord{font-size:clamp(12px,3vw,17px);color:#64748b}
 #mini-board{border-collapse:collapse;border:2px solid #0ea5e9;background:#000;display:inline-table}
 #mini-board th,#mini-board td{border:1px solid #0d3a5c;text-align:center;font-size:11px;font-weight:700}
+.result-actions{display:flex;flex-direction:column;gap:8px;width:100%;max-width:320px;margin-top:4px}
+
+/* Floating end button — hidden in fullscreen */
+#btn-end-game{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:rgba(239,68,68,.1);border:1.5px solid rgba(239,68,68,.4);color:#f87171;font-size:.78rem;font-weight:700;padding:7px 22px;border-radius:10px;cursor:pointer;z-index:200;display:none;white-space:nowrap}
+#btn-end-game:hover{background:rgba(239,68,68,.2)}
 </style>
 </head>
 <body>
 
+<!-- Ładowanie -->
 <div class="screen active" id="s-loading">
     <h2 style="color:#7dd3fc;font-size:1.4rem">⚓ Statki Solo</h2>
-    <p>Ładowanie konfiguracji…</p>
+    <p style="color:#475569">Ładowanie konfiguracji…</p>
 </div>
 
+<!-- Start -->
 <div class="screen" id="s-start">
     <h1>⚓ Statki Solo</h1>
     <div class="board-summary" id="board-summary">Ładowanie…</div>
+
+    <!-- Suwak dostępny przed grą -->
     <div class="music-panel" id="music-panel" style="display:none">
         <h3>🎵 Soundtrack</h3>
         <div class="volume-row">
@@ -97,48 +117,71 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000c1a;color:#fff;f
         </div>
         <button class="btn-play" id="btn-music-toggle" onclick="toggleMusic()">▶ Włącz muzykę</button>
     </div>
+
+    <button class="btn-main btn-fs" id="btn-fullscreen" onclick="enterFullscreen()">⛶ Tryb pełnoekranowy</button>
     <button class="btn-main btn-blue" id="btn-start" onclick="startGame()">🚀 Rozpocznij grę</button>
-    <a href="/statki-solo/" style="color:#475569;font-size:.82rem;text-decoration:none">← Powrót</a>
+    <a href="/statki-solo/" style="color:#475569;font-size:.8rem;text-decoration:none">← Powrót</a>
 </div>
 
-<!-- Faza 1: Kolumna (litera) -->
+<!-- Faza 1: Kolumna (litera A–H) -->
 <div class="screen" id="s-col">
     <div class="phase-header">
-        <span style="width:60px"></span>
-        <span class="phase-title">Wybierz kolumnę</span>
-        <span class="phase-badge">1 z 2 · A–H</span>
+        <span style="min-width:60px"></span>
+        <span class="phase-title">Faza 1 – Kolumna</span>
+        <span class="phase-badge">A – H</span>
     </div>
     <div class="drum-outer" id="drum-col-outer">
         <div class="drum-zone" id="drum-col-zone"></div>
         <div class="drum-track" id="drum-col-track"></div>
     </div>
-    <button class="btn-end-float" onclick="endGame()">🏁 Zakończ</button>
+    <div class="target-bar">
+        <div class="tbar-label">Celuję w kolumnę</div>
+        <div class="tbar-coord">
+            <div class="tbar-box" id="tb-col-letter">A</div>
+        </div>
+        <div class="tbar-hint" id="tb-col-hint">Przewiń i dotknij aby wybrać kolumnę</div>
+    </div>
 </div>
 
-<!-- Faza 2: Rząd (cyfra) -->
+<!-- Faza 2: Rząd (cyfra 1–N) -->
 <div class="screen" id="s-row">
     <div class="phase-header">
         <button class="btn-back" onclick="backToCol()">← Kolumna</button>
-        <span class="phase-title" id="row-phase-title">Wybierz rząd</span>
-        <span class="phase-badge" id="row-phase-badge">2 z 2 · 1–8</span>
+        <span class="phase-title" id="row-phase-title">Faza 2 – Rząd</span>
+        <span class="phase-badge" id="row-phase-badge">1–8</span>
     </div>
     <div class="drum-outer" id="drum-row-outer">
-        <div class="drum-zone phase-row" id="drum-row-zone"></div>
+        <div class="drum-zone phase-fire" id="drum-row-zone"></div>
         <div class="drum-track" id="drum-row-track"></div>
     </div>
-    <button class="btn-end-float" onclick="endGame()">🏁 Zakończ</button>
+    <div class="target-bar">
+        <div class="tbar-label" id="tb-row-label">Celuję w rząd</div>
+        <div class="tbar-coord">
+            <div class="tbar-box chosen" id="tb-row-col">A</div>
+            <div class="tbar-sep">+</div>
+            <div class="tbar-box fire" id="tb-row-num">1</div>
+        </div>
+        <div class="tbar-hint ready" id="tb-row-hint">Przewiń i dotknij aby STRZELIĆ 🎯</div>
+        <div class="tbar-warn" id="tb-row-warn" style="display:none">⚠️ To pole już strzelano – wybierz inny rząd</div>
+    </div>
 </div>
 
-<!-- Wynik -->
+<!-- Wynik strzału -->
 <div class="screen" id="s-result">
     <div class="r-icon" id="r-icon"></div>
     <div class="r-text" id="r-text"></div>
     <div class="r-reward" id="r-reward"></div>
     <div class="r-coord" id="r-coord"></div>
-    <div style="overflow-x:auto;text-align:center;max-width:340px;width:100%;margin-top:4px" id="mini-board-wrap"></div>
-    <button class="btn-main btn-blue" onclick="nextShot()" id="btn-next" style="margin-top:8px">🎯 Następny strzał</button>
-    <button class="btn-main btn-red" onclick="endGame()" style="margin-top:0">🏁 Zakończ grę</button>
+    <div style="overflow-x:auto;text-align:center;max-width:320px;width:100%;margin-top:2px" id="mini-board-wrap"></div>
+    <div class="result-actions">
+        <button class="btn-main btn-blue" onclick="nextShot()" id="btn-next">🎯 Następny strzał</button>
+        <!-- End game visible here (safe — po celowym strzale), i poza fullscreen -->
+        <button class="btn-main btn-end" onclick="endGame()" id="btn-end-result">🏁 Zakończ grę</button>
+    </div>
 </div>
+
+<!-- Floating end button — pojawia się tylko poza fullscreen podczas gry -->
+<button id="btn-end-game" onclick="endGame()">🏁 Zakończ grę</button>
 
 <audio id="audio-bg" loop></audio>
 <script src="/socket.io/socket.io.js"></script>
@@ -147,12 +190,50 @@ const socket = io();
 const LETTERS = 'ABCDEFGHIJ';
 let config = null;
 let gameRunning = false;
-let selectedCol = 0;  // litera — faza 1
-let selectedRow = 0;  // cyfra — faza 2
+let selectedCol = 0;
+let selectedRow = 0;
 let shots = {};
 let musicPlaying = false;
+let wakeLock = null;
+let isFullscreen = false;
 const audioEl = document.getElementById('audio-bg');
 let actx = null;
+
+// ── WakeLock ───────────────────────────────────────────────
+async function requestWakeLock() {
+    if (!('wakeLock' in navigator)) return;
+    try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        document.addEventListener('visibilitychange', async () => {
+            if (wakeLock !== null && document.visibilityState === 'visible') {
+                try { wakeLock = await navigator.wakeLock.request('screen'); } catch(e) {}
+            }
+        });
+    } catch(e) {}
+}
+requestWakeLock();
+
+// ── Fullscreen ─────────────────────────────────────────────
+async function enterFullscreen() {
+    try {
+        await document.documentElement.requestFullscreen({ navigationUI: 'hide' });
+    } catch(e) {
+        // Fallback for iOS
+        try { await document.body.webkitRequestFullscreen(); } catch(e2) {}
+    }
+}
+
+document.addEventListener('fullscreenchange', onFsChange);
+document.addEventListener('webkitfullscreenchange', onFsChange);
+function onFsChange() {
+    isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    // Fullscreen button: hide when in fullscreen
+    document.getElementById('btn-fullscreen').style.display = isFullscreen ? 'none' : 'flex';
+    // Floating end button: only visible outside fullscreen during game
+    const floatEnd = document.getElementById('btn-end-game');
+    floatEnd.style.display = (!isFullscreen && gameRunning && document.getElementById('s-result').classList.contains('active') === false) ? 'block' : 'none';
+    // End button on result: always visible there (deliberate action)
+}
 
 // ── Web Audio ──────────────────────────────────────────────
 function getCtx() {
@@ -165,76 +246,54 @@ document.addEventListener('click', () => getCtx(), {once:true});
 
 function playTick() {
     try {
-        const ctx = getCtx();
-        const osc = ctx.createOscillator();
-        const g = ctx.createGain();
+        const ctx = getCtx(); const osc = ctx.createOscillator(); const g = ctx.createGain();
         osc.connect(g); g.connect(ctx.destination);
-        osc.type = 'sine'; osc.frequency.value = 700;
-        g.gain.setValueAtTime(0.1, ctx.currentTime);
+        osc.type = 'sine'; osc.frequency.value = 680;
+        g.gain.setValueAtTime(0.08, ctx.currentTime);
         g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
         osc.start(); osc.stop(ctx.currentTime + 0.06);
     } catch(e) {}
 }
-
 function playConfirm() {
     try {
         const ctx = getCtx();
         [600, 900].forEach((f, i) => {
-            const osc = ctx.createOscillator();
-            const g = ctx.createGain();
-            osc.connect(g); g.connect(ctx.destination);
-            osc.type = 'sine'; osc.frequency.value = f;
+            const osc = ctx.createOscillator(); const g = ctx.createGain();
+            osc.connect(g); g.connect(ctx.destination); osc.type = 'sine'; osc.frequency.value = f;
             const t = ctx.currentTime + i * 0.1;
-            g.gain.setValueAtTime(0.18, t);
-            g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+            g.gain.setValueAtTime(0.16, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
             osc.start(t); osc.stop(t + 0.2);
         });
     } catch(e) {}
 }
-
 function playFire() {
     try {
-        const ctx = getCtx();
-        const osc = ctx.createOscillator();
-        const g = ctx.createGain();
-        osc.connect(g); g.connect(ctx.destination);
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(120, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.3);
-        g.gain.setValueAtTime(0.25, ctx.currentTime);
-        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+        const ctx = getCtx(); const osc = ctx.createOscillator(); const g = ctx.createGain();
+        osc.connect(g); g.connect(ctx.destination); osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(100, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(35, ctx.currentTime + 0.28);
+        g.gain.setValueAtTime(0.22, ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.32);
         osc.start(); osc.stop(ctx.currentTime + 0.35);
     } catch(e) {}
 }
-
 function playHitResult() {
     try {
         const ctx = getCtx();
         const buf = ctx.createBuffer(1, ctx.sampleRate * 0.5, ctx.sampleRate);
         const d = buf.getChannelData(0);
-        for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 0.6);
-        const src = ctx.createBufferSource();
-        const f = ctx.createBiquadFilter();
-        const g = ctx.createGain();
-        src.buffer = buf; f.type = 'lowpass'; f.frequency.value = 300;
-        g.gain.setValueAtTime(0.7, ctx.currentTime);
-        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
-        src.connect(f); f.connect(g); g.connect(ctx.destination);
-        src.start(); src.stop(ctx.currentTime + 0.5);
+        for (let i = 0; i < d.length; i++) d[i] = (Math.random()*2-1) * Math.pow(1-i/d.length, 0.6);
+        const src = ctx.createBufferSource(); const f = ctx.createBiquadFilter(); const g = ctx.createGain();
+        src.buffer = buf; f.type = 'lowpass'; f.frequency.value = 280;
+        g.gain.setValueAtTime(0.6, ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+        src.connect(f); f.connect(g); g.connect(ctx.destination); src.start(); src.stop(ctx.currentTime + 0.5);
     } catch(e) {}
 }
-
 function playMissResult() {
     try {
-        const ctx = getCtx();
-        const osc = ctx.createOscillator();
-        const g = ctx.createGain();
-        osc.connect(g); g.connect(ctx.destination);
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(400, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(150, ctx.currentTime + 0.4);
-        g.gain.setValueAtTime(0.15, ctx.currentTime);
-        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+        const ctx = getCtx(); const osc = ctx.createOscillator(); const g = ctx.createGain();
+        osc.connect(g); g.connect(ctx.destination); osc.type = 'sine';
+        osc.frequency.setValueAtTime(380, ctx.currentTime); osc.frequency.exponentialRampToValueAtTime(140, ctx.currentTime + 0.4);
+        g.gain.setValueAtTime(0.13, ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
         osc.start(); osc.stop(ctx.currentTime + 0.5);
     } catch(e) {}
 }
@@ -243,6 +302,10 @@ function playMissResult() {
 function show(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById(id).classList.add('active');
+    // Update floating end button visibility
+    const floatEnd = document.getElementById('btn-end-game');
+    const onResult = id === 's-result';
+    floatEnd.style.display = (!isFullscreen && gameRunning && !onResult) ? 'block' : 'none';
 }
 
 // ── Config ─────────────────────────────────────────────────
@@ -256,7 +319,6 @@ async function loadConfig() {
     }
     show('s-start');
 }
-
 function renderStartScreen() {
     const el = document.getElementById('board-summary');
     if (!config || !config.ships || !config.ships.length) {
@@ -274,8 +336,7 @@ const volSlider = document.getElementById('vol-slider');
 const volVal = document.getElementById('vol-val');
 volSlider.oninput = () => {
     const v = parseFloat(volSlider.value);
-    audioEl.volume = v;
-    volVal.textContent = Math.round(v * 100) + '%';
+    audioEl.volume = v; volVal.textContent = Math.round(v * 100) + '%';
     socket.emit('ships_solo_volume', { volume: v });
 };
 function toggleMusic() {
@@ -302,13 +363,13 @@ function startGame() {
     show('s-col');
 }
 function endGame() {
-    if (confirm('Zakończyć grę?')) {
-        socket.emit('ships_solo_end', {});
-        gameRunning = false;
-        audioEl.pause(); musicPlaying = false;
-        document.getElementById('btn-music-toggle').textContent = '▶ Włącz muzykę';
-        show('s-start');
-    }
+    if (!confirm('Zakończyć grę?')) return;
+    socket.emit('ships_solo_end', {});
+    gameRunning = false;
+    audioEl.pause(); musicPlaying = false;
+    document.getElementById('btn-music-toggle').textContent = '▶ Włącz muzykę';
+    document.getElementById('btn-end-game').style.display = 'none';
+    show('s-start');
 }
 function nextShot() {
     document.getElementById('btn-next').style.display = 'flex';
@@ -321,110 +382,116 @@ function backToCol() {
     show('s-col');
 }
 
+// ── Target bar updates ─────────────────────────────────────
+function updateColBar(idx) {
+    document.getElementById('tb-col-letter').textContent = LETTERS[idx];
+}
+function updateRowBar(colIdx, rowIdx) {
+    const key = `${rowIdx}_${colIdx}`;
+    const alreadyShot = !!shots[key];
+    document.getElementById('tb-row-col').textContent = LETTERS[colIdx];
+    document.getElementById('tb-row-num').textContent = rowIdx + 1;
+    document.getElementById('tb-row-label').textContent = alreadyShot
+        ? `Kolumna ${LETTERS[colIdx]} · Rząd ${rowIdx + 1}`
+        : `Celuję w pole: ${LETTERS[colIdx]}${rowIdx + 1}`;
+    const hint = document.getElementById('tb-row-hint');
+    const warn = document.getElementById('tb-row-warn');
+    const zone = document.getElementById('drum-row-zone');
+    if (alreadyShot) {
+        hint.style.display = 'none'; warn.style.display = 'block';
+        zone.classList.add('zone-blocked'); zone.classList.remove('phase-fire');
+    } else {
+        hint.style.display = 'block'; warn.style.display = 'none';
+        zone.classList.remove('zone-blocked'); zone.classList.add('phase-fire');
+    }
+}
+
 // ── Drum Picker ────────────────────────────────────────────
 let colPickerCleanup = null, rowPickerCleanup = null;
 
-function buildDrum(outerEl, zoneEl, trackEl, items, initIdx, isRowPhase, onChangeCb, onConfirmCb) {
-    const outerH = outerEl.clientHeight || Math.floor(window.innerHeight * 0.78);
+function buildDrum(outerEl, zoneEl, trackEl, items, initIdx, isFirePhase, onChangeCb, onConfirmCb) {
+    const outerH = outerEl.clientHeight || Math.floor(window.innerHeight * 0.6);
     const VISIBLE = 4;
     const itemH = Math.floor(outerH / VISIBLE);
     const PAD = 2;
-
     outerEl.style.setProperty('--item-h', itemH + 'px');
     zoneEl.style.height = itemH + 'px';
 
     trackEl.innerHTML = '';
-
-    function makeItem(label, idx) {
+    const makeItem = (label, idx) => {
         const el = document.createElement('div');
-        el.className = 'drum-item' + (isRowPhase ? ' phase-row-item' : '');
+        el.className = 'drum-item' + (isFirePhase ? ' phase-fire' : '');
         el.style.height = itemH + 'px';
         if (idx !== undefined) {
             el.dataset.idx = idx;
-            const key = `${selectedRow}_${idx}`; // only for col phase check
             el.innerHTML = `<span class="drum-val">${label}</span>`;
+            if (isFirePhase && shots[`${idx}_${selectedCol}`]) el.classList.add('blocked');
         } else {
             el.style.opacity = '0'; el.style.pointerEvents = 'none';
         }
         return el;
-    }
+    };
     for (let i = 0; i < PAD; i++) trackEl.appendChild(makeItem(''));
-    items.forEach((label, idx) => trackEl.appendChild(makeItem(label, idx)));
+    items.forEach((lbl, idx) => trackEl.appendChild(makeItem(lbl, idx)));
     for (let i = 0; i < PAD; i++) trackEl.appendChild(makeItem(''));
 
     const baseY = outerH / 2 - itemH / 2 - PAD * itemH;
     let translateY = baseY - initIdx * itemH;
     let currentIdx = initIdx;
-    let lastEmitIdx = -1;
-    let startY = 0, startTY = 0, isDragging = false, totalMove = 0;
+    let lastEmit = -1;
+    let startY = 0, startTY = 0, isDrag = false, totalMove = 0;
 
-    function clampY(y) {
-        return Math.max(baseY - (items.length - 1) * itemH, Math.min(baseY, y));
-    }
-    function idxFromY(y) {
-        return Math.max(0, Math.min(items.length - 1, Math.round((baseY - y) / itemH)));
-    }
+    const clamp = y => Math.max(baseY - (items.length - 1) * itemH, Math.min(baseY, y));
+    const idxOf = y => Math.max(0, Math.min(items.length - 1, Math.round((baseY - y) / itemH)));
 
-    function applyY(y, animate) {
-        trackEl.style.transition = animate ? 'transform .28s cubic-bezier(.25,.46,.45,.94)' : 'none';
+    function applyY(y, anim) {
+        trackEl.style.transition = anim ? 'transform .27s cubic-bezier(.25,.46,.45,.94)' : 'none';
         trackEl.style.transform = `translateY(${y}px)`;
         updateVisuals(y);
     }
-
     function updateVisuals(y) {
-        const active = idxFromY(y);
+        const act = idxOf(y);
         trackEl.querySelectorAll('.drum-item[data-idx]').forEach(el => {
             const i = parseInt(el.dataset.idx);
-            const dist = Math.abs(i - active);
-            const isAct = dist === 0;
-            const opacities = [1, .52, .24, .09];
-            const scales = [1, .8, .63, .46];
-            const opacity = opacities[Math.min(dist, 3)] ?? 0.04;
-            const scale = scales[Math.min(dist, 3)] ?? 0.28;
-            const fs = Math.max(18, Math.floor(itemH * 0.55 * scale));
-            el.style.opacity = opacity;
+            const d = Math.abs(i - act);
+            const ops = [1, .52, .24, .09];
+            const scs = [1, .8, .62, .45];
+            const fs = Math.max(18, Math.floor(itemH * 0.55 * (scs[Math.min(d,3)] ?? 0.28)));
+            el.style.opacity = ops[Math.min(d,3)] ?? 0.04;
             el.querySelector('.drum-val').style.fontSize = fs + 'px';
-            el.classList.toggle('active', isAct);
+            el.classList.toggle('active', d === 0);
         });
-        if (active !== lastEmitIdx) {
-            lastEmitIdx = active; currentIdx = active;
+        if (act !== lastEmit) {
+            lastEmit = act; currentIdx = act;
             playTick();
-            onChangeCb(active);
+            onChangeCb(act);
         }
     }
 
-    function getY(e) { return (e.touches ? e.touches[0] : e).clientY; }
-
-    function onStart(e) {
-        isDragging = true; totalMove = 0;
-        startY = getY(e); startTY = translateY;
-        trackEl.style.transition = 'none';
-        trackEl.classList.add('dragging');
-    }
-    function onMove(e) {
-        if (!isDragging) return;
+    const getY = e => (e.touches ? e.touches[0] : e).clientY;
+    const onStart = e => { isDrag = true; totalMove = 0; startY = getY(e); startTY = translateY; trackEl.style.transition = 'none'; trackEl.classList.add('dragging'); };
+    const onMove = e => {
+        if (!isDrag) return;
         if (e.cancelable) e.preventDefault();
         const dy = getY(e) - startY;
         totalMove = Math.abs(dy);
-        translateY = clampY(startTY + dy);
+        translateY = clamp(startTY + dy);
         applyY(translateY, false);
-    }
-    function onEnd(e) {
-        if (!isDragging) return;
-        isDragging = false;
-        trackEl.classList.remove('dragging');
+    };
+    const onEnd = () => {
+        if (!isDrag) return;
+        isDrag = false; trackEl.classList.remove('dragging');
         if (totalMove < 10) {
-            // Tap — zatwierdzamy
             const tapped = trackEl.querySelector('.drum-item.active');
-            if (tapped) { tapped.classList.add('tapped'); setTimeout(() => tapped.classList.remove('tapped'), 260); }
-            setTimeout(() => onConfirmCb(currentIdx), 100);
+            if (tapped) { tapped.classList.add('tapped'); setTimeout(() => tapped.classList.remove('tapped'), 240); }
+            setTimeout(() => onConfirmCb(currentIdx), 90);
             return;
         }
-        currentIdx = idxFromY(translateY);
+        currentIdx = idxOf(translateY);
         translateY = baseY - currentIdx * itemH;
         applyY(translateY, true);
         onChangeCb(currentIdx);
-    }
+    };
 
     outerEl.addEventListener('mousedown', onStart);
     outerEl.addEventListener('touchstart', onStart, {passive:true});
@@ -432,8 +499,8 @@ function buildDrum(outerEl, zoneEl, trackEl, items, initIdx, isRowPhase, onChang
     document.addEventListener('touchmove', onMove, {passive:false});
     document.addEventListener('mouseup', onEnd);
     document.addEventListener('touchend', onEnd);
-
     applyY(translateY, false);
+
     return () => {
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('touchmove', onMove);
@@ -445,21 +512,17 @@ function buildDrum(outerEl, zoneEl, trackEl, items, initIdx, isRowPhase, onChang
 function buildDrumCol() {
     if (colPickerCleanup) colPickerCleanup();
     const items = Array.from({length: config.boardSize}, (_, i) => LETTERS[i]);
+    updateColBar(selectedCol);
     colPickerCleanup = buildDrum(
         document.getElementById('drum-col-outer'),
         document.getElementById('drum-col-zone'),
         document.getElementById('drum-col-track'),
         items, selectedCol, false,
+        (idx) => { selectedCol = idx; updateColBar(idx); socket.emit('ships_solo_aim', { aimRow: null, aimCol: idx, phase: 'col' }); },
         (idx) => {
-            selectedCol = idx;
-            socket.emit('ships_solo_aim', { aimRow: null, aimCol: idx, phase: 'col' });
-        },
-        (idx) => {
-            selectedCol = idx;
-            playConfirm();
-            // Aktualizuj label fazy 2
-            document.getElementById('row-phase-title').textContent = `Kolumna ${LETTERS[idx]} → Wybierz rząd`;
-            document.getElementById('row-phase-badge').textContent = `2 z 2 · 1–${config.boardSize}`;
+            selectedCol = idx; playConfirm();
+            document.getElementById('row-phase-title').textContent = `Kolumna ${LETTERS[idx]} → Rząd`;
+            document.getElementById('row-phase-badge').textContent = `1–${config.boardSize}`;
             socket.emit('ships_solo_aim', { aimRow: null, aimCol: idx, phase: 'row' });
             buildDrumRow();
             show('s-row');
@@ -470,6 +533,7 @@ function buildDrumCol() {
 function buildDrumRow() {
     if (rowPickerCleanup) rowPickerCleanup();
     const items = Array.from({length: config.boardSize}, (_, i) => String(i + 1));
+    updateRowBar(selectedCol, selectedRow);
     rowPickerCleanup = buildDrum(
         document.getElementById('drum-row-outer'),
         document.getElementById('drum-row-zone'),
@@ -477,46 +541,38 @@ function buildDrumRow() {
         items, selectedRow, true,
         (idx) => {
             selectedRow = idx;
-            const key = `${idx}_${selectedCol}`;
-            socket.emit('ships_solo_aim', {
-                aimRow: idx, aimCol: selectedCol,
-                phase: shots[key] ? 'col_blocked' : 'row'
-            });
+            updateRowBar(selectedCol, idx);
+            socket.emit('ships_solo_aim', { aimRow: idx, aimCol: selectedCol, phase: shots[`${idx}_${selectedCol}`] ? 'col_blocked' : 'row' });
         },
         (idx) => {
             selectedRow = idx;
-            const key = `${idx}_${selectedCol}`;
-            if (shots[key]) return; // już strzelano
+            if (shots[`${idx}_${selectedCol}`]) return;
             playFire();
             socket.emit('ships_solo_shot', { row: idx, col: selectedCol });
         }
     );
 }
 
-// ── Wynik strzału ──────────────────────────────────────────
+// ── Wynik ──────────────────────────────────────────────────
 socket.on('ships_solo_shot_result', (d) => {
     if (d.shots) shots = d.shots;
     if (d.hit === undefined) return;
-
-    if (d.hit) playHitResult(); else playMissResult();
+    d.hit ? playHitResult() : playMissResult();
 
     document.getElementById('r-icon').textContent = d.hit ? '💥' : '💧';
     document.getElementById('r-text').textContent = d.hit ? 'TRAFIONY!' : 'Pudło';
     document.getElementById('r-text').style.color = d.hit ? '#4ade80' : '#64748b';
-
-    let rewardText = '';
+    let rew = '';
     if (d.hit) {
-        if (d.shipSize) rewardText += `⚓ Statek ${d.shipSize}-masztowy`;
-        if (d.reward) rewardText += (rewardText ? ' · ' : '') + '🏆 ' + d.reward;
+        if (d.shipSize) rew += `⚓ Statek ${d.shipSize}-masztowy`;
+        if (d.reward) rew += (rew ? '  ·  ' : '') + '🏆 ' + d.reward;
     }
-    document.getElementById('r-reward').textContent = rewardText;
-    document.getElementById('r-coord').textContent = `Pole: ${LETTERS[d.col]}${d.row + 1}`;
-
+    document.getElementById('r-reward').textContent = rew;
+    document.getElementById('r-coord').textContent = `Trafione pole: ${LETTERS[d.col]}${d.row + 1}`;
     renderMiniBoard(d.row, d.col);
-
     if (d.gameEnded) {
         document.getElementById('btn-next').style.display = 'none';
-        document.getElementById('r-coord').textContent += ' · Wszystkie statki zatopione! 🎉';
+        document.getElementById('r-coord').textContent += ' · 🎉 Wszystkie zatopione!';
         audioEl.pause(); musicPlaying = false;
     }
     show('s-result');
@@ -524,10 +580,9 @@ socket.on('ships_solo_shot_result', (d) => {
 
 function renderMiniBoard(lastR, lastC) {
     if (!config) return;
-    const n = config.boardSize;
-    const cs = Math.max(18, Math.floor(300 / (n + 1)));
-    const fsc = Math.max(7, Math.floor(cs * 0.5));
-    // Header: litery
+    const n = config.boardSize; const cs = Math.max(18, Math.floor(300 / (n + 1)));
+    const fs = Math.max(7, Math.floor(cs * 0.5));
+    // Header: litery (kolumny)
     let html = `<table id="mini-board"><tr><th style="width:${cs}px;height:${cs}px;background:#00111f;"></th>`;
     for (let c = 0; c < n; c++) {
         const hl = c === lastC ? 'color:#fbbf24;background:rgba(251,191,36,.12)' : 'color:#38bdf8;background:#00111f';
@@ -536,19 +591,17 @@ function renderMiniBoard(lastR, lastC) {
     html += '</tr>';
     for (let r = 0; r < n; r++) {
         const rhl = r === lastR ? 'color:#fbbf24;background:rgba(251,191,36,.12)' : 'color:#475569;background:#00111f';
-        html += `<tr><th style="width:${cs}px;height:${cs}px;${rhl};">${r + 1}</th>`;
+        html += `<tr><th style="width:${cs}px;height:${cs}px;${rhl};">${r+1}</th>`;
         for (let c = 0; c < n; c++) {
-            const shot = shots[`${r}_${c}`];
-            const isLast = r === lastR && c === lastC;
+            const shot = shots[`${r}_${c}`]; const isLast = r === lastR && c === lastC;
             let bg = '#001020', txt = '';
             if (shot) {
                 bg = shot.hit ? '#166534' : '#1e293b';
                 txt = shot.hit
-                    ? `<span style="font-size:${fsc}px;font-weight:900;color:#4ade80;">${shot.shipSize || '🔥'}</span>`
-                    : `<span style="color:#334155;font-size:${fsc}px;">✕</span>`;
+                    ? `<span style="font-size:${fs}px;font-weight:900;color:#4ade80;">${shot.shipSize || '🔥'}</span>`
+                    : `<span style="color:#334155;font-size:${fs}px;">✕</span>`;
             }
-            const border = isLast ? 'border:1.5px solid #fbbf24;' : '';
-            html += `<td style="width:${cs}px;height:${cs}px;background:${bg};${border}">${txt}</td>`;
+            html += `<td style="width:${cs}px;height:${cs}px;background:${bg};${isLast ? 'border:1.5px solid #fbbf24;' : ''}">${txt}</td>`;
         }
         html += '</tr>';
     }
