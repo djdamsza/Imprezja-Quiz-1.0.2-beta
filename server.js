@@ -1552,6 +1552,30 @@ app.post('/api/familiada/golden', (req, res) => {
     }
 });
 
+// ─── STATKI SOLO – zapis i odczyt konfiguracji planszy ─────────────────────
+const STATKI_SOLO_CONFIG_FILE = path.join(__dirname, 'statki-solo-config.json');
+
+app.get('/api/statki-solo/config', (req, res) => {
+    try {
+        if (!require('fs').existsSync(STATKI_SOLO_CONFIG_FILE)) {
+            return res.json({ boardSize: 8, ships: [], rewards: {}, soundtrack: '' });
+        }
+        const data = JSON.parse(require('fs').readFileSync(STATKI_SOLO_CONFIG_FILE, 'utf8'));
+        res.json(data);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/statki-solo/config', express.json(), (req, res) => {
+    try {
+        require('fs').writeFileSync(STATKI_SOLO_CONFIG_FILE, JSON.stringify(req.body, null, 2));
+        res.json({ ok: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // Sprawdź aktualizacje (tylko w aplikacji Electron – in-process)
 app.get('/api/version', (req, res) => {
     try {
@@ -5333,12 +5357,56 @@ io.on('connection', (socket) => {
         console.log('📤 Wywołano broadcastState()');
     });
 
+    // ─── SHIPS_SOLO standalone: inicjalizacja bez pytania ───────────────────────
+
+    /** Standalone: admin ładuje konfigurację i startuje grę */
+    socket.on('ships_solo_init', (data) => {
+        const { boardSize, ships, rewards, soundtrack } = data;
+        const validShips = (ships || []).filter(s => {
+            if (!s || typeof s.size !== 'number' || s.size < 2 || s.size > 5) return false;
+            const vertical = !!s.vertical;
+            for (let i = 0; i < s.size; i++) {
+                const r = s.row + (vertical ? i : 0);
+                const c = s.col + (vertical ? 0 : i);
+                if (r < 0 || r >= boardSize || c < 0 || c >= boardSize) return false;
+            }
+            return true;
+        });
+        gameState.shipsSoloGame = {
+            questionId: 'standalone',
+            boardSize: boardSize || 8,
+            ships: validShips,
+            rewards: rewards || {},
+            shots: {},
+            aimRow: null, aimCol: null,
+            phase: 'row',
+            lastShot: null,
+            gameEnded: false,
+            soundtrack: soundtrack || ''
+        };
+        io.emit('ships_solo_state', gameState.shipsSoloGame);
+        console.log(`⚓ [SHIPS_SOLO standalone] Gra zainicjowana, plansza ${boardSize}x${boardSize}, ${validShips.length} statków`);
+    });
+
+    /** Standalone: reset gry */
+    socket.on('ships_solo_reset', () => {
+        gameState.shipsSoloGame = null;
+        io.emit('ships_solo_state', null);
+        console.log('⚓ [SHIPS_SOLO standalone] Reset gry');
+    });
+
+    /** Screen pyta o aktualny stan po połączeniu */
+    socket.on('ships_solo_get_state', () => {
+        socket.emit('ships_solo_state', gameState.shipsSoloGame || null);
+    });
+
     // ─── SHIPS_SOLO: Admin steruje celownikiem i strzałem ───────────────────────
 
     /** Admin wybiera wiersz (phase: 'row') – emitujemy aim do Screena */
     socket.on('ships_solo_aim', (data) => {
         const { questionId, aimRow, aimCol, phase } = data;
-        if (!gameState.shipsSoloGame || gameState.shipsSoloGame.questionId !== questionId) return;
+        if (!gameState.shipsSoloGame) return;
+        if (questionId && gameState.shipsSoloGame.questionId !== questionId) return;
         const g = gameState.shipsSoloGame;
         g.aimRow = aimRow ?? g.aimRow;
         g.aimCol = aimCol ?? g.aimCol;
@@ -5350,7 +5418,8 @@ io.on('connection', (socket) => {
     /** Admin oddaje strzał */
     socket.on('ships_solo_shot', (data) => {
         const { questionId, row, col } = data;
-        if (!gameState.shipsSoloGame || gameState.shipsSoloGame.questionId !== questionId) return;
+        if (!gameState.shipsSoloGame) return;
+        if (questionId && gameState.shipsSoloGame.questionId !== questionId) return;
         const g = gameState.shipsSoloGame;
         if (g.gameEnded) return;
 
@@ -5404,8 +5473,7 @@ io.on('connection', (socket) => {
 
     /** Admin kończy grę solo */
     socket.on('ships_solo_end', (data) => {
-        const { questionId } = data;
-        if (!gameState.shipsSoloGame || gameState.shipsSoloGame.questionId !== questionId) return;
+        if (!gameState.shipsSoloGame) return;
         gameState.shipsSoloGame.gameEnded = true;
         io.emit('ships_solo_shot_result', {
             questionId, shots: gameState.shipsSoloGame.shots, gameEnded: true
