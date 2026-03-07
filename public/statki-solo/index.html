@@ -155,11 +155,23 @@ async function loadBoardInfo() {
             el.style.borderColor = 'rgba(239,68,68,0.4)';
             el.style.background = 'rgba(239,68,68,0.08)';
         } else {
-            const rewards = Array.isArray(c.rewards) ? c.rewards.filter(Boolean) : [];
-            const modeLabel = c.rewardMode === 'buciki' ? '🥾 Buciki'
-                : c.rewardMode === 'per_ship' ? '⚓ każdy statek'
+            const ships = c.ships || [];
+            const mode = c.rewardMode || 'per_hit';
+            // Liczba nagród zależy od trybu:
+            // per_hit  → suma masztów wszystkich statków
+            // per_ship → liczba statków (nagroda za pierwsze trafienie)
+            // buciki   → liczba statków (każdy statek = auto nagroda wg liczby masztów)
+            let rewardCount;
+            if (mode === 'per_hit') {
+                rewardCount = ships.reduce((s, sh) => s + (sh.size || 0), 0);
+            } else {
+                // per_ship i buciki: jedna nagroda (sekwencja) na każdy statek
+                rewardCount = ships.length;
+            }
+            const modeLabel = mode === 'buciki' ? '🥾 Buciki'
+                : mode === 'per_ship' ? '⚓ każdy statek'
                 : '🎯 każdy maszt';
-            el.textContent = `Plansza ${c.boardSize}×${c.boardSize} · ${c.ships.length} statków · ${rewards.length} nagród · Tryb: ${modeLabel}${c.soundtrack ? ' · 🎵 soundtrack' : ''}`;
+            el.textContent = `Plansza ${c.boardSize}×${c.boardSize} · ${ships.length} statków · ${rewardCount} nagród · Tryb: ${modeLabel}${c.soundtrack ? ' · 🎵 soundtrack' : ''}`;
         }
     } catch(e) { document.getElementById('board-info').textContent = 'Błąd ładowania konfiguracji.'; }
 }
