@@ -166,6 +166,7 @@
         <button class="btn" onclick="addQuestion('OPEN')" style="margin:0; background: #2e7d32; color: white;">Pytanie otwarte</button>
         <button class="btn" onclick="addQuestion('LETTER')" style="margin:0; background: #9c27b0; color: white;">🔤 Pytanie z literą</button>
         <button class="btn" onclick="addQuestion('SHIPS')" style="margin:0; background: #0066cc; color: white;">⚓ Statki</button>
+        <button class="btn" onclick="addQuestion('SHIPS_SOLO')" style="margin:0; background: #0d4f8a; color: #7dd3fc; border: 1px solid #0ea5e9;">🎯 Statki Solo</button>
     </div>
 
     <!-- LEGENDA TYPÓW PYTAŃ -->
@@ -514,33 +515,67 @@
                 <p style="margin: 0; color: var(--text-muted); font-size: 0.9em;">Gracze wpisują wyraz zaczynający się na wylosowaną literę. Każdy gracz dostaje inną literę (lub 2 litery jeśli mało graczy). Liczbę liter można wybrać w panelu administracyjnym przy starcie pytania. Po kliknięciu "Statystyki" automatycznie uruchamia się dogrywka TAK/NIE z chmurą słów.</p>
             </div>
             `;
-        } else if (type === 'SHIPS') {
+        } else if (type === 'SHIPS' || type === 'SHIPS_SOLO') {
             const boardSize = data ? (data.boardSize || 8) : 8;
             const shipsData = data ? (data.ships || []) : [];
+            const isSolo = type === 'SHIPS_SOLO';
+            const rewards = (data && data.rewards) ? data.rewards : {};
+            const soundtrack = (data && data.soundtrack) ? data.soundtrack : '';
+            const accentColor = isSolo ? '#0ea5e9' : '#0066cc';
+            const bgColor = isSolo ? '#00111f' : '#001122';
+            const labelText = isSolo ? '🎯 Statki Solo (Admin + Screen, bez telefonów)' : '⚓ Gra w Statki';
+            // Buduj siatkę nagród dla SHIPS_SOLO
+            const cols = boardSize;
+            const LETTERS = 'ABCDEFGHIJ'.slice(0, cols);
+            let rewardsGridHtml = '';
+            if (isSolo) {
+                rewardsGridHtml = `
+                <div style="margin-top:14px;">
+                    <label style="display:block;margin-bottom:6px;color:#7dd3fc;font-weight:600;">🏆 Nagrody za trafienia (opcjonalnie)</label>
+                    <p style="color:#94a3b8;font-size:0.82em;margin:0 0 8px;">Wpisz nazwę nagrody lub zostaw puste. Format: <code style="background:#0d2a3f;padding:2px 5px;border-radius:3px;">Rząd-Kolumna</code></p>
+                    <div class="ships-solo-rewards-grid" id="rewards-grid-${qId}" style="display:grid;grid-template-columns:repeat(${Math.min(cols,6)},1fr);gap:4px;max-height:300px;overflow-y:auto;">
+                    ${Array.from({length:boardSize},(_,r)=>Array.from({length:boardSize},(_,c)=>{
+                        const key=`${r}_${c}`;
+                        const val=rewards[key]||'';
+                        return `<div style="text-align:center;">
+                            <div style="font-size:0.7em;color:#64748b;margin-bottom:2px;">${r+1}${LETTERS[c]}</div>
+                            <input type="text" class="ships-solo-reward-input" data-key="${key}" value="${escapeHtmlAttr(val)}" placeholder="nagroda…" style="width:100%;padding:3px 4px;font-size:0.75em;background:#0d2a3f;color:#e2e8f0;border:1px solid #1e3a5f;border-radius:4px;box-sizing:border-box;">
+                        </div>`;
+                    }).join('')).join('')}
+                    </div>
+                    <input type="hidden" class="ships-solo-rewards-input" id="rewards-data-${qId}" value='${JSON.stringify(rewards)}'>
+                </div>
+                <div style="margin-top:14px;">
+                    <label style="display:block;margin-bottom:6px;color:#7dd3fc;font-weight:600;">🎵 Soundtrack (tło muzyczne)</label>
+                    <input type="text" class="ships-solo-soundtrack-input" value="${escapeHtmlAttr(soundtrack)}" placeholder="URL lub nazwa pliku .mp3" style="width:100%;padding:6px 10px;background:#0d2a3f;color:#e2e8f0;border:1px solid #1e3a5f;border-radius:6px;box-sizing:border-box;">
+                    <small style="color:#64748b;">Plik będzie odtwarzany automatycznie po uruchomieniu trybu. Możesz wgrać go przez panel uploadu plików.</small>
+                </div>`;
+            }
             answersHtml = `
-            <div style="padding: 15px; background: #001122; border-radius: 8px; border: 2px solid #0066cc;">
-                <label style="font-weight: 600; display: block; margin-bottom: 10px; color: #00aaff;">⚓ Gra w Statki</label>
+            <div style="padding: 15px; background: ${bgColor}; border-radius: 8px; border: 2px solid ${accentColor};">
+                <label style="font-weight: 600; display: block; margin-bottom: 10px; color: ${isSolo ? '#7dd3fc' : '#00aaff'};">${labelText}</label>
                 <div id="ships-editor-${qId}" style="margin-top: 15px;">
                     <div style="margin-bottom: 15px;">
                         <label style="display: block; margin-bottom: 8px; color: #fff;">Rozmiar planszy:</label>
                         <div style="display: flex; gap: 10px;">
-                            <button type="button" class="ships-size-btn" data-size="6" style="flex: 1; padding: 8px; background: ${boardSize === 6 ? '#0066cc' : '#003366'}; color: #fff; border: 1px solid #0066cc; border-radius: 4px; cursor: pointer;">6x6</button>
-                            <button type="button" class="ships-size-btn" data-size="8" style="flex: 1; padding: 8px; background: ${boardSize === 8 ? '#0066cc' : '#003366'}; color: #fff; border: 1px solid #0066cc; border-radius: 4px; cursor: pointer;">8x8</button>
-                            <button type="button" class="ships-size-btn" data-size="10" style="flex: 1; padding: 8px; background: ${boardSize === 10 ? '#0066cc' : '#003366'}; color: #fff; border: 1px solid #0066cc; border-radius: 4px; cursor: pointer;">10x10</button>
+                            <button type="button" class="ships-size-btn" data-size="6" style="flex: 1; padding: 8px; background: ${boardSize === 6 ? accentColor : '#003366'}; color: #fff; border: 1px solid ${accentColor}; border-radius: 4px; cursor: pointer;">6x6</button>
+                            <button type="button" class="ships-size-btn" data-size="8" style="flex: 1; padding: 8px; background: ${boardSize === 8 ? accentColor : '#003366'}; color: #fff; border: 1px solid ${accentColor}; border-radius: 4px; cursor: pointer;">8x8</button>
+                            <button type="button" class="ships-size-btn" data-size="10" style="flex: 1; padding: 8px; background: ${boardSize === 10 ? accentColor : '#003366'}; color: #fff; border: 1px solid ${accentColor}; border-radius: 4px; cursor: pointer;">10x10</button>
                         </div>
                     </div>
                     <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
-                        <button type="button" class="ships-ship-btn" data-size="2" style="padding: 8px 12px; background: #003366; color: #00aaff; border: 1px solid #0066cc; border-radius: 4px; cursor: pointer;">2 Maszty</button>
-                        <button type="button" class="ships-ship-btn" data-size="3" style="padding: 8px 12px; background: #003366; color: #00aaff; border: 1px solid #0066cc; border-radius: 4px; cursor: pointer;">3 Maszty</button>
-                        <button type="button" class="ships-ship-btn" data-size="4" style="padding: 8px 12px; background: #003366; color: #00aaff; border: 1px solid #0066cc; border-radius: 4px; cursor: pointer;">4 Maszty</button>
-                        <button type="button" class="ships-ship-btn" data-size="5" style="padding: 8px 12px; background: #003366; color: #00aaff; border: 1px solid #0066cc; border-radius: 4px; cursor: pointer;">5 Masztów</button>
-                        <button type="button" class="ships-rotate-btn" style="padding: 8px 12px; background: #003366; color: #00aaff; border: 1px solid #0066cc; border-radius: 4px; cursor: pointer;">Obrót: PIONOWO</button>
+                        <button type="button" class="ships-ship-btn" data-size="2" style="padding: 8px 12px; background: #003366; color: ${isSolo ? '#7dd3fc' : '#00aaff'}; border: 1px solid ${accentColor}; border-radius: 4px; cursor: pointer;">2 Maszty</button>
+                        <button type="button" class="ships-ship-btn" data-size="3" style="padding: 8px 12px; background: #003366; color: ${isSolo ? '#7dd3fc' : '#00aaff'}; border: 1px solid ${accentColor}; border-radius: 4px; cursor: pointer;">3 Maszty</button>
+                        <button type="button" class="ships-ship-btn" data-size="4" style="padding: 8px 12px; background: #003366; color: ${isSolo ? '#7dd3fc' : '#00aaff'}; border: 1px solid ${accentColor}; border-radius: 4px; cursor: pointer;">4 Maszty</button>
+                        <button type="button" class="ships-ship-btn" data-size="5" style="padding: 8px 12px; background: #003366; color: ${isSolo ? '#7dd3fc' : '#00aaff'}; border: 1px solid ${accentColor}; border-radius: 4px; cursor: pointer;">5 Masztów</button>
+                        <button type="button" class="ships-rotate-btn" style="padding: 8px 12px; background: #003366; color: ${isSolo ? '#7dd3fc' : '#00aaff'}; border: 1px solid ${accentColor}; border-radius: 4px; cursor: pointer;">Obrót: PIONOWO</button>
                     </div>
-                    <div id="ships-board-${qId}" style="display: inline-block; border: 2px solid #0066cc; background: #000;"></div>
-                    <div style="margin-top: 10px; color: #00aaff; font-size: 0.9em;">
+                    <div id="ships-board-${qId}" style="display: inline-block; border: 2px solid ${accentColor}; background: #000;"></div>
+                    <div style="margin-top: 10px; color: ${isSolo ? '#7dd3fc' : '#00aaff'}; font-size: 0.9em;">
                         <span id="ships-status-${qId}">Wybierz statek i kliknij na planszę</span>
                     </div>
                     <input type="hidden" class="ships-data-input" value='${JSON.stringify({boardSize: boardSize, ships: shipsData})}'>
+                    ${rewardsGridHtml}
                 </div>
             </div>
             `;
@@ -647,13 +682,13 @@
             </div>
 
             <div style="display: flex; gap: 20px; margin-top: 15px; flex-wrap: wrap; align-items: center;">
-                ${type !== 'SHIPS' ? `
+                ${type !== 'SHIPS' && type !== 'SHIPS_SOLO' ? `
                 <div class="form-group" style="max-width: 150px;">
                     <label>Czas (sekundy)</label>
                     <input type="number" class="q-time" value="${time}">
                 </div>
                 ` : ''}
-                ${type !== 'SHIPS' && type !== 'LETTER' ? `
+                ${type !== 'SHIPS' && type !== 'SHIPS_SOLO' && type !== 'LETTER' ? `
                 <div class="checkbox-card" style="margin-top: 0;" onclick="document.querySelector('#card-${qId} .q-speedrun').click()">
                     <input type="checkbox" class="q-speedrun" id="speedrun-${qId}" ${(data && data.speedrun) ? 'checked' : ''} onclick="event.stopPropagation()">
                     <span>⏱️ Speedrun (punkty tylko dla 10 pierwszych: 1000→100)</span>
@@ -891,9 +926,9 @@
                 id: `q_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
                 type: type,
                 question: card.querySelector('.q-text').value,
-                time: (type === 'SHIPS') ? 0 : (type === 'LETTER') ? (timeInput ? parseInt(timeInput.value) || 45 : 45) : (timeInput ? parseInt(timeInput.value) || 30 : 30),
-                speedrun: (type === 'LETTER' || type === 'SHIPS') ? false : (card.querySelector('.q-speedrun') && card.querySelector('.q-speedrun').offsetParent !== null) ? card.querySelector('.q-speedrun').checked : false,
-                elimination: (type === 'LETTER' || type === 'SHIPS') ? false : (card.querySelector('.q-elimination') && card.querySelector('.q-elimination').offsetParent !== null) ? card.querySelector('.q-elimination').checked : false,
+                time: (type === 'SHIPS' || type === 'SHIPS_SOLO') ? 0 : (type === 'LETTER') ? (timeInput ? parseInt(timeInput.value) || 45 : 45) : (timeInput ? parseInt(timeInput.value) || 30 : 30),
+                speedrun: (type === 'LETTER' || type === 'SHIPS' || type === 'SHIPS_SOLO') ? false : (card.querySelector('.q-speedrun') && card.querySelector('.q-speedrun').offsetParent !== null) ? card.querySelector('.q-speedrun').checked : false,
+                elimination: (type === 'LETTER' || type === 'SHIPS' || type === 'SHIPS_SOLO') ? false : (card.querySelector('.q-elimination') && card.querySelector('.q-elimination').offsetParent !== null) ? card.querySelector('.q-elimination').checked : false,
                 answers: [],
                 // Zapisujemy media:
                 media: mediaInput ? mediaInput.value : '',
@@ -970,8 +1005,8 @@
                 // letterCount będzie ustawiane w admin.html przy starcie pytania
             }
             
-            // SHIPS - dane statków (tylko statki mieszczące się w całości na planszy)
-            if (type === 'SHIPS') {
+            // SHIPS / SHIPS_SOLO - dane statków
+            if (type === 'SHIPS' || type === 'SHIPS_SOLO') {
                 qData.time = 0;
                 const shipsDataInput = card.querySelector('.ships-data-input');
                 if (shipsDataInput && shipsDataInput.value) {
@@ -988,6 +1023,17 @@
                 } else {
                     qData.boardSize = 8;
                     qData.ships = [];
+                }
+                // SHIPS_SOLO – zbierz nagrody i soundtrack
+                if (type === 'SHIPS_SOLO') {
+                    const rewards = {};
+                    card.querySelectorAll('.ships-solo-reward-input').forEach(inp => {
+                        const val = inp.value.trim();
+                        if (val) rewards[inp.dataset.key] = val;
+                    });
+                    qData.rewards = rewards;
+                    const soundtrackInp = card.querySelector('.ships-solo-soundtrack-input');
+                    qData.soundtrack = soundtrackInp ? soundtrackInp.value.trim() : '';
                 }
             }
 
@@ -1032,7 +1078,7 @@
                 } else {
                     qData.correct = correctIndices;
                 }
-            } else if (type !== 'ESTIMATION' && type !== 'OPEN' && type !== 'SHIPS' && type !== 'LETTER') {
+            } else if (type !== 'ESTIMATION' && type !== 'OPEN' && type !== 'SHIPS' && type !== 'SHIPS_SOLO' && type !== 'LETTER') {
                 qData.correct = -1; 
             }
             
@@ -1075,8 +1121,8 @@
             if (!q.question || !String(q.question).trim()) {
                 errors.push({ index, title: shortTitle, message: 'Brak treści pytania.' });
             }
-            // Pomijaj sprawdzanie czasu dla pytań typu SHIPS (gra kończy się ręcznie)
-            if (q.type !== 'SHIPS') {
+            // Pomijaj sprawdzanie czasu dla pytań typu SHIPS/SHIPS_SOLO (gra kończy się ręcznie)
+            if (q.type !== 'SHIPS' && q.type !== 'SHIPS_SOLO') {
                 const time = parseInt(q.time, 10);
                 if (isNaN(time) || time <= 0) {
                     warnings.push({ index, title: shortTitle, message: 'Czas powinien być większy od 0.' });
@@ -1147,11 +1193,13 @@
                 case 'OPEN':
                     break;
                 case 'SHIPS':
+                case 'SHIPS_SOLO': {
                     const shipsList = q.ships || [];
                     if (!shipsList.length) {
                         errors.push({ index, title: shortTitle, message: 'Na mapę nie naniesiono żadnego statku. Dodaj co najmniej jeden statek na planszę.' });
                     }
                     break;
+                }
                 case 'LETTER':
                     const time = parseInt(q.time, 10);
                     if (isNaN(time) || time <= 0) {

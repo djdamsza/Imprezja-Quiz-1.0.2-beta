@@ -1181,7 +1181,7 @@
             }
         });
 
-        var TYPE_LABELS = { S: 'Speedrun', E: 'Eliminacja', Z: 'Szacowanie', O: 'Pytanie otwarte', L: 'Pytanie z literą', H: 'Hot or Not', Q: 'QUIZ', V: 'Głosowanie', F: 'Foto Głos', M: 'Muzyka', B: 'Statki' };
+        var TYPE_LABELS = { S: 'Speedrun', E: 'Eliminacja', Z: 'Szacowanie', O: 'Pytanie otwarte', L: 'Pytanie z literą', H: 'Hot or Not', Q: 'QUIZ', V: 'Głosowanie', F: 'Foto Głos', M: 'Muzyka', B: 'Statki', BS: 'Statki Solo' };
 
         function getTypeBadges(q) {
             const badges = [];
@@ -1641,6 +1641,7 @@
                 const isPlayoff = !!(state.playoff && state.playoff.active);
                 const isEstimation = q && q.type === 'ESTIMATION';
                 const isShips = q && q.type === 'SHIPS';
+                const isShipsSolo = q && q.type === 'SHIPS_SOLO';
                 const isLetter = q && q.type === 'LETTER';
                 const hasCorrect = q && q.correct !== undefined && q.correct !== null && q.correct !== -1;
                 const hasCorrectValue = isEstimation && q.correctValue !== undefined && q.correctValue !== null && q.correctValue !== '';
@@ -1685,7 +1686,13 @@
                     if (shipsEndBtn) shipsEndBtn.style.display = '';
                     if (shipsShowAnswerBtn) shipsShowAnswerBtn.style.display = '';
                     if (correctBtn) correctBtn.style.display = 'none';
-                    if (statsBtn) statsBtn.style.display = ''; // Statystyki dostępne dla statków
+                    if (statsBtn) statsBtn.style.display = '';
+                } else if (isShipsSolo) {
+                    if (shipsNextBtn) shipsNextBtn.style.display = 'none';
+                    if (shipsEndBtn) shipsEndBtn.style.display = 'none';
+                    if (shipsShowAnswerBtn) shipsShowAnswerBtn.style.display = 'none';
+                    if (correctBtn) correctBtn.style.display = 'none';
+                    if (statsBtn) statsBtn.style.display = 'none';
                 } else {
                     if (shipsNextBtn) shipsNextBtn.style.display = 'none';
                     if (shipsEndBtn) shipsEndBtn.style.display = 'none';
@@ -1807,6 +1814,8 @@
                         statsDiv.appendChild(table);
                         answersList.appendChild(statsDiv);
                     }
+                } else if (q.type === 'SHIPS_SOLO') {
+                    renderShipsSoloAdmin(q, state, answersList);
                 } else if (q.type === 'OPEN') {
                     if (state.openCloud && state.openCloud.length > 0) {
                         const hint = document.createElement('p');
@@ -1981,6 +1990,144 @@
                 socket.emit('admin_show_ships_answer');
             }
         }
+        // ─── SHIPS SOLO – celownik i strzały ────────────────────────────────────
+        let shipsSoloState = { phase: 'row', aimRow: null, aimCol: null };
+        const SOLO_LETTERS = 'ABCDEFGHIJ';
+
+        function renderShipsSoloAdmin(q, state, container) {
+            const g = state.shipsSoloGame;
+            const boardSize = q.boardSize || 8;
+            const shots = g ? g.shots : {};
+            const ships = q.ships || [];
+            const rewards = q.rewards || {};
+            const cellSize = Math.min(38, Math.floor(320 / boardSize));
+
+            // Miniaturka planszy
+            let boardHtml = `<div style="overflow-x:auto;margin-bottom:14px;"><table style="border-collapse:collapse;border:2px solid #0ea5e9;background:#000;">`;
+            boardHtml += `<tr><th style="width:${cellSize}px;height:${cellSize}px;border:1px solid #0ea5e9;background:#00111f;"></th>`;
+            for (let c = 0; c < boardSize; c++) {
+                boardHtml += `<th style="width:${cellSize}px;height:${cellSize}px;border:1px solid #0ea5e9;color:#7dd3fc;font-size:${Math.max(10,cellSize*0.4)}px;background:#00111f;">${SOLO_LETTERS[c]}</th>`;
+            }
+            boardHtml += `</tr>`;
+            for (let r = 0; r < boardSize; r++) {
+                const isAimRow = g && g.aimRow === r;
+                const isAimCol = g && g.aimCol !== null;
+                boardHtml += `<tr>`;
+                boardHtml += `<th style="width:${cellSize}px;height:${cellSize}px;border:1px solid #0ea5e9;color:#7dd3fc;font-size:${Math.max(10,cellSize*0.4)}px;background:${isAimRow ? '#1e3a5f' : '#00111f'};">${r+1}</th>`;
+                for (let c = 0; c < boardSize; c++) {
+                    const key = `${r}_${c}`;
+                    const shot = shots[key];
+                    let hasShip = ships.some(ship => {
+                        for (let i = 0; i < ship.size; i++) {
+                            const sr = ship.row + (ship.vertical ? i : 0);
+                            const sc = ship.col + (ship.vertical ? 0 : i);
+                            if (sr === r && sc === c) return true;
+                        }
+                        return false;
+                    });
+                    const isAim = g && g.aimRow === r && g.aimCol === c;
+                    let bg = '#001122', content = '';
+                    if (shot) {
+                        bg = shot.hit ? '#15803d' : '#334155';
+                        content = shot.hit ? '🔥' : '○';
+                    } else if (hasShip) {
+                        bg = '#1e40af';
+                    }
+                    if (isAim) bg = '#f59e0b';
+                    boardHtml += `<td style="width:${cellSize}px;height:${cellSize}px;border:1px solid #0ea5e9;background:${bg};text-align:center;font-size:${Math.max(10,cellSize*0.4)}px;">${content}</td>`;
+                }
+                boardHtml += `</tr>`;
+            }
+            boardHtml += `</table></div>`;
+
+            // Suwak celowniczy
+            const phase = g ? g.phase : 'row';
+            const ended = g && g.gameEnded;
+            const lastShot = g && g.lastShot;
+
+            let controlHtml = '';
+            if (ended) {
+                controlHtml = `<div style="text-align:center;padding:20px;color:#7dd3fc;font-size:1.2rem;">🏁 Gra zakończona</div>
+                <button onclick="socket.emit('ships_solo_end',{questionId:'${q.id}'})" class="btn btn-danger" style="display:none;"></button>`;
+            } else if (phase === 'row') {
+                // Wybór wiersza – duży picker
+                controlHtml = `<div id="solo-row-picker" style="margin-bottom:12px;">
+                    <p style="color:#7dd3fc;text-align:center;font-weight:600;margin:0 0 8px;">🎯 Wybierz rząd (1–${boardSize})</p>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+                    ${Array.from({length:boardSize},(_,r)=>`<button onclick="soloPickRow(${r})" 
+                        style="width:56px;height:56px;font-size:1.4rem;font-weight:700;border-radius:12px;border:2px solid #0ea5e9;background:${g&&g.aimRow===r?'#0ea5e9':'#00111f'};color:${g&&g.aimRow===r?'#fff':'#7dd3fc'};cursor:pointer;transition:all .15s;">${r+1}</button>`).join('')}
+                    </div>
+                    ${g&&g.aimRow!==null?`<div style="text-align:center;margin-top:10px;"><button onclick="soloConfirmRow()" class="btn btn-primary" style="padding:12px 32px;font-size:1.1rem;">✔ Potwierdź rząd ${(g.aimRow+1)}</button></div>`:''}
+                </div>`;
+            } else {
+                // Wybór kolumny – litery
+                controlHtml = `<div id="solo-col-picker" style="margin-bottom:12px;">
+                    <p style="color:#7dd3fc;text-align:center;font-weight:600;margin:0 0 8px;">🎯 Wybierz kolumnę (rząd: ${g.aimRow+1})</p>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+                    ${Array.from({length:boardSize},(_,c)=>{
+                        const key=`${g.aimRow}_${c}`;
+                        const already=shots[key];
+                        return `<button onclick="${already?'':'soloFireShot('+c+')'}"
+                            style="width:56px;height:56px;font-size:1.3rem;font-weight:700;border-radius:12px;border:2px solid ${already?'#334155':'#0ea5e9'};background:${already?(shots[key].hit?'#15803d':'#334155'):'#00111f'};color:${already?'#9ca3af':'#7dd3fc'};cursor:${already?'default':'pointer'};transition:all .15s;">${SOLO_LETTERS[c]}</button>`;
+                    }).join('')}
+                    </div>
+                    <div style="text-align:center;margin-top:10px;">
+                        <button onclick="soloResetRow()" class="btn btn-secondary" style="font-size:0.9rem;">← Zmień rząd</button>
+                    </div>
+                </div>`;
+            }
+
+            // Ostatni strzał
+            let lastShotHtml = '';
+            if (lastShot) {
+                lastShotHtml = `<div style="text-align:center;padding:10px;border-radius:8px;background:${lastShot.hit?'rgba(21,128,61,0.3)':'rgba(51,65,85,0.5)'};border:1px solid ${lastShot.hit?'#15803d':'#334155'};margin-bottom:12px;">
+                    ${lastShot.hit ? `<span style="color:#4ade80;font-size:1.1rem;font-weight:700;">🔥 TRAFIONY! ${SOLO_LETTERS[lastShot.col]}${lastShot.row+1}</span>${lastShot.reward?`<br><span style="color:#fbbf24;font-size:1rem;">🏆 ${lastShot.reward}</span>`:''}` 
+                    : `<span style="color:#94a3b8;font-size:1rem;">Pudło – ${SOLO_LETTERS[lastShot.col]}${lastShot.row+1}</span>`}
+                </div>`;
+            }
+
+            // Wolumin soundtracku
+            const soundHtml = q.soundtrack ? `<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+                <span style="color:#7dd3fc;font-size:0.85rem;">🎵</span>
+                <input type="range" min="0" max="1" step="0.05" value="0.65" oninput="socket.emit('ships_solo_volume',{volume:parseFloat(this.value)})" style="flex:1;accent-color:#0ea5e9;">
+                <span style="color:#64748b;font-size:0.8rem;">Głośność soundtracku</span>
+            </div>` : '';
+
+            const endBtn = `<div style="text-align:center;margin-top:10px;">
+                <button onclick="if(confirm('Zakończyć Statki Solo?'))socket.emit('ships_solo_end',{questionId:'${q.id}'})" class="btn btn-danger" style="font-size:0.85rem;">🏁 Zakończ grę</button>
+            </div>`;
+
+            const wrap = document.createElement('div');
+            wrap.style.cssText = 'padding:14px;background:rgba(0,17,31,0.8);border-radius:10px;border:2px solid #0ea5e9;';
+            wrap.innerHTML = `<h4 style="color:#7dd3fc;margin:0 0 12px;text-align:center;">🎯 Statki Solo – Panel Admina</h4>${soundHtml}${lastShotHtml}${boardHtml}${controlHtml}${endBtn}`;
+            container.appendChild(wrap);
+        }
+
+        function soloPickRow(r) {
+            const q = questions[activeQuestionIndex];
+            if (!q || q.type !== 'SHIPS_SOLO') return;
+            socket.emit('ships_solo_aim', { questionId: q.id, aimRow: r, aimCol: null, phase: 'row' });
+        }
+        function soloConfirmRow() {
+            const q = questions[activeQuestionIndex];
+            const g = (currentGameState || {}).shipsSoloGame;
+            if (!q || q.type !== 'SHIPS_SOLO' || !g || g.aimRow === null) return;
+            socket.emit('ships_solo_aim', { questionId: q.id, aimRow: g.aimRow, aimCol: null, phase: 'col' });
+        }
+        function soloResetRow() {
+            const q = questions[activeQuestionIndex];
+            if (!q || q.type !== 'SHIPS_SOLO') return;
+            socket.emit('ships_solo_aim', { questionId: q.id, aimRow: null, aimCol: null, phase: 'row' });
+        }
+        function soloFireShot(col) {
+            const q = questions[activeQuestionIndex];
+            const g = (currentGameState || {}).shipsSoloGame;
+            if (!q || q.type !== 'SHIPS_SOLO' || !g || g.aimRow === null) return;
+            socket.emit('ships_solo_shot', { questionId: q.id, row: g.aimRow, col });
+        }
+        // Nasłuchuj wyniku strzału – odśwież widok
+        socket.on('ships_solo_shot_result', () => { /* broadcastState już zaktualizuje widok */ });
+
         function repeatMusic() {
             socket.emit('admin_repeat_music');
         }
