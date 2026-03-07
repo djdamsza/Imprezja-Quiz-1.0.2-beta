@@ -31,15 +31,27 @@ h1{flex:1;text-align:center;font-size:1.4rem;color:#7dd3fc;font-weight:800}
 #editor-board th,#editor-board td{border:1px solid #0d3a5c;text-align:center;vertical-align:middle;cursor:pointer;transition:background .1s;user-select:none}
 #editor-board th{background:#00111f;color:#38bdf8;font-weight:700;pointer-events:none}
 .status-line{color:#64748b;font-size:.82rem;min-height:20px}
-/* Rewards */
-.rewards-note{font-size:.78rem;color:#475569;margin-bottom:12px;line-height:1.5}
-.rewards-list{display:flex;flex-direction:column;gap:10px;overflow-y:auto;max-height:360px;padding-right:2px}
+/* Tryb nagród — przełącznik */
+.mode-toggle{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.mode-card{border:2px solid rgba(255,255,255,.1);border-radius:12px;padding:12px 10px;text-align:center;cursor:pointer;transition:all .18s;background:rgba(255,255,255,.03)}
+.mode-card:hover{border-color:rgba(255,255,255,.22);background:rgba(255,255,255,.06)}
+.mode-card.active{border-color:#0ea5e9;background:rgba(14,165,233,.12)}
+.mode-card .mc-icon{font-size:2rem;line-height:1;margin-bottom:4px}
+.mode-card .mc-name{font-size:.82rem;font-weight:700;color:#e2e8f0;margin-bottom:2px}
+.mode-card .mc-desc{font-size:.68rem;color:#64748b;line-height:1.3}
+.mode-card.active .mc-name{color:#7dd3fc}
+.mode-card.active .mc-desc{color:#38bdf8}
+.mode-info{font-size:.75rem;color:#475569;margin-bottom:10px;padding:7px 10px;border-radius:8px;background:rgba(255,255,255,.03);line-height:1.4}
+/* Rewards list */
+.rewards-list{display:flex;flex-direction:column;gap:8px;overflow-y:auto;max-height:320px;padding-right:2px}
 .reward-item{display:flex;flex-direction:column;gap:4px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px 12px}
-.reward-item.first{border-color:rgba(251,191,36,.25);background:rgba(251,191,36,.04)}
-.reward-rank{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#64748b}
-.reward-item.first .reward-rank{color:#fbbf24}
-.reward-ship-info{font-size:.72rem;color:#334155;margin-bottom:2px}
-.reward-inp{width:100%;padding:7px 10px;background:#001020;border:1px solid #1e3a5f;border-radius:7px;color:#e2e8f0;font-size:.88rem}
+.reward-item.first-r{border-color:rgba(34,197,94,.25);background:rgba(34,197,94,.04)}
+.reward-item.last-r{border-color:rgba(251,191,36,.3);background:rgba(251,191,36,.04)}
+.reward-rank{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#64748b}
+.reward-item.first-r .reward-rank{color:#4ade80}
+.reward-item.last-r .reward-rank{color:#fbbf24}
+.reward-sub{font-size:.68rem;color:#334155;margin-bottom:2px}
+.reward-inp{width:100%;padding:7px 10px;background:#001020;border:1px solid #1e3a5f;border-radius:7px;color:#e2e8f0;font-size:.86rem}
 .reward-inp:focus{outline:none;border-color:#0ea5e9}
 .reward-inp.has-val{border-color:#0369a1;background:rgba(3,105,161,.08)}
 .rewards-empty{color:#334155;font-size:.82rem;font-style:italic;padding:12px 0}
@@ -100,8 +112,20 @@ h1{flex:1;text-align:center;font-size:1.4rem;color:#7dd3fc;font-weight:800}
 
     <!-- Prawa: nagrody -->
     <div class="panel">
-        <h2>🏆 Nagrody za trafienia</h2>
-        <p class="rewards-note">Jedna nagroda na statek, w kolejności trafień. Nagroda główna powinna być ostatnia. Każde trafienie nowego statku wyświetli kolejną nagrodę na ekranie.</p>
+        <h2>🏆 Nagrody</h2>
+        <div class="mode-toggle">
+            <div class="mode-card active" data-mode="per_hit" onclick="setRewardMode('per_hit')">
+                <div class="mc-icon">🎯</div>
+                <div class="mc-name">Każdy maszt</div>
+                <div class="mc-desc">Nagroda przy każdym trafieniu komórki</div>
+            </div>
+            <div class="mode-card" data-mode="per_ship" onclick="setRewardMode('per_ship')">
+                <div class="mc-icon">⚓</div>
+                <div class="mc-name">Każdy statek</div>
+                <div class="mc-desc">Nagroda tylko za odkrycie statku</div>
+            </div>
+        </div>
+        <div class="mode-info" id="mode-info">Nagroda przy trafieniu każdego masztu. Nagroda główna powinna być ostatnia.</div>
         <div class="rewards-list" id="rewards-grid"></div>
     </div>
 </div>
@@ -112,8 +136,9 @@ h1{flex:1;text-align:center;font-size:1.4rem;color:#7dd3fc;font-weight:800}
 <script>
 const LETTERS = 'ABCDEFGHIJ';
 let boardSize = 8;
-let ships = [];           // [{ row, col, size, vertical }]
-let rewards = [];         // Array<string> — nagroda[i] dla i-tego trafionego statku
+let ships = [];
+let rewards = [];         // Array<string>
+let rewardMode = 'per_hit'; // 'per_hit' | 'per_ship'
 let selectedShipSize = 2;
 let vertical = false;
 let hoverCell = null;
@@ -232,9 +257,18 @@ function clickCell(r, c) {
     });
     if (shipIdx !== -1) {
         collectCurrentRewards();
+        const removedShip = ships[shipIdx];
         ships.splice(shipIdx, 1);
-        // Usuń odpowiadający wpis z nagród, zachowaj pozostałe
-        rewards.splice(shipIdx, 1);
+        if (rewardMode === 'per_ship') {
+            rewards.splice(shipIdx, 1);
+        } else {
+            // per_hit: usuń odpowiednie sloty dla komórek tego statku
+            // Oblicz offset w tablicy rewards dla tego statku
+            let offset = 0;
+            for (let si = 0; si < shipIdx; si++) offset += ships[si].size; // ships już po splice
+            // Ale ships był spliced — musimy użyć removedShip.size
+            rewards.splice(offset, removedShip.size);
+        }
         updateBoardHighlight();
         updateStatus();
         buildRewardsGrid();
@@ -246,14 +280,15 @@ function clickCell(r, c) {
     if (!valid) { setStatus('❌ Nie można tu postawić statku', '#ef4444'); return; }
     collectCurrentRewards();
     ships.push({ row: r, col: c, size: selectedShipSize, vertical });
-    rewards.push('');   // nowy slot nagrody
+    const slotsToAdd = rewardMode === 'per_ship' ? 1 : selectedShipSize;
+    for (let i = 0; i < slotsToAdd; i++) rewards.push('');
     updateBoardHighlight();
     updateStatus();
     buildRewardsGrid();
 }
 
 function clearBoard() {
-    if (confirm('Wyczyścić całą planszę?')) { ships = []; rewards = []; updateBoardHighlight(); buildRewardsGrid(); }
+    if (confirm('Wyczyścić całą planszę (statki i nagrody)?')) { ships = []; rewards = []; updateBoardHighlight(); buildRewardsGrid(); }
 }
 
 function updateStatus() {
@@ -265,42 +300,82 @@ function setStatus(msg, color) {
     el.textContent = msg; el.style.color = color || '#64748b';
 }
 
+// ── Tryb nagród ────────────────────────────────────────────
+function setRewardMode(mode) {
+    collectCurrentRewards();
+    rewardMode = mode;
+    document.querySelectorAll('.mode-card').forEach(c => c.classList.toggle('active', c.dataset.mode === mode));
+    const info = document.getElementById('mode-info');
+    if (mode === 'per_hit') {
+        info.textContent = 'Nagroda przy trafieniu każdego masztu — tyle nagród ile łączna liczba komórek statków. Nagroda główna powinna być ostatnia.';
+    } else {
+        info.textContent = 'Nagroda tylko przy odkryciu nowego statku (pierwsze trafienie) — tyle nagród ile statków.';
+    }
+    // Przeskaluj rewards[] do nowej długości
+    rewards = rewards.slice(0, rewardSlotCount());
+    while (rewards.length < rewardSlotCount()) rewards.push('');
+    buildRewardsGrid();
+}
+
+function rewardSlotCount() {
+    if (rewardMode === 'per_hit') return ships.reduce((s, sh) => s + sh.size, 0);
+    return ships.length;
+}
+
 // ── Nagrody ─────────────────────────────────────────────────
 
-// Zbiera aktualne wartości z inputów do tablicy rewards[]
 function collectCurrentRewards() {
-    const inputs = document.querySelectorAll('.reward-inp[data-idx]');
-    inputs.forEach(inp => { rewards[parseInt(inp.dataset.idx)] = inp.value.trim(); });
+    document.querySelectorAll('.reward-inp[data-idx]').forEach(inp => {
+        rewards[parseInt(inp.dataset.idx)] = inp.value.trim();
+    });
 }
 
-function rewardLabel(i) {
-    if (i === 0) return 'Pierwsze trafienie';
-    if (i === 1) return '2. trafienie';
-    if (i === 2) return '3. trafienie';
-    if (i === 3) return '4. trafienie';
-    return `${i + 1}. trafienie`;
+function rewardLabel(i, total) {
+    const isFirst = i === 0;
+    const isLast = i === total - 1 && total > 1;
+    const ordinal = i === 0 ? 'Pierwsze' : `${i + 1}.`;
+    const noun = rewardMode === 'per_ship' ? 'odkrycie statku' : 'trafienie';
+    let label = `${ordinal} ${noun}`;
+    if (isLast) label += '  🏆';
+    return label;
 }
 
-function shipDesc(s) {
-    const orient = s.vertical ? 'pionowy' : 'poziomy';
-    return `${s.size}-masztowy · ${orient}`;
+function rewardSubInfo(i) {
+    if (rewardMode === 'per_ship') {
+        const s = ships[i];
+        return s ? `${s.size}-masztowy · ${s.vertical ? 'pionowy' : 'poziomy'}` : '';
+    }
+    // per_hit: powiąż slot z komórką statku
+    let cursor = 0;
+    for (const sh of ships) {
+        for (let m = 0; m < sh.size; m++) {
+            if (cursor === i) return `Maszt ${m + 1}/${sh.size} statku ${sh.size}-masztowego`;
+            cursor++;
+        }
+    }
+    return '';
 }
 
 function buildRewardsGrid() {
     const grid = document.getElementById('rewards-grid');
+    const n = rewardSlotCount();
     if (!ships.length) {
-        grid.innerHTML = '<div class="rewards-empty">Najpierw dodaj statki na planszę — pojawią się tu pola nagród.</div>';
+        grid.innerHTML = '<div class="rewards-empty">Najpierw dodaj statki — pojawią się tu pola nagród.</div>';
         return;
     }
+    // Dopasuj tablicę
+    while (rewards.length < n) rewards.push('');
     let html = '';
-    for (let i = 0; i < ships.length; i++) {
+    for (let i = 0; i < n; i++) {
         const val = rewards[i] || '';
-        const isLast = i === ships.length - 1;
-        html += `<div class="reward-item${i === 0 ? ' first' : ''}">
-            <div class="reward-rank">${rewardLabel(i)}${isLast && ships.length > 1 ? ' 🏆 (główna nagroda)' : ''}</div>
-            <div class="reward-ship-info">${shipDesc(ships[i])}</div>
+        const isFirst = i === 0;
+        const isLast = i === n - 1 && n > 1;
+        const cls = isFirst ? ' first-r' : isLast ? ' last-r' : '';
+        html += `<div class="reward-item${cls}">
+            <div class="reward-rank">${rewardLabel(i, n)}</div>
+            <div class="reward-sub">${rewardSubInfo(i)}</div>
             <input class="reward-inp${val ? ' has-val' : ''}" type="text" data-idx="${i}"
-                value="${escHtml(val)}" placeholder="np. Piosenka na życzenie, Taniec z panną młodą…"
+                value="${escHtml(val)}" placeholder="np. Piosenka na życzenie…"
                 oninput="onRewardInput(this)">
         </div>`;
     }
@@ -322,7 +397,7 @@ async function saveConfig() {
     // rewards jako tablica (puste stringi odcinamy od końca)
     const rewardsTrimmed = [...rewards];
     while (rewardsTrimmed.length && !rewardsTrimmed[rewardsTrimmed.length - 1]) rewardsTrimmed.pop();
-    const cfg = { boardSize, ships, rewards: rewardsTrimmed, soundtrack };
+    const cfg = { boardSize, ships, rewards: rewardsTrimmed, rewardMode, soundtrack };
     const btn = document.getElementById('btn-save');
     const msg = document.getElementById('save-msg');
     btn.disabled = true;
@@ -352,17 +427,22 @@ async function loadExisting() {
         const c = await r.json();
         if (c.boardSize) { boardSize = c.boardSize; document.querySelectorAll('.size-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.size) === boardSize)); }
         if (c.ships && c.ships.length) ships = c.ships;
-        // Wsteczna kompatybilność: stary format rewards był obiektem
         if (Array.isArray(c.rewards)) {
             rewards = c.rewards;
-        } else if (c.rewards && typeof c.rewards === 'object') {
-            // Stara konfiguracja per-komórka — ignoruj, zacznij od pustych
-            rewards = Array(ships.length).fill('');
+        } else {
+            rewards = [];
+        }
+        if (c.rewardMode) {
+            rewardMode = c.rewardMode;
+            document.querySelectorAll('.mode-card').forEach(mc => mc.classList.toggle('active', mc.dataset.mode === rewardMode));
+            const info = document.getElementById('mode-info');
+            if (rewardMode === 'per_ship') info.textContent = 'Nagroda tylko przy odkryciu nowego statku — tyle nagród ile statków.';
         }
         if (c.soundtrack) document.getElementById('soundtrack-inp').value = c.soundtrack;
     } catch(e) {}
-    // Dopasuj długość rewards do liczby statków
-    while (rewards.length < ships.length) rewards.push('');
+    // Dopasuj długość rewards do trybu
+    const needed = rewardMode === 'per_ship' ? ships.length : ships.reduce((s, sh) => s + sh.size, 0);
+    while (rewards.length < needed) rewards.push('');
     buildBoard();
     buildRewardsGrid();
     if (ships.length) updateStatus();
