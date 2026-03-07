@@ -1,7 +1,7 @@
 {
   "name": "votebattle",
   "description": "Imprezja Quiz – quiz i głosowanie w sieci lokalnej (działa offline)",
-  "version": "1.1.5-beta",
+  "version": "1.1.5",
   "author": "Damian Nowaczyk",
   "main": "electron-main.js",
   "scripts": {
@@ -11,6 +11,7 @@
     "electron:dev": "npm run kill-port && sleep 2 && electron .",
     "clean": "node scripts/clean.js",
     "electron": "npm run kill-port && sleep 2 && electron .",
+    "dist": "electron-builder",
     "build": "electron-builder",
     "build:mac": "electron-builder --mac",
     "build:mac:universal": "electron-builder --mac --universal",
@@ -147,9 +148,9 @@
     },
     "nsis": {
       "include": "build/installer.nsh",
-      "oneClick": true,
+      "oneClick": false,
       "allowToChangeInstallationDirectory": false,
-      "runAfterFinish": false,
+      "runAfterFinish": true,
       "deleteAppDataOnUninstall": false,
       "allowElevation": true,
       "createDesktopShortcut": true,
@@ -157,6 +158,16 @@
       "shortcutName": "Imprezja Quiz",
       "installerLanguages": [
         "pl"
+      ]
+    },
+    "dmg": {
+      "window": {
+        "width": 540,
+        "height": 380
+      },
+      "contents": [
+        { "x": 130, "y": 200, "type": "file" },
+        { "x": 410, "y": 200, "type": "link", "path": "/Applications" }
       ]
     }
   }

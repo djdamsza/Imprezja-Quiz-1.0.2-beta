@@ -1,13 +1,36 @@
 # Changelog – Imprezja Quiz
 
-**Przed następnym release:** Zainstaluj GitHub CLI (`brew install gh`), zaloguj się (`gh auth login`) i zrób release z poziomu terminala: `gh release create vX.Y.Z dist/*.dmg "dist/Imprezja Quiz Setup X.Y.Z.exe" --title "vX.Y.Z" --notes "..."` – załączy buildy bez ręcznego wgrywania w przeglądarce.
+---
+
+## v1.1.5 (marzec 2026) — wydanie stabilne
+
+### Instalator
+- Ekran końcowy instalatora (Windows) z checkboxem „Uruchom Imprezja Quiz" po instalacji.
+- Naprawiony błąd „integrity check has failed" przy odinstalowywaniu na Windows.
+- Instalator Mac: poprawiony układ okna DMG.
+
+### Bitwa wokalna
+- Gotowy zestaw „Panie VS Panowie" załadowany domyślnie przy pierwszym uruchomieniu – bez ręcznego konfigurowania.
+- Przycisk „← Cofnij" na ekranie gry (znika w trybie pełnoekranowym).
+
+### Familiada – ekran TV
+- Przycisk „← Cofnij" na ekranie Familiady (znika w trybie pełnoekranowym).
+
+### Ekran TV (Imprezja Quiz)
+- Przycisk „← Cofnij" na ekranie TV (znika w trybie pełnoekranowym).
+
+### Panel admina
+- Poprawione pozycjonowanie poradnika admina – nie jest już zasłaniany przez nagłówek ze statusem i liczbą graczy.
+
+### Tunel LTE
+- Poprawione wyświetlanie stanu tunelu po zatrzymaniu w panelu admina.
 
 ---
 
 ## v1.1.5-beta (19 luty 2026)
 
 ### Tunel LTE
-- Zastąpiono poprzedni tunel przez Cloudflare – bez hasła, bez limitu czasu, działa na Mac i Windows.
+- Zastąpiono poprzedni tunel nowym rozwiązaniem – bez hasła, bez limitu czasu, działa na Mac i Windows.
 - Panel admina poprawnie pokazuje stan tunelu po jego zatrzymaniu.
 
 ### Gry muzyczne
@@ -18,17 +41,17 @@
 
 ---
 
-## v1.1.1-beta (luty 2026)
+## v1.1.1 (luty 2026)
 
 ### Familiada
 - Ekran końcowy pokazuje wyniki i nazwy drużyn.
 - Dźwięk przy każdym odsłonięciu odpowiedzi.
-- Nazwy drużyn na przyciskach (zamiast stałych „NIEBIESCY”/„CZERWONI”).
+- Nazwy drużyn na przyciskach (zamiast stałych „NIEBIESCY"/„CZERWONI").
 - W dżinglu widać nazwy drużyn i punkty.
 
-### Gry muzyczne (NJR Sampler, Whitney, Śpiewaj Dalej, Bitwa wokalna)
+### Gry muzyczne (NJR Sampler, Śpiewaj Dalej, Bitwa wokalna)
 - Poprawione ładowanie banków i zestawów.
-- Po zeskanowaniu QR gra startuje automatycznie – nie trzeba klikać „Start”.
+- Po zeskanowaniu QR gra startuje automatycznie – nie trzeba klikać „Start".
 - Jeden przycisk Start/Stop (zielony/czerwony).
 - Jedna gra muzyczna aktywna naraz – włączenie innej zatrzymuje poprzednią.
 - Przycisk **Cofnij** na każdym ekranie gry – powrót do wyboru trybu.
@@ -39,7 +62,7 @@
 ### Ekran startowy
 - Większe, wyśrodkowane logo.
 - Na trybach muzycznych znaczek (kłódka) – wymagana pełna licencja.
-- Przycisk „Zakończ” zawsze pokazuje QR admina.
+- Przycisk „Zakończ" zawsze pokazuje QR admina.
 
 ### Strona licencji
 - Duże logo, czytelne ID komputera w ramce, przycisk **Cofnij**.
@@ -73,8 +96,8 @@
 ## v1.0.2
 
 - Lepsza praca przy wielu telefonach (10+): mniej obciążenia sieci, priorytet dla admina.
-- Przycisk „Nie wysyłaj obrazków na telefony” – szybsza gra na słabszym WiFi.
-- Komunikat „Utracono połączenie” gdy odpadnie sieć.
+- Przycisk „Nie wysyłaj obrazków na telefony" – szybsza gra na słabszym WiFi.
+- Komunikat „Utracono połączenie" gdy odpadnie sieć.
 - Poprawki dogrywki i odświeżania stanu na telefonach.
 - Edytor: przesuwanie pytań w górę/dół.
 
