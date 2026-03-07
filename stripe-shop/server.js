@@ -254,7 +254,12 @@ app.post('/create-checkout-session', async (req, res) => {
             mode: isSubscription ? 'subscription' : 'payment',
             success_url: String(successUrl),
             cancel_url: String(cancelUrl),
-            metadata: { product: 'imprezja-quiz', lookup_key: lookup_key || '' }
+            metadata: { product: 'imprezja-quiz', lookup_key: lookup_key || '' },
+            locale: 'pl',
+            // Zbieraj adres rozliczeniowy i NIP klienta (do faktury)
+            billing_address_collection: 'auto',
+            tax_id_collection: { enabled: true },
+            customer_creation: 'always',
         };
 
         if (isSubscription) {
@@ -266,10 +271,12 @@ app.post('/create-checkout-session', async (req, res) => {
         } else {
             // Płatność jednorazowa: karta, BLIK, Revolut Pay
             sessionConfig.payment_method_types = ['card', 'blik', 'revolut_pay'];
-            // Generuj fakturę dla płatności jednorazowych
-            sessionConfig.invoice_creation = { enabled: true };
+            // Generuj fakturę dla płatności jednorazowych (z NIP klienta)
+            sessionConfig.invoice_creation = {
+                enabled: true,
+                invoice_data: { metadata: { product: 'imprezja-quiz', lookup_key: lookup_key || '' } }
+            };
         }
-        sessionConfig.locale = 'pl';
         // Wyłącz Stripe Link (express checkout)
         sessionConfig.payment_method_options = { link: { display_preference: { preference: 'off' } } };
 
@@ -310,7 +317,11 @@ app.get('/checkout', async (req, res) => {
             success_url: successUrl,
             cancel_url: cancelUrl,
             locale: 'pl',
-            metadata: { product: 'imprezja-quiz', lookup_key: plan }
+            metadata: { product: 'imprezja-quiz', lookup_key: plan },
+            // Zbieraj adres rozliczeniowy i NIP klienta (do faktury)
+            billing_address_collection: 'auto',
+            tax_id_collection: { enabled: true },
+            customer_creation: 'always',
         };
 
         if (isSubscription) {
@@ -318,8 +329,11 @@ app.get('/checkout', async (req, res) => {
             sessionConfig.payment_method_types = ['card', 'revolut_pay'];
         } else {
             sessionConfig.payment_method_types = ['card', 'blik', 'revolut_pay'];
-            // Generuj fakturę dla płatności jednorazowych
-            sessionConfig.invoice_creation = { enabled: true };
+            // Generuj fakturę dla płatności jednorazowych (z NIP klienta)
+            sessionConfig.invoice_creation = {
+                enabled: true,
+                invoice_data: { metadata: { product: 'imprezja-quiz', lookup_key: plan } }
+            };
         }
         // Wyłącz Stripe Link (express checkout)
         sessionConfig.payment_method_options = { link: { display_preference: { preference: 'off' } } };
