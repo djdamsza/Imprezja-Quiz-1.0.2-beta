@@ -827,19 +827,6 @@
                 if (btn) { btn.textContent = '⏹ Stop muzyka'; btn.style.background = '#c0392b'; }
             }
         }
-        let introMusicActive = false;
-        function toggleIntroMusic() {
-            const btn = document.getElementById('btn-music-toggle');
-            if (introMusicActive) {
-                socket.emit('admin_stop_music');
-                introMusicActive = false;
-                if (btn) { btn.textContent = '▶️ Start muzyka'; btn.style.background = ''; }
-            } else {
-                playIntroMusic();
-                introMusicActive = true;
-                if (btn) { btn.textContent = '⏹ Stop muzyka'; btn.style.background = '#c0392b'; }
-            }
-        }
         function setMasterVolume(val) {
             const v = Math.max(0, Math.min(100, parseInt(val, 10)));
             const slider = document.getElementById('master-volume');
