@@ -5372,11 +5372,14 @@ io.on('connection', (socket) => {
             }
             return true;
         });
+        // rewards jako tablica: rewards[0] = nagr. za 1. trafiony statek, itd.
+        const rewardsArr = Array.isArray(rewards) ? rewards : Object.values(rewards || {}).filter(Boolean);
         gameState.shipsSoloGame = {
             questionId: 'standalone',
             boardSize: boardSize || 8,
             ships: validShips,
-            rewards: rewards || {},
+            rewards: rewardsArr,
+            shipsHitOrder: [],   // indeksy statków w kolejności pierwszego trafienia
             shots: {},
             aimRow: null, aimCol: null,
             phase: 'col',
@@ -5426,20 +5429,28 @@ io.on('connection', (socket) => {
         const key = `${row}_${col}`;
         if (g.shots[key]) return; // Już strzelano w to pole
 
-        // Wykryj trafienie + ustal rozmiar trafionego statku
+        // Wykryj trafienie + ustal rozmiar i indeks trafionego statku
         let hit = false;
-        let hitShip = null;
-        for (const ship of g.ships) {
+        let hitShipIdx = -1;
+        for (let si = 0; si < g.ships.length; si++) {
+            const ship = g.ships[si];
             for (let i = 0; i < ship.size; i++) {
                 const sr = ship.row + (ship.vertical ? i : 0);
                 const sc = ship.col + (ship.vertical ? 0 : i);
-                if (sr === row && sc === col) { hit = true; hitShip = ship; break; }
+                if (sr === row && sc === col) { hit = true; hitShipIdx = si; break; }
             }
             if (hit) break;
         }
 
-        const reward = g.rewards?.[key] || null;
-        const shipSize = hitShip ? hitShip.size : null;
+        // Nagroda: tylko przy PIERWSZYM trafieniu danego statku, w kolejności trafień
+        let reward = null;
+        const shipSize = hit ? g.ships[hitShipIdx].size : null;
+        if (hit && !g.shipsHitOrder.includes(hitShipIdx)) {
+            g.shipsHitOrder.push(hitShipIdx);
+            const rewardIdx = g.shipsHitOrder.length - 1;
+            reward = (g.rewards && g.rewards[rewardIdx]) || null;
+        }
+
         g.shots[key] = { hit, reward, shipSize };
         g.lastShot = { row, col, hit, reward, shipSize };
         g.aimRow = null;
@@ -5458,9 +5469,11 @@ io.on('connection', (socket) => {
         }
         if (allSunk) g.gameEnded = true;
 
-        console.log(`⚓ [SHIPS_SOLO] Strzał (${row},${col}) – ${hit ? `TRAFIONY (${shipSize}-masztowy)` : 'pudło'}${reward ? ' nagroda: ' + reward : ''}`);
+        const hitCount = g.shipsHitOrder.length;
+        console.log(`⚓ [SHIPS_SOLO] Strzał (${row},${col}) – ${hit ? `TRAFIONY (${shipSize}-masztowy, ${hitCount}. statek)` : 'pudło'}${reward ? ' nagroda: ' + reward : ''}`);
         io.emit('ships_solo_shot_result', {
             questionId, row, col, hit, reward, shipSize,
+            hitCount,           // ile różnych statków trafionych łącznie
             shots: g.shots,
             gameEnded: g.gameEnded,
             phase: g.phase

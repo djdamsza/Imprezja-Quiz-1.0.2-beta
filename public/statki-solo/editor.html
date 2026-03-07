@@ -32,13 +32,17 @@ h1{flex:1;text-align:center;font-size:1.4rem;color:#7dd3fc;font-weight:800}
 #editor-board th{background:#00111f;color:#38bdf8;font-weight:700;pointer-events:none}
 .status-line{color:#64748b;font-size:.82rem;min-height:20px}
 /* Rewards */
-.rewards-note{font-size:.78rem;color:#475569;margin-bottom:10px;line-height:1.4}
-.rewards-grid{display:grid;gap:4px;overflow-y:auto;max-height:280px;padding-right:4px}
-.reward-item{display:flex;align-items:center;gap:8px}
-.reward-coord{font-size:.72rem;color:#334155;min-width:28px;text-align:right;font-family:monospace}
-.reward-inp{flex:1;padding:5px 8px;background:#001020;border:1px solid #1e3a5f;border-radius:6px;color:#e2e8f0;font-size:.78rem}
+.rewards-note{font-size:.78rem;color:#475569;margin-bottom:12px;line-height:1.5}
+.rewards-list{display:flex;flex-direction:column;gap:10px;overflow-y:auto;max-height:360px;padding-right:2px}
+.reward-item{display:flex;flex-direction:column;gap:4px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px 12px}
+.reward-item.first{border-color:rgba(251,191,36,.25);background:rgba(251,191,36,.04)}
+.reward-rank{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#64748b}
+.reward-item.first .reward-rank{color:#fbbf24}
+.reward-ship-info{font-size:.72rem;color:#334155;margin-bottom:2px}
+.reward-inp{width:100%;padding:7px 10px;background:#001020;border:1px solid #1e3a5f;border-radius:7px;color:#e2e8f0;font-size:.88rem}
 .reward-inp:focus{outline:none;border-color:#0ea5e9}
-.reward-inp.has-val{border-color:#0369a1}
+.reward-inp.has-val{border-color:#0369a1;background:rgba(3,105,161,.08)}
+.rewards-empty{color:#334155;font-size:.82rem;font-style:italic;padding:12px 0}
 /* Soundtrack */
 .soundtrack-wrap{margin-top:12px}
 .soundtrack-inp{width:100%;padding:9px 12px;background:#001020;border:1.5px solid #1e3a5f;border-radius:8px;color:#e2e8f0;font-size:.9rem}
@@ -97,8 +101,8 @@ h1{flex:1;text-align:center;font-size:1.4rem;color:#7dd3fc;font-weight:800}
     <!-- Prawa: nagrody -->
     <div class="panel">
         <h2>🏆 Nagrody za trafienia</h2>
-        <p class="rewards-note">Wpisz nagrodę dla wybranych pól. Po trafieniu pojawi się na ekranie. Puste pola = brak nagrody.</p>
-        <div class="rewards-grid" id="rewards-grid"></div>
+        <p class="rewards-note">Jedna nagroda na statek, w kolejności trafień. Nagroda główna powinna być ostatnia. Każde trafienie nowego statku wyświetli kolejną nagrodę na ekranie.</p>
+        <div class="rewards-list" id="rewards-grid"></div>
     </div>
 </div>
 
@@ -109,7 +113,7 @@ h1{flex:1;text-align:center;font-size:1.4rem;color:#7dd3fc;font-weight:800}
 const LETTERS = 'ABCDEFGHIJ';
 let boardSize = 8;
 let ships = [];           // [{ row, col, size, vertical }]
-let rewards = {};         // { "r_c": "nagroda" }
+let rewards = [];         // Array<string> — nagroda[i] dla i-tego trafionego statku
 let selectedShipSize = 2;
 let vertical = false;
 let hoverCell = null;
@@ -117,7 +121,7 @@ let hoverCell = null;
 // ── Rozmiar planszy ────────────────────────────────────────
 function setSize(n) {
     boardSize = n;
-    // Usuń statki które nie mieszczą się
+    collectCurrentRewards();
     ships = ships.filter(s => isValidShip(s, n));
     document.querySelectorAll('.size-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.size) === n));
     buildBoard();
@@ -227,22 +231,29 @@ function clickCell(r, c) {
         return false;
     });
     if (shipIdx !== -1) {
+        collectCurrentRewards();
         ships.splice(shipIdx, 1);
+        // Usuń odpowiadający wpis z nagród, zachowaj pozostałe
+        rewards.splice(shipIdx, 1);
         updateBoardHighlight();
         updateStatus();
+        buildRewardsGrid();
         return;
     }
     // Postaw nowy statek
     const cells = getShipCells(r, c, selectedShipSize, vertical);
     const valid = cells.every(([cr, cc]) => cr >= 0 && cr < boardSize && cc >= 0 && cc < boardSize && !hasShipAt(cr, cc));
     if (!valid) { setStatus('❌ Nie można tu postawić statku', '#ef4444'); return; }
+    collectCurrentRewards();
     ships.push({ row: r, col: c, size: selectedShipSize, vertical });
+    rewards.push('');   // nowy slot nagrody
     updateBoardHighlight();
     updateStatus();
+    buildRewardsGrid();
 }
 
 function clearBoard() {
-    if (confirm('Wyczyścić całą planszę?')) { ships = []; rewards = {}; updateBoardHighlight(); buildRewardsGrid(); }
+    if (confirm('Wyczyścić całą planszę?')) { ships = []; rewards = []; updateBoardHighlight(); buildRewardsGrid(); }
 }
 
 function updateStatus() {
@@ -255,17 +266,42 @@ function setStatus(msg, color) {
 }
 
 // ── Nagrody ─────────────────────────────────────────────────
+
+// Zbiera aktualne wartości z inputów do tablicy rewards[]
+function collectCurrentRewards() {
+    const inputs = document.querySelectorAll('.reward-inp[data-idx]');
+    inputs.forEach(inp => { rewards[parseInt(inp.dataset.idx)] = inp.value.trim(); });
+}
+
+function rewardLabel(i) {
+    if (i === 0) return 'Pierwsze trafienie';
+    if (i === 1) return '2. trafienie';
+    if (i === 2) return '3. trafienie';
+    if (i === 3) return '4. trafienie';
+    return `${i + 1}. trafienie`;
+}
+
+function shipDesc(s) {
+    const orient = s.vertical ? 'pionowy' : 'poziomy';
+    return `${s.size}-masztowy · ${orient}`;
+}
+
 function buildRewardsGrid() {
-    const cols = boardSize;
     const grid = document.getElementById('rewards-grid');
-    grid.style.gridTemplateColumns = `repeat(${Math.min(cols, 4)}, 1fr)`;
+    if (!ships.length) {
+        grid.innerHTML = '<div class="rewards-empty">Najpierw dodaj statki na planszę — pojawią się tu pola nagród.</div>';
+        return;
+    }
     let html = '';
-    for (let r = 0; r < boardSize; r++) for (let c = 0; c < boardSize; c++) {
-        const key = `${r}_${c}`;
-        const val = rewards[key] || '';
-        html += `<div class="reward-item">
-            <span class="reward-coord">${r+1}${LETTERS[c]}</span>
-            <input class="reward-inp ${val?'has-val':''}" type="text" data-key="${key}" value="${escHtml(val)}" placeholder="nagroda…" oninput="onRewardInput(this)">
+    for (let i = 0; i < ships.length; i++) {
+        const val = rewards[i] || '';
+        const isLast = i === ships.length - 1;
+        html += `<div class="reward-item${i === 0 ? ' first' : ''}">
+            <div class="reward-rank">${rewardLabel(i)}${isLast && ships.length > 1 ? ' 🏆 (główna nagroda)' : ''}</div>
+            <div class="reward-ship-info">${shipDesc(ships[i])}</div>
+            <input class="reward-inp${val ? ' has-val' : ''}" type="text" data-idx="${i}"
+                value="${escHtml(val)}" placeholder="np. Piosenka na życzenie, Taniec z panną młodą…"
+                oninput="onRewardInput(this)">
         </div>`;
     }
     grid.innerHTML = html;
@@ -273,22 +309,20 @@ function buildRewardsGrid() {
 
 function onRewardInput(inp) {
     const val = inp.value.trim();
-    if (val) { rewards[inp.dataset.key] = val; inp.classList.add('has-val'); }
-    else { delete rewards[inp.dataset.key]; inp.classList.remove('has-val'); }
+    rewards[parseInt(inp.dataset.idx)] = val;
+    inp.classList.toggle('has-val', !!val);
 }
 
 function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 // ── Zapis ───────────────────────────────────────────────────
 async function saveConfig() {
-    // Zbierz nagrody z inputów
-    document.querySelectorAll('.reward-inp').forEach(inp => {
-        const val = inp.value.trim();
-        if (val) rewards[inp.dataset.key] = val;
-        else delete rewards[inp.dataset.key];
-    });
+    collectCurrentRewards();
     const soundtrack = document.getElementById('soundtrack-inp').value.trim();
-    const cfg = { boardSize, ships, rewards, soundtrack };
+    // rewards jako tablica (puste stringi odcinamy od końca)
+    const rewardsTrimmed = [...rewards];
+    while (rewardsTrimmed.length && !rewardsTrimmed[rewardsTrimmed.length - 1]) rewardsTrimmed.pop();
+    const cfg = { boardSize, ships, rewards: rewardsTrimmed, soundtrack };
     const btn = document.getElementById('btn-save');
     const msg = document.getElementById('save-msg');
     btn.disabled = true;
@@ -318,9 +352,17 @@ async function loadExisting() {
         const c = await r.json();
         if (c.boardSize) { boardSize = c.boardSize; document.querySelectorAll('.size-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.size) === boardSize)); }
         if (c.ships && c.ships.length) ships = c.ships;
-        if (c.rewards) rewards = c.rewards;
+        // Wsteczna kompatybilność: stary format rewards był obiektem
+        if (Array.isArray(c.rewards)) {
+            rewards = c.rewards;
+        } else if (c.rewards && typeof c.rewards === 'object') {
+            // Stara konfiguracja per-komórka — ignoruj, zacznij od pustych
+            rewards = Array(ships.length).fill('');
+        }
         if (c.soundtrack) document.getElementById('soundtrack-inp').value = c.soundtrack;
     } catch(e) {}
+    // Dopasuj długość rewards do liczby statków
+    while (rewards.length < ships.length) rewards.push('');
     buildBoard();
     buildRewardsGrid();
     if (ships.length) updateStatus();
