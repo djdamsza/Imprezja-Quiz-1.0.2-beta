@@ -545,14 +545,6 @@ if (dataDir) {
                 console.log('   📋 Skopiowano bank-assignment NJR Sampler z aplikacji');
             } catch (_) {}
         }
-        // Bank assignment – kopiuj z aplikacji do danych, jeśli jeszcze nie istnieje
-        const appBankAssignment = path.join(appPathForCopy, 'public', 'njr-sampler-bank-assignment.json');
-        if (fs.existsSync(appBankAssignment) && !fs.existsSync(NJR_SAMPLER_BANK_ASSIGNMENT_FILE)) {
-            try {
-                fs.copyFileSync(appBankAssignment, NJR_SAMPLER_BANK_ASSIGNMENT_FILE);
-                console.log('   📋 Skopiowano bank-assignment z aplikacji');
-            } catch (_) {}
-        }
         if (overwriteConfigs && CONFIGS_SYNCED_VERSION_FILE && appVersionForSync) {
             try {
                 fs.writeFileSync(CONFIGS_SYNCED_VERSION_FILE, appVersionForSync, 'utf8');
