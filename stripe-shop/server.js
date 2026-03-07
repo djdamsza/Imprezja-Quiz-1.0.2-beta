@@ -266,6 +266,8 @@ app.post('/create-checkout-session', async (req, res) => {
         } else {
             // Płatność jednorazowa: karta, BLIK, Revolut Pay
             sessionConfig.payment_method_types = ['card', 'blik', 'revolut_pay'];
+            // Generuj fakturę dla płatności jednorazowych
+            sessionConfig.invoice_creation = { enabled: true };
         }
         sessionConfig.locale = 'pl';
         // Wyłącz Stripe Link (express checkout)
@@ -316,6 +318,8 @@ app.get('/checkout', async (req, res) => {
             sessionConfig.payment_method_types = ['card', 'revolut_pay'];
         } else {
             sessionConfig.payment_method_types = ['card', 'blik', 'revolut_pay'];
+            // Generuj fakturę dla płatności jednorazowych
+            sessionConfig.invoice_creation = { enabled: true };
         }
         // Wyłącz Stripe Link (express checkout)
         sessionConfig.payment_method_options = { link: { display_preference: { preference: 'off' } } };
