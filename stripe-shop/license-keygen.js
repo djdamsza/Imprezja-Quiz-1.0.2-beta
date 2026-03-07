@@ -59,7 +59,11 @@ const LOOKUP_TO_TYPE = {
     'imprezja-1m': '1M',
     'imprezja-3m': '3M',
     'imprezja-12m': '1Y',
-    'imprezja-lifetime': 'LT'
+    'imprezja-lifetime': 'LT',
+    // Jednorazowe (BLIK-compatible) – bez automatycznego odnowienia
+    'imprezja-1m-onetime': '1M',
+    'imprezja-3m-onetime': '3M',
+    'imprezja-12m-onetime': '1Y'
 };
 
 module.exports = { generateLicenseKey, LOOKUP_TO_TYPE, LICENSE_TYPES };
