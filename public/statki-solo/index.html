@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Statki Solo – Imprezja Quiz</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:radial-gradient(ellipse at center,#0a1628 0%,#050c1a 100%);color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 20px 40px}
+.back{align-self:flex-start;color:#64748b;text-decoration:none;font-size:0.9rem;margin-bottom:20px;display:flex;align-items:center;gap:6px}
+.back:hover{color:#7dd3fc}
+h1{font-size:clamp(1.6rem,5vw,2.4rem);font-weight:800;color:#7dd3fc;text-align:center;margin-bottom:6px}
+.subtitle{color:#475569;text-align:center;margin-bottom:36px;font-size:0.95rem}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;width:100%;max-width:720px;margin-bottom:40px}
+.card{background:rgba(255,255,255,0.04);border:1.5px solid rgba(255,255,255,0.1);border-radius:16px;padding:28px 20px;text-align:center;text-decoration:none;color:inherit;transition:all .2s;cursor:pointer}
+.card:hover{transform:translateY(-3px);box-shadow:0 12px 32px rgba(0,0,0,0.4)}
+.card.screen{border-color:rgba(14,165,233,0.4)}.card.screen:hover{border-color:#0ea5e9;background:rgba(14,165,233,0.1)}
+.card.admin{border-color:rgba(251,191,36,0.4)}.card.admin:hover{border-color:#fbbf24;background:rgba(251,191,36,0.1)}
+.card.editor{border-color:rgba(167,139,250,0.4)}.card.editor:hover{border-color:#a78bfa;background:rgba(167,139,250,0.1)}
+.card-icon{font-size:2.6rem;margin-bottom:12px}
+.card-title{font-size:1.15rem;font-weight:700;margin-bottom:6px}
+.card-desc{font-size:0.8rem;color:#64748b;line-height:1.4}
+.board-info{background:rgba(14,165,233,0.08);border:1px solid rgba(14,165,233,0.2);border-radius:12px;padding:18px 24px;max-width:720px;width:100%;margin-bottom:20px}
+.board-info h3{color:#7dd3fc;font-size:0.9rem;font-weight:600;margin-bottom:8px}
+.board-info p{color:#94a3b8;font-size:0.85rem;line-height:1.5}
+.no-config{color:#475569;font-style:italic}
+.qr-wrap{margin-top:24px;text-align:center}
+.qr-wrap p{color:#64748b;font-size:0.82rem;margin-top:8px}
+.qr-canvas{border-radius:10px;background:#fff;padding:8px;display:inline-block}
+</style>
+</head>
+<body>
+<a href="/start.html" class="back">← Powrót</a>
+<h1>⚓ Statki Solo</h1>
+<p class="subtitle">Gra w statki bez telefonów graczy. Admin celuje, Screen pokazuje mapę na TV.</p>
+
+<div class="board-info" id="board-info">
+    <h3>Aktualna konfiguracja planszy</h3>
+    <p class="no-config" id="config-text">Ładowanie…</p>
+</div>
+
+<div class="cards">
+    <a href="/statki-solo/screen.html" class="card screen" target="_blank">
+        <div class="card-icon">📺</div>
+        <div class="card-title">Otwórz Screen</div>
+        <div class="card-desc">Otwórz na TV lub projektorze. Pokazuje mapę i animacje trafień.</div>
+    </a>
+    <a href="/statki-solo/admin.html" class="card admin" target="_blank">
+        <div class="card-icon">🎯</div>
+        <div class="card-title">Panel Admina</div>
+        <div class="card-desc">Otwórz na telefonie. Muzyka, celownik i strzały.</div>
+    </a>
+    <a href="/statki-solo/editor.html" class="card editor">
+        <div class="card-icon">✏️</div>
+        <div class="card-title">Edytor planszy</div>
+        <div class="card-desc">Ustaw statki, nagrody i soundtrack przed grą.</div>
+    </a>
+</div>
+
+<div class="qr-wrap" id="qr-wrap" style="display:none">
+    <canvas class="qr-canvas" id="qr-canvas"></canvas>
+    <p>QR kod do panelu admina (dla telefonu)</p>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+async function loadConfig() {
+    try {
+        const r = await fetch('/api/statki-solo/config');
+        const c = await r.json();
+        const el = document.getElementById('config-text');
+        if (!c.ships || !c.ships.length) {
+            el.innerHTML = '<span class="no-config">Brak konfiguracji. Otwórz Edytor planszy aby ustawić statki.</span>';
+        } else {
+            const rewards = Object.values(c.rewards || {}).filter(Boolean);
+            el.innerHTML = `Plansza <strong>${c.boardSize}×${c.boardSize}</strong> · <strong>${c.ships.length}</strong> statków · <strong>${rewards.length}</strong> nagród${c.soundtrack ? ' · 🎵 soundtrack' : ''}`;
+        }
+    } catch(e) {
+        document.getElementById('config-text').textContent = 'Błąd ładowania konfiguracji.';
+    }
+}
+loadConfig();
+
+// QR kod do admina
+async function showAdminQR() {
+    const adminUrl = location.origin + '/statki-solo/admin.html';
+    // Prosty QR przez goqr.me API
+    const wrap = document.getElementById('qr-wrap');
+    const img = document.createElement('img');
+    img.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(adminUrl)}`;
+    img.style.cssText = 'border-radius:8px;background:#fff;padding:8px;width:180px;height:180px;';
+    img.onerror = () => wrap.style.display = 'none';
+    wrap.innerHTML = '';
+    const p = document.createElement('p');
+    p.textContent = 'QR kod do panelu admina (dla telefonu)';
+    p.style.cssText = 'color:#64748b;font-size:0.82rem;margin-top:8px';
+    wrap.appendChild(img);
+    wrap.appendChild(p);
+    wrap.style.display = 'block';
+}
+showAdminQR();
+</script>
+</body>
+</html>

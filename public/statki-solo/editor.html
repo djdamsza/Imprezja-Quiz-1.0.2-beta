@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Statki Solo – Edytor</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000c1a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px 16px 60px}
+.top{display:flex;align-items:center;gap:12px;width:100%;max-width:900px;margin-bottom:24px}
+.back{color:#64748b;text-decoration:none;font-size:.9rem}
+.back:hover{color:#7dd3fc}
+h1{flex:1;text-align:center;font-size:1.4rem;color:#7dd3fc;font-weight:800}
+.layout{display:grid;grid-template-columns:1fr 1fr;gap:20px;width:100%;max-width:900px}
+@media(max-width:700px){.layout{grid-template-columns:1fr}}
+.panel{background:rgba(255,255,255,.04);border:1.5px solid rgba(255,255,255,.1);border-radius:14px;padding:18px}
+.panel h2{font-size:.8rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#64748b;margin-bottom:14px}
+/* Size buttons */
+.size-row{display:flex;gap:8px;margin-bottom:14px}
+.size-btn{flex:1;padding:9px;border-radius:8px;border:1.5px solid #1e3a5f;background:#001020;color:#7dd3fc;cursor:pointer;font-weight:700;font-size:.9rem;transition:all .15s}
+.size-btn.active{background:#0ea5e9;border-color:#0ea5e9;color:#fff}
+/* Ship buttons */
+.ship-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.ship-btn{padding:8px 14px;border-radius:8px;border:1.5px solid #1e3a5f;background:#001020;color:#7dd3fc;cursor:pointer;font-size:.85rem;font-weight:600;transition:all .15s}
+.ship-btn.active{background:#0369a1;border-color:#0ea5e9;color:#fff}
+.rotate-btn{padding:8px 14px;border-radius:8px;border:1.5px solid #334155;background:#001020;color:#94a3b8;cursor:pointer;font-size:.85rem}
+.rotate-btn:hover{border-color:#64748b;color:#fff}
+/* Board */
+#board-wrap{display:flex;align-items:center;justify-content:center;overflow-x:auto;margin-bottom:12px}
+#editor-board{border-collapse:collapse;border:2px solid #0ea5e9}
+#editor-board th,#editor-board td{border:1px solid #0d3a5c;text-align:center;vertical-align:middle;cursor:pointer;transition:background .1s;user-select:none}
+#editor-board th{background:#00111f;color:#38bdf8;font-weight:700;pointer-events:none}
+.status-line{color:#64748b;font-size:.82rem;min-height:20px}
+/* Rewards */
+.rewards-note{font-size:.78rem;color:#475569;margin-bottom:10px;line-height:1.4}
+.rewards-grid{display:grid;gap:4px;overflow-y:auto;max-height:280px;padding-right:4px}
+.reward-item{display:flex;align-items:center;gap:8px}
+.reward-coord{font-size:.72rem;color:#334155;min-width:28px;text-align:right;font-family:monospace}
+.reward-inp{flex:1;padding:5px 8px;background:#001020;border:1px solid #1e3a5f;border-radius:6px;color:#e2e8f0;font-size:.78rem}
+.reward-inp:focus{outline:none;border-color:#0ea5e9}
+.reward-inp.has-val{border-color:#0369a1}
+/* Soundtrack */
+.soundtrack-wrap{margin-top:12px}
+.soundtrack-inp{width:100%;padding:9px 12px;background:#001020;border:1.5px solid #1e3a5f;border-radius:8px;color:#e2e8f0;font-size:.9rem}
+.soundtrack-inp:focus{outline:none;border-color:#0ea5e9}
+.soundtrack-note{font-size:.75rem;color:#475569;margin-top:5px}
+/* Buttons */
+.btn-save{display:block;width:100%;max-width:900px;margin-top:20px;padding:16px;background:linear-gradient(135deg,#0ea5e9,#0284c7);color:#fff;border:none;border-radius:12px;font-size:1.1rem;font-weight:800;cursor:pointer;transition:all .2s}
+.btn-save:hover{box-shadow:0 6px 24px rgba(14,165,233,.5);transform:translateY(-1px)}
+.btn-save:disabled{opacity:.4;pointer-events:none}
+.btn-clear{padding:7px 14px;background:rgba(239,68,68,.1);border:1px solid #ef4444;border-radius:8px;color:#ef4444;cursor:pointer;font-size:.82rem}
+.btn-clear:hover{background:rgba(239,68,68,.2)}
+.save-msg{display:none;text-align:center;margin-top:10px;font-size:.9rem;padding:10px;border-radius:8px}
+.save-msg.ok{background:rgba(34,197,94,.15);border:1px solid #22c55e;color:#4ade80}
+.save-msg.err{background:rgba(239,68,68,.15);border:1px solid #ef4444;color:#fca5a5}
+</style>
+</head>
+<body>
+<div class="top">
+    <a href="/statki-solo/" class="back">← Powrót</a>
+    <h1>✏️ Edytor Statki Solo</h1>
+    <button class="btn-clear" onclick="clearBoard()">Wyczyść planszę</button>
+</div>
+
+<div class="layout">
+    <!-- Lewa: plansza -->
+    <div>
+        <div class="panel">
+            <h2>Rozmiar planszy</h2>
+            <div class="size-row">
+                <button class="size-btn" data-size="6" onclick="setSize(6)">6×6</button>
+                <button class="size-btn active" data-size="8" onclick="setSize(8)">8×8</button>
+                <button class="size-btn" data-size="10" onclick="setSize(10)">10×10</button>
+            </div>
+            <h2 style="margin-bottom:10px">Statki</h2>
+            <div class="ship-row">
+                <button class="ship-btn active" data-size="2" onclick="selectShip(2)">▬▬ 2</button>
+                <button class="ship-btn" data-size="3" onclick="selectShip(3)">▬▬▬ 3</button>
+                <button class="ship-btn" data-size="4" onclick="selectShip(4)">▬▬▬▬ 4</button>
+                <button class="ship-btn" data-size="5" onclick="selectShip(5)">▬▬▬▬▬ 5</button>
+                <button class="rotate-btn" onclick="toggleRotate()" id="rotate-btn">↕ Pionowo</button>
+            </div>
+            <div id="board-wrap">
+                <table id="editor-board"></table>
+            </div>
+            <div class="status-line" id="status">Kliknij na planszę aby postawić statek</div>
+        </div>
+        <div class="panel" style="margin-top:16px">
+            <h2>🎵 Soundtrack (tło muzyczne)</h2>
+            <div class="soundtrack-wrap">
+                <input class="soundtrack-inp" type="text" id="soundtrack-inp" placeholder="URL lub nazwa pliku .mp3 z katalogu /uploads/">
+                <p class="soundtrack-note">Odtwarzany przez admina podczas gry. Przykład: <code>sfx/seabattle.mp3</code> lub pełny URL.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Prawa: nagrody -->
+    <div class="panel">
+        <h2>🏆 Nagrody za trafienia</h2>
+        <p class="rewards-note">Wpisz nagrodę dla wybranych pól. Po trafieniu pojawi się na ekranie. Puste pola = brak nagrody.</p>
+        <div class="rewards-grid" id="rewards-grid"></div>
+    </div>
+</div>
+
+<button class="btn-save" onclick="saveConfig()" id="btn-save">💾 Zapisz konfigurację</button>
+<div class="save-msg" id="save-msg"></div>
+
+<script>
+const LETTERS = 'ABCDEFGHIJ';
+let boardSize = 8;
+let ships = [];           // [{ row, col, size, vertical }]
+let rewards = {};         // { "r_c": "nagroda" }
+let selectedShipSize = 2;
+let vertical = false;
+let hoverCell = null;
+
+// ── Rozmiar planszy ────────────────────────────────────────
+function setSize(n) {
+    boardSize = n;
+    // Usuń statki które nie mieszczą się
+    ships = ships.filter(s => isValidShip(s, n));
+    document.querySelectorAll('.size-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.size) === n));
+    buildBoard();
+    buildRewardsGrid();
+}
+
+function isValidShip(s, sz) {
+    sz = sz || boardSize;
+    for (let i = 0; i < s.size; i++) {
+        const r = s.row + (s.vertical ? i : 0);
+        const c = s.col + (s.vertical ? 0 : i);
+        if (r < 0 || r >= sz || c < 0 || c >= sz) return false;
+    }
+    return true;
+}
+
+// ── Statek ─────────────────────────────────────────────────
+function selectShip(size) {
+    selectedShipSize = size;
+    document.querySelectorAll('.ship-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.size) === size));
+    updateBoardHighlight();
+}
+
+function toggleRotate() {
+    vertical = !vertical;
+    document.getElementById('rotate-btn').textContent = vertical ? '↔ Poziomo' : '↕ Pionowo';
+    updateBoardHighlight();
+}
+
+// ── Buduj planszę ──────────────────────────────────────────
+function buildBoard() {
+    const table = document.getElementById('editor-board');
+    const cs = Math.max(28, Math.min(52, Math.floor(320 / (boardSize + 1))));
+    let html = `<tr><th style="width:${cs}px;height:${cs}px;"></th>`;
+    for (let c = 0; c < boardSize; c++) html += `<th style="width:${cs}px;height:${cs}px;font-size:${Math.max(10,cs*.42)}px;">${LETTERS[c]}</th>`;
+    html += '</tr>';
+    for (let r = 0; r < boardSize; r++) {
+        html += `<tr><th style="width:${cs}px;height:${cs}px;font-size:${Math.max(10,cs*.42)}px;">${r+1}</th>`;
+        for (let c = 0; c < boardSize; c++) {
+            html += `<td data-r="${r}" data-c="${c}" style="width:${cs}px;height:${cs}px;font-size:${Math.max(10,cs*.44)}px;" onmouseenter="hover(${r},${c})" onmouseleave="unhover()" onclick="clickCell(${r},${c})" ontouchend="clickCell(${r},${c});event.preventDefault()"></td>`;
+        }
+        html += '</tr>';
+    }
+    table.innerHTML = html;
+    updateBoardHighlight();
+}
+
+function getCellEl(r, c) {
+    return document.querySelector(`#editor-board td[data-r="${r}"][data-c="${c}"]`);
+}
+
+function updateBoardHighlight() {
+    // Reset wizualny
+    for (let r = 0; r < boardSize; r++) for (let c = 0; c < boardSize; c++) {
+        const el = getCellEl(r, c);
+        if (!el) continue;
+        el.style.background = '#001020';
+        el.textContent = '';
+    }
+    // Narysuj istniejące statki
+    for (const ship of ships) {
+        for (let i = 0; i < ship.size; i++) {
+            const r = ship.row + (ship.vertical ? i : 0);
+            const c = ship.col + (ship.vertical ? 0 : i);
+            const el = getCellEl(r, c);
+            if (el) { el.style.background = '#1e40af'; el.textContent = i === 0 ? ship.size : ''; }
+        }
+    }
+    // Preview hover
+    if (hoverCell) {
+        const [hr, hc] = hoverCell;
+        const cells = getShipCells(hr, hc, selectedShipSize, vertical);
+        const valid = cells.every(([r, c]) => r >= 0 && r < boardSize && c >= 0 && c < boardSize && !hasShipAt(r, c));
+        cells.forEach(([r, c]) => {
+            const el = getCellEl(r, c);
+            if (el) el.style.background = valid ? 'rgba(14,165,233,.5)' : 'rgba(239,68,68,.4)';
+        });
+    }
+}
+
+function getShipCells(r, c, size, vert) {
+    return Array.from({length: size}, (_, i) => [r + (vert ? i : 0), c + (vert ? 0 : i)]);
+}
+
+function hasShipAt(r, c) {
+    return ships.some(s => {
+        for (let i = 0; i < s.size; i++) {
+            const sr = s.row + (s.vertical ? i : 0);
+            const sc = s.col + (s.vertical ? 0 : i);
+            if (sr === r && sc === c) return true;
+        }
+        return false;
+    });
+}
+
+function hover(r, c) { hoverCell = [r, c]; updateBoardHighlight(); }
+function unhover() { hoverCell = null; updateBoardHighlight(); }
+
+function clickCell(r, c) {
+    // Kliknij na istniejący statek – usuń
+    const shipIdx = ships.findIndex(s => {
+        for (let i = 0; i < s.size; i++) {
+            const sr = s.row + (s.vertical ? i : 0);
+            const sc = s.col + (s.vertical ? 0 : i);
+            if (sr === r && sc === c) return true;
+        }
+        return false;
+    });
+    if (shipIdx !== -1) {
+        ships.splice(shipIdx, 1);
+        updateBoardHighlight();
+        updateStatus();
+        return;
+    }
+    // Postaw nowy statek
+    const cells = getShipCells(r, c, selectedShipSize, vertical);
+    const valid = cells.every(([cr, cc]) => cr >= 0 && cr < boardSize && cc >= 0 && cc < boardSize && !hasShipAt(cr, cc));
+    if (!valid) { setStatus('❌ Nie można tu postawić statku', '#ef4444'); return; }
+    ships.push({ row: r, col: c, size: selectedShipSize, vertical });
+    updateBoardHighlight();
+    updateStatus();
+}
+
+function clearBoard() {
+    if (confirm('Wyczyścić całą planszę?')) { ships = []; rewards = {}; updateBoardHighlight(); buildRewardsGrid(); }
+}
+
+function updateStatus() {
+    const hitCells = ships.reduce((sum, s) => sum + s.size, 0);
+    setStatus(`✅ ${ships.length} statków (${hitCells} pól) · Kliknij statek aby usunąć`, '#22c55e');
+}
+function setStatus(msg, color) {
+    const el = document.getElementById('status');
+    el.textContent = msg; el.style.color = color || '#64748b';
+}
+
+// ── Nagrody ─────────────────────────────────────────────────
+function buildRewardsGrid() {
+    const cols = boardSize;
+    const grid = document.getElementById('rewards-grid');
+    grid.style.gridTemplateColumns = `repeat(${Math.min(cols, 4)}, 1fr)`;
+    let html = '';
+    for (let r = 0; r < boardSize; r++) for (let c = 0; c < boardSize; c++) {
+        const key = `${r}_${c}`;
+        const val = rewards[key] || '';
+        html += `<div class="reward-item">
+            <span class="reward-coord">${r+1}${LETTERS[c]}</span>
+            <input class="reward-inp ${val?'has-val':''}" type="text" data-key="${key}" value="${escHtml(val)}" placeholder="nagroda…" oninput="onRewardInput(this)">
+        </div>`;
+    }
+    grid.innerHTML = html;
+}
+
+function onRewardInput(inp) {
+    const val = inp.value.trim();
+    if (val) { rewards[inp.dataset.key] = val; inp.classList.add('has-val'); }
+    else { delete rewards[inp.dataset.key]; inp.classList.remove('has-val'); }
+}
+
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── Zapis ───────────────────────────────────────────────────
+async function saveConfig() {
+    // Zbierz nagrody z inputów
+    document.querySelectorAll('.reward-inp').forEach(inp => {
+        const val = inp.value.trim();
+        if (val) rewards[inp.dataset.key] = val;
+        else delete rewards[inp.dataset.key];
+    });
+    const soundtrack = document.getElementById('soundtrack-inp').value.trim();
+    const cfg = { boardSize, ships, rewards, soundtrack };
+    const btn = document.getElementById('btn-save');
+    const msg = document.getElementById('save-msg');
+    btn.disabled = true;
+    try {
+        const r = await fetch('/api/statki-solo/config', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify(cfg)
+        });
+        if (r.ok) {
+            msg.className = 'save-msg ok'; msg.style.display = 'block';
+            msg.textContent = '✅ Konfiguracja zapisana. Możesz teraz uruchomić grę z panelu admina.';
+        } else {
+            throw new Error(await r.text());
+        }
+    } catch(e) {
+        msg.className = 'save-msg err'; msg.style.display = 'block';
+        msg.textContent = '❌ Błąd zapisu: ' + e.message;
+    }
+    btn.disabled = false;
+    setTimeout(() => msg.style.display = 'none', 5000);
+}
+
+// ── Załaduj istniejącą konfigurację ────────────────────────
+async function loadExisting() {
+    try {
+        const r = await fetch('/api/statki-solo/config');
+        const c = await r.json();
+        if (c.boardSize) { boardSize = c.boardSize; document.querySelectorAll('.size-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.size) === boardSize)); }
+        if (c.ships && c.ships.length) ships = c.ships;
+        if (c.rewards) rewards = c.rewards;
+        if (c.soundtrack) document.getElementById('soundtrack-inp').value = c.soundtrack;
+    } catch(e) {}
+    buildBoard();
+    buildRewardsGrid();
+    if (ships.length) updateStatus();
+}
+
+loadExisting();
+</script>
+</body>
+</html>

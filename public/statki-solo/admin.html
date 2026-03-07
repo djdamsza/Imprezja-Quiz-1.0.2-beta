@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Statki Solo – Admin</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;background:#000c1a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;user-select:none}
+
+/* ── Ekrany ── */
+.screen{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px}
+.screen.active{display:flex}
+
+/* ── Ładowanie / Start ── */
+#s-loading{background:#000c1a}
+#s-loading p{color:#475569;font-size:1rem;margin-top:12px}
+#s-start{background:#000c1a;gap:20px}
+#s-start h1{font-size:1.6rem;font-weight:800;color:#7dd3fc}
+.board-summary{background:rgba(14,165,233,.1);border:1px solid rgba(14,165,233,.3);border-radius:12px;padding:14px 20px;text-align:center;color:#94a3b8;font-size:.9rem;line-height:1.6;width:100%;max-width:340px}
+.board-summary strong{color:#7dd3fc}
+
+/* Muzyka */
+.music-panel{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px 18px;width:100%;max-width:340px}
+.music-panel h3{color:#94a3b8;font-size:.8rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;margin-bottom:10px}
+.volume-row{display:flex;align-items:center;gap:10px}
+.volume-row span{color:#64748b;font-size:1.1rem}
+.volume-row input[type=range]{flex:1;accent-color:#0ea5e9;height:6px;cursor:pointer}
+.vol-val{color:#7dd3fc;font-size:.85rem;min-width:36px;text-align:right}
+.btn-music{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:10px;background:rgba(14,165,233,.15);border:1px solid rgba(14,165,233,.3);border-radius:8px;color:#7dd3fc;cursor:pointer;font-size:.9rem;margin-top:10px}
+.btn-music:hover{background:rgba(14,165,233,.25)}
+
+/* Główny przycisk */
+.btn-main{width:100%;max-width:340px;padding:18px;font-size:1.2rem;font-weight:800;border:none;border-radius:14px;cursor:pointer;transition:all .2s}
+.btn-start{background:linear-gradient(135deg,#0ea5e9,#0284c7);color:#fff;box-shadow:0 6px 24px rgba(14,165,233,.4)}
+.btn-start:hover{box-shadow:0 8px 32px rgba(14,165,233,.6);transform:translateY(-1px)}
+.btn-end{background:rgba(239,68,68,.15);border:2px solid #ef4444;color:#ef4444;font-size:.95rem;padding:12px;margin-top:8px}
+.btn-end:hover{background:rgba(239,68,68,.25)}
+.btn-secondary{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);color:#94a3b8;font-size:.9rem;padding:10px 20px;border-radius:10px;cursor:pointer;font-weight:600}
+.btn-secondary:hover{background:rgba(255,255,255,.12)}
+
+/* ── Drum Picker ── */
+#s-row, #s-col{background:#000c1a;flex-direction:column;justify-content:space-between;padding:0}
+.picker-header{flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:18px 20px 0;gap:12px}
+.picker-label{font-size:1rem;color:#64748b;font-weight:600}
+.picker-phase{font-size:.75rem;color:#0ea5e9;background:rgba(14,165,233,.15);padding:3px 10px;border-radius:20px;border:1px solid rgba(14,165,233,.3)}
+.picker-back{background:none;border:none;color:#475569;font-size:1rem;cursor:pointer;padding:4px 8px;border-radius:6px}
+.picker-back:hover{color:#94a3b8}
+
+.drum-outer{flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;min-height:0}
+.drum-fade-top,.drum-fade-bot{position:absolute;left:0;right:0;height:35%;z-index:2;pointer-events:none}
+.drum-fade-top{top:0;background:linear-gradient(to bottom,#000c1a 0%,transparent 100%)}
+.drum-fade-bot{bottom:0;background:linear-gradient(to top,#000c1a 0%,transparent 100%)}
+.drum-line{position:absolute;left:10%;right:10%;height:2px;background:rgba(14,165,233,.5);z-index:3;pointer-events:none;border-radius:2px}
+.drum-line-top{top:calc(50% - var(--item-h)/2 - 1px)}
+.drum-line-bot{bottom:calc(50% - var(--item-h)/2 - 1px);top:auto}
+
+.drum-track{position:absolute;top:0;left:0;right:0;touch-action:none;cursor:grab;display:flex;flex-direction:column;align-items:center}
+.drum-track.dragging{cursor:grabbing}
+.drum-item{width:100%;display:flex;align-items:center;justify-content:center;font-weight:900;transition:color .15s,opacity .15s,transform .1s;flex-shrink:0;letter-spacing:-1px}
+
+.picker-confirm{flex-shrink:0;padding:16px 20px 24px;display:flex;flex-direction:column;gap:10px;align-items:center}
+.selected-display{color:#fbbf24;font-size:1rem;font-weight:700;text-align:center;min-height:24px}
+
+/* ── Po strzale ── */
+#s-result{background:#000c1a;gap:16px;text-align:center}
+.result-icon{font-size:clamp(50px,18vw,100px)}
+.result-text{font-size:clamp(20px,7vw,42px);font-weight:900}
+.result-reward{font-size:clamp(16px,5vw,28px);font-weight:700;color:#fbbf24}
+.result-coord{font-size:clamp(14px,3.5vw,20px);color:#64748b}
+
+/* ── Mini board ── */
+.mini-board-wrap{overflow-x:auto;text-align:center}
+#mini-board{border-collapse:collapse;border:2px solid #0ea5e9;background:#000;display:inline-table}
+#mini-board th,#mini-board td{border:1px solid #0d3a5c;text-align:center;font-size:11px;font-weight:700}
+</style>
+</head>
+<body>
+
+<!-- Ładowanie -->
+<div class="screen active" id="s-loading">
+    <h2 style="color:#7dd3fc;font-size:1.4rem">⚓ Statki Solo</h2>
+    <p>Ładowanie konfiguracji…</p>
+</div>
+
+<!-- Start / Ustawienia -->
+<div class="screen" id="s-start">
+    <h1>⚓ Statki Solo</h1>
+    <div class="board-summary" id="board-summary">Ładowanie…</div>
+
+    <div class="music-panel" id="music-panel" style="display:none">
+        <h3>🎵 Soundtrack</h3>
+        <div class="volume-row">
+            <span>🔈</span>
+            <input type="range" min="0" max="1" step="0.05" value="0.65" id="vol-slider">
+            <span>🔊</span>
+            <span class="vol-val" id="vol-val">65%</span>
+        </div>
+        <button class="btn-music" id="btn-music-toggle" onclick="toggleMusic()">▶ Włącz muzykę</button>
+    </div>
+
+    <button class="btn-main btn-start" onclick="startGame()">🚀 Rozpocznij grę</button>
+    <a href="/statki-solo/" style="color:#475569;font-size:.82rem;text-decoration:none;margin-top:8px">← Powrót</a>
+</div>
+
+<!-- Wybór rzędu (drum picker) -->
+<div class="screen" id="s-row">
+    <div class="picker-header">
+        <span class="picker-label">Wybierz rząd</span>
+        <span class="picker-phase">Faza 1 z 2</span>
+    </div>
+    <div class="drum-outer" id="drum-row-outer">
+        <div class="drum-fade-top"></div>
+        <div class="drum-fade-bot"></div>
+        <div class="drum-line drum-line-top" id="dl-top"></div>
+        <div class="drum-line drum-line-bot" id="dl-bot"></div>
+        <div class="drum-track" id="drum-row-track"></div>
+    </div>
+    <div class="picker-confirm">
+        <div class="selected-display" id="row-selected-display">Przewiń aby wybrać rząd</div>
+        <button class="btn-main btn-start" id="btn-confirm-row" onclick="confirmRow()">✔ Potwierdź rząd</button>
+        <button class="btn-main btn-end" onclick="endGame()">🏁 Zakończ grę</button>
+    </div>
+</div>
+
+<!-- Wybór kolumny (drum picker) -->
+<div class="screen" id="s-col">
+    <div class="picker-header">
+        <button class="picker-back" onclick="backToRow()">← Rząd</button>
+        <span class="picker-label">Wybierz kolumnę</span>
+        <span class="picker-phase">Faza 2 z 2</span>
+    </div>
+    <div class="drum-outer" id="drum-col-outer">
+        <div class="drum-fade-top"></div>
+        <div class="drum-fade-bot"></div>
+        <div class="drum-line drum-line-top"></div>
+        <div class="drum-line drum-line-bot"></div>
+        <div class="drum-track" id="drum-col-track"></div>
+    </div>
+    <div class="picker-confirm">
+        <div class="selected-display" id="col-selected-display">Przewiń aby wybrać kolumnę</div>
+        <button class="btn-main btn-start" id="btn-fire" onclick="fireShot()" style="background:linear-gradient(135deg,#dc2626,#b91c1c);box-shadow:0 6px 24px rgba(220,38,38,.4)">🎯 Oddaj strzał!</button>
+    </div>
+</div>
+
+<!-- Wynik strzału -->
+<div class="screen" id="s-result">
+    <div class="result-icon" id="r-icon"></div>
+    <div class="result-text" id="r-text"></div>
+    <div class="result-reward" id="r-reward"></div>
+    <div class="result-coord" id="r-coord"></div>
+    <div class="mini-board-wrap" id="mini-board-wrap" style="margin-top:12px;max-width:340px;width:100%"></div>
+    <button class="btn-main btn-start" onclick="nextShot()" style="margin-top:12px">🎯 Następny strzał</button>
+    <button class="btn-main btn-end" onclick="endGame()">🏁 Zakończ grę</button>
+</div>
+
+<audio id="audio-bg" loop></audio>
+<audio id="audio-sfx"></audio>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+const LETTERS = 'ABCDEFGHIJ';
+let config = null;        // { boardSize, ships, rewards, soundtrack }
+let gameRunning = false;
+let selectedRow = 0;
+let selectedCol = 0;
+let shots = {};           // { "r_c": { hit, reward } }
+let musicPlaying = false;
+let pendingShot = null;
+
+const audioEl = document.getElementById('audio-bg');
+const sfxEl = document.getElementById('audio-sfx');
+
+// ─── Screens ───────────────────────────────────────────────
+function show(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+}
+
+// ─── Config ────────────────────────────────────────────────
+async function loadConfig() {
+    try {
+        const r = await fetch('/api/statki-solo/config');
+        config = await r.json();
+        renderStartScreen();
+    } catch(e) {
+        document.getElementById('board-summary').textContent = 'Błąd ładowania konfiguracji. Otwórz edytor i zapisz planszę.';
+    }
+    show('s-start');
+}
+
+function renderStartScreen() {
+    const el = document.getElementById('board-summary');
+    if (!config || !config.ships || !config.ships.length) {
+        el.innerHTML = '⚠️ Brak planszy.<br><small>Otwórz <a href="/statki-solo/editor.html" style="color:#0ea5e9">Edytor</a> i zapisz konfigurację.</small>';
+        document.querySelector('.btn-start').disabled = true;
+        document.querySelector('.btn-start').style.opacity = '.4';
+        return;
+    }
+    const rewards = Object.values(config.rewards || {}).filter(Boolean);
+    el.innerHTML = `Plansza <strong>${config.boardSize}×${config.boardSize}</strong> · <strong>${config.ships.length}</strong> statków · <strong>${rewards.length}</strong> nagród`;
+    if (config.soundtrack) {
+        document.getElementById('music-panel').style.display = 'block';
+    }
+}
+
+// ─── Muzyka ────────────────────────────────────────────────
+const volSlider = document.getElementById('vol-slider');
+const volVal = document.getElementById('vol-val');
+volSlider.oninput = () => {
+    const v = parseFloat(volSlider.value);
+    audioEl.volume = v;
+    volVal.textContent = Math.round(v * 100) + '%';
+    socket.emit('ships_solo_volume', { volume: v });
+};
+
+function toggleMusic() {
+    if (!config || !config.soundtrack) return;
+    if (musicPlaying) {
+        audioEl.pause();
+        musicPlaying = false;
+        document.getElementById('btn-music-toggle').textContent = '▶ Włącz muzykę';
+    } else {
+        const src = config.soundtrack.startsWith('http') ? config.soundtrack : '/uploads/' + config.soundtrack;
+        audioEl.src = src;
+        audioEl.volume = parseFloat(volSlider.value);
+        audioEl.play().catch(()=>{});
+        musicPlaying = true;
+        document.getElementById('btn-music-toggle').textContent = '⏸ Zatrzymaj muzykę';
+    }
+}
+
+// ─── Start / Reset ──────────────────────────────────────────
+function startGame() {
+    if (!config || !config.ships || !config.ships.length) return;
+    shots = {};
+    gameRunning = true;
+    socket.emit('ships_solo_init', config);
+    selectedRow = 0; selectedCol = 0;
+    buildDrumRow();
+    buildDrumCol();
+    show('s-row');
+}
+
+function endGame() {
+    if (confirm('Zakończyć grę?')) {
+        socket.emit('ships_solo_end', {});
+        gameRunning = false;
+        show('s-start');
+    }
+}
+
+// ─── Drum Picker ────────────────────────────────────────────
+const ITEM_HEIGHT_VH = 18; // % viewport height na element
+
+function buildDrum(trackEl, outerEl, items, initIndex, onChangeCb) {
+    const vh = window.innerHeight;
+    const itemH = Math.floor(vh * ITEM_HEIGHT_VH / 100);
+    outerEl.style.setProperty('--item-h', itemH + 'px');
+
+    trackEl.innerHTML = '';
+    // Paddingowe puste elementy (żeby pierwsza/ostatnia pozycja była wyśrodkowana)
+    const pad = 2;
+    for (let i = 0; i < pad; i++) {
+        const el = document.createElement('div');
+        el.className = 'drum-item'; el.style.height = itemH + 'px'; el.style.opacity = '0';
+        el.textContent = '·'; trackEl.appendChild(el);
+    }
+    items.forEach((item, idx) => {
+        const el = document.createElement('div');
+        el.className = 'drum-item';
+        el.style.height = itemH + 'px';
+        el.dataset.idx = idx;
+        el.textContent = item;
+        trackEl.appendChild(el);
+    });
+    for (let i = 0; i < pad; i++) {
+        const el = document.createElement('div');
+        el.className = 'drum-item'; el.style.height = itemH + 'px'; el.style.opacity = '0';
+        el.textContent = '·'; trackEl.appendChild(el);
+    }
+
+    let currentIndex = initIndex;
+    let startY = 0, startTranslate = 0, isDragging = false;
+    let translateY = -currentIndex * itemH;
+    let lastEmitIdx = -1;
+
+    function applyTranslate(y, animate) {
+        trackEl.style.transition = animate ? 'transform .25s cubic-bezier(.25,.46,.45,.94)' : 'none';
+        trackEl.style.transform = `translateY(${y}px)`;
+        updateItems(y);
+    }
+
+    function clamp(y) {
+        const min = -(items.length - 1) * itemH;
+        return Math.max(min, Math.min(0, y));
+    }
+
+    function updateItems(y) {
+        const activeIdx = Math.round(-y / itemH);
+        trackEl.querySelectorAll('.drum-item[data-idx]').forEach(el => {
+            const idx = parseInt(el.dataset.idx);
+            const dist = Math.abs(idx - activeIdx);
+            const scales = [1, .7, .45, .28];
+            const opacities = [1, .65, .35, .15];
+            const scale = scales[Math.min(dist, 3)] || .1;
+            const opacity = opacities[Math.min(dist, 3)] || .05;
+            const fsize = Math.max(16, Math.floor(window.innerHeight * ITEM_HEIGHT_VH / 100 * .62 * scale));
+            el.style.cssText = `height:${itemH}px;font-size:${fsize}px;opacity:${opacity};transform:scale(${scale});color:${dist===0?'#fff':'#7dd3fc'};transition:font-size .1s,opacity .1s,transform .1s`;
+            if (dist === 0) el.style.color = '#fff';
+        });
+        if (activeIdx !== lastEmitIdx && activeIdx >= 0 && activeIdx < items.length) {
+            lastEmitIdx = activeIdx;
+            onChangeCb(activeIdx);
+        }
+    }
+
+    function getTouch(e) { return e.touches ? e.touches[0] : e; }
+
+    function onStart(e) {
+        isDragging = true;
+        startY = getTouch(e).clientY;
+        startTranslate = translateY;
+        trackEl.classList.add('dragging');
+        trackEl.style.transition = 'none';
+    }
+    function onMove(e) {
+        if (!isDragging) return;
+        if (e.cancelable) e.preventDefault();
+        const dy = getTouch(e).clientY - startY;
+        translateY = clamp(startTranslate + dy);
+        applyTranslate(translateY, false);
+    }
+    function onEnd() {
+        if (!isDragging) return;
+        isDragging = false;
+        trackEl.classList.remove('dragging');
+        currentIndex = Math.round(-translateY / itemH);
+        currentIndex = Math.max(0, Math.min(items.length - 1, currentIndex));
+        translateY = -currentIndex * itemH;
+        applyTranslate(translateY, true);
+        onChangeCb(currentIndex);
+    }
+
+    trackEl.addEventListener('mousedown', onStart);
+    trackEl.addEventListener('touchstart', onStart, {passive:true});
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('touchmove', onMove, {passive:false});
+    document.addEventListener('mouseup', onEnd);
+    document.addEventListener('touchend', onEnd);
+
+    applyTranslate(-initIndex * itemH, false);
+    return { goTo: (idx) => { currentIndex = idx; translateY = -idx * itemH; applyTranslate(translateY, true); onChangeCb(idx); } };
+}
+
+let rowPicker = null, colPicker = null;
+
+function buildDrumRow() {
+    const n = config.boardSize;
+    const items = Array.from({length: n}, (_, i) => String(i + 1));
+    rowPicker = buildDrum(
+        document.getElementById('drum-row-track'),
+        document.getElementById('drum-row-outer'),
+        items, selectedRow,
+        (idx) => {
+            selectedRow = idx;
+            const d = document.getElementById('row-selected-display');
+            d.textContent = `Rząd: ${idx + 1}`;
+            d.style.color = '#fbbf24';
+            socket.emit('ships_solo_aim', { aimRow: idx, aimCol: null, phase: 'row' });
+        }
+    );
+}
+
+function buildDrumCol() {
+    const n = config.boardSize;
+    const items = Array.from({length: n}, (_, i) => LETTERS[i]);
+    // Oznacz już strzelone pola
+    colPicker = buildDrum(
+        document.getElementById('drum-col-track'),
+        document.getElementById('drum-col-outer'),
+        items, selectedCol,
+        (idx) => {
+            selectedCol = idx;
+            const key = `${selectedRow}_${idx}`;
+            const d = document.getElementById('col-selected-display');
+            if (shots[key]) {
+                d.textContent = `${LETTERS[idx]} – już strzelano!`;
+                d.style.color = '#ef4444';
+                document.getElementById('btn-fire').disabled = true;
+                document.getElementById('btn-fire').style.opacity = '.4';
+            } else {
+                d.textContent = `${selectedRow + 1}${LETTERS[idx]} – gotowy do strzału!`;
+                d.style.color = '#4ade80';
+                document.getElementById('btn-fire').disabled = false;
+                document.getElementById('btn-fire').style.opacity = '1';
+            }
+            socket.emit('ships_solo_aim', { aimRow: selectedRow, aimCol: idx, phase: 'col' });
+        }
+    );
+}
+
+function confirmRow() {
+    socket.emit('ships_solo_aim', { aimRow: selectedRow, aimCol: null, phase: 'col' });
+    buildDrumCol();
+    show('s-col');
+}
+
+function backToRow() {
+    socket.emit('ships_solo_aim', { aimRow: selectedRow, aimCol: null, phase: 'row' });
+    show('s-row');
+}
+
+function fireShot() {
+    const key = `${selectedRow}_${selectedCol}`;
+    if (shots[key]) return; // już strzelano
+    document.getElementById('btn-fire').disabled = true;
+    socket.emit('ships_solo_shot', { row: selectedRow, col: selectedCol });
+}
+
+function nextShot() {
+    // Nie resetuj pickera – admin może wrócić tam gdzie był
+    buildDrumRow();
+    show('s-row');
+}
+
+// ─── Wynik strzału ──────────────────────────────────────────
+socket.on('ships_solo_shot_result', (d) => {
+    if (d.shots) shots = d.shots;
+    if (d.hit === undefined) return;
+
+    const key = `${d.row}_${d.col}`;
+    document.getElementById('r-icon').textContent = d.hit ? '💥' : '💧';
+    document.getElementById('r-text').textContent = d.hit ? 'TRAFIONY!' : 'Pudło';
+    document.getElementById('r-text').style.color = d.hit ? '#4ade80' : '#64748b';
+    document.getElementById('r-reward').textContent = d.hit && d.reward ? '🏆 ' + d.reward : '';
+    document.getElementById('r-coord').textContent = `Pole: ${d.row + 1}${LETTERS[d.col]}`;
+    renderMiniBoard();
+
+    if (d.gameEnded) {
+        document.querySelector('#s-result .btn-main.btn-start').style.display = 'none';
+        document.getElementById('r-coord').textContent += ' · Wszystkie statki zatopione! 🎉';
+        audioEl.pause();
+        musicPlaying = false;
+    }
+    show('s-result');
+});
+
+function renderMiniBoard() {
+    if (!config) return;
+    const n = config.boardSize;
+    const cellPx = Math.max(18, Math.floor(300 / (n + 1)));
+    let html = `<table id="mini-board" style="--ch:${cellPx}px">`;
+    html += `<tr><th style="width:${cellPx}px;height:${cellPx}px;background:#00111f;"></th>`;
+    for (let c = 0; c < n; c++) html += `<th style="width:${cellPx}px;height:${cellPx}px;background:#00111f;color:#38bdf8;">${LETTERS[c]}</th>`;
+    html += '</tr>';
+    for (let r = 0; r < n; r++) {
+        html += `<tr><th style="width:${cellPx}px;height:${cellPx}px;background:#00111f;color:#475569;">${r+1}</th>`;
+        for (let c = 0; c < n; c++) {
+            const shot = shots[`${r}_${c}`];
+            let bg = '#001020', txt = '';
+            if (shot) { bg = shot.hit ? '#166534' : '#1e293b'; txt = shot.hit ? '🔥' : '·'; }
+            if (r === selectedRow && c === selectedCol) bg = '#7c2d12';
+            html += `<td style="width:${cellPx}px;height:${cellPx}px;background:${bg};font-size:${Math.max(8,cellPx*0.5)}px;">${txt}</td>`;
+        }
+        html += '</tr>';
+    }
+    html += '</table>';
+    document.getElementById('mini-board-wrap').innerHTML = html;
+}
+
+// ─── Socket events ──────────────────────────────────────────
+socket.on('connect', () => {
+    socket.emit('ships_solo_get_state');
+});
+socket.on('ships_solo_state', (g) => {
+    if (g && gameRunning) { shots = g.shots || {}; }
+});
+
+// ─── Init ───────────────────────────────────────────────────
+loadConfig();
+</script>
+</body>
+</html>

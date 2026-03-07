@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Statki Solo – Screen</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#000c1a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+#waiting{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#000c1a;z-index:10}
+#waiting h1{font-size:clamp(1.4rem,4vw,2.5rem);color:#7dd3fc;margin-bottom:12px}
+#waiting p{color:#475569;font-size:1rem}
+.dot{display:inline-block;animation:blink 1.4s infinite both}
+.dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,80%,100%{opacity:0}40%{opacity:1}}
+#board-wrap{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;padding:12px}
+table{border-collapse:collapse;table-layout:fixed}
+th,td{text-align:center;vertical-align:middle;transition:background .25s,box-shadow .25s}
+/* Animacje */
+@keyframes hitPop{from{transform:scale(.2);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-10px)}40%,80%{transform:translateX(10px)}}
+@keyframes rewardSlide{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+#overlay{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;background:transparent}
+#ended-banner{position:fixed;bottom:40px;left:50%;transform:translateX(-50%);background:rgba(14,165,233,0.2);border:2px solid #0ea5e9;border-radius:12px;padding:14px 32px;color:#7dd3fc;font-size:1.4rem;font-weight:700;display:none;z-index:50}
+</style>
+</head>
+<body>
+<div id="waiting">
+    <h1>⚓ Statki Solo</h1>
+    <p>Oczekiwanie na admina<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></p>
+</div>
+<div id="board-wrap"></div>
+<div id="overlay"></div>
+<div id="ended-banner">🏁 Gra zakończona</div>
+
+<audio id="soundtrack" loop></audio>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+const LETTERS = 'ABCDEFGHIJ';
+let gameState = null;
+let audioUnlocked = false;
+
+const waiting = document.getElementById('waiting');
+const boardWrap = document.getElementById('board-wrap');
+const overlay = document.getElementById('overlay');
+const soundtrackEl = document.getElementById('soundtrack');
+
+function unlockAudio() {
+    if (audioUnlocked) return;
+    audioUnlocked = true;
+    soundtrackEl.load();
+}
+document.addEventListener('click', unlockAudio);
+document.addEventListener('touchstart', unlockAudio, {passive:true});
+
+function startSoundtrack(url) {
+    if (!url) return;
+    const src = url.startsWith('http') ? url : '/uploads/' + url;
+    if (soundtrackEl.src !== src) { soundtrackEl.src = src; soundtrackEl.volume = 0.65; }
+    soundtrackEl.play().catch(()=>{});
+}
+function stopSoundtrack() { soundtrackEl.pause(); soundtrackEl.currentTime = 0; }
+
+socket.on('ships_solo_volume', d => { soundtrackEl.volume = Math.max(0, Math.min(1, d.volume)); });
+
+function renderBoard() {
+    if (!gameState) return;
+    const g = gameState;
+    const boardSize = g.boardSize || 8;
+    const shots = g.shots || {};
+    const aimRow = g.aimRow;
+    const aimCol = g.aimCol;
+    const phase = g.phase;
+
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const maxBoard = Math.min(vw * 0.92, vh * 0.88);
+    const cell = Math.floor(maxBoard / (boardSize + 1));
+    const head = Math.max(22, Math.floor(cell * 0.75));
+    const fs = Math.max(12, Math.floor(cell * 0.42));
+
+    let html = `<table style="border:3px solid #0ea5e9;background:#000;box-shadow:0 0 60px rgba(14,165,233,0.3);">`;
+    // Header row
+    html += `<tr><th style="width:${head}px;height:${head}px;background:#00111f;border:1px solid #0d3a5c;"></th>`;
+    for (let c = 0; c < boardSize; c++) {
+        const hi = phase === 'col' && aimCol === c;
+        html += `<th style="width:${cell}px;height:${head}px;background:${hi?'#0ea5e9':'#00111f'};color:${hi?'#fff':'#38bdf8'};font-size:${fs}px;font-weight:700;border:1px solid #0d3a5c;transition:background .3s;">${LETTERS[c]}</th>`;
+    }
+    html += `</tr>`;
+    for (let r = 0; r < boardSize; r++) {
+        const rowHi = aimRow === r;
+        html += `<tr>`;
+        html += `<th style="width:${head}px;height:${cell}px;background:${rowHi?'rgba(14,165,233,0.25)':'#00111f'};color:${rowHi?'#7dd3fc':'#475569'};font-size:${fs}px;font-weight:700;border:1px solid #0d3a5c;transition:background .3s;">${r+1}</th>`;
+        for (let c = 0; c < boardSize; c++) {
+            const key = `${r}_${c}`;
+            const shot = shots[key];
+            const isAimCell = rowHi && aimCol === c;
+            const isRowHL = rowHi && phase === 'row';
+            const isColHL = phase === 'col' && aimCol === c;
+            let bg = '#001020', content = '', extra = '';
+            if (shot) {
+                bg = shot.hit ? '#166534' : '#1e293b';
+                content = shot.hit ? '🔥' : `<span style="color:#334155;font-size:${Math.max(10,fs*0.7)}px;">●</span>`;
+                if (shot.hit) extra = 'box-shadow:inset 0 0 12px rgba(74,222,128,0.3);';
+            } else if (isAimCell) {
+                bg = '#d97706'; extra = 'box-shadow:0 0 24px rgba(251,191,36,0.9);';
+            } else if (isRowHL || isColHL) {
+                bg = 'rgba(14,165,233,0.12)';
+            }
+            html += `<td style="width:${cell}px;height:${cell}px;background:${bg};border:1px solid #0d3a5c;text-align:center;font-size:${fs}px;${extra}transition:background .2s;">${content}</td>`;
+        }
+        html += `</tr>`;
+    }
+    html += `</table>`;
+    if (!g.gameEnded) {
+        const msg = phase === 'row'
+            ? (aimRow !== null ? `Rząd <strong style="color:#fbbf24;font-size:1.4em;">${aimRow+1}</strong> – czekaj…` : 'Wybór rzędu…')
+            : `Rząd <strong style="color:#7dd3fc;">${aimRow+1}</strong> → Wybór kolumny…`;
+        html += `<div style="margin-top:18px;color:#64748b;font-size:clamp(13px,2vw,22px);text-align:center;">${msg}</div>`;
+    }
+    boardWrap.innerHTML = html;
+}
+
+function showHitAnimation(hit, reward, gameEnded) {
+    overlay.innerHTML = '';
+    if (hit) {
+        overlay.innerHTML = `
+<div style="animation:hitPop .5s cubic-bezier(.34,1.56,.64,1) both;text-align:center;">
+  <div style="font-size:clamp(70px,14vw,140px);line-height:1;">💥</div>
+  <div style="font-size:clamp(44px,9vw,100px);font-weight:900;color:#4ade80;text-shadow:0 0 40px #4ade80,0 0 80px rgba(74,222,128,.5);letter-spacing:3px;margin-top:8px;">TRAFIONY!</div>
+  ${reward ? `<div style="margin-top:24px;font-size:clamp(24px,4.5vw,60px);font-weight:700;color:#fbbf24;text-shadow:0 0 24px #fbbf24;animation:rewardSlide .8s .5s ease both;">🏆 ${reward}</div>` : ''}
+  ${gameEnded ? `<div style="margin-top:20px;font-size:clamp(18px,3vw,38px);color:#7dd3fc;animation:rewardSlide 1s .9s ease both;">🎉 Wszystkie statki zatopione!</div>` : ''}
+</div>`;
+        document.body.style.animation = 'shake .4s ease';
+        setTimeout(() => document.body.style.animation = '', 420);
+        setTimeout(() => { overlay.innerHTML = ''; if (gameEnded) document.getElementById('ended-banner').style.display = 'block'; }, reward ? 4800 : 3000);
+    } else {
+        overlay.innerHTML = `<div style="animation:rewardSlide .35s ease both;color:#475569;font-size:clamp(24px,5vw,64px);font-weight:700;">💧 Pudło</div>`;
+        setTimeout(() => { overlay.innerHTML = ''; }, 2000);
+    }
+}
+
+socket.on('ships_solo_state', (g) => {
+    if (!g) { waiting.style.display = 'flex'; boardWrap.style.display = 'none'; return; }
+    gameState = g;
+    waiting.style.display = 'none';
+    boardWrap.style.display = 'flex';
+    if (g.soundtrack) startSoundtrack(g.soundtrack);
+    renderBoard();
+});
+
+socket.on('ships_solo_aim_update', (d) => {
+    if (!gameState) return;
+    gameState.aimRow = d.aimRow; gameState.aimCol = d.aimCol; gameState.phase = d.phase;
+    renderBoard();
+});
+
+socket.on('ships_solo_shot_result', (d) => {
+    if (!gameState) return;
+    if (d.shots) gameState.shots = d.shots;
+    if (d.phase !== undefined) gameState.phase = d.phase;
+    gameState.aimRow = null; gameState.aimCol = null;
+    if (d.gameEnded) gameState.gameEnded = true;
+    renderBoard();
+    if (d.hit !== undefined) showHitAnimation(d.hit, d.reward, d.gameEnded);
+    if (d.gameEnded) stopSoundtrack();
+});
+
+window.addEventListener('resize', renderBoard);
+
+// Pobierz aktualny stan gdy screen się łączy po raz pierwszy
+socket.on('connect', () => {
+    socket.emit('ships_solo_get_state');
+});
+</script>
+</body>
+</html>
