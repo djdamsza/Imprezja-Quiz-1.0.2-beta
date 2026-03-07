@@ -5372,14 +5372,16 @@ io.on('connection', (socket) => {
             }
             return true;
         });
-        // rewards jako tablica: rewards[0] = nagr. za 1. trafiony statek, itd.
+        // rewards jako tablica; rewardMode: 'per_hit' (każdy maszt) | 'per_ship' (pierwsze trafienie)
         const rewardsArr = Array.isArray(rewards) ? rewards : Object.values(rewards || {}).filter(Boolean);
         gameState.shipsSoloGame = {
             questionId: 'standalone',
             boardSize: boardSize || 8,
             ships: validShips,
             rewards: rewardsArr,
-            shipsHitOrder: [],   // indeksy statków w kolejności pierwszego trafienia
+            rewardMode: data.rewardMode || 'per_hit',
+            shipsHitOrder: [],   // per_ship: indeksy w kolejności pierwszego trafienia
+            totalHits: 0,        // per_hit: licznik trafionych komórek
             shots: {},
             aimRow: null, aimCol: null,
             phase: 'col',
@@ -5442,13 +5444,21 @@ io.on('connection', (socket) => {
             if (hit) break;
         }
 
-        // Nagroda: tylko przy PIERWSZYM trafieniu danego statku, w kolejności trafień
+        // Nagroda wg trybu
         let reward = null;
         const shipSize = hit ? g.ships[hitShipIdx].size : null;
-        if (hit && !g.shipsHitOrder.includes(hitShipIdx)) {
-            g.shipsHitOrder.push(hitShipIdx);
-            const rewardIdx = g.shipsHitOrder.length - 1;
-            reward = (g.rewards && g.rewards[rewardIdx]) || null;
+        if (hit) {
+            if (g.rewardMode === 'per_ship') {
+                // Nagroda tylko przy PIERWSZYM trafieniu danego statku
+                if (!g.shipsHitOrder.includes(hitShipIdx)) {
+                    g.shipsHitOrder.push(hitShipIdx);
+                    reward = (g.rewards && g.rewards[g.shipsHitOrder.length - 1]) || null;
+                }
+            } else {
+                // per_hit: nagroda przy każdym trafieniu masztu (domyślny)
+                reward = (g.rewards && g.rewards[g.totalHits]) || null;
+                g.totalHits++;
+            }
         }
 
         g.shots[key] = { hit, reward, shipSize };
@@ -5469,7 +5479,7 @@ io.on('connection', (socket) => {
         }
         if (allSunk) g.gameEnded = true;
 
-        const hitCount = g.shipsHitOrder.length;
+        const hitCount = g.rewardMode === 'per_ship' ? g.shipsHitOrder.length : g.totalHits;
         console.log(`⚓ [SHIPS_SOLO] Strzał (${row},${col}) – ${hit ? `TRAFIONY (${shipSize}-masztowy, ${hitCount}. statek)` : 'pudło'}${reward ? ' nagroda: ' + reward : ''}`);
         io.emit('ships_solo_shot_result', {
             questionId, row, col, hit, reward, shipSize,
