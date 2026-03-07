@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pobierz Imprezja Quiz</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1a1a2e; color: #fff; min-height: 100vh; padding: 40px 20px; }
+        .container { max-width: 860px; margin: 0 auto; }
+        .logo { text-align: center; margin-bottom: 10px; font-size: 2.2rem; font-weight: 800; color: #f1c40f; letter-spacing: 1px; }
+        .version-badge { text-align: center; margin-bottom: 6px; }
+        .version-badge span { background: #27ae60; color: #fff; font-size: 0.8rem; font-weight: 700; padding: 3px 12px; border-radius: 20px; }
+        .subtitle { text-align: center; color: #95a5a6; margin-bottom: 40px; font-size: 1rem; }
+
+        /* ── Sekcja pobierania ── */
+        .download-section { margin-bottom: 40px; }
+        .download-section h2 { font-size: 1.2rem; color: #f1c40f; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .download-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+        .download-card { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; align-items: center; text-align: center; transition: border-color 0.2s, background 0.2s; }
+        .download-card:hover { border-color: #f1c40f; background: rgba(241,196,15,0.07); }
+        .download-card .os-icon { font-size: 2.4rem; margin-bottom: 10px; }
+        .download-card .os-name { font-weight: 700; font-size: 1.05rem; margin-bottom: 4px; }
+        .download-card .os-desc { font-size: 0.82rem; color: #95a5a6; margin-bottom: 16px; min-height: 36px; }
+        .btn-download { display: inline-flex; align-items: center; gap: 8px; padding: 12px 22px; background: #3498db; color: #fff; border-radius: 8px; font-size: 0.95rem; font-weight: 700; text-decoration: none; transition: background 0.2s, transform 0.1s; }
+        .btn-download:hover { background: #2980b9; transform: translateY(-1px); }
+        .btn-download.win { background: #0078d4; }
+        .btn-download.win:hover { background: #006cbf; }
+        .btn-download.mac { background: #555; }
+        .btn-download.mac:hover { background: #444; }
+        .file-size { font-size: 0.78rem; color: #7f8c8d; margin-top: 8px; }
+
+        /* ── Uwagi instalacji ── */
+        .install-notes { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 18px 22px; margin-bottom: 40px; }
+        .install-notes h3 { font-size: 0.95rem; color: #f1c40f; margin-bottom: 10px; }
+        .install-notes ul { list-style: none; padding: 0; }
+        .install-notes li { font-size: 0.88rem; color: #bdc3c7; padding: 4px 0; padding-left: 20px; position: relative; }
+        .install-notes li::before { content: '→'; position: absolute; left: 0; color: #f1c40f; }
+
+        /* ── Sekcja licencji / zakupu ── */
+        .license-section { margin-bottom: 40px; }
+        .license-section h2 { font-size: 1.2rem; color: #f1c40f; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .license-info { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 18px 22px; margin-bottom: 16px; font-size: 0.9rem; color: #bdc3c7; line-height: 1.6; }
+        .btn-buy { display: inline-flex; align-items: center; gap: 8px; padding: 14px 28px; background: linear-gradient(135deg, #f1c40f, #e67e22); color: #1a1a2e; border-radius: 10px; font-size: 1rem; font-weight: 800; text-decoration: none; transition: opacity 0.2s, transform 0.1s; }
+        .btn-buy:hover { opacity: 0.9; transform: translateY(-1px); }
+
+        /* ── Footer ── */
+        .footer { text-align: center; font-size: 0.82rem; color: #555; margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.07); }
+        .footer a { color: #777; text-decoration: none; }
+        .footer a:hover { color: #aaa; }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <div class="logo">🎉 Imprezja Quiz</div>
+    <div class="version-badge"><span>v1.1.5 — stabilna</span></div>
+    <p class="subtitle">Quiz, głosowanie i gry muzyczne na imprezy – działa offline</p>
+
+    <!-- ── POBIERANIE ── -->
+    <div class="download-section">
+        <h2>⬇️ Pobierz program</h2>
+        <div class="download-grid">
+
+            <div class="download-card">
+                <div class="os-icon">🪟</div>
+                <div class="os-name">Windows</div>
+                <div class="os-desc">Windows 10 / 11, 64-bit<br>Instalator z ekranem powitalnym</div>
+                <a class="btn-download win"
+                   href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.1.5/Imprezja%20Quiz%20Setup%201.1.5.exe"
+                   download>
+                    ⬇ Pobierz EXE
+                </a>
+                <div class="file-size">~341 MB</div>
+            </div>
+
+            <div class="download-card">
+                <div class="os-icon">🍎</div>
+                <div class="os-name">macOS — Apple Silicon</div>
+                <div class="os-desc">Mac z procesorem M1 / M2 / M3<br>Natywna wydajność ARM</div>
+                <a class="btn-download mac"
+                   href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.1.5/Imprezja%20Quiz-1.1.5-arm64.dmg"
+                   download>
+                    ⬇ Pobierz DMG (ARM)
+                </a>
+                <div class="file-size">~372 MB</div>
+            </div>
+
+            <div class="download-card">
+                <div class="os-icon">🍎</div>
+                <div class="os-name">macOS — Intel</div>
+                <div class="os-desc">Starsze Maki z procesorem Intel<br>(2019 i wcześniej)</div>
+                <a class="btn-download mac"
+                   href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.1.5/Imprezja%20Quiz-1.1.5.dmg"
+                   download>
+                    ⬇ Pobierz DMG (Intel)
+                </a>
+                <div class="file-size">~377 MB</div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ── UWAGI INSTALACJI ── -->
+    <div class="install-notes">
+        <h3>ℹ️ Instalacja</h3>
+        <ul>
+            <li><strong>Windows:</strong> uruchom instalator, na ekranie końcowym zaznacz checkbox „Uruchom Imprezja Quiz".</li>
+            <li><strong>macOS:</strong> otwórz DMG, przeciągnij aplikację do folderu Programy.</li>
+            <li><strong>macOS – pierwsze uruchomienie:</strong> kliknij prawym przyciskiem myszy na aplikację → <em>Otwórz</em> (pomiń ostrzeżenie systemowe).</li>
+            <li>Program działa w sieci lokalnej (WiFi) – internet potrzebny tylko do tunelu LTE.</li>
+        </ul>
+    </div>
+
+    <!-- ── LICENCJA ── -->
+    <div class="license-section">
+        <h2>🔑 Licencja</h2>
+        <div class="license-info">
+            Program można przetestować bez licencji (tryb quiz + głosowanie). Gry muzyczne (Bitwa Wokalna, NJR Sampler, Śpiewaj Dalej, Familiada) wymagają aktywnej licencji.<br><br>
+            Po zakupie otrzymasz klucz licencyjny e-mailem. Wpisz go w programie przy pierwszym uruchomieniu.
+        </div>
+        <a class="btn-buy" href="/kup-licencje/">💳 Kup licencję</a>
+    </div>
+
+    <div class="footer">
+        Imprezja Quiz &nbsp;·&nbsp; v1.1.5 &nbsp;·&nbsp;
+        <a href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/tag/v1.1.5" target="_blank">Pełne uwagi do wersji</a>
+    </div>
+
+</div>
+</body>
+</html>
