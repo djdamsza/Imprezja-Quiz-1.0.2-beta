@@ -57,7 +57,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000c1a;color:#fff;f
 
 /* Drum container */
 .drum-outer{flex:1;position:relative;overflow:hidden;--item-h:120px;min-height:0}
-.drum-outer::before,.drum-outer::after{content:'';position:absolute;left:0;right:0;height:28%;z-index:4;pointer-events:none}
+.drum-outer::before,.drum-outer::after{content:'';position:absolute;left:0;right:0;height:20%;z-index:4;pointer-events:none}
 .drum-outer::before{top:0;background:linear-gradient(to bottom,#000c1a 0%,rgba(0,12,26,0) 100%)}
 .drum-outer::after{bottom:0;background:linear-gradient(to top,#000c1a 0%,rgba(0,12,26,0) 100%)}
 .drum-zone{position:absolute;left:12px;right:12px;top:50%;transform:translateY(-50%);height:var(--item-h);background:rgba(14,165,233,.13);border:2px solid rgba(14,165,233,.55);border-radius:18px;box-shadow:0 0 28px rgba(14,165,233,.22),inset 0 0 16px rgba(14,165,233,.06);z-index:3;pointer-events:none;transition:background .3s,border-color .3s,box-shadow .3s}
@@ -360,7 +360,6 @@ function startGame() {
     socket.emit('ships_solo_init', config);
     selectedCol = 0; selectedRow = 0;
     buildDrumCol();
-    show('s-col');
 }
 function endGame() {
     if (!confirm('Zakończyć grę?')) return;
@@ -374,12 +373,10 @@ function endGame() {
 function nextShot() {
     document.getElementById('btn-next').style.display = 'flex';
     buildDrumCol();
-    show('s-col');
 }
 function backToCol() {
     socket.emit('ships_solo_aim', { aimRow: null, aimCol: selectedCol, phase: 'col' });
     buildDrumCol();
-    show('s-col');
 }
 
 // ── Target bar updates ─────────────────────────────────────
@@ -410,7 +407,7 @@ function updateRowBar(colIdx, rowIdx) {
 let colPickerCleanup = null, rowPickerCleanup = null;
 
 function buildDrum(outerEl, zoneEl, trackEl, items, initIdx, isFirePhase, onChangeCb, onConfirmCb) {
-    const outerH = outerEl.clientHeight || Math.floor(window.innerHeight * 0.6);
+    const outerH = outerEl.getBoundingClientRect().height || Math.floor(window.innerHeight * 0.6);
     const VISIBLE = 4;
     const itemH = Math.floor(outerH / VISIBLE);
     const PAD = 2;
@@ -509,48 +506,54 @@ function buildDrum(outerEl, zoneEl, trackEl, items, initIdx, isFirePhase, onChan
     };
 }
 
+// show() + rAF żeby element był widoczny i zmierzony przed buildDrum
 function buildDrumCol() {
-    if (colPickerCleanup) colPickerCleanup();
-    const items = Array.from({length: config.boardSize}, (_, i) => LETTERS[i]);
-    updateColBar(selectedCol);
-    colPickerCleanup = buildDrum(
-        document.getElementById('drum-col-outer'),
-        document.getElementById('drum-col-zone'),
-        document.getElementById('drum-col-track'),
-        items, selectedCol, false,
-        (idx) => { selectedCol = idx; updateColBar(idx); socket.emit('ships_solo_aim', { aimRow: null, aimCol: idx, phase: 'col' }); },
-        (idx) => {
-            selectedCol = idx; playConfirm();
-            document.getElementById('row-phase-title').textContent = `Kolumna ${LETTERS[idx]} → Rząd`;
-            document.getElementById('row-phase-badge').textContent = `1–${config.boardSize}`;
-            socket.emit('ships_solo_aim', { aimRow: null, aimCol: idx, phase: 'row' });
-            buildDrumRow();
-            show('s-row');
-        }
-    );
+    if (colPickerCleanup) { colPickerCleanup(); colPickerCleanup = null; }
+    show('s-col');
+    requestAnimationFrame(() => {
+        const items = Array.from({length: config.boardSize}, (_, i) => LETTERS[i]);
+        updateColBar(selectedCol);
+        colPickerCleanup = buildDrum(
+            document.getElementById('drum-col-outer'),
+            document.getElementById('drum-col-zone'),
+            document.getElementById('drum-col-track'),
+            items, selectedCol, false,
+            (idx) => { selectedCol = idx; updateColBar(idx); socket.emit('ships_solo_aim', { aimRow: null, aimCol: idx, phase: 'col' }); },
+            (idx) => {
+                selectedCol = idx; playConfirm();
+                document.getElementById('row-phase-title').textContent = `Kolumna ${LETTERS[idx]} → Rząd`;
+                document.getElementById('row-phase-badge').textContent = `1–${config.boardSize}`;
+                socket.emit('ships_solo_aim', { aimRow: null, aimCol: idx, phase: 'row' });
+                buildDrumRow();
+            }
+        );
+    });
 }
 
 function buildDrumRow() {
-    if (rowPickerCleanup) rowPickerCleanup();
-    const items = Array.from({length: config.boardSize}, (_, i) => String(i + 1));
-    updateRowBar(selectedCol, selectedRow);
-    rowPickerCleanup = buildDrum(
-        document.getElementById('drum-row-outer'),
-        document.getElementById('drum-row-zone'),
-        document.getElementById('drum-row-track'),
-        items, selectedRow, true,
-        (idx) => {
-            selectedRow = idx;
-            updateRowBar(selectedCol, idx);
-            socket.emit('ships_solo_aim', { aimRow: idx, aimCol: selectedCol, phase: shots[`${idx}_${selectedCol}`] ? 'col_blocked' : 'row' });
-        },
-        (idx) => {
-            selectedRow = idx;
-            if (shots[`${idx}_${selectedCol}`]) return;
-            playFire();
-            socket.emit('ships_solo_shot', { row: idx, col: selectedCol });
-        }
-    );
+    if (rowPickerCleanup) { rowPickerCleanup(); rowPickerCleanup = null; }
+    show('s-row');
+    requestAnimationFrame(() => {
+        const items = Array.from({length: config.boardSize}, (_, i) => String(i + 1));
+        updateRowBar(selectedCol, selectedRow);
+        rowPickerCleanup = buildDrum(
+            document.getElementById('drum-row-outer'),
+            document.getElementById('drum-row-zone'),
+            document.getElementById('drum-row-track'),
+            items, selectedRow, true,
+            (idx) => {
+                selectedRow = idx;
+                updateRowBar(selectedCol, idx);
+                socket.emit('ships_solo_aim', { aimRow: idx, aimCol: selectedCol, phase: shots[`${idx}_${selectedCol}`] ? 'col_blocked' : 'row' });
+            },
+            (idx) => {
+                selectedRow = idx;
+                if (shots[`${idx}_${selectedCol}`]) return;
+                playFire();
+                socket.emit('ships_solo_shot', { row: idx, col: selectedCol });
+            }
+        );
+    });
 }
 
 // ── Wynik ──────────────────────────────────────────────────

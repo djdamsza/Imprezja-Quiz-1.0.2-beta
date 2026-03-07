@@ -315,23 +315,39 @@ function renderBoard() {
     boardWrap.innerHTML = html;
 }
 
-// ── Shot overlay animation ─────────────────────────────────
+// ── Shot overlay — dwufazowy: trafienie znika, nagroda zostaje +3s ──────────
 function showShotOverlay(hit, reward, shipSize, gameEnded) {
     overlay.innerHTML = '';
     if (hit) {
-        const sz = shipSize ? `<div style="margin-top:10px;font-size:clamp(18px,3.5vw,40px);color:#94a3b8;font-weight:600">Statek <strong style="color:#4ade80;font-size:1.3em;">${shipSize}</strong>-masztowy</div>` : '';
+        const sz = shipSize ? `<div id="ov-ship" style="margin-top:10px;font-size:clamp(18px,3.5vw,40px);color:#94a3b8;font-weight:600;transition:opacity .6s">Statek <strong style="color:#4ade80;font-size:1.3em;">${shipSize}</strong>-masztowy</div>` : '';
         overlay.innerHTML = `
 <div style="animation:hitPop .5s cubic-bezier(.34,1.56,.64,1) both;text-align:center;">
-  <div style="font-size:clamp(60px,12vw,120px);line-height:1;">💥</div>
-  <div style="font-size:clamp(44px,9vw,100px);font-weight:900;color:#4ade80;text-shadow:0 0 40px #4ade80,0 0 80px rgba(74,222,128,.5);letter-spacing:3px;margin-top:8px;">TRAFIONY!</div>
-  ${sz}
-  ${reward ? `<div style="margin-top:20px;font-size:clamp(24px,4.5vw,60px);font-weight:700;color:#fbbf24;text-shadow:0 0 24px #fbbf24;animation:rewardSlide .8s .5s ease both;">🏆 ${reward}</div>` : ''}
-  ${gameEnded ? `<div style="margin-top:20px;font-size:clamp(18px,3vw,38px);color:#7dd3fc;animation:rewardSlide 1s .9s ease both;">🎉 Wszystkie statki zatopione!</div>` : ''}
+  <div id="ov-hit" style="transition:opacity .6s">
+    <div style="font-size:clamp(60px,12vw,120px);line-height:1;">💥</div>
+    <div style="font-size:clamp(44px,9vw,100px);font-weight:900;color:#4ade80;text-shadow:0 0 40px #4ade80,0 0 80px rgba(74,222,128,.5);letter-spacing:3px;margin-top:8px;">TRAFIONY!</div>
+    ${sz}
+  </div>
+  ${reward ? `<div id="ov-reward" style="margin-top:20px;font-size:clamp(24px,4.5vw,60px);font-weight:700;color:#fbbf24;text-shadow:0 0 24px #fbbf24;animation:rewardSlide .8s .5s ease both;transition:opacity .6s">🏆 ${reward}</div>` : ''}
+  ${gameEnded ? `<div id="ov-ended" style="margin-top:20px;font-size:clamp(18px,3vw,38px);color:#7dd3fc;animation:rewardSlide 1s .9s ease both;transition:opacity .6s">🎉 Wszystkie statki zatopione!</div>` : ''}
 </div>`;
         document.body.style.animation = 'shake .45s ease';
         setTimeout(() => document.body.style.animation = '', 480);
-        const dur = reward || gameEnded ? 5200 : 3200;
-        setTimeout(() => { overlay.innerHTML = ''; }, dur);
+
+        const HIT_DUR = 3000;  // trafienie widoczne przez 3s
+        // Faza 2: ukryj tekst "TRAFIONY!", zostaw nagrodę
+        setTimeout(() => {
+            const hitEl = document.getElementById('ov-hit');
+            if (hitEl) hitEl.style.opacity = '0';
+            // Jeśli nie ma nagrody ani końca gry — wyczyść po chwili
+            if (!reward && !gameEnded) {
+                setTimeout(() => { overlay.innerHTML = ''; }, 700);
+            }
+        }, HIT_DUR);
+
+        // Faza 3: ukryj nagrodę po dodatkowych 3s
+        const rewardExtra = (reward || gameEnded) ? 3000 : 700;
+        setTimeout(() => { overlay.innerHTML = ''; }, HIT_DUR + rewardExtra);
+
     } else {
         overlay.innerHTML = `<div style="animation:rewardSlide .35s ease both;color:#475569;font-size:clamp(24px,5vw,64px);font-weight:700;">💧 Pudło</div>`;
         setTimeout(() => { overlay.innerHTML = ''; }, 2200);

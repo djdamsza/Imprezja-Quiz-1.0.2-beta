@@ -5448,7 +5448,12 @@ io.on('connection', (socket) => {
         let reward = null;
         const shipSize = hit ? g.ships[hitShipIdx].size : null;
         if (hit) {
-            if (g.rewardMode === 'per_ship') {
+            if (g.rewardMode === 'buciki') {
+                // Buciki: nagroda = liczba masztów trafionego statku × flaszka
+                const sz = g.ships[hitShipIdx].size;
+                const pl = sz === 1 ? 'flaszka' : sz <= 4 ? 'flaszki' : 'flaszek';
+                reward = `${'🥃'.repeat(sz)} ${sz} ${pl}!`;
+            } else if (g.rewardMode === 'per_ship') {
                 // Nagroda tylko przy PIERWSZYM trafieniu danego statku
                 if (!g.shipsHitOrder.includes(hitShipIdx)) {
                     g.shipsHitOrder.push(hitShipIdx);
