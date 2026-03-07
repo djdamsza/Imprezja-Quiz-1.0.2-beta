@@ -297,7 +297,6 @@ app.post('/create-checkout-session', async (req, res) => {
             metadata: { product: 'imprezja-quiz', lookup_key: lookup_key || '' },
             locale: 'pl',
             billing_address_collection: 'auto',
-            tax_id_collection: { enabled: true },
         };
 
         if (isSubscription) {
@@ -307,8 +306,9 @@ app.post('/create-checkout-session', async (req, res) => {
             // Revolut Pay obsługuje subskrypcje; BLIK – nie
             sessionConfig.payment_method_types = ['card', 'revolut_pay'];
         } else {
-            // customer_creation tylko dla trybu payment (przy subscription klient tworzony automatycznie)
+            // Poniższe parametry tylko dla trybu payment
             sessionConfig.customer_creation = 'always';
+            sessionConfig.tax_id_collection = { enabled: true };
             // Płatność jednorazowa: karta, BLIK, Revolut Pay
             sessionConfig.payment_method_types = ['card', 'blik', 'revolut_pay'];
             // Generuj fakturę dla płatności jednorazowych (z NIP klienta)
@@ -359,15 +359,15 @@ app.get('/checkout', async (req, res) => {
             locale: 'pl',
             metadata: { product: 'imprezja-quiz', lookup_key: plan },
             billing_address_collection: 'auto',
-            tax_id_collection: { enabled: true },
         };
 
         if (isSubscription) {
             sessionConfig.subscription_data = { metadata: { product: 'imprezja-quiz', lookup_key: plan } };
             sessionConfig.payment_method_types = ['card', 'revolut_pay'];
         } else {
-            // customer_creation tylko dla trybu payment (przy subscription klient tworzony automatycznie)
+            // Poniższe parametry tylko dla trybu payment
             sessionConfig.customer_creation = 'always';
+            sessionConfig.tax_id_collection = { enabled: true };
             sessionConfig.payment_method_types = ['card', 'blik', 'revolut_pay'];
             // Generuj fakturę dla płatności jednorazowych (z NIP klienta)
             sessionConfig.invoice_creation = {
