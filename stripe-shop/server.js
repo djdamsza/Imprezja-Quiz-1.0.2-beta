@@ -279,6 +279,8 @@ app.post('/create-checkout-session', async (req, res) => {
         }
         // Wyłącz Stripe Link (express checkout)
         sessionConfig.payment_method_options = { link: { display_preference: { preference: 'off' } } };
+        // Pole "Masz kod rabatowy?" na stronie Stripe Checkout
+        sessionConfig.allow_promotion_codes = true;
 
         const session = await stripe.checkout.sessions.create(sessionConfig);
         res.json({ url: session.url, sessionId: session.id });
@@ -337,6 +339,8 @@ app.get('/checkout', async (req, res) => {
         }
         // Wyłącz Stripe Link (express checkout)
         sessionConfig.payment_method_options = { link: { display_preference: { preference: 'off' } } };
+        // Pole "Masz kod rabatowy?" na stronie Stripe Checkout
+        sessionConfig.allow_promotion_codes = true;
 
         const session = await stripe.checkout.sessions.create(sessionConfig);
         console.log('✅ Checkout GET redirect:', plan, '->', session.url.substring(0, 60) + '...');
