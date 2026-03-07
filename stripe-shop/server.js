@@ -198,6 +198,54 @@ app.post('/create-checkout-session', async (req, res) => {
     }
 });
 
+/**
+ * Checkout via GET redirect – dla stron bez JavaScript (np. WordPress Custom HTML)
+ * Użycie: /checkout?plan=imprezja-1m
+ * Tworzy sesję Stripe i natychmiast przekierowuje użytkownika.
+ */
+app.get('/checkout', async (req, res) => {
+    const plan = String(req.query.plan || '').trim();
+    if (!plan) return res.status(400).send('Brak parametru: plan');
+    if (!process.env.STRIPE_SECRET_KEY) return res.status(500).send('Stripe nie skonfigurowany');
+
+    res.setHeader('Cache-Control', 'no-store, no-cache');
+
+    try {
+        const prices = await stripe.prices.list({ lookup_keys: [plan], expand: ['data.product'] });
+        if (!prices.data.length) return res.status(404).send(`Plan "${plan}" nie istnieje w Stripe`);
+
+        const price = prices.data[0];
+        const isSubscription = price.recurring !== null;
+
+        const referer = req.headers.referer || '';
+        const cancelUrl = referer || 'https://nowajakoscrozrywki.pl/produkt/imprezja-quiz/';
+        const successUrl = process.env.WP_SUCCESS_URL || 'https://nowajakoscrozrywki.pl/sukces/?session_id={CHECKOUT_SESSION_ID}';
+
+        const sessionConfig = {
+            line_items: [{ price: price.id, quantity: 1 }],
+            mode: isSubscription ? 'subscription' : 'payment',
+            success_url: successUrl,
+            cancel_url: cancelUrl,
+            locale: 'pl',
+            metadata: { product: 'imprezja-quiz', lookup_key: plan }
+        };
+
+        if (isSubscription) {
+            sessionConfig.subscription_data = { metadata: { product: 'imprezja-quiz', lookup_key: plan } };
+            sessionConfig.payment_method_types = ['card', 'revolut_pay'];
+        } else {
+            sessionConfig.payment_method_types = ['card', 'blik', 'revolut_pay'];
+        }
+
+        const session = await stripe.checkout.sessions.create(sessionConfig);
+        console.log('✅ Checkout GET redirect:', plan, '->', session.url.substring(0, 60) + '...');
+        res.redirect(303, session.url);
+    } catch (err) {
+        console.error('Checkout GET error:', err);
+        res.status(500).send(`Błąd tworzenia sesji płatności: ${err.message}`);
+    }
+});
+
 /** Customer Portal – zarządzanie subskrypcją (anulowanie, zmiana karty) */
 app.post('/create-portal-session', async (req, res) => {
     const { customer_id, return_url } = req.body;
