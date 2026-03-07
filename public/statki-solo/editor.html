@@ -114,14 +114,30 @@ h1{flex:1;text-align:center;font-size:1.4rem;color:#7dd3fc;font-weight:800}
         <div class="panel" style="margin-top:16px">
             <h2>🎵 Soundtrack (tło muzyczne)</h2>
             <div class="soundtrack-wrap">
-                <div class="st-row">
-                    <input class="soundtrack-inp" type="text" id="soundtrack-inp" placeholder="URL lub /uploads/sfx/seabattle.mp3">
-                    <button class="st-btn" id="st-play-btn" title="Odsłuchaj" onclick="stTogglePlay()">▶</button>
+                <!-- Wybierz plik -->
+                <div class="st-row" style="margin-bottom:10px">
+                    <button class="st-btn" style="background:rgba(14,165,233,.15);border-color:#0ea5e9;color:#7dd3fc;font-weight:700" onclick="document.getElementById('st-file-inp').click()">📁 Wybierz plik audio</button>
+                    <input type="file" id="st-file-inp" accept="audio/*" style="display:none">
+                    <button class="st-btn" id="st-play-btn" title="Odsłuchaj wybrany plik" onclick="stTogglePlay()">▶</button>
                     <button class="st-btn" onclick="stStopPlay()" title="Stop">⏹</button>
                 </div>
-                <input class="st-search" type="text" id="st-search" placeholder="🔍 Szukaj w uploads… (np. seabattle)">
+                <!-- Wybrany plik -->
+                <div id="st-selected" style="display:none;align-items:center;gap:8px;margin-bottom:10px;padding:8px 12px;background:rgba(14,165,233,.08);border:1px solid rgba(14,165,233,.25);border-radius:8px">
+                    <span style="font-size:1.1rem">🎵</span>
+                    <span id="st-selected-name" style="font-size:.85rem;color:#7dd3fc;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+                    <button class="st-btn" style="padding:4px 8px;font-size:.75rem" onclick="stClearFile()">✕</button>
+                </div>
+                <!-- Ukryte pole do zapisu ścieżki -->
+                <input type="hidden" id="soundtrack-inp">
+                <!-- Loop -->
+                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:10px;padding:8px 12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:8px">
+                    <input type="checkbox" id="soundtrack-loop" style="width:16px;height:16px;accent-color:#0ea5e9">
+                    <span style="font-size:.88rem;color:#94a3b8">🔁 Odtwarzaj w pętli przez całą zabawę</span>
+                </label>
+                <!-- Szukaj w uploads -->
+                <input class="st-search" type="text" id="st-search" placeholder="🔍 lub szukaj w uploads… (np. seabattle)">
                 <div class="st-browser" id="st-browser"></div>
-                <p class="soundtrack-note">Odtwarzany przez admina podczas gry. Wpisz fragment nazwy aby wyszukać pliki z /uploads/.</p>
+                <p class="soundtrack-note">Odtwarzany przez admina podczas gry. Wybierz z dysku lub wyszukaj plik już przesłany na serwer.</p>
             </div>
         </div>
     </div>
@@ -439,10 +455,11 @@ function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').repl
 async function saveConfig() {
     collectCurrentRewards();
     const soundtrack = document.getElementById('soundtrack-inp').value.trim();
+    const soundtrackLoop = document.getElementById('soundtrack-loop').checked;
     // rewards jako tablica (puste stringi odcinamy od końca)
     const rewardsTrimmed = [...rewards];
     while (rewardsTrimmed.length && !rewardsTrimmed[rewardsTrimmed.length - 1]) rewardsTrimmed.pop();
-    const cfg = { boardSize, ships, rewards: rewardsTrimmed, rewardMode, soundtrack };
+    const cfg = { boardSize, ships, rewards: rewardsTrimmed, rewardMode, soundtrack, soundtrackLoop };
     const btn = document.getElementById('btn-save');
     const msg = document.getElementById('save-msg');
     btn.disabled = true;
@@ -499,8 +516,10 @@ async function stSearch(q) {
 
 function stPickFile(path) {
     const url = path.startsWith('/') ? path : '/uploads/' + path;
-    document.getElementById('soundtrack-inp').value = url;
+    const name = path.replace(/^.*\//, '');
+    stSetFile(url, name);
     document.getElementById('st-browser').style.display = 'none';
+    document.getElementById('st-search').value = '';
 }
 
 function stPreviewFromPath(path) {
@@ -516,12 +535,11 @@ function stPreviewFromPath(path) {
 
 function stTogglePlay() {
     const val = document.getElementById('soundtrack-inp').value.trim();
-    if (!val) return;
+    if (!val) { alert('Najpierw wybierz plik lub wyszukaj z uploads.'); return; }
     if (!stAudio.paused) { stAudio.pause(); document.getElementById('st-play-btn').textContent = '▶'; return; }
     const base = window.location.origin;
-    const rawPath = val.startsWith('http') ? val : (val.startsWith('/') ? val : '/uploads/' + val);
-    const url = val.startsWith('http') ? val : (base + rawPath);
-    stAudio.src = url; stAudio.volume = 0.7; stAudio.load();
+    const url = val.startsWith('http') ? val : (base + (val.startsWith('/') ? val : '/uploads/' + val));
+    stAudio.src = url; stAudio.volume = 0.7; stAudio.loop = false; stAudio.load();
     stAudio.play().catch(()=>{});
     document.getElementById('st-play-btn').textContent = '⏸';
     stAudio.onended = () => { document.getElementById('st-play-btn').textContent = '▶'; };
@@ -531,6 +549,35 @@ function stStopPlay() { stAudio.pause(); stAudio.currentTime = 0; document.getEl
 
 document.getElementById('st-search').addEventListener('input', stDebounce(e => stSearch(e.target.value), 300));
 document.getElementById('st-search').addEventListener('focus', () => stSearch(document.getElementById('st-search').value || 'seabattle'));
+
+// ── Plik audio z dysku ─────────────────────────────────────
+document.getElementById('st-file-inp').addEventListener('change', async function() {
+    const file = this.files?.[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('file', file, file.name);
+    try {
+        const r = await fetch('/upload', { method: 'POST', body: fd });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) { alert('Błąd uploadu: ' + (d.error || r.statusText)); return; }
+        const path = d.filepath || ('/uploads/' + file.name);
+        stSetFile(path, file.name);
+    } catch(e) { alert('Błąd uploadu: ' + e.message); }
+    this.value = '';
+});
+
+function stSetFile(path, name) {
+    document.getElementById('soundtrack-inp').value = path;
+    const selEl = document.getElementById('st-selected');
+    selEl.style.display = 'flex';
+    document.getElementById('st-selected-name').textContent = name || path.replace(/^.*\//, '');
+}
+
+function stClearFile() {
+    document.getElementById('soundtrack-inp').value = '';
+    document.getElementById('st-selected').style.display = 'none';
+    stStopPlay();
+}
 
 // ── Załaduj istniejącą konfigurację ────────────────────────
 async function loadExisting() {
@@ -551,7 +598,10 @@ async function loadExisting() {
             if (rewardMode === 'per_ship') info.textContent = 'Nagroda tylko przy odkryciu nowego statku — tyle nagród ile statków.';
             else if (rewardMode === 'buciki') info.textContent = '🥾 Buciki: automatycznie — trafienie N-masztowca = N flaszek 🥃.';
         }
-        if (c.soundtrack) document.getElementById('soundtrack-inp').value = c.soundtrack;
+        if (c.soundtrack) {
+            stSetFile(c.soundtrack, c.soundtrack.replace(/^.*\//, ''));
+        }
+        if (c.soundtrackLoop) document.getElementById('soundtrack-loop').checked = true;
     } catch(e) {}
     // Dopasuj długość rewards do trybu
     const needed = rewardMode === 'per_ship' ? ships.length : ships.reduce((s, sh) => s + sh.size, 0);
