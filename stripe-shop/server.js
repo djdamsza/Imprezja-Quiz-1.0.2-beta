@@ -188,6 +188,46 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
             }
             break;
         }
+        case 'charge.refunded': {
+            const charge = event.data.object;
+            console.log('↩️ Zwrot:', charge.id, 'amount_refunded:', charge.amount_refunded);
+            try {
+                // Pobierz e-mail z charge lub powiązanego klienta
+                let email = charge.billing_details?.email;
+                if (!email && charge.customer) {
+                    const customer = await stripe.customers.retrieve(charge.customer);
+                    email = customer.email;
+                }
+                if (email && (process.env.RESEND_API_KEY || process.env.SMTP_HOST)) {
+                    const totalRefunded = ((charge.amount_refunded || 0) / 100).toFixed(2);
+                    const currency = (charge.currency || 'pln').toUpperCase();
+                    // Dane ostatniego częściowego lub pełnego zwrotu
+                    const lastRefund = charge.refunds?.data?.[0];
+                    const refundDate = lastRefund
+                        ? new Date(lastRefund.created * 1000).toLocaleDateString('pl-PL', { year: 'numeric', month: 'long', day: 'numeric' })
+                        : new Date().toLocaleDateString('pl-PL', { year: 'numeric', month: 'long', day: 'numeric' });
+                    const isPartial = charge.amount_refunded < charge.amount;
+                    const html = buildEmail({
+                        title: '↩️ Potwierdzenie zwrotu – Imprezja Quiz',
+                        accentColor: '#64748b',
+                        body: `<p style="margin:0 0 16px;">Informujemy, że ${isPartial ? 'częściowy zwrot' : 'zwrot'} za zamówienie Imprezja Quiz został zrealizowany.</p>
+<table style="width:100%;border-collapse:collapse;margin:0 0 24px;font-size:15px;">
+<tr><td style="padding:8px 0;color:#64748b;border-bottom:1px solid #f1f5f9;">Kwota zwrotu</td><td style="padding:8px 0;font-weight:600;text-align:right;border-bottom:1px solid #f1f5f9;">${totalRefunded} ${currency}</td></tr>
+<tr><td style="padding:8px 0;color:#64748b;border-bottom:1px solid #f1f5f9;">Data zwrotu</td><td style="padding:8px 0;font-weight:600;text-align:right;border-bottom:1px solid #f1f5f9;">${refundDate}</td></tr>
+<tr><td style="padding:8px 0;color:#64748b;">Typ</td><td style="padding:8px 0;font-weight:600;text-align:right;">${isPartial ? 'Zwrot częściowy' : 'Zwrot pełny'}</td></tr>
+</table>
+<p style="margin:0 0 16px;font-size:14px;color:#64748b;">Środki powinny pojawić się na Twoim rachunku w ciągu 5–10 dni roboczych, w zależności od banku.</p>
+<p style="margin:0 0 8px;font-size:14px;color:#64748b;">Masz pytania? Napisz do nas: <a href="mailto:biuro@imprezja.pl" style="color:#3b82f6;">biuro@imprezja.pl</a></p>`,
+                    });
+                    const text = `Potwierdzenie zwrotu – Imprezja Quiz\n\nKwota zwrotu: ${totalRefunded} ${currency}\nData: ${refundDate}\nTyp: ${isPartial ? 'Zwrot częściowy' : 'Zwrot pełny'}\n\nŚrodki powinny pojawić się na rachunku w ciągu 5–10 dni roboczych.\n\nPytania? biuro@imprezja.pl`;
+                    await sendEmail({ to: email, subject: 'Imprezja Quiz – potwierdzenie zwrotu', html, text });
+                    console.log('📧 E-mail potwierdzenia zwrotu wysłany:', email);
+                }
+            } catch (err) {
+                console.error('⚠️ Błąd e-mailu o zwrocie:', err.message);
+            }
+            break;
+        }
         default:
             console.log('Event:', event.type);
     }
