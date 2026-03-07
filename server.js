@@ -2435,6 +2435,7 @@ let gameState = {
     speedrunQueue: [],  // { socketId, responseTime } – kolejność poprawnych odpowiedzi w trybie speedrun
     playoff: null,       // { active: true, word, question, options: ['TAK','NIE'], stats: { A: 0, B: 0 } } – dogrywka TAK/NIE bez punktów
     shipsGame: null,     // { questionId, boardSize, ships, shots: {}, currentTurn, playersShot: Set, gameEnded } – gra w statki
+    shipsSoloGame: null, // { questionId, boardSize, ships, rewards, shots: {}, aimRow, aimCol, phase, lastShot, gameEnded } – gra solo
     letterGame: null,    // { questionId, letterCount, playerLetters: { socketId: ['a', 'b'] } } – gra z literami
     thanksScreen: null   // { text: string, image: string } – ekran końcowy z podziękowaniami
 };
@@ -3089,6 +3090,7 @@ function getStateForBroadcast() {
             B: { ...gameState.teams.B, playerCount: teamBCount }
         } : gameState.teams,
         shipsGame: shipsGameForBroadcast,
+        shipsSoloGame: gameState.shipsSoloGame || null,
         letterGame: gameState.letterGame,
         thanksScreen: gameState.thanksScreen,
         hasWifi: !!currentWiFiSSID,
@@ -3993,8 +3995,35 @@ io.on('connection', (socket) => {
             gameState.duration = question.time || 30;
             gameState.questionStartTime = Date.now();
             
+            // Inicjalizuj stan gry SHIPS_SOLO (admin+screen, bez telefonów)
+            if (question.type === 'SHIPS_SOLO') {
+                const boardSize = question.boardSize || 8;
+                const validShips = (question.ships || []).filter(s => {
+                    if (!s || typeof s.size !== 'number' || s.size < 2 || s.size > 5) return false;
+                    const vertical = !!s.vertical;
+                    for (let i = 0; i < s.size; i++) {
+                        const r = s.row + (vertical ? i : 0);
+                        const c = s.col + (vertical ? 0 : i);
+                        if (r < 0 || r >= boardSize || c < 0 || c >= boardSize) return false;
+                    }
+                    return true;
+                });
+                gameState.shipsSoloGame = {
+                    questionId: question.id,
+                    boardSize,
+                    ships: validShips,
+                    rewards: question.rewards || {},
+                    shots: {},
+                    aimRow: null, aimCol: null,
+                    phase: 'row', // 'row' | 'col'
+                    lastShot: null, // { row, col, hit, reward }
+                    gameEnded: false
+                };
+                gameState.shipsGame = null;
+                gameState.letterGame = null;
+                console.log(`⚓ [SHIPS_SOLO] Inicjalizacja pytania ${question.id}, plansza ${boardSize}x${boardSize}`);
             // Inicjalizuj stan gry w statki jeśli to pytanie typu SHIPS
-            if (question.type === 'SHIPS') {
+            } else if (question.type === 'SHIPS') {
                 const boardSize = question.boardSize || 8;
                 const validShips = (question.ships || []).filter(s => {
                     if (!s || typeof s.size !== 'number' || s.size < 2 || s.size > 5) return false;
@@ -4027,14 +4056,13 @@ io.on('connection', (socket) => {
             // Tylko jeśli pytanie ma ustawiony czas i czas nie jest wyłączony
             // NIE ustawiaj timera dla pytań typu SHIPS (gra w statki nie ma automatycznego końca czasu)
             const questionTime = question.time || 30;
-            if (questionTime > 0 && !gameState.quizOptions.disableTimePoints && question.type !== 'SHIPS') {
+            if (questionTime > 0 && !gameState.quizOptions.disableTimePoints && question.type !== 'SHIPS' && question.type !== 'SHIPS_SOLO') {
                 questionTimer = setTimeout(() => {
                     console.log(`⏰ Czas pytania minął - automatyczne pokazanie statystyk`);
                     endQuestionAndShowStats();
                 }, questionTime * 1000);
-            } else if (question.type === 'SHIPS') {
-                // Dla pytań SHIPS nie ustawiamy timera - gra kończy się ręcznie przez admina
-                console.log(`⚓ Pytanie typu SHIPS - timer wyłączony, gra kończy się ręcznie`);
+            } else if (question.type === 'SHIPS' || question.type === 'SHIPS_SOLO') {
+                console.log(`⚓ Pytanie typu ${question.type} - timer wyłączony, gra kończy się ręcznie`);
             }
         }
         
@@ -5303,6 +5331,87 @@ io.on('connection', (socket) => {
         // Wyślij również przez broadcastState aby zaktualizować wszystkie komponenty
         broadcastState();
         console.log('📤 Wywołano broadcastState()');
+    });
+
+    // ─── SHIPS_SOLO: Admin steruje celownikiem i strzałem ───────────────────────
+
+    /** Admin wybiera wiersz (phase: 'row') – emitujemy aim do Screena */
+    socket.on('ships_solo_aim', (data) => {
+        const { questionId, aimRow, aimCol, phase } = data;
+        if (!gameState.shipsSoloGame || gameState.shipsSoloGame.questionId !== questionId) return;
+        const g = gameState.shipsSoloGame;
+        g.aimRow = aimRow ?? g.aimRow;
+        g.aimCol = aimCol ?? g.aimCol;
+        g.phase = phase || g.phase;
+        // Emituj tylko do screena i admina (nie mamy osobnego pokoju – broadcast)
+        io.emit('ships_solo_aim_update', { aimRow: g.aimRow, aimCol: g.aimCol, phase: g.phase });
+    });
+
+    /** Admin oddaje strzał */
+    socket.on('ships_solo_shot', (data) => {
+        const { questionId, row, col } = data;
+        if (!gameState.shipsSoloGame || gameState.shipsSoloGame.questionId !== questionId) return;
+        const g = gameState.shipsSoloGame;
+        if (g.gameEnded) return;
+
+        const key = `${row}_${col}`;
+        if (g.shots[key]) return; // Już strzelano w to pole
+
+        // Wykryj trafienie
+        let hit = false;
+        for (const ship of g.ships) {
+            for (let i = 0; i < ship.size; i++) {
+                const sr = ship.row + (ship.vertical ? i : 0);
+                const sc = ship.col + (ship.vertical ? 0 : i);
+                if (sr === row && sc === col) { hit = true; break; }
+            }
+            if (hit) break;
+        }
+
+        const reward = g.rewards?.[key] || null;
+        g.shots[key] = { hit, reward };
+        g.lastShot = { row, col, hit, reward };
+        g.aimRow = null;
+        g.aimCol = null;
+        g.phase = 'row';
+
+        // Sprawdź czy wszystkie statki zatopione
+        let allSunk = true;
+        for (const ship of g.ships) {
+            for (let i = 0; i < ship.size; i++) {
+                const sr = ship.row + (ship.vertical ? i : 0);
+                const sc = ship.col + (ship.vertical ? 0 : i);
+                if (!g.shots[`${sr}_${sc}`]?.hit) { allSunk = false; break; }
+            }
+            if (!allSunk) break;
+        }
+        if (allSunk) g.gameEnded = true;
+
+        console.log(`⚓ [SHIPS_SOLO] Strzał (${row},${col}) – ${hit ? 'TRAFIONY' : 'pudło'}${reward ? ' nagroda: ' + reward : ''}`);
+        io.emit('ships_solo_shot_result', {
+            questionId, row, col, hit, reward,
+            shots: g.shots,
+            gameEnded: g.gameEnded,
+            phase: g.phase
+        });
+        broadcastState();
+    });
+
+    /** Admin reguluje głośność soundtracku SHIPS_SOLO */
+    socket.on('ships_solo_volume', (data) => {
+        io.emit('ships_solo_volume', { volume: data.volume });
+    });
+
+    /** Admin kończy grę solo */
+    socket.on('ships_solo_end', (data) => {
+        const { questionId } = data;
+        if (!gameState.shipsSoloGame || gameState.shipsSoloGame.questionId !== questionId) return;
+        gameState.shipsSoloGame.gameEnded = true;
+        io.emit('ships_solo_shot_result', {
+            questionId, shots: gameState.shipsSoloGame.shots, gameEnded: true
+        });
+        broadcastState();
+        console.log(`⚓ [SHIPS_SOLO] Gra zakończona przez admina`);
     });
 
     socket.on('ships_end_game', (data) => {
