@@ -32,7 +32,7 @@ h1{flex:1;text-align:center;font-size:1.4rem;color:#7dd3fc;font-weight:800}
 #editor-board th{background:#00111f;color:#38bdf8;font-weight:700;pointer-events:none}
 .status-line{color:#64748b;font-size:.82rem;min-height:20px}
 /* Tryb nagród — przełącznik */
-.mode-toggle{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.mode-toggle{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px}
 .mode-card{border:2px solid rgba(255,255,255,.1);border-radius:12px;padding:12px 10px;text-align:center;cursor:pointer;transition:all .18s;background:rgba(255,255,255,.03)}
 .mode-card:hover{border-color:rgba(255,255,255,.22);background:rgba(255,255,255,.06)}
 .mode-card.active{border-color:#0ea5e9;background:rgba(14,165,233,.12)}
@@ -117,12 +117,17 @@ h1{flex:1;text-align:center;font-size:1.4rem;color:#7dd3fc;font-weight:800}
             <div class="mode-card active" data-mode="per_hit" onclick="setRewardMode('per_hit')">
                 <div class="mc-icon">🎯</div>
                 <div class="mc-name">Każdy maszt</div>
-                <div class="mc-desc">Nagroda przy każdym trafieniu komórki</div>
+                <div class="mc-desc">Nagroda przy każdym trafieniu</div>
             </div>
             <div class="mode-card" data-mode="per_ship" onclick="setRewardMode('per_ship')">
                 <div class="mc-icon">⚓</div>
                 <div class="mc-name">Każdy statek</div>
-                <div class="mc-desc">Nagroda tylko za odkrycie statku</div>
+                <div class="mc-desc">Nagroda za odkrycie statku</div>
+            </div>
+            <div class="mode-card" data-mode="buciki" onclick="setRewardMode('buciki')">
+                <div class="mc-icon">🥾</div>
+                <div class="mc-name">Buciki</div>
+                <div class="mc-desc">Flaszki = liczba masztów</div>
             </div>
         </div>
         <div class="mode-info" id="mode-info">Nagroda przy trafieniu każdego masztu. Nagroda główna powinna być ostatnia.</div>
@@ -307,19 +312,23 @@ function setRewardMode(mode) {
     document.querySelectorAll('.mode-card').forEach(c => c.classList.toggle('active', c.dataset.mode === mode));
     const info = document.getElementById('mode-info');
     if (mode === 'per_hit') {
-        info.textContent = 'Nagroda przy trafieniu każdego masztu — tyle nagród ile łączna liczba komórek statków. Nagroda główna powinna być ostatnia.';
-    } else {
+        info.textContent = 'Nagroda przy trafieniu każdego masztu. Nagroda główna powinna być ostatnia.';
+    } else if (mode === 'per_ship') {
         info.textContent = 'Nagroda tylko przy odkryciu nowego statku (pierwsze trafienie) — tyle nagród ile statków.';
+    } else {
+        info.textContent = '🥾 Buciki: automatycznie — trafienie N-masztowca = N flaszek 🥃. Nie trzeba wpisywać nagród.';
     }
-    // Przeskaluj rewards[] do nowej długości
-    rewards = rewards.slice(0, rewardSlotCount());
-    while (rewards.length < rewardSlotCount()) rewards.push('');
+    if (mode !== 'buciki') {
+        rewards = rewards.slice(0, rewardSlotCount());
+        while (rewards.length < rewardSlotCount()) rewards.push('');
+    }
     buildRewardsGrid();
 }
 
 function rewardSlotCount() {
     if (rewardMode === 'per_hit') return ships.reduce((s, sh) => s + sh.size, 0);
-    return ships.length;
+    if (rewardMode === 'per_ship') return ships.length;
+    return 0; // buciki: brak inputów
 }
 
 // ── Nagrody ─────────────────────────────────────────────────
@@ -359,6 +368,26 @@ function rewardSubInfo(i) {
 function buildRewardsGrid() {
     const grid = document.getElementById('rewards-grid');
     const n = rewardSlotCount();
+
+    // Tryb Buciki — brak inputów, tylko podgląd
+    if (rewardMode === 'buciki') {
+        if (!ships.length) {
+            grid.innerHTML = '<div class="rewards-empty">Dodaj statki aby zobaczyć podgląd nagród.</div>';
+            return;
+        }
+        let html = '<div style="font-size:.82rem;color:#64748b;margin-bottom:10px">Nagrody generowane automatycznie:</div>';
+        for (const sh of ships) {
+            const bottles = '🥃'.repeat(sh.size);
+            const word = sh.size === 1 ? 'flaszka' : sh.size <= 4 ? 'flaszki' : 'flaszek';
+            html += `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:8px;margin-bottom:6px">
+                <span style="color:#94a3b8;font-size:.82rem">${sh.size}-masztowy</span>
+                <span style="font-size:1.1rem">${bottles} <strong style="color:#fbbf24">${sh.size} ${word}</strong></span>
+            </div>`;
+        }
+        grid.innerHTML = html;
+        return;
+    }
+
     if (!ships.length) {
         grid.innerHTML = '<div class="rewards-empty">Najpierw dodaj statki — pojawią się tu pola nagród.</div>';
         return;
@@ -437,6 +466,7 @@ async function loadExisting() {
             document.querySelectorAll('.mode-card').forEach(mc => mc.classList.toggle('active', mc.dataset.mode === rewardMode));
             const info = document.getElementById('mode-info');
             if (rewardMode === 'per_ship') info.textContent = 'Nagroda tylko przy odkryciu nowego statku — tyle nagród ile statków.';
+            else if (rewardMode === 'buciki') info.textContent = '🥾 Buciki: automatycznie — trafienie N-masztowca = N flaszek 🥃.';
         }
         if (c.soundtrack) document.getElementById('soundtrack-inp').value = c.soundtrack;
     } catch(e) {}
