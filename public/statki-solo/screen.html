@@ -46,6 +46,21 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000c1a;color:#fff;f
 <script>
 const socket = io();
 const LETTERS = 'ABCDEFGHIJ';
+
+// ── WakeLock — ekran TV nie gaśnie podczas gry ─────────────
+let wakeLock = null;
+async function keepAwake() {
+    if (!('wakeLock' in navigator)) return;
+    try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        document.addEventListener('visibilitychange', async () => {
+            if (document.visibilityState === 'visible') {
+                try { wakeLock = await navigator.wakeLock.request('screen'); } catch(e) {}
+            }
+        });
+    } catch(e) {}
+}
+keepAwake();
 let gameState = null;
 let audioUnlocked = false;
 let actx = null;
