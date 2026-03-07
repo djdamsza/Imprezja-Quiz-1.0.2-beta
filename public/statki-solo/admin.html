@@ -22,7 +22,6 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000c1a;color:#fff;f
 .music-panel{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px 18px;width:100%;max-width:340px}
 .music-panel h3{color:#94a3b8;font-size:.78rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px}
 .volume-row{display:flex;align-items:center;gap:10px}
-.volume-row span{font-size:1.1rem}
 .volume-row input[type=range]{flex:1;accent-color:#0ea5e9;cursor:pointer}
 .vol-val{color:#7dd3fc;font-size:.85rem;min-width:36px;text-align:right}
 .btn-play{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:10px;background:rgba(14,165,233,.15);border:1px solid rgba(14,165,233,.3);border-radius:8px;color:#7dd3fc;cursor:pointer;font-size:.9rem;margin-top:10px}
@@ -31,110 +30,63 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000c1a;color:#fff;f
 .btn-blue{background:linear-gradient(135deg,#0ea5e9,#0284c7);color:#fff;box-shadow:0 6px 24px rgba(14,165,233,.35)}
 .btn-blue:hover{box-shadow:0 8px 32px rgba(14,165,233,.55);transform:translateY(-1px)}
 .btn-blue:disabled{opacity:.4;pointer-events:none}
+.btn-red{background:rgba(239,68,68,.12);border:2px solid #ef4444;color:#ef4444;padding:12px;font-size:.95rem}
 
-/* ── Drum Picker (faza) ── */
-#s-row,#s-col{background:#000c1a}
+/* ── Drum ── */
+#s-col,#s-row{background:#000c1a}
 .phase-header{flex-shrink:0;display:flex;align-items:center;padding:14px 16px 10px;gap:10px;border-bottom:1px solid rgba(255,255,255,.05)}
 .phase-title{flex:1;text-align:center;color:#64748b;font-size:.95rem;font-weight:600}
 .phase-badge{font-size:.72rem;color:#0ea5e9;background:rgba(14,165,233,.15);padding:3px 10px;border-radius:20px;border:1px solid rgba(14,165,233,.25)}
-.btn-back{background:none;border:none;color:#475569;font-size:.9rem;cursor:pointer;padding:4px 10px;border-radius:6px;white-space:nowrap}
+.btn-back{background:none;border:none;color:#475569;font-size:.9rem;cursor:pointer;padding:4px 10px;border-radius:6px}
 .btn-back:hover{color:#94a3b8}
 .btn-end-float{position:fixed;bottom:18px;right:18px;background:rgba(239,68,68,.12);border:1.5px solid #ef4444;color:#ef4444;font-size:.78rem;font-weight:700;padding:8px 16px;border-radius:10px;cursor:pointer;z-index:30}
 .btn-end-float:hover{background:rgba(239,68,68,.22)}
 
-/* ── Drum container ── */
-.drum-outer{
-    flex:1;position:relative;overflow:hidden;
-    /* Central hot-zone highlight */
-    --item-h: 120px;
-}
-/* Gradient fades top & bottom */
-.drum-outer::before,.drum-outer::after{
-    content:'';position:absolute;left:0;right:0;height:30%;z-index:4;pointer-events:none;
-}
+/* Drum container */
+.drum-outer{flex:1;position:relative;overflow:hidden;--item-h:120px}
+.drum-outer::before,.drum-outer::after{content:'';position:absolute;left:0;right:0;height:30%;z-index:4;pointer-events:none}
 .drum-outer::before{top:0;background:linear-gradient(to bottom,#000c1a 0%,rgba(0,12,26,0) 100%)}
 .drum-outer::after{bottom:0;background:linear-gradient(to top,#000c1a 0%,rgba(0,12,26,0) 100%)}
 
-/* The glowing center band — drawn as a real div so we can size it with JS */
-.drum-zone{
-    position:absolute;left:12px;right:12px;
-    top:50%;transform:translateY(-50%);
-    height:var(--item-h);
-    background:rgba(14,165,233,.13);
-    border:2px solid rgba(14,165,233,.55);
-    border-radius:18px;
-    box-shadow:0 0 32px rgba(14,165,233,.25),inset 0 0 20px rgba(14,165,233,.07);
-    z-index:3;pointer-events:none;
-    transition:height .15s;
-}
+/* Center hot-zone */
+.drum-zone{position:absolute;left:12px;right:12px;top:50%;transform:translateY(-50%);height:var(--item-h);background:rgba(14,165,233,.13);border:2px solid rgba(14,165,233,.55);border-radius:18px;box-shadow:0 0 32px rgba(14,165,233,.25),inset 0 0 20px rgba(14,165,233,.07);z-index:3;pointer-events:none;transition:height .15s}
+/* Red zone when in row-phase (phase 2) and column already chosen */
+.drum-zone.phase-row{background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.5);box-shadow:0 0 32px rgba(239,68,68,.2),inset 0 0 20px rgba(239,68,68,.05)}
 
-/* Track */
-.drum-track{
-    position:absolute;left:0;right:0;
-    touch-action:none;cursor:grab;
-    display:flex;flex-direction:column;align-items:center;
-    will-change:transform;
-}
+.drum-track{position:absolute;left:0;right:0;touch-action:none;cursor:grab;display:flex;flex-direction:column;align-items:center;will-change:transform}
 .drum-track.dragging{cursor:grabbing}
-
-/* Items */
-.drum-item{
-    width:calc(100% - 24px);
-    display:flex;align-items:center;justify-content:center;
-    border-radius:16px;
-    border:2px solid transparent;
-    flex-shrink:0;position:relative;
-    transition:opacity .12s, transform .12s;
-}
-.drum-item.active{
-    border-color:rgba(14,165,233,.4);
-    cursor:pointer;
-}
-.drum-item.active::after{
-    content:'dotknij';
-    position:absolute;bottom:10px;left:0;right:0;
-    text-align:center;font-size:.68rem;color:rgba(14,165,233,.7);
-    letter-spacing:.1em;text-transform:uppercase;font-weight:600;
-    animation:hint-in .4s ease both;
-}
-.drum-item.shot-before{opacity:.35 !important}
-.drum-item .drum-val{
-    font-size:4rem;font-weight:900;line-height:1;
-    letter-spacing:-2px;
-    color:#fff;text-shadow:0 0 30px rgba(14,165,233,.6);
-    pointer-events:none;
-}
-/* Tap flash */
+.drum-item{width:calc(100% - 24px);display:flex;align-items:center;justify-content:center;border-radius:16px;border:2px solid transparent;flex-shrink:0;position:relative;transition:opacity .12s,transform .12s}
+.drum-item.active{border-color:rgba(14,165,233,.4);cursor:pointer}
+.drum-item.active.phase-row-item{border-color:rgba(239,68,68,.5)}
+.drum-item.active::after{content:'dotknij';position:absolute;bottom:10px;left:0;right:0;text-align:center;font-size:.65rem;color:rgba(14,165,233,.7);letter-spacing:.1em;text-transform:uppercase;font-weight:600;animation:hint-in .4s ease both}
+.drum-item.active.phase-row-item::after{color:rgba(239,68,68,.7)}
+.drum-item.shot-here{opacity:.3 !important}
+.drum-val{font-size:4rem;font-weight:900;line-height:1;letter-spacing:-2px;color:#fff;text-shadow:0 0 30px rgba(14,165,233,.6);pointer-events:none}
+.phase-row-item .drum-val{text-shadow:0 0 30px rgba(239,68,68,.5);color:#fca5a5}
 @keyframes tap-flash{0%{background:rgba(14,165,233,.35)}100%{background:transparent}}
-.drum-item.tapped{animation:tap-flash .25s ease}
 @keyframes hint-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.drum-item.tapped{animation:tap-flash .25s ease}
 
-/* ── Wynik strzału ── */
+/* ── Wynik ── */
 #s-result{align-items:center;justify-content:center;gap:14px;padding:24px 20px;text-align:center}
 .r-icon{font-size:clamp(50px,18vw,90px)}
 .r-text{font-size:clamp(22px,8vw,48px);font-weight:900}
 .r-reward{font-size:clamp(16px,5vw,28px);font-weight:700;color:#fbbf24}
 .r-coord{font-size:clamp(13px,3.5vw,18px);color:#64748b}
-.btn-red{background:rgba(239,68,68,.12);border:2px solid #ef4444;color:#ef4444;padding:12px;font-size:.95rem}
-
-/* ── Mini board ── */
 #mini-board{border-collapse:collapse;border:2px solid #0ea5e9;background:#000;display:inline-table}
 #mini-board th,#mini-board td{border:1px solid #0d3a5c;text-align:center;font-size:11px;font-weight:700}
 </style>
 </head>
 <body>
 
-<!-- Ładowanie -->
 <div class="screen active" id="s-loading">
     <h2 style="color:#7dd3fc;font-size:1.4rem">⚓ Statki Solo</h2>
     <p>Ładowanie konfiguracji…</p>
 </div>
 
-<!-- Start -->
 <div class="screen" id="s-start">
     <h1>⚓ Statki Solo</h1>
     <div class="board-summary" id="board-summary">Ładowanie…</div>
-
     <div class="music-panel" id="music-panel" style="display:none">
         <h3>🎵 Soundtrack</h3>
         <div class="volume-row">
@@ -145,31 +97,16 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000c1a;color:#fff;f
         </div>
         <button class="btn-play" id="btn-music-toggle" onclick="toggleMusic()">▶ Włącz muzykę</button>
     </div>
-
     <button class="btn-main btn-blue" id="btn-start" onclick="startGame()">🚀 Rozpocznij grę</button>
     <a href="/statki-solo/" style="color:#475569;font-size:.82rem;text-decoration:none">← Powrót</a>
 </div>
 
-<!-- Faza 1 – Rząd -->
-<div class="screen" id="s-row">
-    <div class="phase-header">
-        <span style="width:60px"></span>
-        <span class="phase-title">Wybierz rząd</span>
-        <span class="phase-badge">1 z 2</span>
-    </div>
-    <div class="drum-outer" id="drum-row-outer">
-        <div class="drum-zone" id="drum-row-zone"></div>
-        <div class="drum-track" id="drum-row-track"></div>
-    </div>
-    <button class="btn-end-float" onclick="endGame()">🏁 Zakończ</button>
-</div>
-
-<!-- Faza 2 – Kolumna -->
+<!-- Faza 1: Kolumna (litera) -->
 <div class="screen" id="s-col">
     <div class="phase-header">
-        <button class="btn-back" onclick="backToRow()">← Rząd</button>
+        <span style="width:60px"></span>
         <span class="phase-title">Wybierz kolumnę</span>
-        <span class="phase-badge">2 z 2</span>
+        <span class="phase-badge">1 z 2 · A–H</span>
     </div>
     <div class="drum-outer" id="drum-col-outer">
         <div class="drum-zone" id="drum-col-zone"></div>
@@ -178,7 +115,21 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000c1a;color:#fff;f
     <button class="btn-end-float" onclick="endGame()">🏁 Zakończ</button>
 </div>
 
-<!-- Wynik strzału -->
+<!-- Faza 2: Rząd (cyfra) -->
+<div class="screen" id="s-row">
+    <div class="phase-header">
+        <button class="btn-back" onclick="backToCol()">← Kolumna</button>
+        <span class="phase-title" id="row-phase-title">Wybierz rząd</span>
+        <span class="phase-badge" id="row-phase-badge">2 z 2 · 1–8</span>
+    </div>
+    <div class="drum-outer" id="drum-row-outer">
+        <div class="drum-zone phase-row" id="drum-row-zone"></div>
+        <div class="drum-track" id="drum-row-track"></div>
+    </div>
+    <button class="btn-end-float" onclick="endGame()">🏁 Zakończ</button>
+</div>
+
+<!-- Wynik -->
 <div class="screen" id="s-result">
     <div class="r-icon" id="r-icon"></div>
     <div class="r-text" id="r-text"></div>
@@ -186,7 +137,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000c1a;color:#fff;f
     <div class="r-coord" id="r-coord"></div>
     <div style="overflow-x:auto;text-align:center;max-width:340px;width:100%;margin-top:4px" id="mini-board-wrap"></div>
     <button class="btn-main btn-blue" onclick="nextShot()" id="btn-next" style="margin-top:8px">🎯 Następny strzał</button>
-    <button class="btn-main btn-red" onclick="endGame()">🏁 Zakończ grę</button>
+    <button class="btn-main btn-red" onclick="endGame()" style="margin-top:0">🏁 Zakończ grę</button>
 </div>
 
 <audio id="audio-bg" loop></audio>
@@ -196,19 +147,105 @@ const socket = io();
 const LETTERS = 'ABCDEFGHIJ';
 let config = null;
 let gameRunning = false;
-let selectedRow = 0;
-let selectedCol = 0;
+let selectedCol = 0;  // litera — faza 1
+let selectedRow = 0;  // cyfra — faza 2
 let shots = {};
 let musicPlaying = false;
 const audioEl = document.getElementById('audio-bg');
+let actx = null;
 
-// ── Helpers ──────────────────────────────────────────────────
+// ── Web Audio ──────────────────────────────────────────────
+function getCtx() {
+    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+    return actx;
+}
+document.addEventListener('touchstart', () => getCtx(), {passive:true, once:true});
+document.addEventListener('click', () => getCtx(), {once:true});
+
+function playTick() {
+    try {
+        const ctx = getCtx();
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.connect(g); g.connect(ctx.destination);
+        osc.type = 'sine'; osc.frequency.value = 700;
+        g.gain.setValueAtTime(0.1, ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+        osc.start(); osc.stop(ctx.currentTime + 0.06);
+    } catch(e) {}
+}
+
+function playConfirm() {
+    try {
+        const ctx = getCtx();
+        [600, 900].forEach((f, i) => {
+            const osc = ctx.createOscillator();
+            const g = ctx.createGain();
+            osc.connect(g); g.connect(ctx.destination);
+            osc.type = 'sine'; osc.frequency.value = f;
+            const t = ctx.currentTime + i * 0.1;
+            g.gain.setValueAtTime(0.18, t);
+            g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+            osc.start(t); osc.stop(t + 0.2);
+        });
+    } catch(e) {}
+}
+
+function playFire() {
+    try {
+        const ctx = getCtx();
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.connect(g); g.connect(ctx.destination);
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(120, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.3);
+        g.gain.setValueAtTime(0.25, ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+        osc.start(); osc.stop(ctx.currentTime + 0.35);
+    } catch(e) {}
+}
+
+function playHitResult() {
+    try {
+        const ctx = getCtx();
+        const buf = ctx.createBuffer(1, ctx.sampleRate * 0.5, ctx.sampleRate);
+        const d = buf.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 0.6);
+        const src = ctx.createBufferSource();
+        const f = ctx.createBiquadFilter();
+        const g = ctx.createGain();
+        src.buffer = buf; f.type = 'lowpass'; f.frequency.value = 300;
+        g.gain.setValueAtTime(0.7, ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+        src.connect(f); f.connect(g); g.connect(ctx.destination);
+        src.start(); src.stop(ctx.currentTime + 0.5);
+    } catch(e) {}
+}
+
+function playMissResult() {
+    try {
+        const ctx = getCtx();
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.connect(g); g.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(400, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(150, ctx.currentTime + 0.4);
+        g.gain.setValueAtTime(0.15, ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+        osc.start(); osc.stop(ctx.currentTime + 0.5);
+    } catch(e) {}
+}
+
+// ── Screens ────────────────────────────────────────────────
 function show(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById(id).classList.add('active');
 }
 
-// ── Config ───────────────────────────────────────────────────
+// ── Config ─────────────────────────────────────────────────
 async function loadConfig() {
     try {
         const r = await fetch('/api/statki-solo/config');
@@ -232,7 +269,7 @@ function renderStartScreen() {
     if (config.soundtrack) document.getElementById('music-panel').style.display = 'block';
 }
 
-// ── Muzyka ───────────────────────────────────────────────────
+// ── Muzyka ─────────────────────────────────────────────────
 const volSlider = document.getElementById('vol-slider');
 const volVal = document.getElementById('vol-val');
 volSlider.oninput = () => {
@@ -241,7 +278,6 @@ volSlider.oninput = () => {
     volVal.textContent = Math.round(v * 100) + '%';
     socket.emit('ships_solo_volume', { volume: v });
 };
-
 function toggleMusic() {
     if (!config || !config.soundtrack) return;
     if (musicPlaying) {
@@ -249,25 +285,22 @@ function toggleMusic() {
         document.getElementById('btn-music-toggle').textContent = '▶ Włącz muzykę';
     } else {
         const src = config.soundtrack.startsWith('http') ? config.soundtrack : '/uploads/' + config.soundtrack;
-        if (audioEl.src !== location.origin + src) audioEl.src = src;
-        audioEl.volume = parseFloat(volSlider.value);
+        audioEl.src = src; audioEl.volume = parseFloat(volSlider.value);
         audioEl.play().catch(()=>{});
         musicPlaying = true;
         document.getElementById('btn-music-toggle').textContent = '⏸ Zatrzymaj muzykę';
     }
 }
 
-// ── Start / Koniec ───────────────────────────────────────────
+// ── Start / Koniec ─────────────────────────────────────────
 function startGame() {
     if (!config || !config.ships || !config.ships.length) return;
-    shots = {};
-    gameRunning = true;
+    shots = {}; gameRunning = true;
     socket.emit('ships_solo_init', config);
-    selectedRow = 0; selectedCol = 0;
-    buildDrumRow();
-    show('s-row');
+    selectedCol = 0; selectedRow = 0;
+    buildDrumCol();
+    show('s-col');
 }
-
 function endGame() {
     if (confirm('Zakończyć grę?')) {
         socket.emit('ships_solo_end', {});
@@ -277,43 +310,39 @@ function endGame() {
         show('s-start');
     }
 }
-
 function nextShot() {
-    buildDrumRow();
-    show('s-row');
+    document.getElementById('btn-next').style.display = 'flex';
+    buildDrumCol();
+    show('s-col');
+}
+function backToCol() {
+    socket.emit('ships_solo_aim', { aimRow: null, aimCol: selectedCol, phase: 'col' });
+    buildDrumCol();
+    show('s-col');
 }
 
-function backToRow() {
-    socket.emit('ships_solo_aim', { aimRow: selectedRow, aimCol: null, phase: 'row' });
-    buildDrumRow();
-    show('s-row');
-}
+// ── Drum Picker ────────────────────────────────────────────
+let colPickerCleanup = null, rowPickerCleanup = null;
 
-// ── Drum Picker ──────────────────────────────────────────────
-/*  Pokazuje ~4 elementy naraz jako duże kafelki.
-    Środkowy element ma podświetlone tło (drum-zone overlay).
-    Krótkie dotknięcie (< 10px ruchu) = zatwierdzenie.       */
-
-function buildDrum(outerEl, zoneEl, trackEl, items, initIdx, onChangeCb, onConfirmCb) {
-    const outerH = outerEl.clientHeight || window.innerHeight * 0.78;
-    const VISIBLE = 4;                         // ile elementów widać
+function buildDrum(outerEl, zoneEl, trackEl, items, initIdx, isRowPhase, onChangeCb, onConfirmCb) {
+    const outerH = outerEl.clientHeight || Math.floor(window.innerHeight * 0.78);
+    const VISIBLE = 4;
     const itemH = Math.floor(outerH / VISIBLE);
-    const PAD = 2;                             // puste elementy padding
+    const PAD = 2;
 
     outerEl.style.setProperty('--item-h', itemH + 'px');
     zoneEl.style.height = itemH + 'px';
 
-    // --- Build track DOM ---
     trackEl.innerHTML = '';
+
     function makeItem(label, idx) {
         const el = document.createElement('div');
-        el.className = 'drum-item';
+        el.className = 'drum-item' + (isRowPhase ? ' phase-row-item' : '');
         el.style.height = itemH + 'px';
         if (idx !== undefined) {
             el.dataset.idx = idx;
-            const shot = shots[`${selectedRow}_${idx}`];
+            const key = `${selectedRow}_${idx}`; // only for col phase check
             el.innerHTML = `<span class="drum-val">${label}</span>`;
-            if (shot) el.classList.add('shot-before');
         } else {
             el.style.opacity = '0'; el.style.pointerEvents = 'none';
         }
@@ -323,13 +352,11 @@ function buildDrum(outerEl, zoneEl, trackEl, items, initIdx, onChangeCb, onConfi
     items.forEach((label, idx) => trackEl.appendChild(makeItem(label, idx)));
     for (let i = 0; i < PAD; i++) trackEl.appendChild(makeItem(''));
 
-    // --- Position math ---
-    // Item i is centered when: translateY = baseY - i * itemH
-    // baseY = outerH/2 - itemH/2 - PAD * itemH
     const baseY = outerH / 2 - itemH / 2 - PAD * itemH;
     let translateY = baseY - initIdx * itemH;
     let currentIdx = initIdx;
     let lastEmitIdx = -1;
+    let startY = 0, startTY = 0, isDragging = false, totalMove = 0;
 
     function clampY(y) {
         return Math.max(baseY - (items.length - 1) * itemH, Math.min(baseY, y));
@@ -339,7 +366,7 @@ function buildDrum(outerEl, zoneEl, trackEl, items, initIdx, onChangeCb, onConfi
     }
 
     function applyY(y, animate) {
-        trackEl.style.transition = animate ? 'transform .3s cubic-bezier(.25,.46,.45,.94)' : 'none';
+        trackEl.style.transition = animate ? 'transform .28s cubic-bezier(.25,.46,.45,.94)' : 'none';
         trackEl.style.transform = `translateY(${y}px)`;
         updateVisuals(y);
     }
@@ -349,24 +376,22 @@ function buildDrum(outerEl, zoneEl, trackEl, items, initIdx, onChangeCb, onConfi
         trackEl.querySelectorAll('.drum-item[data-idx]').forEach(el => {
             const i = parseInt(el.dataset.idx);
             const dist = Math.abs(i - active);
-            const isActive = dist === 0;
-            const opacity = [1, .55, .25, .1][Math.min(dist, 3)] ?? 0.05;
-            const scale = [1, .82, .65, .48][Math.min(dist, 3)] ?? 0.3;
-            const fs = Math.max(20, Math.floor(itemH * 0.55 * scale));
+            const isAct = dist === 0;
+            const opacities = [1, .52, .24, .09];
+            const scales = [1, .8, .63, .46];
+            const opacity = opacities[Math.min(dist, 3)] ?? 0.04;
+            const scale = scales[Math.min(dist, 3)] ?? 0.28;
+            const fs = Math.max(18, Math.floor(itemH * 0.55 * scale));
             el.style.opacity = opacity;
             el.querySelector('.drum-val').style.fontSize = fs + 'px';
-            el.classList.toggle('active', isActive);
-            el.classList.toggle('shot-before', !isActive && !!shots[`${selectedRow}_${i}`]);
+            el.classList.toggle('active', isAct);
         });
-        if (active !== lastEmitIdx && active >= 0 && active < items.length) {
-            lastEmitIdx = active;
-            currentIdx = active;
+        if (active !== lastEmitIdx) {
+            lastEmitIdx = active; currentIdx = active;
+            playTick();
             onChangeCb(active);
         }
     }
-
-    // --- Touch / mouse ---
-    let startY = 0, startTY = 0, isDragging = false, totalMove = 0;
 
     function getY(e) { return (e.touches ? e.touches[0] : e).clientY; }
 
@@ -388,18 +413,13 @@ function buildDrum(outerEl, zoneEl, trackEl, items, initIdx, onChangeCb, onConfi
         if (!isDragging) return;
         isDragging = false;
         trackEl.classList.remove('dragging');
-
         if (totalMove < 10) {
-            // Tap – zatwierdzamy aktualny środkowy element
-            const tappedEl = trackEl.querySelector('.drum-item.active');
-            if (tappedEl) {
-                tappedEl.classList.add('tapped');
-                setTimeout(() => tappedEl.classList.remove('tapped'), 260);
-            }
-            setTimeout(() => onConfirmCb(currentIdx), 120);
+            // Tap — zatwierdzamy
+            const tapped = trackEl.querySelector('.drum-item.active');
+            if (tapped) { tapped.classList.add('tapped'); setTimeout(() => tapped.classList.remove('tapped'), 260); }
+            setTimeout(() => onConfirmCb(currentIdx), 100);
             return;
         }
-        // Snap
         currentIdx = idxFromY(translateY);
         translateY = baseY - currentIdx * itemH;
         applyY(translateY, true);
@@ -414,75 +434,86 @@ function buildDrum(outerEl, zoneEl, trackEl, items, initIdx, onChangeCb, onConfi
     document.addEventListener('touchend', onEnd);
 
     applyY(translateY, false);
-    return {
-        refresh: () => applyY(translateY, false),
-        cleanup: () => {
-            document.removeEventListener('mousemove', onMove);
-            document.removeEventListener('touchmove', onMove);
-            document.removeEventListener('mouseup', onEnd);
-            document.removeEventListener('touchend', onEnd);
-        }
+    return () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('mouseup', onEnd);
+        document.removeEventListener('touchend', onEnd);
     };
-}
-
-let rowPickerCleanup = null, colPickerCleanup = null;
-
-function buildDrumRow() {
-    if (rowPickerCleanup) rowPickerCleanup();
-    const items = Array.from({length: config.boardSize}, (_, i) => String(i + 1));
-    const p = buildDrum(
-        document.getElementById('drum-row-outer'),
-        document.getElementById('drum-row-zone'),
-        document.getElementById('drum-row-track'),
-        items, selectedRow,
-        (idx) => {
-            selectedRow = idx;
-            socket.emit('ships_solo_aim', { aimRow: idx, aimCol: null, phase: 'row' });
-        },
-        (idx) => {
-            selectedRow = idx;
-            socket.emit('ships_solo_aim', { aimRow: idx, aimCol: null, phase: 'col' });
-            buildDrumCol();
-            show('s-col');
-        }
-    );
-    rowPickerCleanup = p.cleanup;
 }
 
 function buildDrumCol() {
     if (colPickerCleanup) colPickerCleanup();
     const items = Array.from({length: config.boardSize}, (_, i) => LETTERS[i]);
-    const p = buildDrum(
+    colPickerCleanup = buildDrum(
         document.getElementById('drum-col-outer'),
         document.getElementById('drum-col-zone'),
         document.getElementById('drum-col-track'),
-        items, selectedCol,
+        items, selectedCol, false,
         (idx) => {
             selectedCol = idx;
-            const key = `${selectedRow}_${idx}`;
-            const alreadyShot = !!shots[key];
-            socket.emit('ships_solo_aim', { aimRow: selectedRow, aimCol: idx, phase: alreadyShot ? 'col_blocked' : 'col' });
+            socket.emit('ships_solo_aim', { aimRow: null, aimCol: idx, phase: 'col' });
         },
         (idx) => {
             selectedCol = idx;
-            const key = `${selectedRow}_${idx}`;
-            if (shots[key]) return; // już strzelano, ignoruj tap
-            socket.emit('ships_solo_shot', { row: selectedRow, col: idx });
+            playConfirm();
+            // Aktualizuj label fazy 2
+            document.getElementById('row-phase-title').textContent = `Kolumna ${LETTERS[idx]} → Wybierz rząd`;
+            document.getElementById('row-phase-badge').textContent = `2 z 2 · 1–${config.boardSize}`;
+            socket.emit('ships_solo_aim', { aimRow: null, aimCol: idx, phase: 'row' });
+            buildDrumRow();
+            show('s-row');
         }
     );
-    colPickerCleanup = p.cleanup;
 }
 
-// ── Wynik strzału ────────────────────────────────────────────
+function buildDrumRow() {
+    if (rowPickerCleanup) rowPickerCleanup();
+    const items = Array.from({length: config.boardSize}, (_, i) => String(i + 1));
+    rowPickerCleanup = buildDrum(
+        document.getElementById('drum-row-outer'),
+        document.getElementById('drum-row-zone'),
+        document.getElementById('drum-row-track'),
+        items, selectedRow, true,
+        (idx) => {
+            selectedRow = idx;
+            const key = `${idx}_${selectedCol}`;
+            socket.emit('ships_solo_aim', {
+                aimRow: idx, aimCol: selectedCol,
+                phase: shots[key] ? 'col_blocked' : 'row'
+            });
+        },
+        (idx) => {
+            selectedRow = idx;
+            const key = `${idx}_${selectedCol}`;
+            if (shots[key]) return; // już strzelano
+            playFire();
+            socket.emit('ships_solo_shot', { row: idx, col: selectedCol });
+        }
+    );
+}
+
+// ── Wynik strzału ──────────────────────────────────────────
 socket.on('ships_solo_shot_result', (d) => {
     if (d.shots) shots = d.shots;
     if (d.hit === undefined) return;
+
+    if (d.hit) playHitResult(); else playMissResult();
+
     document.getElementById('r-icon').textContent = d.hit ? '💥' : '💧';
     document.getElementById('r-text').textContent = d.hit ? 'TRAFIONY!' : 'Pudło';
     document.getElementById('r-text').style.color = d.hit ? '#4ade80' : '#64748b';
-    document.getElementById('r-reward').textContent = d.hit && d.reward ? '🏆 ' + d.reward : '';
-    document.getElementById('r-coord').textContent = `Pole: ${d.row + 1}${LETTERS[d.col]}`;
+
+    let rewardText = '';
+    if (d.hit) {
+        if (d.shipSize) rewardText += `⚓ Statek ${d.shipSize}-masztowy`;
+        if (d.reward) rewardText += (rewardText ? ' · ' : '') + '🏆 ' + d.reward;
+    }
+    document.getElementById('r-reward').textContent = rewardText;
+    document.getElementById('r-coord').textContent = `Pole: ${LETTERS[d.col]}${d.row + 1}`;
+
     renderMiniBoard(d.row, d.col);
+
     if (d.gameEnded) {
         document.getElementById('btn-next').style.display = 'none';
         document.getElementById('r-coord').textContent += ' · Wszystkie statki zatopione! 🎉';
@@ -495,18 +526,29 @@ function renderMiniBoard(lastR, lastC) {
     if (!config) return;
     const n = config.boardSize;
     const cs = Math.max(18, Math.floor(300 / (n + 1)));
+    const fsc = Math.max(7, Math.floor(cs * 0.5));
+    // Header: litery
     let html = `<table id="mini-board"><tr><th style="width:${cs}px;height:${cs}px;background:#00111f;"></th>`;
-    for (let c = 0; c < n; c++) html += `<th style="width:${cs}px;height:${cs}px;background:#00111f;color:#38bdf8;">${LETTERS[c]}</th>`;
+    for (let c = 0; c < n; c++) {
+        const hl = c === lastC ? 'color:#fbbf24;background:rgba(251,191,36,.12)' : 'color:#38bdf8;background:#00111f';
+        html += `<th style="width:${cs}px;height:${cs}px;${hl};">${LETTERS[c]}</th>`;
+    }
     html += '</tr>';
     for (let r = 0; r < n; r++) {
-        html += `<tr><th style="width:${cs}px;height:${cs}px;background:#00111f;color:#475569;">${r+1}</th>`;
+        const rhl = r === lastR ? 'color:#fbbf24;background:rgba(251,191,36,.12)' : 'color:#475569;background:#00111f';
+        html += `<tr><th style="width:${cs}px;height:${cs}px;${rhl};">${r + 1}</th>`;
         for (let c = 0; c < n; c++) {
             const shot = shots[`${r}_${c}`];
             const isLast = r === lastR && c === lastC;
             let bg = '#001020', txt = '';
-            if (shot) { bg = shot.hit ? '#166534' : '#1e293b'; txt = shot.hit ? '🔥' : '·'; }
-            if (isLast) bg = shot && shot.hit ? '#15803d' : '#7c2d12';
-            html += `<td style="width:${cs}px;height:${cs}px;background:${bg};font-size:${Math.max(8,cs*.5)}px;border:${isLast?'1.5px solid #fbbf24':''}">${txt}</td>`;
+            if (shot) {
+                bg = shot.hit ? '#166534' : '#1e293b';
+                txt = shot.hit
+                    ? `<span style="font-size:${fsc}px;font-weight:900;color:#4ade80;">${shot.shipSize || '🔥'}</span>`
+                    : `<span style="color:#334155;font-size:${fsc}px;">✕</span>`;
+            }
+            const border = isLast ? 'border:1.5px solid #fbbf24;' : '';
+            html += `<td style="width:${cs}px;height:${cs}px;background:${bg};${border}">${txt}</td>`;
         }
         html += '</tr>';
     }
@@ -514,7 +556,7 @@ function renderMiniBoard(lastR, lastC) {
     document.getElementById('mini-board-wrap').innerHTML = html;
 }
 
-// ── Socket ───────────────────────────────────────────────────
+// ── Socket ─────────────────────────────────────────────────
 socket.on('connect', () => socket.emit('ships_solo_get_state'));
 socket.on('ships_solo_state', (g) => { if (g && gameRunning) shots = g.shots || {}; });
 

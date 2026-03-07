@@ -5379,7 +5379,7 @@ io.on('connection', (socket) => {
             rewards: rewards || {},
             shots: {},
             aimRow: null, aimCol: null,
-            phase: 'row',
+            phase: 'col',
             lastShot: null,
             gameEnded: false,
             soundtrack: soundtrack || ''
@@ -5426,23 +5426,25 @@ io.on('connection', (socket) => {
         const key = `${row}_${col}`;
         if (g.shots[key]) return; // Już strzelano w to pole
 
-        // Wykryj trafienie
+        // Wykryj trafienie + ustal rozmiar trafionego statku
         let hit = false;
+        let hitShip = null;
         for (const ship of g.ships) {
             for (let i = 0; i < ship.size; i++) {
                 const sr = ship.row + (ship.vertical ? i : 0);
                 const sc = ship.col + (ship.vertical ? 0 : i);
-                if (sr === row && sc === col) { hit = true; break; }
+                if (sr === row && sc === col) { hit = true; hitShip = ship; break; }
             }
             if (hit) break;
         }
 
         const reward = g.rewards?.[key] || null;
-        g.shots[key] = { hit, reward };
-        g.lastShot = { row, col, hit, reward };
+        const shipSize = hitShip ? hitShip.size : null;
+        g.shots[key] = { hit, reward, shipSize };
+        g.lastShot = { row, col, hit, reward, shipSize };
         g.aimRow = null;
         g.aimCol = null;
-        g.phase = 'row';
+        g.phase = 'col';
 
         // Sprawdź czy wszystkie statki zatopione
         let allSunk = true;
@@ -5456,9 +5458,9 @@ io.on('connection', (socket) => {
         }
         if (allSunk) g.gameEnded = true;
 
-        console.log(`⚓ [SHIPS_SOLO] Strzał (${row},${col}) – ${hit ? 'TRAFIONY' : 'pudło'}${reward ? ' nagroda: ' + reward : ''}`);
+        console.log(`⚓ [SHIPS_SOLO] Strzał (${row},${col}) – ${hit ? `TRAFIONY (${shipSize}-masztowy)` : 'pudło'}${reward ? ' nagroda: ' + reward : ''}`);
         io.emit('ships_solo_shot_result', {
-            questionId, row, col, hit, reward,
+            questionId, row, col, hit, reward, shipSize,
             shots: g.shots,
             gameEnded: g.gameEnded,
             phase: g.phase
