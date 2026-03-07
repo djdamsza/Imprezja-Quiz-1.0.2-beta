@@ -317,8 +317,6 @@ app.post('/create-checkout-session', async (req, res) => {
                 invoice_data: { metadata: { product: 'imprezja-quiz', lookup_key: lookup_key || '' } }
             };
         }
-        // Wyłącz Stripe Link (express checkout)
-        sessionConfig.payment_method_options = { link: { display_preference: { preference: 'off' } } };
         // Pole "Masz kod rabatowy?" na stronie Stripe Checkout
         sessionConfig.allow_promotion_codes = true;
 
@@ -377,8 +375,6 @@ app.get('/checkout', async (req, res) => {
                 invoice_data: { metadata: { product: 'imprezja-quiz', lookup_key: plan } }
             };
         }
-        // Wyłącz Stripe Link (express checkout)
-        sessionConfig.payment_method_options = { link: { display_preference: { preference: 'off' } } };
         // Pole "Masz kod rabatowy?" na stronie Stripe Checkout
         sessionConfig.allow_promotion_codes = true;
 
