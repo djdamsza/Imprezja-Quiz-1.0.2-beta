@@ -296,10 +296,8 @@ app.post('/create-checkout-session', async (req, res) => {
             cancel_url: String(cancelUrl),
             metadata: { product: 'imprezja-quiz', lookup_key: lookup_key || '' },
             locale: 'pl',
-            // Zbieraj adres rozliczeniowy i NIP klienta (do faktury)
             billing_address_collection: 'auto',
             tax_id_collection: { enabled: true },
-            customer_creation: 'always',
         };
 
         if (isSubscription) {
@@ -309,6 +307,8 @@ app.post('/create-checkout-session', async (req, res) => {
             // Revolut Pay obsługuje subskrypcje; BLIK – nie
             sessionConfig.payment_method_types = ['card', 'revolut_pay'];
         } else {
+            // customer_creation tylko dla trybu payment (przy subscription klient tworzony automatycznie)
+            sessionConfig.customer_creation = 'always';
             // Płatność jednorazowa: karta, BLIK, Revolut Pay
             sessionConfig.payment_method_types = ['card', 'blik', 'revolut_pay'];
             // Generuj fakturę dla płatności jednorazowych (z NIP klienta)
@@ -358,16 +358,16 @@ app.get('/checkout', async (req, res) => {
             cancel_url: cancelUrl,
             locale: 'pl',
             metadata: { product: 'imprezja-quiz', lookup_key: plan },
-            // Zbieraj adres rozliczeniowy i NIP klienta (do faktury)
             billing_address_collection: 'auto',
             tax_id_collection: { enabled: true },
-            customer_creation: 'always',
         };
 
         if (isSubscription) {
             sessionConfig.subscription_data = { metadata: { product: 'imprezja-quiz', lookup_key: plan } };
             sessionConfig.payment_method_types = ['card', 'revolut_pay'];
         } else {
+            // customer_creation tylko dla trybu payment (przy subscription klient tworzony automatycznie)
+            sessionConfig.customer_creation = 'always';
             sessionConfig.payment_method_types = ['card', 'blik', 'revolut_pay'];
             // Generuj fakturę dla płatności jednorazowych (z NIP klienta)
             sessionConfig.invoice_creation = {
