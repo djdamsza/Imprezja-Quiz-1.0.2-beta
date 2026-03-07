@@ -84,6 +84,15 @@
         }
         #btn-fullscreen-screen:hover { background: rgba(70,70,70,0.7); }
         #btn-fullscreen-screen:active { transform: scale(0.98); }
+        #btn-back-screen {
+            position: fixed; bottom: 20px; left: 20px; z-index: 10001;
+            padding: 10px 20px; border-radius: 5px;
+            background: rgba(50,50,50,0.5); border: 1px solid #777;
+            color: #fff; font-size: 12px; text-transform: uppercase; font-family: inherit;
+            cursor: pointer; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px;
+        }
+        #btn-back-screen:hover { background: rgba(70,70,70,0.7); }
+        #btn-back-screen:active { transform: scale(0.98); }
 
         #main-content {
             display: flex; flex-direction: column; width: 100%; height: 100%;
@@ -1344,6 +1353,7 @@
     <div id="confetti-container"></div>
 
     <button type="button" id="btn-fullscreen-screen" title="Pełny ekran" aria-label="Pełny ekran">⛶ PEŁNY EKRAN</button>
+    <a id="btn-back-screen" href="/start.html">← COFNIJ</a>
 
     <div id="intro-screen" class="overlay-screen">
         <div class="intro-header">
@@ -1673,8 +1683,10 @@
         (function() {
             const btn = document.getElementById('btn-fullscreen-screen');
             if (!btn) return;
+            const backBtn = document.getElementById('btn-back-screen');
             function updateFullscreenButton() {
                 btn.style.display = document.fullscreenElement ? 'none' : 'flex';
+                if (backBtn) backBtn.style.display = document.fullscreenElement ? 'none' : 'flex';
             }
             btn.addEventListener('click', function() {
                 if (!document.fullscreenElement) {

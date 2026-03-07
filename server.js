@@ -1179,12 +1179,25 @@ app.get('/api/bitwa-wokalna/configs', (req, res) => {
             .filter(f => f.endsWith('.json'))
             .map(f => f.replace(/\.json$/, ''));
         const configs = [...new Set(['domyslna', ...files])].sort();
-        let current = 'domyslna';
+        let current = null;
         if (fs.existsSync(BITWA_WOKALNA_LAST_FILE)) {
             try {
                 const last = JSON.parse(fs.readFileSync(BITWA_WOKALNA_LAST_FILE, 'utf8'));
-                if (last && last.name && configs.includes(last.name)) current = last.name;
+                if (last && last.name && configs.includes(last.name)) {
+                    // Honoruj last tylko jeśli plik configa faktycznie istnieje na dysku
+                    // (wirtualny wpis 'domyslna' bez pliku traktujemy jak brak wyboru)
+                    const lastCfgPath = getBitwaWokalnaConfigPath(last.name);
+                    if (fs.existsSync(lastCfgPath)) {
+                        current = last.name;
+                    }
+                }
             } catch (_) {}
+        }
+        // Brak zapisanego configa (lub wskazywał na nieistniejący plik): preferuj gotowy preset
+        if (!current) {
+            if (files.includes('Panie_VS_Panowie')) current = 'Panie_VS_Panowie';
+            else if (files.length > 0) current = files[0];
+            else current = 'domyslna';
         }
         res.json({ configs, current });
     } catch (err) {
@@ -1203,6 +1216,15 @@ app.get('/api/bitwa-wokalna/config', (req, res) => {
                 fs.writeFileSync(BITWA_WOKALNA_LAST_FILE, JSON.stringify({ name: safeConfigName(name) }), 'utf8');
             } catch (err) {
                 return res.status(500).json({ error: err.message });
+            }
+        } else {
+            // Plik configa nie istnieje – spróbuj załadować domyślny preset Panie_VS_Panowie
+            const fallbackPath = getBitwaWokalnaConfigPath('Panie_VS_Panowie');
+            if (fs.existsSync(fallbackPath)) {
+                try {
+                    const data = JSON.parse(fs.readFileSync(fallbackPath, 'utf8'));
+                    bitwaWokalnaConfig = data.banks ? data : { tracks: data.tracks || [] };
+                } catch (_) {}
             }
         }
     }

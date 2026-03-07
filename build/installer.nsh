@@ -1,10 +1,19 @@
 ; Imprezja Quiz – skrypt NSIS
+; Tryb: oneClick=false – kreator z ekranem powitalnym i ekranem końcowym (runAfterFinish=true).
 ; preInit: przy aktualizacji – zamknij aplikację i wyczyść rejestr (żeby instalator nie zawieszał się na zablokowanych plikach).
-; customCheckAppRunning: pusty – pomija fałszywe wykrywanie.
-; Uwaga: bez StrContains.nsh (generowało NSIS 6010 „not referenced” w one-click).
+; customCheckAppRunning: pusty – pomija fałszywe wykrywanie działającej aplikacji.
+; Uwaga: bez StrContains.nsh (generowało NSIS 6010 „not referenced").
+; CRCCheck off: wyłącza weryfikację sumy kontrolnej instalatora/deinstalatora przy uruchomieniu.
+;   Niezbędne przy braku podpisu kodu – antywirusy często modyfikują pliki .exe przy skanowaniu,
+;   co łamie sumę CRC i powoduje "NSIS error integrity check has failed" przy deinstalacji.
 
 !define IMPREZJA_INSTALL_KEY "Software\f0431703-729b-5c88-965f-47623c9e4887"
 !define IMPREZJA_UNINSTALL_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\f0431703-729b-5c88-965f-47623c9e4887"
+
+!macro customHeader
+  ; Wyłącz weryfikację CRC – niezbędne bez podpisu kodu (antywirus łamie sumę kontrolną).
+  CRCCheck off
+!macroend
 
 !macro preInit
   ; Tylko przy aktualizacji: wykryj poprzednią instalację, zamknij procesy i wyczyść rejestr.

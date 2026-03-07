@@ -106,7 +106,7 @@
     <div class="container">
         <div class="intro-view" id="intro-view">
             <div class="intro-title">🎤 Bitwa wokalna</div>
-            <p style="color: rgba(255,255,255,0.7); font-size: 0.95rem; margin-bottom: 16px;">Zeskanuj QR – lista na telefonie. Ostatnie ustawienia zostaną użyte.</p>
+            <p style="color: rgba(255,255,255,0.7); font-size: 0.95rem; margin-bottom: 16px;">Zeskanuj QR – lista na telefonie. Domyślnie załadowane: <strong style="color:#fff;">Panie VS Panowie</strong>. Zmień listę w Edytorze.</p>
             <div class="section qr-box active" id="qr-section">
                 <div id="qr-choices" class="qr-choices">
                     <div id="qr-box-local" class="qr-choice-box">
@@ -353,8 +353,9 @@
                 const d = await r.json();
                 const sel = document.getElementById('config-select');
                 const configs = (d.configs && d.configs.length) ? d.configs : ['domyslna'];
-                sel.innerHTML = configs.map(c => `<option value="${c}" ${c === (d.current||'domyslna') ? 'selected' : ''}>${c}</option>`).join('');
-                currentConfigName = d.current || 'domyslna';
+                const preferred = d.current || (configs.includes('Panie_VS_Panowie') ? 'Panie_VS_Panowie' : (configs[0] || 'domyslna'));
+                sel.innerHTML = configs.map(c => `<option value="${c}" ${c === preferred ? 'selected' : ''}>${c}</option>`).join('');
+                currentConfigName = preferred;
             } catch (e) { console.warn('Load config list:', e); }
         }
 

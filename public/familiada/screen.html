@@ -21,6 +21,8 @@
 
         #fs-btn { position: fixed; bottom: 20px; right: 20px; background: rgba(50, 50, 50, 0.5); color: #fff; border: 1px solid #777; padding: 10px 20px; border-radius: 5px; cursor: pointer; z-index: 9999; font-family: sans-serif; font-size: 12px; text-transform: uppercase; }
         #fs-btn:hover { opacity: 1; background: #444; }
+        #back-btn { position: fixed; bottom: 20px; left: 20px; background: rgba(50, 50, 50, 0.5); color: #fff; border: 1px solid #777; padding: 10px 20px; border-radius: 5px; cursor: pointer; z-index: 9999; font-family: sans-serif; font-size: 12px; text-transform: uppercase; text-decoration: none; display: inline-block; }
+        #back-btn:hover { background: #444; }
         .logo-footer { position: fixed; bottom: 58px; right: 20px; z-index: 50; height: 32px; width: auto; opacity: 0.75; pointer-events: none; }
         .logo-footer img { height: 100%; width: auto; object-fit: contain; }
 
@@ -170,6 +172,7 @@
 <body>
     <div class="logo-footer" aria-hidden="true"><img src="/img/logo_imprezja_mini.png" alt="Imprezja Quiz"></div>
     <button id="fs-btn" onclick="toggleFullScreen()">⛶ PEŁNY EKRAN</button>
+    <a id="back-btn" href="/start.html">← COFNIJ</a>
 
     <div id="familiada-title-overlay">
         <div class="pixel-title-wrap" id="pixel-title"></div>
@@ -347,6 +350,8 @@
         document.addEventListener('fullscreenchange', () => {
             const btn = document.getElementById('fs-btn');
             if (btn) btn.style.display = document.fullscreenElement ? 'none' : '';
+            const backBtn = document.getElementById('back-btn');
+            if (backBtn) backBtn.style.display = document.fullscreenElement ? 'none' : '';
             if (document.fullscreenElement) requestWakeLock();
         });
 
