@@ -3685,6 +3685,15 @@ io.on('connection', (socket) => {
         if (socket.familiadaRole !== 'admin') return;
         io.to('familiada').emit('play_sound_event', soundName);
     });
+    socket.on('familiada_volume', (vol) => {
+        if (socket.familiadaRole !== 'admin') return;
+        const v = Math.max(0, Math.min(1, parseFloat(vol) || 0));
+        io.to('familiada').emit('familiada_volume', v);
+    });
+    socket.on('familiada_stop_all', () => {
+        if (socket.familiadaRole !== 'admin') return;
+        io.to('familiada').emit('familiada_stop_all');
+    });
     socket.on('familiada_intro_state', (playing) => {
         io.to('familiada').emit('familiada_intro_state', playing);
     });

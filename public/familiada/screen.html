@@ -268,7 +268,11 @@
             });
         }
 
+        let gameActive = false;
+
         function endGameShowIntro() {
+            gameActive = false;
+            stopAllAudio();
             if (typeof socket !== 'undefined') socket.emit('familiada_screen_reset');
             const intro = document.getElementById('familiada-intro');
             if (intro) intro.classList.remove('hidden');
@@ -280,9 +284,10 @@
             if (fl) fl.style.display = 'none';
         }
         function startGame() {
+            gameActive = true;
             document.getElementById('familiada-intro').classList.add('hidden');
             const fl = document.getElementById('btn-familiada-zakoncz-float');
-            if (fl) fl.style.display = 'block';
+            if (fl) fl.style.display = document.fullscreenElement ? 'none' : 'block';
             const jingleScores = document.getElementById('familiada-jingle-scores');
             if (jingleScores) jingleScores.classList.remove('visible');
             renderPixelTitle();
@@ -356,6 +361,9 @@
             if (backBtn) backBtn.style.display = isFs ? 'none' : '';
             const logoFooter = document.querySelector('.logo-footer');
             if (logoFooter) logoFooter.style.display = isFs ? 'none' : '';
+            // Zakończ-float: widoczny tylko poza fullscreen i tylko gdy gra aktywna
+            const fl = document.getElementById('btn-familiada-zakoncz-float');
+            if (fl) fl.style.display = (!isFs && gameActive) ? 'block' : 'none';
             if (isFs) requestWakeLock();
         });
 
@@ -371,6 +379,22 @@
         document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') requestWakeLock(); });
         if (document.visibilityState === 'visible') requestWakeLock();
 
+        // ── Głośność master ──────────────────────────────────────────────
+        const INTRO_VOL_FACTOR = 0.9; // intro/outro grają o 10% ciszej
+        let masterVolume = parseFloat(localStorage.getItem('familiada_master_vol') || '0.8');
+
+        function applyVolumes() {
+            Object.entries(audioFiles).forEach(([name, a]) => {
+                const isBg = (name === 'intro' || name === 'outro');
+                a.volume = Math.min(1, masterVolume * (isBg ? INTRO_VOL_FACTOR : 1));
+            });
+        }
+
+        function stopAllAudio() {
+            Object.values(audioFiles).forEach(a => { try { a.pause(); a.currentTime = 0; } catch(e){} });
+            socket.emit('familiada_intro_state', false);
+        }
+
         const audioFiles = {
             intro: new Audio('/familiada/sounds/intro.mp3'),
             correct: new Audio('/familiada/sounds/correct.mp3'),
@@ -379,6 +403,8 @@
             jingle: new Audio('/familiada/sounds/jingle.mp3'),
             outro: new Audio('/familiada/sounds/outro.mp3')
         };
+        applyVolumes(); // ustaw głośność od razu po inicjalizacji
+
         function playSound(name) {
             if (!audioFiles[name]) return;
             const a = audioFiles[name];
@@ -429,6 +455,12 @@
             }
         }
         socket.on('play_sound_event', (name) => playSound(name));
+        socket.on('familiada_volume', (v) => {
+            masterVolume = Math.max(0, Math.min(1, v));
+            localStorage.setItem('familiada_master_vol', masterVolume);
+            applyVolumes();
+        });
+        socket.on('familiada_stop_all', stopAllAudio);
         socket.on('familiada_request_intro_state', () => {
             if (audioFiles && audioFiles.intro && !audioFiles.intro.paused) socket.emit('familiada_intro_state', true);
         });
