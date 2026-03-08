@@ -2150,7 +2150,6 @@ app.get('/dolacz', (req, res) => {
         '</div></body></html>');
 });
 
-server.listen()
 function scheduleRefreshFileHashCache() {
     setImmediate(() => {
         try {
