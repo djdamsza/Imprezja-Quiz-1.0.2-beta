@@ -978,6 +978,31 @@
             50% { transform: scale(1.08); filter: drop-shadow(0 10px 20px rgba(0,0,0,0.5)) brightness(1.25); }
         }
 
+        /* Ekran startowy ZARAZ ZACZYNAMY – naprzemienna pulsacja */
+        @keyframes zarazPulseA {
+            0%, 100% { font-size: clamp(2.5rem, 9vw, 5.5rem); opacity: 1; }
+            50%       { font-size: clamp(1rem,  3vw, 2rem);   opacity: 0.5; }
+        }
+        @keyframes zarazPulseB {
+            0%, 100% { font-size: clamp(1rem,  3vw, 2rem);   opacity: 0.5; }
+            50%       { font-size: clamp(2.5rem, 9vw, 5.5rem); opacity: 1; }
+        }
+        .zaraz-pulse-a {
+            font-size: clamp(2.5rem, 9vw, 5.5rem);
+            animation: zarazPulseA 4s ease-in-out infinite;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 0;
+        }
+        .zaraz-pulse-b {
+            font-size: clamp(1rem, 3vw, 2rem);
+            animation: zarazPulseB 4s ease-in-out infinite;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 0;
+            min-height: 1em;
+        }
+
         /* LEADERBOARD */
         .lb-row {
             display: flex; justify-content: space-between; width: 70%;
@@ -1415,40 +1440,16 @@
             <a href="/admin.html" target="_blank" rel="noopener" id="btn-admin-intro" class="intro-editor-btn intro-admin-btn" style="display:none;">Admin na komputerze</a>
             <button type="button" id="btn-rozpocznij-intro" class="intro-editor-btn intro-start-btn" style="display:none;">▶️ Rozpocznij</button>
             <button type="button" id="btn-zakoncz-intro" class="intro-editor-btn intro-back-btn">Zakończ</button>
-            <a href="/start.html" class="intro-editor-btn intro-back-btn">← Cofnij</a>
+            <a href="/start.html" id="btn-cofnij-intro" class="intro-editor-btn intro-back-btn">← Cofnij</a>
         </div>
     </div>
 
     <!-- Ekran "Zaraz zaczynamy" – pokazywany po kliknięciu Rozpocznij; zawiera QR kody jeśli były wcześniej wygenerowane -->
     <div id="zaraz-zaczynamy-overlay" class="overlay-screen" style="display: none; z-index: 9999;">
         <img src="/img/logo_imprezja.png" alt="Imprezja Quiz" class="logo-imprezja-large">
-        <div class="intro-title" style="font-size: clamp(2rem, 10vw, 6rem); margin-bottom: 8px;">Zaraz zaczynamy</div>
-        <div id="zaraz-quiz-title" style="font-size: clamp(1rem, 3.5vw, 2.2rem); color: rgba(255,255,255,0.75); margin-bottom: 20px; font-weight: 600; letter-spacing: 0.03em;"></div>
-        <div id="zaraz-qr-container" class="qr-container" style="display: none;">
-            <div id="zaraz-qr-wrapper" class="qr-wrapper" style="display: none;">
-                <div id="zaraz-qr-wifi" class="qr-box" style="display: none;">
-                    <div class="qr-label wifi"><span class="qr-num">1</span> SIEĆ Wi-Fi</div>
-                    <img id="zaraz-qr-wifi-img" class="qr-image" src="" alt="QR WiFi">
-                    <div class="qr-wifi-info"><strong>Zeskanuj aby połączyć</strong></div>
-                </div>
-                <div id="zaraz-qr-local" class="qr-box" style="display: none;">
-                    <div class="qr-label local"><span class="qr-num">2</span> GRA (Wi‑Fi)</div>
-                    <img id="zaraz-qr-local-img" class="qr-image" src="" alt="QR Gra lokalna">
-                    <div class="qr-wifi-info"><strong>Zeskanuj – sieć lokalna</strong></div>
-                </div>
-            </div>
-            <div id="zaraz-qr-lub" class="qr-lub" style="display: none;">LUB</div>
-            <div id="zaraz-qr-tunnel" class="qr-box" style="display: none;">
-                <div class="qr-label tunnel">GRA (LTE)</div>
-                <img id="zaraz-qr-tunnel-img" class="qr-image" src="" alt="QR Tunel">
-                <div class="qr-wifi-info"><strong>Alternatywa – sieć komórkowa</strong></div>
-            </div>
-            <div id="zaraz-qr-lte-info" class="qr-box qr-box-lte-info" style="display: none;">
-                <strong>Gra przez LTE</strong><br>
-                Organizator musi kliknąć <strong style="color: #e74c3c;">czerwony przycisk</strong> „Uruchom tunel" w panelu admina.
-            </div>
-        </div>
-        <div class="intro-btn-row" style="margin-top: 24px;">
+        <div id="zaraz-title-main" class="intro-title zaraz-pulse-a">ZARAZ ZACZYNAMY</div>
+        <div id="zaraz-quiz-title" class="intro-title zaraz-pulse-b"></div>
+        <div id="zaraz-btn-row" class="intro-btn-row" style="margin-top: 24px;">
             <button type="button" id="btn-zakoncz-zaraz" class="intro-editor-btn intro-back-btn">Zakończ</button>
         </div>
     </div>
@@ -1838,7 +1839,10 @@
                 'btn-editor-intro',
                 'btn-admin-intro',
                 'btn-rozpocznij-intro',
-                'btn-zakoncz-intro'
+                'btn-zakoncz-intro',
+                'btn-cofnij-intro',
+                'btn-zakoncz-zaraz',
+                'zaraz-btn-row'
             ];
             function updateFullscreenButton() {
                 const isFs = !!document.fullscreenElement;
