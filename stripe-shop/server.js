@@ -768,6 +768,91 @@ app.get('/api/prices', async (req, res) => {
     }
 });
 
+// ── /dolacz — stały punkt wejścia dla gości bez skanera QR ──
+// Lokalne serwery rejestrują sesje przez POST /api/register-game-session
+// Goście wchodzą na [render-url]/dolacz i wpisują 4-cyfrowy kod
+const gameSessions = new Map(); // code → { redirectUrl, expires }
+
+app.post('/api/register-game-session', express.json(), (req, res) => {
+    const { code, redirectUrl } = req.body || {};
+    if (!code || !redirectUrl) return res.status(400).json({ error: 'Brak code lub redirectUrl' });
+    gameSessions.set(String(code), { redirectUrl, expires: Date.now() + 6 * 60 * 60 * 1000 }); // 6h
+    // Wyczyść stare sesje
+    for (const [k, v] of gameSessions) { if (v.expires < Date.now()) gameSessions.delete(k); }
+    console.log(`🎮 Sesja zarejestrowana: kod=${code} url=${redirectUrl}`);
+    res.json({ ok: true });
+});
+
+app.get('/dolacz', (req, res) => {
+    const code = (req.query.kod || '').trim();
+    if (code) {
+        const session = gameSessions.get(code);
+        if (session && session.expires > Date.now()) {
+            return res.redirect(session.redirectUrl);
+        }
+    }
+    // Formularz z kodem
+    res.send(`<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dołącz do gry – Imprezja Quiz</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000c1a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.card{background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.12);border-radius:20px;padding:40px 32px;max-width:420px;width:100%;text-align:center}
+.logo{font-size:3rem;margin-bottom:10px}
+h1{font-size:1.5rem;color:#7dd3fc;margin-bottom:8px}
+p{color:rgba(255,255,255,.6);font-size:.95rem;margin-bottom:32px;line-height:1.5}
+.code-input{display:flex;gap:8px;justify-content:center;margin-bottom:20px}
+.code-input input{width:64px;height:72px;background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.2);border-radius:12px;color:#fff;font-size:2rem;font-weight:900;text-align:center;outline:none;caret-color:#7dd3fc}
+.code-input input:focus{border-color:#0ea5e9;background:rgba(14,165,233,.1)}
+.btn{display:block;width:100%;padding:16px;background:linear-gradient(135deg,#0ea5e9,#0284c7);color:#fff;border:none;border-radius:12px;font-size:1.1rem;font-weight:800;cursor:pointer;margin-bottom:12px}
+.btn:hover{opacity:.9}
+.err{color:#ef4444;font-size:.9rem;margin-top:12px;display:none}
+</style>
+</head>
+<body>
+<div class="card">
+    <div class="logo">🎮</div>
+    <h1>Imprezja Quiz</h1>
+    <p>Wpisz 4-cyfrowy kod wyświetlony na ekranie przez organizatora</p>
+    <form method="GET" action="/dolacz" onsubmit="return validate()">
+        <div class="code-input">
+            <input type="text" name="d1" maxlength="1" pattern="[0-9]" inputmode="numeric" id="d1" autocomplete="off">
+            <input type="text" name="d2" maxlength="1" pattern="[0-9]" inputmode="numeric" id="d2" autocomplete="off">
+            <input type="text" name="d3" maxlength="1" pattern="[0-9]" inputmode="numeric" id="d3" autocomplete="off">
+            <input type="text" name="d4" maxlength="1" pattern="[0-9]" inputmode="numeric" id="d4" autocomplete="off">
+            <input type="hidden" name="kod" id="kod-hidden">
+        </div>
+        <button type="submit" class="btn">▶ Dołącz do gry</button>
+        ${code ? '<div class="err" style="display:block">Nieprawidłowy lub nieaktywny kod. Sprawdź kod na ekranie.</div>' : ''}
+    </form>
+</div>
+<script>
+const inputs = [d1,d2,d3,d4];
+inputs.forEach((el,i) => {
+    el.addEventListener('input', () => {
+        el.value = el.value.replace(/[^0-9]/g,'').slice(-1);
+        if (el.value && i < 3) inputs[i+1].focus();
+    });
+    el.addEventListener('keydown', e => {
+        if (e.key === 'Backspace' && !el.value && i > 0) inputs[i-1].focus();
+    });
+});
+d1.focus();
+function validate() {
+    const code = inputs.map(e=>e.value).join('');
+    if (code.length < 4) return false;
+    document.getElementById('kod-hidden').value = code;
+    return true;
+}
+</script>
+</body>
+</html>`);
+});
+
 app.listen(PORT, () => {
     console.log(`Stripe Shop: http://localhost:${PORT}`);
     if (!process.env.STRIPE_SECRET_KEY) {

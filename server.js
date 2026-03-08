@@ -152,6 +152,30 @@ function emitTunnelError(socket, payload) {
 let currentWiFiSSID = null;
 // URL tunelu Pinggy – gdy ustawiony, QR „do gry” prowadzi przez sieć komórkową (zawsze tylko origin, bez ścieżki)
 let currentPinggyUrl = null;
+// Skrócony URL (TinyURL) i 4-cyfrowy kod sesji — alternatywa dla skanera QR
+let currentShortUrl = null;
+let currentSessionCode = null;
+
+function generateSessionCode() {
+    return String(Math.floor(1000 + Math.random() * 9000));
+}
+async function shortenUrl(longUrl) {
+    try {
+        const encoded = encodeURIComponent(longUrl);
+        return await new Promise((resolve) => {
+            const req = require('https').get('https://tinyurl.com/api-create.php?url=' + encoded, (res) => {
+                let data = '';
+                res.on('data', c => data += c);
+                res.on('end', () => {
+                    const u = data.trim();
+                    resolve(u.startsWith('https://tinyurl.com/') ? u : null);
+                });
+            });
+            req.on('error', () => resolve(null));
+            req.setTimeout(5000, () => { req.destroy(); resolve(null); });
+        });
+    } catch (_) { return null; }
+}
 
 /** Normalizuje URL tunelu: tylko origin, https; odrzuca dashboard i localhost. Pinggy (Mac) i Tunnelmole (Windows). */
 function normalizePinggyUrl(input) {
@@ -2105,7 +2129,28 @@ function refreshFileHashCache() {
     console.log(`📦 Odświeżono cache hash plików: ${processed} plików`);
 }
 
-// Cache odświeżany asynchronicznie po starcie – nie blokuje server.listen()
+// Cache odświeżany asynchronicznie po starcie – nie blokuje 
+// ── /dolacz — strona dla gości bez skanera QR ────────────────
+app.get('/dolacz', (req, res) => {
+    const redirect = currentPinggyUrl ? currentPinggyUrl + '/vote.html' : null;
+    const code = currentSessionCode;
+    let btnHtml = redirect
+        ? '<a href="' + redirect + '" class="btn">&#9654; Dołącz do gry</a>'
+        : '<div style="color:#ef4444;padding:16px;background:rgba(239,68,68,.1);border-radius:10px">Gra nie jest aktywna.<br>Poczekaj na organizatora.</div>';
+    let codeHtml = (code && !currentShortUrl)
+        ? '<div class="info">Kod sesji: <strong style="color:#7dd3fc;font-size:1.3rem;letter-spacing:.1em">' + code + '</strong></div>'
+        : '';
+    res.send('<!DOCTYPE html><html lang="pl"><head>' +
+        '<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">' +
+        '<title>Dołącz do gry</title>' +
+        '<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#000c1a;color:#fff;font-family:-apple-system,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}.card{background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.12);border-radius:20px;padding:36px 28px;max-width:400px;width:100%;text-align:center}.logo{font-size:2.4rem;margin-bottom:8px}h1{font-size:1.4rem;color:#7dd3fc;margin-bottom:6px}p{color:rgba(255,255,255,.6);font-size:.9rem;margin-bottom:28px}.btn{display:block;width:100%;padding:16px;background:linear-gradient(135deg,#0ea5e9,#0284c7);color:#fff;border:none;border-radius:12px;font-size:1.1rem;font-weight:800;cursor:pointer;text-decoration:none;margin-bottom:12px}.btn:hover{opacity:.9}.info{color:rgba(255,255,255,.4);font-size:.85rem;margin-top:16px}</style>' +
+        '</head><body><div class="card"><div class="logo">&#127918;</div><h1>Imprezja Quiz</h1>' +
+        '<p>Kliknij poniżej aby dołączyć do gry</p>' +
+        btnHtml + codeHtml +
+        '</div></body></html>');
+});
+
+server.listen()
 function scheduleRefreshFileHashCache() {
     setImmediate(() => {
         try {
@@ -3152,6 +3197,8 @@ function getStateForBroadcast() {
         thanksScreen: gameState.thanksScreen,
         hasWifi: !!currentWiFiSSID,
         tunnelUrl: currentPinggyUrl || null,
+        shortUrl: currentShortUrl || null,
+        sessionCode: currentSessionCode || null,
         showLocalGameQR: showLocalGameQR,
         localGameUrl: `http://${IP}:${PORT}/vote.html`,
         showAdminQR: !(io.sockets.adapter.rooms.get(ADMIN_ROOM)?.size > 0),
@@ -3832,7 +3879,26 @@ io.on('connection', (socket) => {
                     console.log('🌐 Tunel Cloudflare (1 klik):', currentPinggyUrl);
                     appendTunnelLog('Cloudflare Tunnel URL: ' + currentPinggyUrl);
                     (async () => {
-                        const tunnelPayload = { tunnelUrl: currentPinggyUrl };
+                        // Generuj kod sesji i skróć URL — alternatywa dla skanera QR
+                        currentSessionCode = generateSessionCode();
+                        const voteUrl = currentPinggyUrl + '/vote.html';
+                        currentShortUrl = await shortenUrl(voteUrl);
+                        console.log('\U0001f511 Kod sesji:', currentSessionCode, '| Krotki URL:', currentShortUrl || '(brak)');
+                        // Zarejestruj sesję na serwerze Render — stały punkt /dolacz
+                        const renderBase = process.env.STRIPE_DOMAIN || process.env.RENDER_EXTERNAL_URL || '';
+                        if (renderBase && renderBase.startsWith('http')) {
+                            try {
+                                const regUrl = new URL('/api/register-game-session', renderBase).href;
+                                const regBody = JSON.stringify({ code: currentSessionCode, redirectUrl: voteUrl });
+                                const mod = regUrl.startsWith('https') ? require('https') : require('http');
+                                const regReq = mod.request(regUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(regBody) } }, (r) => {
+                                    let d = ''; r.on('data', c => d += c); r.on('end', () => console.log('\U0001f3ae Render /dolacz:', d.slice(0,60)));
+                                });
+                                regReq.on('error', e => console.warn('Blad rejestracji sesji:', e.message));
+                                regReq.write(regBody); regReq.end();
+                            } catch(e) { console.warn('Blad rejestracji sesji:', e.message); }
+                        }
+                        const tunnelPayload = { tunnelUrl: currentPinggyUrl, shortUrl: currentShortUrl, sessionCode: currentSessionCode };
                         const data = await generateGameQR();
                         if (data) io.emit('qr_code', data.qrCode);
                         socket.emit('tunnel_started', tunnelPayload);
@@ -3865,6 +3931,8 @@ io.on('connection', (socket) => {
                 if (tunnelProcess === child) {
                     tunnelProcess = null;
                     currentPinggyUrl = null;
+                    currentShortUrl = null;
+                    currentSessionCode = null;
                     io.emit('qr_code', null);
                     io.emit('update_state', getStateForBroadcast());
                     io.to(ADMIN_ROOM).emit('tunnel_stopped');
