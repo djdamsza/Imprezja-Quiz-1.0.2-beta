@@ -2137,12 +2137,23 @@
             var codeWrap = document.getElementById('qr-tunnel-code-wrap');
             var codeEl = document.getElementById('qr-tunnel-code');
             if (shortUrlWrap && state.tunnelUrl) {
-                var displayUrl = state.shortUrl || (state.tunnelUrl + '/dolacz');
-                shortUrlText && (shortUrlText.textContent = displayUrl.replace(/^https?:\/\//, ''));
                 shortUrlWrap.style.display = 'block';
-                if (codeWrap && codeEl && state.sessionCode) {
-                    codeEl.textContent = state.sessionCode;
-                    codeWrap.style.display = state.shortUrl ? 'none' : 'block'; // kod tylko gdy brak TinyURL
+                if (state.shortUrl) {
+                    // Mamy skrócony URL — pokaż go jako główny
+                    shortUrlText && (shortUrlText.textContent = state.shortUrl.replace(/^https?:\/\//, ''));
+                    if (codeWrap && codeEl && state.sessionCode) {
+                        codeEl.textContent = state.sessionCode;
+                        codeWrap.style.display = 'none'; // kod zbędny gdy jest krótki URL
+                    }
+                } else if (state.sessionCode) {
+                    // Brak skróconego URL — pokaż kod jako główny element
+                    shortUrlText && (shortUrlText.textContent = 'Wpisz kod na ekranie poniżej');
+                    if (codeWrap && codeEl) {
+                        codeEl.textContent = state.sessionCode.split('').join(' '); // "6 3 6 2"
+                        codeWrap.style.display = 'block';
+                    }
+                } else {
+                    shortUrlWrap.style.display = 'none';
                 }
             } else if (shortUrlWrap) {
                 shortUrlWrap.style.display = 'none';
