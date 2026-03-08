@@ -2582,7 +2582,8 @@ function getTeamBalanceMultiplier(team) {
     });
     const smaller = Math.min(countA, countB);
     const larger = Math.max(countA, countB);
-    if (larger === 0) return 1;
+    // Gdy jedna lub obie drużyny puste – brak balansu
+    if (larger === 0 || smaller === 0) return 1;
     const ratio = larger / smaller;
     if (ratio < 1.1) return 1; // próg 10% różnicy (ratio >= 1.1)
     const weakerTeam = countA <= countB ? 'A' : 'B';
@@ -4096,6 +4097,10 @@ io.on('connection', (socket) => {
         gameState.thanksScreen = thanksScreen;
         
         players.forEach(p => { p.score = 0; p.answers = {}; p.correctAnswersCount = 0; p.eliminated = false; });
+
+        // Reset punktów drużyn przy nowym quizie (żeby nie przenosiły się wyniki między quizami)
+        gameState.teams.A.score = 0;
+        gameState.teams.B.score = 0;
         
         // Wyczyść rozłączeni gracze z poprzedniego quizu
         pendingDisconnects.clear();
