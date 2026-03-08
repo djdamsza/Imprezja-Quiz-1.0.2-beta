@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ranking Demo – Animacja etapowa</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #1a1a2e;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  h1 {
+    font-size: clamp(1.5rem, 4vw, 3rem);
+    color: #f1c40f;
+    text-transform: uppercase;
+    font-weight: 900;
+    margin-bottom: 24px;
+    text-shadow: 0 0 30px rgba(241,196,15,0.5);
+    letter-spacing: 2px;
+  }
+
+  #lb-list {
+    width: min(700px, 90vw);
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .lb-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    background: rgba(255,255,255,0.05);
+    padding: clamp(8px, 1.5vh, 16px) clamp(14px, 3vw, 36px);
+    margin-bottom: 8px;
+    border-radius: 16px;
+    font-size: clamp(0.9rem, 2vw, 1.4rem);
+    font-weight: bold;
+    border-left: 6px solid #f1c40f;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+    color: #fff;
+  }
+
+  .lb-row:nth-child(1) { border-color: #ffd700; background: rgba(241,196,15,0.12); }
+  .lb-row:nth-child(2) { border-color: #c0c0c0; background: rgba(192,192,192,0.07); }
+  .lb-row:nth-child(3) { border-color: #cd7f32; background: rgba(205,127,50,0.07); }
+
+  .lb-pos {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+  }
+
+  .lb-medal {
+    font-size: clamp(1rem, 2.5vw, 1.6rem);
+    width: 36px;
+    text-align: center;
+  }
+  .lb-place {
+    width: 32px;
+    text-align: center;
+    font-size: clamp(0.8rem, 1.8vw, 1.2rem);
+    color: rgba(255,255,255,0.5);
+  }
+  .lb-row:nth-child(1) .lb-place { color: #ffd700; font-size: clamp(1rem, 2vw, 1.5rem); }
+  .lb-row:nth-child(2) .lb-place { color: #c0c0c0; }
+  .lb-row:nth-child(3) .lb-place { color: #cd7f32; }
+
+  .lb-nick {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .lb-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Strzałki 2x większe niż poprzednio */
+  .lb-delta {
+    font-size: clamp(1.1rem, 2.2vw, 1.6rem);
+    min-width: 52px;
+    text-align: right;
+    font-weight: 900;
+    opacity: 0;
+    transition: opacity 0.5s;
+  }
+  .lb-delta.up   { color: #2ecc71; }
+  .lb-delta.down { color: #e74c3c; }
+  .lb-delta.same { color: rgba(255,255,255,0.25); font-size: clamp(0.8rem, 1.5vw, 1.1rem); }
+  .lb-delta.visible { opacity: 1; }
+
+  .lb-score {
+    font-size: clamp(1rem, 2.2vw, 1.5rem);
+    color: #f1c40f;
+    font-weight: 900;
+    min-width: 60px;
+    text-align: right;
+  }
+
+  /* Kontrolki demo */
+  #controls {
+    margin-top: 28px;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  button {
+    padding: 12px 28px;
+    border: none;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.15s, opacity 0.15s;
+  }
+  button:hover  { transform: scale(1.04); }
+  button:active { transform: scale(0.97); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  #btn-update { background: #f1c40f; color: #1a1a2e; }
+  #btn-reset  { background: rgba(255,255,255,0.12); color: #fff; }
+
+  #info {
+    margin-top: 16px;
+    font-size: 0.82rem;
+    color: rgba(255,255,255,0.4);
+    text-align: center;
+    max-width: 500px;
+  }
+  #stage-label {
+    height: 24px;
+    margin-top: 8px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #f1c40f;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  #stage-label.visible { opacity: 1; }
+</style>
+</head>
+<body>
+
+<h1>🏆 Top 10 Graczy</h1>
+<div id="lb-list"></div>
+<div id="stage-label"></div>
+
+<div id="controls">
+  <button id="btn-update">Kolejna runda →</button>
+  <button id="btn-reset">Reset</button>
+</div>
+<div id="info">Pierwsze wyświetlenie: bez animacji. Kolejne rundy: każda zmiana pozycji przesuwa się osobno co 1 sekundę.</div>
+
+<script>
+const NAMES = ['Kowalski','Nowak','Wiśniewski','Wójcik','Kowalczyk',
+               'Kamiński','Lewandowski','Zielińska','Szymańska','Woźniak'];
+const MEDALS = ['🥇','🥈','🥉'];
+const ANIM_MS = 900;    // czas animacji jednego ruchu
+const STEP_MS = 1000;   // przerwa między etapami
+
+let players = [];
+
+function sorted(arr) {
+  return [...arr].sort((a, b) => b.score - a.score);
+}
+
+// ── Buduj HTML jednego wiersza (delta ukryta, pojawi się po animacji) ─────────
+function makeRow(p, newIdx, oldIdx) {
+  const delta = (oldIdx !== undefined) ? (oldIdx - newIdx) : null;
+  const medal = MEDALS[newIdx] || '';
+  const placeHtml = medal
+    ? `<span class="lb-medal">${medal}</span>`
+    : `<span class="lb-medal"><span class="lb-place">${newIdx + 1}</span></span>`;
+
+  let deltaClass = 'same', deltaText = '–';
+  if (delta !== null && delta > 0)  { deltaClass = 'up';   deltaText = '▲' + delta; }
+  if (delta !== null && delta < 0)  { deltaClass = 'down'; deltaText = '▼' + Math.abs(delta); }
+
+  const row = document.createElement('div');
+  row.className = 'lb-row';
+  row.dataset.id = p.id;
+  row.innerHTML = `
+    <div class="lb-pos">
+      ${placeHtml}
+      <span class="lb-nick">${p.nick}</span>
+    </div>
+    <div class="lb-right">
+      <span class="lb-delta ${deltaClass}">${deltaText}</span>
+      <span class="lb-score">${p.score}</span>
+    </div>
+  `;
+  return row;
+}
+
+// ── Renderowanie bez animacji (pierwsze otwarcie) ─────────────────────────────
+function renderStatic(newPlayers, oldOrder) {
+  const list = document.getElementById('lb-list');
+  list.style.height = '';
+  list.innerHTML = '';
+  newPlayers.forEach((p, i) => {
+    list.appendChild(makeRow(p, i, oldOrder[p.id]));
+  });
+  // Pokaż wszystkie delty natychmiast
+  list.querySelectorAll('.lb-delta').forEach(d => d.classList.add('visible'));
+}
+
+// ── Animacja etapowa (staggered) ──────────────────────────────────────────────
+function renderAnimated(newPlayers, oldOrder) {
+  const list = document.getElementById('lb-list');
+  const stageLabel = document.getElementById('stage-label');
+
+  // 1. Zapamiętaj stare pozycje (top względem listy)
+  const oldRows = [...list.querySelectorAll('.lb-row')];
+  const listRect = list.getBoundingClientRect();
+  const oldTopMap = {};   // id → px od góry listy
+  oldRows.forEach(el => {
+    const r = el.getBoundingClientRect();
+    oldTopMap[el.dataset.id] = r.top - listRect.top;
+  });
+
+  // 2. Wyrenderuj nową kolejność w DOM
+  list.innerHTML = '';
+  newPlayers.forEach((p, i) => list.appendChild(makeRow(p, i, oldOrder[p.id])));
+
+  // 3. Zmierz nowe pozycje
+  const newRows = [...list.querySelectorAll('.lb-row')];
+  const newListRect = list.getBoundingClientRect();
+  const newTopMap = {};  // id → px od góry listy (nowe)
+  newRows.forEach(el => {
+    const r = el.getBoundingClientRect();
+    newTopMap[el.dataset.id] = r.top - newListRect.top;
+  });
+
+  // 4. Ustaw kontener na fixed height + absolute positioning dla wszystkich wierszy
+  const totalH = newRows.reduce((s, el) => s + el.getBoundingClientRect().height + 8, 0);
+  list.style.height = totalH + 'px';
+  list.style.position = 'relative';
+
+  newRows.forEach(el => {
+    const oldTop = oldTopMap[el.dataset.id];
+    el.style.position = 'absolute';
+    el.style.width = '100%';
+    el.style.marginBottom = '0';
+    // Zacznij od starej pozycji (lub nowej jeśli nowy gracz)
+    el.style.top = (oldTop !== undefined ? oldTop : newTopMap[el.dataset.id]) + 'px';
+    el.style.transition = 'none';
+  });
+
+  // 5. Wymuś reflow
+  list.offsetHeight;
+
+  // 6. Zbuduj kolejkę zmian: tylko wiersze które się poruszyły
+  const changed = newRows.filter(el => {
+    const oldTop = oldTopMap[el.dataset.id];
+    const newTop = newTopMap[el.dataset.id];
+    return oldTop !== undefined && Math.abs(oldTop - newTop) > 2;
+  });
+
+  // Sortuj: największy wzrost (najmniejszy newTop) najpierw
+  changed.sort((a, b) => newTopMap[a.dataset.id] - newTopMap[b.dataset.id]);
+
+  // 7. Animuj etapami — każda zmiana co STEP_MS
+  changed.forEach((el, i) => {
+    const newTop = newTopMap[el.dataset.id];
+
+    setTimeout(() => {
+      // Pokaż etykietę etapu
+      const nick = el.querySelector('.lb-nick').textContent;
+      const delta = el.querySelector('.lb-delta');
+      const dir = delta.classList.contains('up') ? '▲' : '▼';
+      stageLabel.textContent = `Etap ${i + 1}/${changed.length}: ${nick} ${dir}`;
+      stageLabel.classList.add('visible');
+
+      // Animuj wiersz
+      el.style.transition = `top ${ANIM_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`;
+      el.style.top = newTop + 'px';
+    }, i * STEP_MS);
+  });
+
+  // 8. Po zakończeniu wszystkich etapów: przywróć normalny flow
+  const totalWait = changed.length > 0 ? (changed.length - 1) * STEP_MS + ANIM_MS + 300 : 100;
+
+  setTimeout(() => {
+    newRows.forEach(el => {
+      el.style.position = '';
+      el.style.top = '';
+      el.style.width = '';
+      el.style.transition = '';
+      el.style.marginBottom = '';
+    });
+    list.style.height = '';
+    list.style.position = '';
+    // Pokaż delty
+    list.querySelectorAll('.lb-delta').forEach(d => d.classList.add('visible'));
+    stageLabel.classList.remove('visible');
+  }, totalWait);
+
+  return totalWait;
+}
+
+// ── Inicjalizacja ─────────────────────────────────────────────────────────────
+function init() {
+  players = NAMES.map((nick, i) => ({
+    id: i,
+    nick,
+    score: Math.floor(Math.random() * 800) + 100
+  }));
+  renderStatic(sorted(players), {});
+  document.getElementById('info').textContent =
+    'Pierwsze wyświetlenie: bez animacji. Kliknij „Kolejna runda" aby zobaczyć etapowe przesunięcia.';
+  document.getElementById('stage-label').classList.remove('visible');
+}
+
+// ── Kolejna runda ──────────────────────────────────────────────────────────────
+document.getElementById('btn-update').addEventListener('click', () => {
+  const btn = document.getElementById('btn-update');
+  btn.disabled = true;
+
+  // Zapamiętaj stary ranking
+  const oldOrder = {};
+  document.querySelectorAll('.lb-row').forEach((el, i) => { oldOrder[el.dataset.id] = i; });
+
+  // Losuj nowe punkty
+  players = players.map(p => ({
+    ...p,
+    score: p.score + Math.floor(Math.random() * 400)
+  }));
+
+  const totalWait = renderAnimated(sorted(players), oldOrder);
+
+  document.getElementById('info').textContent =
+    `Animacja etapowa: każda zmiana przesuwa się osobno (${STEP_MS / 1000}s przerwy, ${ANIM_MS / 1000}s ruch).`;
+
+  setTimeout(() => { btn.disabled = false; }, totalWait + 100);
+});
+
+document.getElementById('btn-reset').addEventListener('click', init);
+
+init();
+</script>
+</body>
+</html>

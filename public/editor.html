@@ -264,11 +264,12 @@
         const el = document.getElementById('editor-toast');
         if (!el) return;
         el.textContent = msg;
-        el.style.background = type === 'success' ? '#2ecc71' : type === 'error' ? '#e74c3c' : '#3498db';
+        el.style.background = type === 'success' ? '#2ecc71' : type === 'error' ? '#e74c3c' : type === 'warning' ? '#f39c12' : '#3498db';
+        el.style.color = (type === 'warning') ? '#000' : '#fff';
         el.style.color = '#fff';
         el.style.display = 'block';
         clearTimeout(window._editorToastT);
-        window._editorToastT = setTimeout(function() { el.style.display = 'none'; }, 4000);
+        window._editorToastT = setTimeout(function() { el.style.display = 'none'; }, type === 'warning' ? 8000 : 4000);
     };
 
     // === OPTYMALIZATOR GRAFIKI (FUNKCJE POMOCNICZE) ===
@@ -778,6 +779,27 @@
         // Jeśli to obrazek, optymalizujemy główny obrazek (1920px dla Screen.html) + miniatura (500px dla telefonów)
         if (type === 'image') {
             try {
+                // Sprawdź wymiary przed optymalizacją – ostrzeż jeśli obrazek za mały
+                await new Promise((res) => {
+                    const checkImg = new Image();
+                    checkImg.onload = () => {
+                        const w = checkImg.width, h = checkImg.height;
+                        const minDim = Math.min(w, h);
+                        if (minDim < 500) {
+                            const msg = `⚠️ Obrazek jest bardzo mały (${w}×${h} px). Na dużym ekranie może wyglądać rozmazanie. Zalecane minimum: 800×600 px.`;
+                            if (window.showEditorStatus) window.showEditorStatus(msg, 'warning');
+                            console.warn(msg);
+                        } else if (minDim < 800) {
+                            const msg = `ℹ️ Obrazek (${w}×${h} px) jest OK, ale dla najlepszej jakości na TV warto użyć min. 800×600 px.`;
+                            if (window.showEditorStatus) window.showEditorStatus(msg, 'info');
+                        }
+                        URL.revokeObjectURL(checkImg.src);
+                        res();
+                    };
+                    checkImg.onerror = res;
+                    checkImg.src = URL.createObjectURL(file);
+                });
+
                 console.log("🖼️ Optymalizacja obrazka dla Screen.html (1920px)...");
                 // Główny obrazek: maksymalnie 1920px szerokości, jakość 0.85, WebP
                 const optimizedBlob = await resizeImage(file, 1920, 0.85, 'webp');

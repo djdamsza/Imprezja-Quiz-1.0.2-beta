@@ -3245,11 +3245,7 @@ function getPhoneState(fullState) {
     const s = { ...fullState };
     // Telefony nie wyświetlają listy nicków wszystkich graczy — to widok admina
     delete s.playerNicks;
-    // playerStats w shipsGame to tablica ze statystykami gracza per socket — tylko admin tego potrzebuje
-    if (s.shipsGame) {
-        s.shipsGame = { ...s.shipsGame };
-        delete s.shipsGame.playerStats;
-    }
+    // playerStats zostaje – Screen.html (TV) też go potrzebuje do tabeli trafień
     return s;
 }
 
@@ -5360,14 +5356,13 @@ io.on('connection', (socket) => {
             sendPlayerScore(socket, player);
         }
         
-        // Gdy wszyscy gracze (z nickiem) strzelili w tej turze – pokaż wyniki i zakończ turę
+        // Gdy wszyscy gracze strzelili w tej turze – pokaż wyniki i czekaj na admina
+        // WAŻNE: NIE inkrementuj currentTurn tutaj – robi to dopiero admin przez ships_next_turn
         if (players.size > 0 && shipsGame.playersShot.size >= players.size) {
             gameState.showStats = true;
-            shipsGame.currentTurn++;
-            shipsGame.playersShot.clear();
             gameState.showCorrect = false;
             gameState.type = 'GAME';
-            console.log(`⚓ Wszyscy strzelili w rundzie – pokazano wyniki, nowa runda ${shipsGame.currentTurn}`);
+            console.log(`⚓ Wszyscy strzelili w rundzie ${shipsGame.currentTurn} – czekam na admina (ships_next_turn)`);
         }
         
         // Wyślij aktualizację stanu gry do wszystkich klientów (nie tylko graczy) - Screen.html też musi otrzymać
@@ -5533,6 +5528,7 @@ io.on('connection', (socket) => {
 
     /** Standalone: reset gry */
     socket.on('ships_solo_reset', () => {
+        clearShipsSoloAimTimer();
         gameState.shipsSoloGame = null;
         io.emit('ships_solo_state', null);
         console.log('⚓ [SHIPS_SOLO standalone] Reset gry');
@@ -5544,8 +5540,13 @@ io.on('connection', (socket) => {
     });
 
     // ─── SHIPS_SOLO: Admin steruje celownikiem i strzałem ───────────────────────
+    let shipsSoloAimTimer = null; // timer 10s na strzał
 
-    /** Admin wybiera wiersz (phase: 'row') – emitujemy aim do Screena */
+    function clearShipsSoloAimTimer() {
+        if (shipsSoloAimTimer) { clearTimeout(shipsSoloAimTimer); shipsSoloAimTimer = null; }
+    }
+
+    /** Admin wybiera kolumnę/wiersz (phase: 'col'|'row') – emitujemy aim do Screena */
     socket.on('ships_solo_aim', (data) => {
         const { questionId, aimRow, aimCol, phase } = data;
         if (!gameState.shipsSoloGame) return;
@@ -5554,12 +5555,30 @@ io.on('connection', (socket) => {
         g.aimRow = aimRow ?? g.aimRow;
         g.aimCol = aimCol ?? g.aimCol;
         g.phase = phase || g.phase;
-        // Emituj tylko do screena i admina (nie mamy osobnego pokoju – broadcast)
         io.emit('ships_solo_aim_update', { aimRow: g.aimRow, aimCol: g.aimCol, phase: g.phase });
+
+        // Timer 10s – gdy admin wchodzi w fazę 'row' (kolumna wybrana, cel aktywny)
+        if (phase === 'row') {
+            clearShipsSoloAimTimer();
+            shipsSoloAimTimer = setTimeout(() => {
+                shipsSoloAimTimer = null;
+                if (!gameState.shipsSoloGame) return;
+                gameState.shipsSoloGame.aimRow = null;
+                gameState.shipsSoloGame.aimCol = null;
+                gameState.shipsSoloGame.phase = 'col';
+                io.emit('ships_solo_timeout');
+                io.emit('ships_solo_aim_update', { aimRow: null, aimCol: null, phase: 'col' });
+                console.log('⚓ [SHIPS_SOLO] Timeout strzału – runda pominięta');
+            }, 10000);
+        } else {
+            // Wróciło do fazy 'col' (reset) – anuluj timer
+            clearShipsSoloAimTimer();
+        }
     });
 
     /** Admin oddaje strzał */
     socket.on('ships_solo_shot', (data) => {
+        clearShipsSoloAimTimer(); // Anuluj timer 10s
         const { questionId, row, col } = data;
         if (!gameState.shipsSoloGame) return;
         if (questionId && gameState.shipsSoloGame.questionId !== questionId) return;
@@ -5641,6 +5660,7 @@ io.on('connection', (socket) => {
 
     /** Admin kończy grę solo */
     socket.on('ships_solo_end', (data) => {
+        clearShipsSoloAimTimer();
         if (!gameState.shipsSoloGame) return;
         gameState.shipsSoloGame.gameEnded = true;
         io.emit('ships_solo_shot_result', {

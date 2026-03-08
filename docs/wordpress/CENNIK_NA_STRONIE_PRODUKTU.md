@@ -80,7 +80,7 @@ Lub zostaw koszyk – będzie pusty, gdy nie ma produktów WooCommerce w koszyku
 ## Cron keep-alive (dhosting)
 
 1. **Plik** `cron.php` – wrzuć do `public_html/` (np. `/nowajakoscrozrywki.pl/public_html/cron.php`)
-2. **Zawartość** – tylko: `<?php file_get_contents('https://imprezja.onrender.com/api/prices');`
+2. **Zawartość** – tylko: `<?php file_get_contents('https://imprezja-quiz-1-0-2-beta.onrender.com/api/prices');`
 3. **Ścieżka w CRON** – ustaw: `~/nowajakoscrozrywki.pl/public_html/cron.php` (z `public_html` w ścieżce)
 4. **Interwał** – co 10 minut
 
@@ -92,7 +92,7 @@ Na darmowym planie Render serwis „zasypia” po ~15 min bez ruchu. Pierwsze kl
 
 **Rozwiązania:**
 1. **Preconnect** – już dodany w `stripe-cennik.html` (preconnect + dns-prefetch do API)
-2. **Cron ping** – skonfiguruj UptimeRobot lub cron.co, aby co 10–14 min wysyłał GET na `https://imprezja.onrender.com/api/prices` lub `/health` (po redeployu) – serwis pozostanie „obudzony”
+2. **Cron ping** – skonfiguruj UptimeRobot lub cron.co, aby co 10–14 min wysyłał GET na `https://imprezja-quiz-1-0-2-beta.onrender.com/api/prices` lub `/health` (po redeployu) – serwis pozostanie „obudzony”
 3. **Płatny plan Render** – wyłącza cold start
 
 ---

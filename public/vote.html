@@ -1739,24 +1739,8 @@
             align-content: start;
             box-sizing: border-box;
             width: 100%;
-            /* Automatyczny układ responsywny - 2 kolumny gdy jest miejsce, 1 gdy tekst jest długi */
-            grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
-        }
-        
-        /* Dla 2 odpowiedzi - zawsze obok siebie jeśli szerokość pozwala */
-        .answers-grid:has(.answer-btn:nth-child(2):last-child) {
-            grid-template-columns: repeat(2, 1fr);
-        }
-        
-        /* Dla 3-4 odpowiedzi - 2 kolumny */
-        .answers-grid:has(.answer-btn:nth-child(3):last-child),
-        .answers-grid:has(.answer-btn:nth-child(4):last-child) {
-            grid-template-columns: repeat(2, 1fr);
-        }
-        
-        /* Dla 5+ odpowiedzi - automatycznie dostosowuje się do szerokości */
-        .answers-grid:has(.answer-btn:nth-child(5)) {
-            grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+            /* Jedna kolumna na wszystkich urządzeniach dla czytelności odpowiedzi tekstowych */
+            grid-template-columns: 1fr;
         }
         
         /* Gdy brak obrazka - lepsze wykorzystanie przestrzeni */
@@ -1808,25 +1792,12 @@
         #voting-screen.music-mode .answers-grid {
             flex: 1 1 auto;
             min-height: 0;
-            /* WAŻNE: Zawsze użyj układu 2 kolumny dla pytań muzycznych (jak QUIZ) */
-            grid-template-columns: 1fr 1fr !important;
+            grid-template-columns: 1fr !important;
             gap: 15px;
             padding: 15px;
             align-content: start;
             order: 2;
             overflow-y: auto;
-        }
-        
-        /* Dla pytań muzycznych z 2 odpowiedziami - zawsze obok siebie */
-        #voting-screen.music-mode .answers-grid:has(.answer-btn:nth-child(2):last-child) {
-            grid-template-columns: repeat(2, 1fr) !important;
-        }
-        
-        /* WAŻNE: Dla pytań muzycznych z więcej niż 2 odpowiedziami - również układ 2 kolumny */
-        #voting-screen.music-mode .answers-grid:has(.answer-btn:nth-child(3)),
-        #voting-screen.music-mode .answers-grid:has(.answer-btn:nth-child(4)),
-        #voting-screen.music-mode .answers-grid:has(.answer-btn:nth-child(5)) {
-            grid-template-columns: 1fr 1fr !important;
         }
         
         /* Pytania muzyczne - używają tego samego stylu co inne pytania (ujednolicone) */
@@ -2388,34 +2359,61 @@
         }
 
         .leaderboard-list {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 15px;
-            padding: 15px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.1);
-            max-height: 60vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-height: 68vh;
             overflow-y: auto;
             margin: 0 auto;
-            max-width: 600px;
+            padding: 0 4px;
         }
 
         .leaderboard-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 15px;
-            margin-bottom: 10px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 10px;
-            font-weight: 600;
-            border-left: 5px solid rgba(241, 196, 15, 0.5);
+            width: 100%;
+            background: rgba(255,255,255,0.05);
+            padding: clamp(10px, 3vw, 15px) clamp(14px, 5vw, 22px);
+            margin-bottom: 8px;
+            border-radius: 16px;
+            font-size: clamp(1rem, 4.5vw, 1.25rem);
+            font-weight: 700;
+            border-left: 6px solid #f1c40f;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+            color: #fff;
+        }
+
+        .leaderboard-item.lb-gold   { border-color: #ffd700; background: rgba(241,196,15,0.12); }
+        .leaderboard-item.lb-silver { border-color: #c0c0c0; background: rgba(192,192,192,0.07); }
+        .leaderboard-item.lb-bronze { border-color: #cd7f32; background: rgba(205,127,50,0.07); }
+        .leaderboard-item:last-child { margin-bottom: 0; }
+
+        .lb-pos-vote {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
             min-width: 0;
             overflow: hidden;
         }
-
-        .leaderboard-item:last-child {
-            margin-bottom: 0;
+        .lb-nick-vote {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
+        .lb-place-vote {
+            font-size: clamp(0.85rem, 3.5vw, 1.1rem);
+            color: rgba(255,255,255,0.5);
+            flex-shrink: 0;
+            width: 28px;
+        }
+        .leaderboard-item.lb-gold   .lb-place-vote { color: #ffd700; }
+        .leaderboard-item.lb-silver .lb-place-vote { color: #c0c0c0; }
+        .leaderboard-item.lb-bronze .lb-place-vote { color: #cd7f32; }
 
         /* Team Battle - wyniki drużyn na telefonie */
         .team-score-card-vote {
@@ -2467,64 +2465,7 @@
             text-shadow: 0 4px 12px rgba(0,0,0,0.6);
         }
 
-        .rank {
-            width: clamp(35px, 8vw, 40px);
-            height: clamp(35px, 8vw, 40px);
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 900;
-            margin-right: 15px;
-            font-size: clamp(1rem, 3vw, 1.3rem);
-            flex-shrink: 0;
-        }
-
-        .rank-1 {
-            background: linear-gradient(135deg, #f39c12, #f1c40f);
-            border: 2px solid #fff;
-            color: #000;
-            font-size: 1.5rem;
-            box-shadow: 0 0 20px rgba(241, 196, 15, 0.6);
-        }
-
-        .rank-2 {
-            background: linear-gradient(135deg, #7f8c8d, #bdc3c7);
-            border: 2px solid #fff;
-            color: #000;
-            box-shadow: 0 0 20px rgba(189, 195, 199, 0.4);
-        }
-
-        .rank-3 {
-            background: linear-gradient(135deg, #8c5620, #cd7f32);
-            border: 2px solid #fff;
-            color: white;
-            box-shadow: 0 0 20px rgba(205, 127, 50, 0.4);
-        }
-
-        .player-nick {
-            flex: 1;
-            font-size: clamp(1rem, 4vw, 1.3rem);
-            color: white;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            max-width: 100%;
-            min-width: 0;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            hyphens: auto;
-            min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .player-score-lb {
-            font-size: clamp(1rem, 4vw, 1.4rem);
-            font-weight: 900;
-            color: #f1c40f;
-        }
+        /* .rank / .player-nick / .player-score-lb — zastąpione przez lb-pos-vote / lb-place-vote */
 
         /* === EKRAN PODZIĘKOWAŃ === */
         #thanks-screen {
@@ -2977,6 +2918,7 @@
         let timerInterval = null;
         let playerTeam = null;
         let currentGameState = null;
+        let voteLbPrev = null; // nick → rank, do wyświetlania zmian pozycji
         let playerEliminated = false;
 
         log('🎮 Aplikacja gracza uruchomiona');
@@ -5250,6 +5192,8 @@
                 grid.style.removeProperty('height');
                 grid.style.removeProperty('min-height');
                 grid.style.removeProperty('max-height');
+                grid.style.removeProperty('grid-template-columns');
+                grid.style.removeProperty('grid-template-rows');
             }
             // Reset hero/grafiki – usuń inline !important z poprzedniego stanu (np. dogrywka), żeby grafika znów ładowała się na telefonach
             if (heroContainer) {
@@ -5423,13 +5367,15 @@
                             layout = 'horizontal';
                         }
                         
-                        // Na telefonie lub w orientacji pionowej urządzenia - sprawdź czy nie są oba pionowe
+                        // Na wąskim telefonie: landscape/mixed obok siebie = za małe → stos pionowy
                         const isNarrow = typeof window !== 'undefined' && window.innerWidth <= 768;
                         const isPortrait = typeof window !== 'undefined' && window.matchMedia('(orientation: portrait)').matches;
-                        // Jeśli oba zdjęcia są pionowe, zostaw layout horizontal (obok siebie) nawet na telefonie
-                        // W przeciwnym razie wymuś układ pionowy na telefonie
-                        if ((isNarrow || isPortrait) && layout !== 'horizontal') {
-                            layout = 'vertical';
+                        if (isNarrow || isPortrait) {
+                            // landscape (horizontal) i mixed → za wąskie obok siebie → stos
+                            if (layout === 'horizontal' || layout === 'mixed') {
+                                layout = 'vertical';
+                            }
+                            // portrait (vertical) już są w stosie → bez zmian
                         }
                         
                         log('🖼️ HOT_OR_NOT vote.html - wybrany layout:', layout);
@@ -5560,13 +5506,14 @@
                 qTextEl.classList.remove('multi-line', 'two-lines', 'three-lines');
                 const min = Number(question.min) || 0;
                 const max = Number(question.max) ?? 100;
-                const mid = Math.round((min + max) / 2);
+                // Losowa pozycja startowa (nie środek) – żeby nie zdradzać odpowiedzi
+                const startVal = Math.round(min + Math.random() * (max - min));
                 const step = (max - min) <= 200 ? 1 : Math.max(1, Math.floor((max - min) / 200));
                 grid.classList.remove('list-mode', 'hot-or-not-grid');
                 grid.innerHTML = `
                     <div class="estimation-ui">
-                        <input type="range" id="estimation-slider" min="${min}" max="${max}" step="${step}" value="${mid}">
-                        <input type="number" id="estimation-number" min="${min}" max="${max}" value="${mid}" inputmode="numeric">
+                        <input type="range" id="estimation-slider" min="${min}" max="${max}" step="${step}" value="${startVal}">
+                        <input type="number" id="estimation-number" min="${min}" max="${max}" value="${startVal}" inputmode="numeric">
                         <button type="button" class="answer-btn est-submit-btn" id="estimation-submit">Potwierdź</button>
                     </div>
                 `;
@@ -5691,6 +5638,14 @@
                     }
                 }
                 grid.classList.remove('list-mode', 'hot-or-not-grid', 'playoff-mode');
+
+                // Nie nadpisuj UI jeśli gracz już pisze odpowiedź (to samo pytanie, pole już istnieje)
+                const existingOpenInput = document.getElementById('open-answer-input');
+                if (existingOpenInput && !hasAnswered) {
+                    // Pole istnieje, gracz jeszcze nie wysłał – nie resetuj UI
+                    return;
+                }
+
                 grid.innerHTML = `
                     <div class="open-question-ui">
                         <div style="position: relative;">
@@ -5821,14 +5776,16 @@
                 grid.classList.remove('list-mode', 'hot-or-not-grid', 'playoff-mode');
                 
                 if (letterCount === 1) {
-                    // 1 litera - jedno pole tekstowe
+                    // 1 litera - duża litera obok pola tekstowego
                     const letter = playerLetters[0].toUpperCase();
                     grid.innerHTML = `
                         <div class="letter-question-ui" style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; max-width: 100%; margin: 0 auto; gap: 15px;">
-                            <div style="position: relative; width: 100%; max-width: 400px;">
-                                <div style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); font-size: 1.5em; font-weight: bold; color: #9c27b0; pointer-events: none; z-index: 10;">${letter}</div>
-                                <input type="text" id="letter-answer-input-1" placeholder="wpisz wyraz..." maxlength="80" autocomplete="off" style="padding-left: 50px; width: 100%;">
-                                <div id="letter-answer-warning-1" class="profanity-warning" style="display: none;">Niedozwolone słowo</div>
+                            <div style="display:flex; align-items:center; gap:12px; width:100%; max-width:400px;">
+                                <div style="flex-shrink:0; width:64px; height:64px; display:flex; align-items:center; justify-content:center; font-size:2.8rem; font-weight:900; color:#fff; background:#9c27b0; border-radius:14px; letter-spacing:0; line-height:1; box-shadow:0 4px 16px rgba(156,39,176,0.4);">${letter}</div>
+                                <div style="flex:1; min-width:0;">
+                                    <input type="text" id="letter-answer-input-1" placeholder="wpisz wyraz..." maxlength="80" autocomplete="off" style="width:100%;">
+                                    <div id="letter-answer-warning-1" class="profanity-warning" style="display: none;">Niedozwolone słowo</div>
+                                </div>
                             </div>
                             <button type="button" class="answer-btn letter-submit-btn" id="letter-submit" style="text-align: center;">Wyślij</button>
                             <div id="letter-sent-msg" class="letter-sent-msg">Wysłano</div>
@@ -5900,20 +5857,24 @@
                     };
                     letterInput1.addEventListener('keydown', (e) => { if (e.key === 'Enter') letterSubmit.click(); });
                 } else {
-                    // 2 litery - dwa pola tekstowe
+                    // 2 litery - dwa pola tekstowe obok dużych liter
                     const letter1 = playerLetters[0].toUpperCase();
                     const letter2 = playerLetters[1].toUpperCase();
                     grid.innerHTML = `
                         <div class="letter-question-ui" style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; max-width: 100%; margin: 0 auto; gap: 15px;">
-                            <div style="position: relative; width: 100%; max-width: 400px;">
-                                <div style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); font-size: 1.5em; font-weight: bold; color: #9c27b0; pointer-events: none; z-index: 10;">${letter1}</div>
-                                <input type="text" id="letter-answer-input-1" placeholder="wpisz wyraz..." maxlength="80" autocomplete="off" style="padding-left: 50px; width: 100%;">
-                                <div id="letter-answer-warning-1" class="profanity-warning" style="display: none;">Niedozwolone słowo</div>
+                            <div style="display:flex; align-items:center; gap:12px; width:100%; max-width:400px;">
+                                <div style="flex-shrink:0; width:64px; height:64px; display:flex; align-items:center; justify-content:center; font-size:2.8rem; font-weight:900; color:#fff; background:#9c27b0; border-radius:14px; line-height:1; box-shadow:0 4px 16px rgba(156,39,176,0.4);">${letter1}</div>
+                                <div style="flex:1; min-width:0;">
+                                    <input type="text" id="letter-answer-input-1" placeholder="wpisz wyraz..." maxlength="80" autocomplete="off" style="width:100%;">
+                                    <div id="letter-answer-warning-1" class="profanity-warning" style="display: none;">Niedozwolone słowo</div>
+                                </div>
                             </div>
-                            <div style="position: relative; width: 100%; max-width: 400px;">
-                                <div style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); font-size: 1.5em; font-weight: bold; color: #9c27b0; pointer-events: none; z-index: 10;">${letter2}</div>
-                                <input type="text" id="letter-answer-input-2" placeholder="wpisz wyraz..." maxlength="80" autocomplete="off" style="padding-left: 50px; width: 100%;">
-                                <div id="letter-answer-warning-2" class="profanity-warning" style="display: none;">Niedozwolone słowo</div>
+                            <div style="display:flex; align-items:center; gap:12px; width:100%; max-width:400px;">
+                                <div style="flex-shrink:0; width:64px; height:64px; display:flex; align-items:center; justify-content:center; font-size:2.8rem; font-weight:900; color:#fff; background:#9c27b0; border-radius:14px; line-height:1; box-shadow:0 4px 16px rgba(156,39,176,0.4);">${letter2}</div>
+                                <div style="flex:1; min-width:0;">
+                                    <input type="text" id="letter-answer-input-2" placeholder="wpisz wyraz..." maxlength="80" autocomplete="off" style="width:100%;">
+                                    <div id="letter-answer-warning-2" class="profanity-warning" style="display: none;">Niedozwolone słowo</div>
+                                </div>
                             </div>
                             <button type="button" class="answer-btn letter-submit-btn" id="letter-submit" style="text-align: center;">Wyślij</button>
                             <div id="letter-sent-msg" class="letter-sent-msg">Wysłano</div>
@@ -6017,10 +5978,11 @@
                 grid.classList.remove('list-mode', 'hot-or-not-grid', 'playoff-mode');
                 const questionId = question.id || Date.now();
                 grid.innerHTML = `
-                    <div class="ships-game-container" style="width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; padding: 10px; box-sizing: border-box;">
-                        <div class="ships-round-info" style="text-align: center; margin-bottom: 15px; color: #00aaff; font-size: clamp(1.2rem, 4vw, 1.8rem); font-weight: bold; text-shadow: 0 0 20px rgba(0, 170, 255, 0.8); padding: 12px 20px; background: rgba(0, 0, 0, 0.3); border-radius: 8px; border: 2px solid #00aaff; width: 100%; max-width: 400px; box-sizing: border-box;">Runda 1</div>
-                        <div id="ships-board-container-${questionId}" class="ships-board-container" style="width: 100%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;"></div>
-                        <div id="ships-stats-container-${questionId}" class="ships-stats-container" style="display: none; width: 100%; max-width: 600px; margin: 0 auto; overflow-y: auto; max-height: 50vh;"></div>
+                    <div class="ships-game-container" style="width:100%; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; gap:12px; padding:10px; box-sizing:border-box;">
+                        <div class="ships-round-info" style="text-align:center; color:#00aaff; font-size:clamp(1rem,4vw,1.4rem); font-weight:bold; padding:8px 16px; background:rgba(0,0,0,0.3); border-radius:8px; border:2px solid #00aaff; width:100%; max-width:400px; box-sizing:border-box;">Runda 1</div>
+                        <div id="ships-status-${questionId}" style="text-align:center; font-size:clamp(1rem,4vw,1.5rem); font-weight:900; padding:8px 16px; border-radius:8px; width:100%; max-width:400px; box-sizing:border-box; background:rgba(0,255,100,0.15); border:2px solid #00ff64; color:#00ff64; display:none;"></div>
+                        <div id="ships-board-container-${questionId}" class="ships-board-container" style="width:100%; display:flex; justify-content:center; align-items:flex-start; flex-shrink:0;"></div>
+                        <div id="ships-stats-container-${questionId}" class="ships-stats-container" style="display:none; width:100%; max-width:600px; margin:0 auto; overflow-y:auto; max-height:40vh;"></div>
                     </div>
                 `;
                 
@@ -6146,6 +6108,7 @@
                     } else {
                         // Zawsze układ poziomy (2 kolumny) dla 2-4 odpowiedzi
                         grid.style.gridTemplateColumns = '1fr 1fr';
+                        grid.style.gridTemplateRows = '';
                     }
                 }
                 
@@ -6274,6 +6237,38 @@
             }
         });
         
+        function updateShipsStatus(questionId) {
+            const el = document.getElementById(`ships-status-${questionId}`);
+            if (!el) return;
+            const showStats = currentGameState ? currentGameState.showStats : false;
+            const gameEnded = shipsGameState.gameEnded || false;
+            if (gameEnded) {
+                el.style.display = 'block';
+                el.style.background = 'rgba(255,200,0,0.15)';
+                el.style.borderColor = '#ffcc00';
+                el.style.color = '#ffcc00';
+                el.textContent = '🏁 Koniec gry';
+            } else if (showStats) {
+                el.style.display = 'block';
+                el.style.background = 'rgba(255,200,0,0.15)';
+                el.style.borderColor = '#ffcc00';
+                el.style.color = '#ffcc00';
+                el.textContent = '📊 Runda zakończona';
+            } else if (shipsGameState.hasShotThisTurn) {
+                el.style.display = 'block';
+                el.style.background = 'rgba(100,100,100,0.15)';
+                el.style.borderColor = '#aaaaaa';
+                el.style.color = '#cccccc';
+                el.textContent = '✓ Strzał oddany – czekaj na wyniki';
+            } else {
+                el.style.display = 'block';
+                el.style.background = 'rgba(0,255,100,0.15)';
+                el.style.borderColor = '#00ff64';
+                el.style.color = '#00ff64';
+                el.textContent = '🎯 STRZELAJ! Wybierz pole na planszy';
+            }
+        }
+
         function updateShipsRoundInfo(questionId) {
             const roundInfo = document.querySelector(`#ships-board-container-${questionId}`)?.parentElement?.querySelector('.ships-round-info');
             if (roundInfo) {
@@ -6304,6 +6299,7 @@
             };
             
             renderShipsBoard(questionId);
+            updateShipsStatus(questionId);
             
             // Nasłuchuj aktualizacji stanu gry tylko dla tego pytania SHIPS
             const stateUpdateHandler = (state) => {
@@ -6336,9 +6332,10 @@
                             currentGameState.showCorrect = state.showCorrect || false;
                         }
                         
-                        // Zawsze aktualizuj planszę i numer rundy
+                        // Zawsze aktualizuj planszę, numer rundy i status
                         updateShipsBoard(questionId);
                         updateShipsRoundInfo(questionId);
+                        updateShipsStatus(questionId);
                         
                         if (state.showStats) {
                             renderShipsStats(questionId, state);
@@ -6555,6 +6552,7 @@
             // Tymczasowo ustaw hasShotThisTurn aby zapobiec wielokrotnym kliknięciom
             shipsGameState.hasShotThisTurn = true;
             updateShipsBoard(questionId);
+            updateShipsStatus(questionId);
             
             socket.emit('ships_shot', {
                 questionId: questionId,
@@ -7208,29 +7206,59 @@
                     list.innerHTML = '<div style="text-align:center; padding:20px; color:rgba(255,255,255,0.5);">Brak wyników</div>';
                     return;
                 }
-                
-                leaderboard.forEach((player, index) => {
-                    const item = document.createElement('div');
-                    item.className = 'leaderboard-item';
-                    
-                    let rankClass = '';
-                    if (index === 0) rankClass = 'rank-1';
-                    else if (index === 1) rankClass = 'rank-2';
-                    else if (index === 2) rankClass = 'rank-3';
-                    
-                    item.innerHTML = `
-                        <div class="rank ${rankClass}">${index + 1}</div>
-                        <div class="player-nick">${player.nick}</div>
-                        <div class="player-score-lb">${player.score}</div>
-                    `;
-                    
-                    list.appendChild(item);
-                    
-                    // Aktualizuj swój wynik jeśli to Ty
-                    if (player.nick === playerNick) {
-                        playerScore = player.score;
-                    }
-                });
+
+                // Ukryj listę — pokaż dopiero po 3s (nie obciążaj internetu od razu)
+                list.style.visibility = 'hidden';
+
+                const renderFn = () => {
+                    list.innerHTML = '';
+                    leaderboard.forEach((player, index) => {
+                        const item = document.createElement('div');
+                        let medalClass = '';
+                        if (index === 0)      medalClass = 'lb-gold';
+                        else if (index === 1) medalClass = 'lb-silver';
+                        else if (index === 2) medalClass = 'lb-bronze';
+                        item.className = `leaderboard-item ${medalClass}`;
+
+                        const medals = ['🥇','🥈','🥉'];
+                        const placeLabel = medals[index] || `${index + 1}.`;
+
+                        let deltaHtml = '';
+                        if (voteLbPrev !== null && voteLbPrev[player.nick] !== undefined) {
+                            const d = voteLbPrev[player.nick] - index;
+                            if (d > 0)      deltaHtml = `<span style="color:#2ecc71;font-size:0.85em;font-weight:900;flex-shrink:0;margin-left:4px;">▲${d}</span>`;
+                            else if (d < 0) deltaHtml = `<span style="color:#e74c3c;font-size:0.85em;font-weight:900;flex-shrink:0;margin-left:4px;">▼${Math.abs(d)}</span>`;
+                        }
+
+                        const nick = (player.nick || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                        item.innerHTML = `
+                            <div class="lb-pos-vote">
+                                <span class="lb-place-vote">${placeLabel}</span>
+                                <span class="lb-nick-vote">${nick}</span>
+                                ${deltaHtml}
+                            </div>
+                            <span style="color:#f1c40f;font-weight:900;font-size:clamp(1rem,4vw,1.2rem);flex-shrink:0;margin-left:10px;">${player.score}</span>
+                        `;
+
+                        list.appendChild(item);
+
+                        if (player.nick === playerNick) {
+                            playerScore = player.score;
+                        }
+                    });
+
+                    // Zaktualizuj poprzedni ranking
+                    voteLbPrev = {};
+                    leaderboard.forEach((p, i) => { voteLbPrev[p.nick] = i; });
+
+                    list.style.visibility = 'visible';
+                };
+
+                // 3 sekundy opóźnienia — nie obciążamy routera od razu
+                const lbScreen = document.getElementById('leaderboard-screen');
+                setTimeout(() => {
+                    renderFn();
+                }, 3000);
             }
             
             document.getElementById('lb-nick').textContent = playerNick;

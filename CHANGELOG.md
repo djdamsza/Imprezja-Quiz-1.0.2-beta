@@ -2,6 +2,43 @@
 
 ---
 
+## v1.1.6 (marzec 2026) — wydanie stabilne
+
+### Ekran TV (Screen.html)
+- Animowany ranking: gracze zmieniający pozycję przesuwają się płynnie w górę lub dół (animacja FLIP, 0,9 s, etapowo co 1 s). Animacja nie pojawia się przy pierwszym otwarciu – tylko przy kolejnych zmianach.
+- Naprawiono pozycję startową animacji rankingu – wiersze nie pojawiają się już za wysoko (nad napisem „Ranking").
+- Przyciski (Edytor, Cofnij, Admin, Rozpocznij, Zakończ) znikają automatycznie po włączeniu trybu pełnoekranowego.
+- Ekran końcowy z podziękowaniami: naprawiono układ tekstu obok obrazka – treść i logo wyświetlają się obok siebie bez nakładania.
+- QR kod admina: widoczny do momentu zalogowania admina, po zalogowaniu znika i nie wraca. „Admin na komputerze" nie ukrywa QR – można jednocześnie mieć otwartego admina zdalnie i lokalnie.
+
+### Panel admina (admin.html)
+- Ranking graczy wyświetlany jest teraz wewnątrz bloku pytania (rozwijana sekcja nad przyciskiem „Następne"), a nie jako wyskakujące okno.
+- Przy nickach graczy w rankingu widoczne są strzałki zmian pozycji (▲▼).
+- Tabela trafień w trybie Statki: naprawiony układ kolumn (`table-layout: fixed`), długie nicki obcięte z `…`, właściwe proporcje kolumn.
+
+### Telefony graczy (vote.html)
+- Odpowiedzi QUIZ i MUZYCZNE wyświetlają się w jednej kolumnie (4 kafelki pionowo) na wszystkich urządzeniach – koniec z poziomym ściskaniem nieczytelnych kafli.
+- Ranking na telefonie: styl zgodny z ekranem TV (złoto/srebro/brąz dla TOP 3, strzałki zmian, wyświetlenie po 3 sekundach od otwarcia).
+- Długie nicki graczy: obcięte z `…` na końcu, strzałka zmiany pozycji zawsze widoczna obok nicku.
+- Pytanie z literą: wymagana litera wyświetlana w wyraźnym, dużym polu (64×64 px) obok pola tekstowego – gracze od razu wiedzą, że mają wpisać literę, a nie ją przepisywać.
+- Szacowanie: suwak startuje w losowym miejscu zamiast wskazywać prawidłową odpowiedź.
+- Pytanie otwarte: naprawiono błąd, przez który naciśnięcie „Wyślij" nie wysyłało odpowiedzi (pole tekstowe było czyszczone przy ponownym renderowaniu).
+- Komunikat „STRZELAJ / CZEKAJ" w trybie Statki pojawia się prawidłowo; plansza i tabela trafień wyświetlane są od góry ekranu.
+
+### Tryb Statki (pytanie quizowe)
+- Rundy liczone poprawnie: 1 runda = wszyscy gracze oddają strzał, nowa runda zaczyna się gdy admin kliknie przycisk. Trafienia nie inkrementują licznika rund.
+- Ekran TV: tabela wyników graczy widoczna przez cały czas gry; banery statusu „⚡ GRACZE STRZELAJĄ!" / „📊 RUNDA ZAKOŃCZONA" / „🏁 Koniec gry".
+- Panel admina: naprawiona tabela trafień (poprawne wymiarowanie, brak „rozjeżdżania się" wartości).
+
+### Edytor
+- Ostrzeżenie przy uploadzie za małego obrazka (zbyt mała rozdzielczość dla pytań quizowych lub ekranu TV).
+
+### Statki Solo (tryb standalone)
+- Ekran TV: dodano baner statusu „🎯 STRZELAJ!" / „CZEKAJ", wizualne odliczanie 10 s, licznik strzałów „Strzał X".
+- Limit czasu na strzał: 10 sekund – po przekroczeniu ekran wyświetla komunikat „⏱ Czas minął" i gra przechodzi do następnej kolejki.
+
+---
+
 ## v1.1.5 (marzec 2026) — wydanie stabilne
 
 ### Instalator

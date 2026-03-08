@@ -20,15 +20,35 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000c1a;color:#fff;f
 @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-14px)}40%,80%{transform:translateX(14px)}}
 @keyframes rewardSlide{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
 @keyframes colGlow{0%,100%{opacity:.7}50%{opacity:1}}
+@keyframes strzelaj-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
 #overlay{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
 
-/* Phase indicator */
+/* Phase indicator (coordinate display) */
 #phase-bar{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:50;
     background:rgba(0,0,0,.6);border:1px solid rgba(14,165,233,.35);
     border-radius:24px;padding:6px 20px;font-size:1rem;color:#64748b;
     transition:all .3s;white-space:nowrap;pointer-events:none}
 #phase-bar.active{color:#7dd3fc;border-color:rgba(14,165,233,.7);background:rgba(14,165,233,.1)}
 #phase-bar span{font-weight:800;color:#fbbf24;font-size:1.15em}
+
+/* STRZELAJ / CZEKAJ status banner */
+#status-banner{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:60;
+    display:flex;align-items:center;gap:16px;pointer-events:none;transition:opacity .3s}
+#status-text{font-size:clamp(2rem,5vw,4rem);font-weight:900;letter-spacing:2px;
+    text-shadow:0 2px 20px currentColor;transition:color .3s,text-shadow .3s}
+#status-text.strzelaj{color:#ef4444;animation:strzelaj-pulse 0.9s ease-in-out infinite;text-shadow:0 0 40px rgba(239,68,68,.7),0 2px 8px rgba(0,0,0,.8)}
+#status-text.czekaj{color:#64748b;animation:none;text-shadow:none}
+
+/* Shot countdown ring */
+#countdown-wrap{display:none;flex-direction:column;align-items:center;gap:4px}
+#countdown-num{font-size:clamp(2rem,4vw,3.5rem);font-weight:900;color:#fbbf24;line-height:1;min-width:2ch;text-align:center}
+#countdown-bar-outer{width:clamp(80px,10vw,140px);height:8px;background:rgba(255,255,255,.1);border-radius:4px;overflow:hidden}
+#countdown-bar{height:100%;background:#ef4444;border-radius:4px;transition:width .2s linear}
+
+/* Shot counter top-right */
+#shot-counter{position:fixed;top:14px;right:20px;z-index:50;
+    background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.15);
+    border-radius:20px;padding:5px 16px;font-size:.9rem;color:#94a3b8;pointer-events:none}
 </style>
 </head>
 <body>
@@ -39,6 +59,14 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000c1a;color:#fff;f
 <div id="board-wrap"></div>
 <div id="overlay"></div>
 <div id="phase-bar">Oczekiwanie…</div>
+<div id="shot-counter" style="display:none">Strzał 1</div>
+<div id="status-banner">
+    <div id="status-text" class="czekaj">CZEKAJ</div>
+    <div id="countdown-wrap">
+        <div id="countdown-num">10</div>
+        <div id="countdown-bar-outer"><div id="countdown-bar" style="width:100%"></div></div>
+    </div>
+</div>
 
 <audio id="soundtrack" loop></audio>
 
@@ -70,6 +98,52 @@ const boardWrap = document.getElementById('board-wrap');
 const overlay = document.getElementById('overlay');
 const phaseBar = document.getElementById('phase-bar');
 const soundtrackEl = document.getElementById('soundtrack');
+const statusText = document.getElementById('status-text');
+const countdownWrap = document.getElementById('countdown-wrap');
+const countdownNum = document.getElementById('countdown-num');
+const countdownBar = document.getElementById('countdown-bar');
+const shotCounter = document.getElementById('shot-counter');
+
+// ── Status & Countdown ─────────────────────────────────────
+const SHOT_TIMEOUT_S = 10;
+let countdownInterval = null;
+let countdownLeft = SHOT_TIMEOUT_S;
+
+function setStatus(mode) { // 'strzelaj' | 'czekaj'
+    statusText.className = 'czekaj';
+    if (mode === 'strzelaj') {
+        statusText.textContent = '🎯 STRZELAJ!';
+        statusText.className = 'strzelaj';
+        startCountdown();
+    } else {
+        statusText.textContent = 'CZEKAJ';
+        stopCountdown();
+    }
+}
+function startCountdown() {
+    stopCountdown();
+    countdownLeft = SHOT_TIMEOUT_S;
+    countdownNum.textContent = countdownLeft;
+    countdownBar.style.width = '100%';
+    countdownWrap.style.display = 'flex';
+    countdownInterval = setInterval(() => {
+        countdownLeft--;
+        countdownNum.textContent = countdownLeft;
+        const pct = Math.max(0, (countdownLeft / SHOT_TIMEOUT_S) * 100);
+        countdownBar.style.width = pct + '%';
+        if (countdownLeft <= 0) stopCountdown();
+    }, 1000);
+}
+function stopCountdown() {
+    if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
+    countdownWrap.style.display = 'none';
+}
+function updateShotCounter() {
+    if (!gameState) return;
+    const n = Object.keys(gameState.shots || {}).length;
+    shotCounter.textContent = 'Strzał ' + (n + 1);
+    shotCounter.style.display = gameState.gameEnded ? 'none' : 'block';
+}
 
 // ── Web Audio ──────────────────────────────────────────────
 function getCtx() {
@@ -359,12 +433,18 @@ socket.on('ships_solo_state', (g) => {
     if (!g) {
         waiting.style.display = 'flex'; boardWrap.style.display = 'none';
         phaseBar.classList.remove('active'); phaseBar.textContent = 'Oczekiwanie…';
+        shotCounter.style.display = 'none';
+        setStatus('czekaj');
         return;
     }
     gameState = g;
     waiting.style.display = 'none';
     boardWrap.style.display = 'flex';
     if (g.soundtrack) startSoundtrack(g.soundtrack);
+    updateShotCounter();
+    // Przywróć status na podstawie stanu
+    if (g.aimCol !== null && g.phase === 'row') setStatus('strzelaj');
+    else setStatus('czekaj');
     renderBoard();
 });
 
@@ -375,10 +455,12 @@ socket.on('ships_solo_aim_update', (d) => {
     gameState.aimCol = d.aimCol;
     gameState.phase = d.phase;
     renderBoard();
-    // Dźwięki: sonar przy zmianie celu, aimLock przy przejściu do fazy 'row'
-    if (d.phase === 'row' && prevPhase === 'col') {
+    // Status: STRZELAJ gdy kolumna wybrana i faza 'row', CZEKAJ inaczej
+    if (d.phase === 'row') {
+        setStatus('strzelaj');
         playAimLock();
     } else {
+        setStatus('czekaj');
         playSonar();
     }
 });
@@ -389,6 +471,8 @@ socket.on('ships_solo_shot_result', (d) => {
     if (d.phase !== undefined) gameState.phase = d.phase;
     gameState.aimRow = null; gameState.aimCol = null;
     if (d.gameEnded) gameState.gameEnded = true;
+    setStatus('czekaj');
+    updateShotCounter();
     renderBoard();
     if (d.hit !== undefined) {
         playWhoosh();
@@ -399,6 +483,16 @@ socket.on('ships_solo_shot_result', (d) => {
         showShotOverlay(d.hit, d.reward, d.shipSize, d.gameEnded);
     }
     if (d.gameEnded) stopSoundtrack();
+});
+
+// Timeout rundy – admin nie strzelił w czasie
+socket.on('ships_solo_timeout', () => {
+    if (!gameState) return;
+    gameState.aimRow = null; gameState.aimCol = null; gameState.phase = 'col';
+    setStatus('czekaj');
+    renderBoard();
+    overlay.innerHTML = '<div style="animation:rewardSlide .35s ease both;color:#64748b;font-size:clamp(20px,4vw,54px);font-weight:700;">⏱ Czas minął</div>';
+    setTimeout(() => { overlay.innerHTML = ''; }, 2000);
 });
 
 window.addEventListener('resize', renderBoard);
