@@ -172,21 +172,29 @@ function generateSessionCode() {
     return String(Math.floor(1000 + Math.random() * 9000));
 }
 async function shortenUrl(longUrl) {
-    try {
-        const encoded = encodeURIComponent(longUrl);
-        return await new Promise((resolve) => {
-            const req = require('https').get('https://tinyurl.com/api-create.php?url=' + encoded, (res) => {
-                let data = '';
-                res.on('data', c => data += c);
-                res.on('end', () => {
-                    const u = data.trim();
-                    resolve(u.startsWith('https://tinyurl.com/') ? u : null);
+    // Próbuje kolejno: is.gd, tinyurl — pierwszy który odpowie wygrywa
+    const services = [
+        { url: 'https://is.gd/create.php?format=simple&url=' + encodeURIComponent(longUrl), validate: u => u.startsWith('https://is.gd/') },
+        { url: 'https://tinyurl.com/api-create.php?url=' + encodeURIComponent(longUrl), validate: u => u.startsWith('https://tinyurl.com/') },
+    ];
+    for (const svc of services) {
+        try {
+            const result = await new Promise((resolve) => {
+                const req = require('https').get(svc.url, (res) => {
+                    let data = '';
+                    res.on('data', c => data += c);
+                    res.on('end', () => {
+                        const u = data.trim();
+                        resolve(svc.validate(u) ? u : null);
+                    });
                 });
+                req.on('error', () => resolve(null));
+                req.setTimeout(6000, () => { req.destroy(); resolve(null); });
             });
-            req.on('error', () => resolve(null));
-            req.setTimeout(5000, () => { req.destroy(); resolve(null); });
-        });
-    } catch (_) { return null; }
+            if (result) { console.log('✂️ Skrócony URL:', result); return result; }
+        } catch (_) {}
+    }
+    return null;
 }
 
 /** Normalizuje URL tunelu: tylko origin, https; odrzuca dashboard i localhost. Pinggy (Mac) i Tunnelmole (Windows). */
