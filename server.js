@@ -3170,16 +3170,31 @@ function sendPlayerScore(socket, player) {
 
 // Throttle broadcast – przy 10+ telefonach wiele odpowiedzi w krótkim czasie powodowało przeciążenie sieci
 let broadcastTimer = null;
-const BROADCAST_DEBOUNCE_MS = parseInt(process.env.IMPREZJA_BROADCAST_DEBOUNCE_MS, 10) || 120;
+const BROADCAST_DEBOUNCE_MS = parseInt(process.env.IMPREZJA_BROADCAST_DEBOUNCE_MS, 10) || 250;
+
+// Slim state dla telefonów — usuwa dane potrzebne tylko adminowi (playerNicks, playerStats w shipsGame).
+// eliminatedMap pozostaje bo vote.html używa state.eliminatedMap[socket.id].
+function getPhoneState(fullState) {
+    const s = { ...fullState };
+    // Telefony nie wyświetlają listy nicków wszystkich graczy — to widok admina
+    delete s.playerNicks;
+    // playerStats w shipsGame to tablica ze statystykami gracza per socket — tylko admin tego potrzebuje
+    if (s.shipsGame) {
+        s.shipsGame = { ...s.shipsGame };
+        delete s.shipsGame.playerStats;
+    }
+    return s;
+}
 
 function broadcastState() {
     if (gameMode === 'familiada') return;
-    // Admin ma priorytet – dostaje update od razu (bez throttle), żeby panel się nie zawieszał
+    // Admin ma priorytet – dostaje pełny update od razu (bez throttle), żeby panel się nie zawieszał
     io.to(ADMIN_ROOM).emit('update_state', getStateForBroadcast());
     if (broadcastTimer) clearTimeout(broadcastTimer);
     broadcastTimer = setTimeout(() => {
         broadcastTimer = null;
-        io.except(ADMIN_ROOM).emit('update_state', getStateForBroadcast());
+        // Telefony dostają odchudzony payload (bez playerNicks i playerStats z shipsGame)
+        io.except(ADMIN_ROOM).emit('update_state', getPhoneState(getStateForBroadcast()));
     }, BROADCAST_DEBOUNCE_MS);
 }
 
@@ -3189,7 +3204,9 @@ function broadcastStateImmediate() {
         clearTimeout(broadcastTimer);
         broadcastTimer = null;
     }
-    io.emit('update_state', getStateForBroadcast());
+    const full = getStateForBroadcast();
+    io.to(ADMIN_ROOM).emit('update_state', full);
+    io.except(ADMIN_ROOM).emit('update_state', getPhoneState(full));
 }
 
 function updateUsersCount() {
