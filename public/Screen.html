@@ -2146,8 +2146,9 @@
                         codeWrap.style.display = 'none'; // kod zbędny gdy jest krótki URL
                     }
                 } else if (state.sessionCode) {
-                    // Brak skróconego URL — pokaż kod jako główny element
-                    shortUrlText && (shortUrlText.textContent = 'Wpisz kod na ekranie poniżej');
+                    // Brak skróconego URL — pokaż adres Render /dolacz i kod
+                    var dolaczUrl = state.renderDolaczUrl || 'imprezja-quiz-1-0-2-beta.onrender.com/dolacz';
+                    shortUrlText && (shortUrlText.textContent = dolaczUrl.replace(/^https?:\/\//, ''));
                     if (codeWrap && codeEl) {
                         codeEl.textContent = state.sessionCode.split('').join(' '); // "6 3 6 2"
                         codeWrap.style.display = 'block';

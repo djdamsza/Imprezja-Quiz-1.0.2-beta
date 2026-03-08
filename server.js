@@ -3218,6 +3218,7 @@ function getStateForBroadcast() {
         tunnelUrl: currentPinggyUrl || null,
         shortUrl: currentShortUrl || null,
         sessionCode: currentSessionCode || null,
+        renderDolaczUrl: (() => { const b = process.env.RENDER_EXTERNAL_URL || process.env.STRIPE_DOMAIN || ''; return b ? b.replace(/\/$/, '') + '/dolacz' : null; })(),
         showLocalGameQR: showLocalGameQR,
         localGameUrl: `http://${IP}:${PORT}/vote.html`,
         showAdminQR: !(io.sockets.adapter.rooms.get(ADMIN_ROOM)?.size > 0),
