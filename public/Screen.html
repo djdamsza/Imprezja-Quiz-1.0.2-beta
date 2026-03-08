@@ -2147,7 +2147,7 @@
                     }
                 } else if (state.sessionCode) {
                     // Brak skróconego URL — pokaż adres Render /dolacz i kod
-                    var dolaczUrl = state.renderDolaczUrl || 'imprezja-quiz-1-0-2-beta.onrender.com/dolacz';
+                    var dolaczUrl = state.renderDolaczUrl || 'imprezja.onrender.com/dolacz';
                     shortUrlText && (shortUrlText.textContent = dolaczUrl.replace(/^https?:\/\//, ''));
                     if (codeWrap && codeEl) {
                         codeEl.textContent = state.sessionCode.split('').join(' '); // "6 3 6 2"

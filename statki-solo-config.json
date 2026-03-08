@@ -1,0 +1,42 @@
+{
+  "boardSize": 8,
+  "ships": [
+    {
+      "row": 0,
+      "col": 3,
+      "size": 2,
+      "vertical": false
+    },
+    {
+      "row": 1,
+      "col": 1,
+      "size": 4,
+      "vertical": true
+    },
+    {
+      "row": 1,
+      "col": 3,
+      "size": 5,
+      "vertical": true
+    },
+    {
+      "row": 1,
+      "col": 5,
+      "size": 3,
+      "vertical": false
+    },
+    {
+      "row": 0,
+      "col": 5,
+      "size": 3,
+      "vertical": false
+    }
+  ],
+  "rewards": [
+    "Kebam na własny rachunek",
+    "Wycieczka we dwoje",
+    "Flaszka"
+  ],
+  "rewardMode": "buciki",
+  "soundtrack": "/uploads/1772484404387-seabattle.mp3"
+}
