@@ -1,3 +1,15 @@
+// Wczytaj zmienne z .env (jeśli plik istnieje) — bez zewnętrznych zależności
+try {
+    const _fs = require('fs'), _path = require('path');
+    const _envPath = _path.join(__dirname, '.env');
+    if (_fs.existsSync(_envPath)) {
+        _fs.readFileSync(_envPath, 'utf8').split('\n').forEach(line => {
+            const m = line.match(/^([^#=]+)=(.*)$/);
+            if (m && !process.env[m[1].trim()]) process.env[m[1].trim()] = m[2].trim().replace(/^["']|["']$/g, '');
+        });
+    }
+} catch (_) {}
+
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
