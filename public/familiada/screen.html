@@ -26,15 +26,16 @@
         .logo-footer { position: fixed; bottom: 58px; right: 20px; z-index: 50; height: 32px; width: auto; opacity: 0.75; pointer-events: none; }
         .logo-footer img { height: 100%; width: auto; object-fit: contain; }
 
-        #top-section { height: 20vh; display: flex; z-index: 10; position: relative; }
+        #top-section { min-height: 18vh; max-height: 28vh; height: auto; display: flex; z-index: 10; position: relative; }
         .team-score-panel { width: 28%; min-width: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; z-index: 1; }
         #panel-blue { background: linear-gradient(135deg, rgba(0, 40, 100, 0.3) 0%, transparent 70%); }
         #panel-red { background: linear-gradient(225deg, rgba(100, 0, 0, 0.3) 0%, transparent 70%); }
         .team-name { font-family: var(--font-led); font-size: 1.8vw; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px; color: var(--led-yellow); text-shadow: 0 0 8px var(--led-yellow); line-height: 1.4; }
         .score-display { background: transparent; color: var(--led-yellow); font-family: var(--font-digits); font-size: 4vw; padding: 2px 8px; min-width: 50px; text-align: center; text-shadow: 0 0 10px var(--led-yellow); font-variant-numeric: tabular-nums; }
         #question-box { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 15px; text-align: center; position: relative; z-index: 2; }
-        #question-text { color: var(--led-yellow); font-family: var(--font-led); font-size: 3vw; text-transform: uppercase; text-shadow: 0 0 8px var(--led-yellow); line-height: 1.35; letter-spacing: 1px; max-width: 95%; white-space: normal; word-wrap: break-word; }
-        #question-text.question-long { font-size: 2.4vw; line-height: 1.3; }
+        #question-text { color: var(--led-yellow); font-family: var(--font-led); font-size: clamp(1.8vw, 3vw, 5vw); text-transform: uppercase; text-shadow: 0 0 8px var(--led-yellow); line-height: 1.35; letter-spacing: 1px; max-width: 95%; white-space: normal; word-wrap: break-word; overflow: visible; }
+        #question-text.question-long { font-size: clamp(1.5vw, 2.3vw, 4vw); line-height: 1.3; }
+        #question-text.question-very-long { font-size: clamp(1.2vw, 1.8vw, 3vw); line-height: 1.25; }
 
         #main-board { flex: 1; display: flex; position: relative; padding: 15px 0; z-index: 1; }
         #main-board .carbon-bg { flex: 1; background: #000; }
@@ -348,11 +349,14 @@
             }
         }
         document.addEventListener('fullscreenchange', () => {
+            const isFs = !!document.fullscreenElement;
             const btn = document.getElementById('fs-btn');
-            if (btn) btn.style.display = document.fullscreenElement ? 'none' : '';
+            if (btn) btn.style.display = isFs ? 'none' : '';
             const backBtn = document.getElementById('back-btn');
-            if (backBtn) backBtn.style.display = document.fullscreenElement ? 'none' : '';
-            if (document.fullscreenElement) requestWakeLock();
+            if (backBtn) backBtn.style.display = isFs ? 'none' : '';
+            const logoFooter = document.querySelector('.logo-footer');
+            if (logoFooter) logoFooter.style.display = isFs ? 'none' : '';
+            if (isFs) requestWakeLock();
         });
 
         let screenWakeLock = null;
@@ -486,7 +490,9 @@
                 socket.emit('familiada_request_team_names');
                 const qEl = document.getElementById('question-text');
                 qEl.innerText = msg.data.question;
-                qEl.classList.toggle('question-long', (msg.data.question || '').length > 35);
+                const qLen = (msg.data.question || '').length;
+                qEl.classList.toggle('question-long', qLen > 40 && qLen <= 75);
+                qEl.classList.toggle('question-very-long', qLen > 75);
                 currentPot = 0;
                 document.getElementById('total-pot').innerText = "SUMA: 0";
                 document.querySelectorAll('.x-mark').forEach(x => x.classList.remove('active'));
@@ -531,7 +537,7 @@
                 document.getElementById('familiada-title-overlay').classList.remove('visible');
                 document.getElementById('final-screen').style.display = 'none';
                 document.getElementById('question-text').innerText = 'OCZEKIWANIE...';
-                document.getElementById('question-text').classList.remove('question-long');
+                document.getElementById('question-text').classList.remove('question-long', 'question-very-long');
                 document.getElementById('total-pot').innerText = 'SUMA: 0';
                 currentPot = 0;
                 document.querySelectorAll('.x-mark').forEach(x => x.classList.remove('active'));

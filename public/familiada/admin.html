@@ -115,15 +115,47 @@
         <button class="btn-purple" onclick="socket.emit('show_final')" style="margin-top: 20px;">🏆 EKRAN KOŃCOWY (OUTRO)</button>
     </div>
 
+    <!-- Popup NAJPIERW PRZEKAŻ PUNKTY -->
+    <div id="points-warning-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.75);align-items:center;justify-content:center;cursor:pointer;" onclick="dismissPointsWarning()">
+        <div style="background:#c0392b;border:4px solid #f1c40f;border-radius:16px;padding:32px 40px;text-align:center;max-width:340px;box-shadow:0 0 50px rgba(241,196,15,0.6);">
+            <div style="font-size:3rem;margin-bottom:12px;">⚠️</div>
+            <div style="font-size:1.3rem;font-weight:900;color:#f1c40f;letter-spacing:1px;text-transform:uppercase;line-height:1.3;">NAJPIERW PRZEKAŻ PUNKTY!</div>
+            <div style="margin-top:16px;font-size:0.85rem;color:rgba(255,255,255,0.75);">Kliknij aby zamknąć</div>
+        </div>
+    </div>
+
     <script>
         const socket = io();
         let goldenList = [];
+        let currentTeamNames = { team1: 'Niebiescy', team2: 'Czerwoni' };
+        let roundPointsTransferred = false;
+        let closeWarningAcknowledged = false;
+
+        function showPointsWarning() {
+            document.getElementById('points-warning-overlay').style.display = 'flex';
+        }
+        function dismissPointsWarning() {
+            document.getElementById('points-warning-overlay').style.display = 'none';
+            closeWarningAcknowledged = true;
+        }
+
         function registerAdmin() {
             socket.emit('register_familiada', { role: 'admin' });
             socket.emit('familiada_get_files');
+            socket.emit('familiada_request_team_names');
         }
         if (socket.connected) registerAdmin();
-        else socket.once('connect', registerAdmin);
+        socket.on('connect', () => {
+            registerAdmin();
+            // Pokaż powiadomienie o przywróceniu połączenia (nie przy pierwszym połączeniu)
+            if (document.readyState === 'complete') {
+                const el = document.createElement('div');
+                el.style.cssText = 'position:fixed;top:12px;left:50%;transform:translateX(-50%);background:#27ae60;color:#fff;padding:10px 22px;border-radius:8px;z-index:9998;font-weight:bold;font-size:14px;transition:opacity 1s;white-space:nowrap;';
+                el.textContent = '✅ Połączenie przywrócone – stan zsynchronizowany';
+                document.body.appendChild(el);
+                setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 1000); }, 2500);
+            }
+        });
 
         function toggleFullscreenAdmin() {
             if (!document.fullscreenElement) {
@@ -214,6 +246,8 @@
             if (activeGoldenIdx !== null) renderGoldenPanel();
         }
         function selectGoldenQuestion(idx) {
+            roundPointsTransferred = false;
+            closeWarningAcknowledged = false;
             socket.emit('select_golden_question', idx);
             activeGoldenIdx = idx;
             activeQuestionIdx = null;
@@ -225,13 +259,15 @@
             const panel = document.getElementById('golden-panel-' + activeGoldenIdx);
             const q = goldenList[activeGoldenIdx];
             if (!panel || !q) return;
+            const t1 = escapeHtml((currentTeamNames.team1 || 'Niebiescy').toUpperCase());
+            const t2 = escapeHtml((currentTeamNames.team2 || 'Czerwoni').toUpperCase());
             panel.classList.add('visible');
             panel.innerHTML = `
                 <h4 style="margin:0 0 12px 0; color:#ffd700; font-size:15px;">${escapeHtml(q.question)}</h4>
                 <div class="ans-list" id="golden-ans-list"></div>
                 <div class="controls-grid">
                     <div class="team-col team-blue">
-                        <div class="team-title">NIEBIESCY</div>
+                        <div class="team-title">${t1}</div>
                         <div class="team-btns-row">
                             <button class="btn-x blue" onclick="sendError(1,1)">X</button>
                             <button class="btn-x blue" onclick="sendError(1,2)">XX</button>
@@ -240,7 +276,7 @@
                         </div>
                     </div>
                     <div class="team-col team-red">
-                        <div class="team-title">CZERWONI</div>
+                        <div class="team-title">${t2}</div>
                         <div class="team-btns-row">
                             <button class="btn-x red" onclick="sendError(2,1)">X</button>
                             <button class="btn-x red" onclick="sendError(2,2)">XX</button>
@@ -263,6 +299,15 @@
             });
         }
         function closeGoldenPanel() {
+            // Sprawdź czy punkty zostały przekazane
+            const revealed = document.querySelectorAll('#golden-ans-list .ans-item.revealed');
+            const pot = Array.from(revealed).reduce((s, el) => s + parseInt(el.dataset.points || 0), 0);
+            if (pot > 0 && !roundPointsTransferred && !closeWarningAcknowledged) {
+                showPointsWarning();
+                return;
+            }
+            closeWarningAcknowledged = false;
+            roundPointsTransferred = false;
             if (activeGoldenIdx !== null) {
                 const p = document.getElementById('golden-panel-' + activeGoldenIdx);
                 if (p) { p.classList.remove('visible'); p.innerHTML = ''; }
@@ -404,8 +449,11 @@
 
         function selectQuestion(idx) {
             if (askedIndices.has(idx)) return;
+            roundPointsTransferred = false;
+            closeWarningAcknowledged = false;
             socket.emit('select_question', idx);
             activeQuestionIdx = idx;
+            activeGoldenIdx = null;
             renderQuestions();
             renderActivePanel();
         }
@@ -414,13 +462,15 @@
             const panel = document.getElementById('q-panel-' + activeQuestionIdx);
             const q = allQuestions[activeQuestionIdx];
             if (!panel || !q) return;
+            const t1 = escapeHtml((currentTeamNames.team1 || 'Niebiescy').toUpperCase());
+            const t2 = escapeHtml((currentTeamNames.team2 || 'Czerwoni').toUpperCase());
             panel.classList.add('visible');
             panel.innerHTML = `
                 <h4 style="margin:0 0 12px 0; color:#ffd700; font-size:15px;">${escapeHtml(q.question)}</h4>
                 <div class="ans-list" id="active-ans-list"></div>
                 <div class="controls-grid">
                     <div class="team-col team-blue">
-                        <div class="team-title">NIEBIESCY</div>
+                        <div class="team-title">${t1}</div>
                         <div class="team-btns-row">
                             <button class="btn-x blue" onclick="sendError(1,1)">X</button>
                             <button class="btn-x blue" onclick="sendError(1,2)">XX</button>
@@ -429,7 +479,7 @@
                         </div>
                     </div>
                     <div class="team-col team-red">
-                        <div class="team-title">CZERWONI</div>
+                        <div class="team-title">${t2}</div>
                         <div class="team-btns-row">
                             <button class="btn-x red" onclick="sendError(2,1)">X</button>
                             <button class="btn-x red" onclick="sendError(2,2)">XX</button>
@@ -459,6 +509,16 @@
         }
 
         function closeActivePanel() {
+            // Sprawdź czy punkty zostały przekazane
+            const revealed = document.querySelectorAll('#active-ans-list .ans-item.revealed');
+            const pot = Array.from(revealed).reduce((s, el) => s + parseInt(el.dataset.points || 0), 0);
+            if (pot > 0 && !roundPointsTransferred && !closeWarningAcknowledged) {
+                showPointsWarning();
+                return;
+            }
+            closeWarningAcknowledged = false;
+            roundPointsTransferred = false;
+            const closedIdx = activeQuestionIdx;
             if (activeQuestionIdx !== null) {
                 const p = document.getElementById('q-panel-' + activeQuestionIdx);
                 if (p) { p.classList.remove('visible'); p.innerHTML = ''; }
@@ -467,6 +527,9 @@
             }
             renderQuestions();
             socket.emit('play_sound', 'jingle');
+            // Zostań w sekcji pytań – nie scrolluj do złotej listy
+            const qContainer = document.getElementById('questions-container');
+            if (qContainer) qContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
 
         function sendToBoard(idx) {
@@ -488,11 +551,22 @@
             if (navigator.vibrate) navigator.vibrate(50);
         });
         socket.on('familiada_team_names', (data) => {
+            if (data.team1) currentTeamNames.team1 = data.team1;
+            if (data.team2) currentTeamNames.team2 = data.team2;
             const i1 = document.getElementById('fam-team-1');
             const i2 = document.getElementById('fam-team-2');
             if (i1 && data.team1) i1.value = data.team1;
             if (i2 && data.team2) i2.value = data.team2;
+            // Odśwież etykiety jeśli panel otwarty
+            updateOpenPanelTeamTitles();
         });
+
+        function updateOpenPanelTeamTitles() {
+            const t1 = (currentTeamNames.team1 || 'Niebiescy').toUpperCase();
+            const t2 = (currentTeamNames.team2 || 'Czerwoni').toUpperCase();
+            document.querySelectorAll('.team-blue .team-title').forEach(el => el.textContent = t1);
+            document.querySelectorAll('.team-red .team-title').forEach(el => el.textContent = t2);
+        }
 
         function applyTeamNames() {
             const t1 = document.getElementById('fam-team-1').value.trim() || 'Niebiescy';
@@ -509,6 +583,7 @@
             const pot = Array.from(revealed).reduce((s, el) => s + parseInt(el.dataset.points || 0), 0);
             if (pot === 0 && !confirm('Pula wynosi 0. Zatwierdzić rundę?')) return;
             socket.emit('add_points', { team, points: pot, playSound: true });
+            roundPointsTransferred = true;
         }
 
         socket.on('board_update', (msg) => {
