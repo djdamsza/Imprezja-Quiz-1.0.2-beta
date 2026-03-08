@@ -3635,15 +3635,26 @@
                         log('✅ Pokazuję ekran waiting po rejestracji');
                         showScreen('waiting');
                         updatePlayerInfo();
-                        
+
+                        if (state.showZarazZaczynamy) {
+                            document.getElementById('qr-on-phones-waiting').style.display = 'none';
+                            document.getElementById('waiting-icon').style.display = 'none';
+                            document.getElementById('waiting-text').textContent = 'ZARAZ ZACZYNAMY';
+                            document.getElementById('waiting-text').style.cssText += ';font-size:clamp(1.6rem,8vw,3rem);font-weight:900;letter-spacing:0.04em';
+                            document.getElementById('waiting-subtitle').textContent = state.quizTitle || '';
+                            document.getElementById('waiting-subtitle').style.fontSize = 'clamp(1rem,4vw,1.6rem)';
                         // Gdy admin włączył „Pokaż QR na telefonach” – pokaż kody do przekazania dalej
-                        if (state.showQROnPhones) {
+                        } else if (state.showQROnPhones) {
+                            document.getElementById('waiting-text').style.cssText = '';
+                            document.getElementById('waiting-subtitle').style.fontSize = '';
                             document.getElementById('qr-on-phones-waiting').style.display = 'block';
                             document.getElementById('waiting-icon').style.display = 'none';
                             document.getElementById('waiting-text').textContent = 'Czekaj na rozpoczęcie zabawy!';
                             document.getElementById('waiting-subtitle').textContent = 'Przekaż dalej dostęp do gry';
                             socket.emit('request_qr_codes_on_phones');
                         } else {
+                            document.getElementById('waiting-text').style.cssText = '';
+                            document.getElementById('waiting-subtitle').style.fontSize = '';
                             document.getElementById('qr-on-phones-waiting').style.display = 'none';
                             document.getElementById('waiting-icon').style.display = 'block';
                             document.getElementById('waiting-text').textContent = 'Czekaj na rozpoczęcie zabawy!';
