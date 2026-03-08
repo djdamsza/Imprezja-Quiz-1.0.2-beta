@@ -60,31 +60,62 @@
         .gear-menu {
             display: none;
             position: absolute;
-            top: 100%;
+            top: calc(100% + 10px);
             right: 0;
-            margin-top: 8px;
-            min-width: 220px;
-            background: rgba(13,13,20,0.98);
-            border: 1px solid rgba(255,255,255,0.15);
-            border-radius: 12px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-            padding: 8px 0;
+            min-width: 240px;
+            background: linear-gradient(160deg, #1e2a4a 0%, #14213d 60%, #0d1728 100%);
+            border: 1px solid rgba(100,140,255,0.25);
+            border-radius: 16px;
+            box-shadow:
+                0 20px 60px rgba(0,0,0,0.7),
+                0 0 0 1px rgba(255,255,255,0.06) inset,
+                0 1px 0 rgba(255,255,255,0.1) inset;
+            padding: 6px 0 8px;
             z-index: 1000;
+            overflow: hidden;
         }
-        .gear-menu.open { display: block; }
-        .gear-menu a {
+        .gear-menu::before {
+            content: '';
             display: block;
-            padding: 12px 20px;
-            color: #fff;
-            text-decoration: none;
-            font-size: 0.95rem;
-            transition: background 0.15s;
+            height: 3px;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6, #06b6d4);
+            margin-bottom: 6px;
         }
-        .gear-menu a:hover { background: rgba(255,255,255,0.1); }
+        .gear-menu.open { display: block; animation: menuFadeIn 0.15s ease; }
+        @keyframes menuFadeIn {
+            from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .gear-menu a {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 18px;
+            color: rgba(255,255,255,0.88);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: background 0.12s, color 0.12s;
+            border-radius: 0;
+            white-space: nowrap;
+        }
+        .gear-menu a:hover {
+            background: rgba(59,130,246,0.18);
+            color: #fff;
+        }
         .gear-menu .menu-divider {
             height: 1px;
             background: rgba(255,255,255,0.1);
-            margin: 6px 0;
+            margin: 6px 12px;
+        }
+        .gear-menu .menu-section-label {
+            display: block;
+            padding: 6px 18px 3px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: rgba(100,160,255,0.7);
+            pointer-events: none;
         }
         .main {
             flex: 1;
@@ -227,6 +258,7 @@
         <div class="gear-wrap">
             <button type="button" class="gear-btn" id="gear-btn" title="Ustawienia, licencje, poradniki">⚙️</button>
             <div class="gear-menu" id="gear-menu">
+                <span class="menu-section-label">Poradniki</span>
                 <a href="/poradniki/router-wifi.html">📶 Router WiFi</a>
                 <a href="/poradniki/tworzenie-quizu.html">🎮 Tworzenie własnego quizu</a>
                 <a href="/poradniki/familiada-wlasna.html">🎤 Familiada – pełny poradnik</a>
@@ -234,11 +266,11 @@
                 <a href="/poradniki/tryb-druzynowy.html">👥 Tryb drużynowy</a>
                 <a href="/poradniki/rodzaje-pytan.html">📋 Rodzaje pytań</a>
                 <a href="/poradniki/sampler-zabawy-muzyczne.html">🎛️ Sampler i zabawy muzyczne</a>
-                <a href="/poradniki/changelog.html">📋 Co nowego</a>
+                <a href="/poradniki/changelog.html">✨ Co nowego</a>
                 <div class="menu-divider"></div>
-                <a href="#" id="license-menu-btn">📜 Licencje</a>
-                <a href="#" id="contact-menu-btn">✉️ Kontakt</a>
-                <a href="#">Ustawienia</a>
+                <span class="menu-section-label">Aplikacja</span>
+                <a href="#" id="license-menu-btn">📜 Licencja</a>
+                <a href="#" id="contact-menu-btn">✉️ Kontakt i błędy</a>
             </div>
         </div>
     </header>
