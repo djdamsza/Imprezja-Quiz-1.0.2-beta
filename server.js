@@ -2855,22 +2855,20 @@ async function generateLocalGameQR() {
     }
 }
 
-// === SPEEDRUN: przyznaj punkty według kolejności (1. = 1000, 2. = 900, ..., 10. = 100) ===
+// === SPEEDRUN: przyznaj punkty według kolejności (1. = 1000, 2. = 900, ..., 10. = 100, 11+ = 50 pocieszenia) ===
 function applySpeedrunScoring() {
     if (!gameState.speedrunQueue || gameState.speedrunQueue.length === 0) return;
     const pointsByPosition = [1000, 900, 800, 700, 600, 500, 400, 300, 200, 100];
     const sorted = [...gameState.speedrunQueue].sort((a, b) => a.responseTime - b.responseTime);
-    sorted.slice(0, 10).forEach((entry, i) => {
+    sorted.forEach((entry, i) => {
         const player = players.get(entry.socketId);
         if (player) {
-            const pts = pointsByPosition[i];
+            const pts = i < 10 ? pointsByPosition[i] : 50; // top 10 wg pozycji, reszta 50 pkt pocieszenia
             player.score += pts;
             player.correctAnswersCount++;
-            // Dodaj punkty do drużyny jeśli tryb drużynowy jest włączony i gracz ma drużynę
             if (gameState.teamBattleMode && player.team && gameState.teams[player.team]) {
                 gameState.teams[player.team].score += pts * getTeamBalanceMultiplier(player.team);
             }
-            // Wyślij zaktualizowany wynik gracza
             const socket = io.sockets.sockets.get(entry.socketId);
             if (socket) sendPlayerScore(socket, player);
         }
@@ -2879,28 +2877,28 @@ function applySpeedrunScoring() {
     io.emit('update_team_scores', gameState.teams);
 }
 
-// === SZACOWANIE: punkty według odległości od poprawnej wartości (100 za trafienie, mniej wg odległości) ===
+// === SZACOWANIE: punkty wg względnej odległości od poprawnej wartości (100 za trafienie, 0 przy ≥50% odchyleniu) ===
 function applyEstimationScoring() {
     const question = gameState.activeQuestion;
     if (!question || question.type !== 'ESTIMATION') return;
     const qId = question.id;
     const correctValue = Number(question.correctValue);
     if (Number.isNaN(correctValue)) return;
-    // 100 pkt za dokładną odpowiedź, -5 pkt za każdą jednostkę odległości
+    // Skala: wartość bezwzględna poprawnej odpowiedzi (min 1 by uniknąć dzielenia przez 0)
+    // 100 pkt za dokładne trafienie, 0 pkt gdy odległość ≥ 50% poprawnej wartości
+    const scale = Math.max(Math.abs(correctValue), 1);
     players.forEach((player, socketId) => {
         const raw = player.answers[qId];
         if (raw === undefined || raw === null) return;
         const value = Number(raw);
         if (Number.isNaN(value)) return;
         const distance = Math.abs(value - correctValue);
-        const points = Math.max(0, 100 - Math.round(distance * 5));
+        const points = Math.max(0, Math.round(100 * (1 - 2 * distance / scale)));
         player.score += points;
         if (points > 0) player.correctAnswersCount++;
-        // Dodaj punkty do drużyny jeśli tryb drużynowy jest włączony i gracz ma drużynę
         if (gameState.teamBattleMode && player.team && gameState.teams[player.team]) {
             gameState.teams[player.team].score += points * getTeamBalanceMultiplier(player.team);
         }
-        // Wyślij zaktualizowany wynik gracza
         const socket = io.sockets.sockets.get(socketId);
         if (socket) sendPlayerScore(socket, player);
     });
@@ -3002,64 +3000,44 @@ function calculatePoints(question, answerIndex, responseTime) {
         return { points: 0, isCorrect };
     }
     
-    // HOT_OR_NOT - specjalna logika
+    // HOT_OR_NOT – ankieta (brak poprawnej) daje 100 pkt za udział; quiz (poprawna) daje bonus za czas
     if (questionType === 'HOT_OR_NOT') {
-        // Jeśli brak poprawnej odpowiedzi (correct = -1), działa jak ankieta
         if (correctAnswers.length === 0) {
             return { points: 100, isCorrect: true };
         }
-        // Jeśli są poprawne odpowiedzi, sprawdź czy odpowiedź jest poprawna
         if (!isCorrect) {
             return { points: 0, isCorrect: false };
         }
-        // Poprawna odpowiedź - w speedrun bez bonusu za czas (kolejka)
-        if (question.speedrun) return { points: 0, isCorrect: true };
-        const basePoints = 100;
-        let bonusPoints = 0;
-        if (!gameState.quizOptions.disableTimePoints) {
-            const maxTime = question.time || 30;
-            const timeBonus = Math.max(0, maxTime - responseTime);
-            bonusPoints = Math.floor(timeBonus * 10);
-        }
-        return { points: basePoints + bonusPoints, isCorrect: true };
+        return { points: 100 + calcTimeBonus(question, responseTime), isCorrect: true };
     }
     
-    // VOTE / VOTE_IMG – jeśli jest wskazana poprawna odpowiedź: punkty tylko za nią (z bonusem za czas)
+    // VOTE / VOTE_IMG – bez poprawnej: 100 pkt za udział; z poprawną: jak QUIZ
     if (questionType === 'VOTE' || questionType === 'VOTE_IMG') {
         if (question.speedrun) return { points: 0, isCorrect: true };
-        const hasCorrect = correctAnswers !== undefined && correctAnswers !== null && correctAnswers !== -1 &&
-            (Array.isArray(correctAnswers) ? correctAnswers.length > 0 : true);
-        if (!hasCorrect) {
-            return { points: 100, isCorrect: true }; // Bez poprawnej: 100 pkt za udział
+        if (correctAnswers.length === 0) {
+            return { points: 100, isCorrect: true };
         }
         if (!isCorrect) return { points: 0, isCorrect: false };
-        const basePoints = 100;
-        let bonusPoints = 0;
-        if (!gameState.quizOptions.disableTimePoints) {
-            const maxTime = question.time || 30;
-            const timeBonus = Math.max(0, maxTime - responseTime);
-            bonusPoints = Math.floor(timeBonus * 10);
-        }
-        return { points: basePoints + bonusPoints, isCorrect: true };
+        return { points: 100 + calcTimeBonus(question, responseTime), isCorrect: true };
     }
     
     // QUIZ / MUSIC
     if (!isCorrect) {
         return { points: 0, isCorrect: false };
     }
-    
-    const basePoints = 100;
-    let bonusPoints = 0;
+    return { points: 100 + calcTimeBonus(question, responseTime), isCorrect: true };
+}
 
-    // Sprawdzenie opcji wyłączenia punktów za czas
-    if (!gameState.quizOptions.disableTimePoints) {
-        const maxTime = question.time || 30;
-        const timeBonus = Math.max(0, maxTime - responseTime);
-        bonusPoints = Math.floor(timeBonus * 10); // 10 pkt za każdą sekundę
-    }
-    
-    const totalPoints = basePoints + bonusPoints;
-    return { points: totalPoints, isCorrect: true };
+/**
+ * Bonus za szybką odpowiedź: proporcjonalny do czasu, max 100 pkt.
+ * Zakres całkowity: 100 (odpowiedź na ostatnią sekundę) – 200 (natychmiastowa).
+ * Proporcja najszybszy:najwolniejszy = 2:1.
+ */
+function calcTimeBonus(question, responseTime) {
+    if (gameState.quizOptions.disableTimePoints) return 0;
+    const maxTime = question.time || 30;
+    const timeBonus = Math.max(0, maxTime - responseTime);
+    return Math.floor(timeBonus / maxTime * 100); // proporcjonalne, max 100
 }
 
 // Wczytaj pytania
@@ -5292,7 +5270,7 @@ io.on('connection', (socket) => {
                 questionId: questionId,
                 boardSize,
                 ships: validShips,
-                shots: {}, // { "r_c": { hit: bool, players: [socketId] } }
+                shots: {}, // { "r_c": { hit: bool, players: [socketId], turn: number } }
                 currentTurn: 0,
                 playersShot: new Set(), // Gracze którzy już strzelili w tej turze
                 gameEnded: false
@@ -5319,64 +5297,52 @@ io.on('connection', (socket) => {
         }
         
         const key = `${row}_${col}`;
-        const wasAlreadyHit = !!shipsGame.shots[key];
-        const previousPlayers = wasAlreadyHit ? [...shipsGame.shots[key].players] : [];
-        const previousHitCount = previousPlayers.length;
+        const existingShot = shipsGame.shots[key];
+        const hitInPreviousRound = existingShot && existingShot.turn !== shipsGame.currentTurn;
+        const hitInCurrentRound = existingShot && existingShot.turn === shipsGame.currentTurn;
         
-        if (shipsGame.shots[key]) {
-            // Wielokrotne trafienie w to samo miejsce
-            if (!shipsGame.shots[key].players.includes(socket.id)) {
-                shipsGame.shots[key].players.push(socket.id);
-            }
-        } else {
-            // Pierwsze trafienie w to miejsce
-            shipsGame.shots[key] = {
-                hit: actualHit,
-                players: [socket.id]
-            };
+        // Zarejestruj strzał w historii
+        if (!existingShot) {
+            // Pierwsze trafienie tej komórki w historii gry
+            shipsGame.shots[key] = { hit: actualHit, players: [socket.id], turn: shipsGame.currentTurn };
+        } else if (hitInCurrentRound && !existingShot.players.includes(socket.id)) {
+            // Ten sam gracz nie może strzelić dwa razy (chronione przez playersShot), ale inny może trafić tę samą komórkę w tej samej rundzie
+            existingShot.players.push(socket.id);
         }
+        // hitInPreviousRound: komórka odkryta wcześniej – tylko zapisujemy strzał w playersShot, bez punktów
         
         shipsGame.playersShot.add(socket.id);
         
-        // Przyznaj punkty tylko jeśli to trafienie
-        if (actualHit) {
-            const hitCount = shipsGame.shots[key].players.length;
-            const pointsPerPlayer = Math.floor(100 / hitCount); // Dziel punkty przez ilość trafień
+        // Przyznaj punkty tylko jeśli trafienie I komórka jest odkrywana w tej rundzie
+        if (actualHit && !hitInPreviousRound) {
+            const playersThisRound = shipsGame.shots[key].players;
+            const hitCount = playersThisRound.length;
+            const pointsPerPlayer = Math.floor(100 / hitCount);
             
-            // WAŻNE: Jeśli to wielokrotne trafienie w to samo miejsce, przelicz punkty dla wszystkich graczy
-            if (wasAlreadyHit && previousHitCount > 0) {
-                // Odejmij stare punkty od graczy którzy trafili wcześniej i dodaj nowe
-                previousPlayers.forEach(prevSocketId => {
+            if (hitInCurrentRound) {
+                // Kolejna osoba trafia tę samą komórkę w tej samej rundzie → przelicz punkty wszystkim w tej rundzie
+                const previousHitCount = hitCount - 1;
+                const oldPoints = Math.floor(100 / previousHitCount);
+                const pointsDiff = pointsPerPlayer - oldPoints; // wartość ujemna (korekta)
+                playersThisRound.slice(0, -1).forEach(prevSocketId => {
                     const prevPlayer = players.get(prevSocketId);
                     if (prevPlayer) {
-                        const oldPoints = Math.floor(100 / previousHitCount);
-                        const newPoints = pointsPerPlayer;
-                        const pointsDiff = newPoints - oldPoints;
-                        
-                        // Zaktualizuj punkty gracza
                         prevPlayer.score += pointsDiff;
-                        
-                        // Zaktualizuj punkty drużyny jeśli tryb drużynowy jest włączony
                         if (gameState.teamBattleMode && prevPlayer.team && gameState.teams[prevPlayer.team]) {
                             gameState.teams[prevPlayer.team].score += pointsDiff * getTeamBalanceMultiplier(prevPlayer.team);
                         }
-                        
-                        // Wyślij zaktualizowany wynik gracza
                         const prevSocket = io.sockets.sockets.get(prevSocketId);
                         if (prevSocket) sendPlayerScore(prevSocket, prevPlayer);
                     }
                 });
             }
             
-            // Przyznaj punkty nowemu graczowi (lub pierwszemu jeśli to pierwsze trafienie)
+            // Przyznaj punkty nowemu graczowi (lub pierwszemu)
             player.score += pointsPerPlayer;
             player.correctAnswersCount++;
-            
-            // WAŻNE: Dodaj punkty do drużyny jeśli tryb drużynowy jest włączony i gracz ma drużynę
             if (gameState.teamBattleMode && player.team && gameState.teams[player.team]) {
                 gameState.teams[player.team].score += pointsPerPlayer * getTeamBalanceMultiplier(player.team);
             }
-            
             sendPlayerScore(socket, player);
         }
         
