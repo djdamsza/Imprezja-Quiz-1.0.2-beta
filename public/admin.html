@@ -294,10 +294,11 @@
         .control-group { display: flex; flex-wrap: wrap; gap: 8px; }
         .control-group .btn { flex: 1; margin: 0; padding: 15px; font-size: 1rem; font-weight: bold; min-width: 100px; }
         .podium-popup { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(26, 26, 46, 0.98); backdrop-filter: blur(10px); border-top: 3px solid var(--accent-gold); padding: 15px 10px; z-index: 200; display: none; color: var(--text-white); }
-        .ranking-popup { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(26, 26, 46, 0.98); backdrop-filter: blur(10px); border: 3px solid var(--accent-gold); border-radius: 12px; padding: 20px; z-index: 300; display: none; color: var(--text-white); max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; }
-        .ranking-popup h3 { margin: 0 0 15px 0; color: var(--accent-gold); text-align: center; }
-        .ranking-popup-close { position: absolute; top: 10px; right: 10px; background: transparent; border: none; color: var(--text-white); font-size: 1.5rem; cursor: pointer; padding: 5px 10px; }
-        .ranking-popup-close:hover { color: var(--accent-gold); }
+        /* Ranking inline – wbudowany w listę pytań jak question-control */
+        .ranking-inline { display: none; background: rgba(26,26,46,0.95); border: 2px solid var(--accent-gold); border-radius: 8px; margin: 4px 2px 6px; padding: 16px 14px 12px; color: var(--text-white); }
+        .ranking-inline h3 { margin: 0 0 12px 0; color: var(--accent-gold); font-size: 1rem; }
+        .ranking-inline .admin-ranking-list { margin: 0; padding: 0; list-style: none; }
+        .ranking-inline-btn.active { background: rgba(241,196,15,0.2); border-color: var(--accent-gold); border-left: 5px solid var(--accent-gold); }
         .bottom-reset-container { padding: 20px 10px 40px 10px; text-align: center; background: rgba(231, 76, 60, 0.2); margin-top: 0; border-top: 2px solid #e74c3c; color: var(--text-muted); }
         .main-reset-section { margin-top: 30px; }
         
@@ -638,12 +639,7 @@
 
         </section>
 
-        <!-- POPUP RANKINGU -->
-        <div class="ranking-popup" id="ranking-popup">
-            <button class="ranking-popup-close" onclick="hideRankingPopup()">×</button>
-            <h3 id="ranking-popup-title">🏆 Ranking graczy</h3>
-            <ul class="admin-ranking-list" id="ranking-popup-list"></ul>
-        </div>
+        <!-- RANKING INLINE – wewnątrz question-control (przeniesiony w JS) -->
 
         <!-- POPUP KONTROLI PODIUM -->
         <section class="podium-popup" id="podium-popup">
@@ -687,7 +683,13 @@
                 <button onclick="repeatMusic()" class="btn btn-secondary" id="repeat-music-btn" style="display: none;">🔁 Powtórz dźwięk</button>
                 <button onclick="showRankingPopup()" class="btn btn-primary">🏆 Ranking</button>
             </div>
-            
+
+            <!-- Ranking inline – rozwija się wewnątrz panelu, nad przyciskiem Następne -->
+            <div class="ranking-inline" id="ranking-inline">
+                <h3 id="ranking-inline-title">🏆 Ranking graczy</h3>
+                <ul class="admin-ranking-list" id="ranking-popup-list"></ul>
+            </div>
+
             <div class="qc-nav-buttons">
                 <button onclick="nextQuestion()" class="btn-nav-next btn-primary" id="qc-next-btn">Następne ▶</button>
             </div>
@@ -1410,11 +1412,20 @@
             
             function renderRanking(list) {
                 if (list && Array.isArray(list) && list.length > 0) {
-                    return list.map((p, i) => {
-                        const nick = (p.nick || '—').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    const result = list.map((p, i) => {
+                        const nick  = (p.nick || '—').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                         const score = p.score != null ? p.score : 0;
-                        return `<li><span>${i + 1}. ${nick}</span><strong>${score} pkt</strong></li>`;
+                        let deltaHtml = '';
+                        if (adminLbPrev !== null && adminLbPrev[p.nick] !== undefined) {
+                            const d = adminLbPrev[p.nick] - i;
+                            if (d > 0)       deltaHtml = ` <span style="color:#2ecc71;font-size:0.8em;font-weight:900;">▲${d}</span>`;
+                            else if (d < 0)  deltaHtml = ` <span style="color:#e74c3c;font-size:0.8em;font-weight:900;">▼${Math.abs(d)}</span>`;
+                        }
+                        return `<li><span>${i + 1}. ${nick}${deltaHtml}</span><strong>${score} pkt</strong></li>`;
                     }).join('');
+                    // FIX A: aktualizuj adminLbPrev dopiero po zwróceniu wyniku (wywoływane 2x)
+                    // poprzedni kod aktualizował tu – drugi call widział już nowy stan = brak delt
+                    return result;
                 } else if (list && Array.isArray(list) && list.length === 0) {
                     return '<li style="color: var(--text-muted);">Brak graczy z punktami.</li>';
                 }
@@ -1431,7 +1442,7 @@
                 return sorted.map((t, i) => `<li><span>${i + 1}. ${t.name}</span><strong>${t.score} pkt</strong></li>`).join('');
             }
 
-            const rankingPopupTitle = document.getElementById('ranking-popup-title');
+            const rankingPopupTitle = document.getElementById('ranking-inline-title');
             if (state.teamBattleMode && state.teams) {
                 const teamHtml = renderTeamRanking(state.teams);
                 if (listEl && teamHtml) listEl.innerHTML = teamHtml;
@@ -1446,6 +1457,11 @@
                 if (rankingPopupList) {
                     const html = renderRanking(state.leaderboard);
                     if (html) rankingPopupList.innerHTML = html;
+                }
+                // FIX A: aktualizuj adminLbPrev raz – po obu wywołaniach renderRanking
+                if (state.leaderboard && Array.isArray(state.leaderboard)) {
+                    adminLbPrev = {};
+                    state.leaderboard.forEach((p, i) => { adminLbPrev[p.nick] = i; });
                 }
             }
 
@@ -1478,6 +1494,8 @@
             }
         }
         
+        let adminLbPrev = null; // nick → rank, śledzenie zmian rankingowych
+
         socket.on('update_state', (state) => {
             try {
             if ('tunnelUrl' in state) {
@@ -1795,8 +1813,8 @@
                         statsDiv.innerHTML = '<h4 style="color: #00aaff; margin: 0 0 10px 0;">📊 Statystyki trafień</h4>';
                         
                         const table = document.createElement('table');
-                        table.style.cssText = 'width: 100%; border-collapse: collapse;';
-                        table.innerHTML = '<tr style="border-bottom: 1px solid #0066cc;"><th style="text-align: left; padding: 8px; color: #00aaff;">Gracz</th><th style="text-align: center; padding: 8px; color: #00aaff;">Trafienia</th><th style="text-align: center; padding: 8px; color: #00aaff;">Pudła</th><th style="text-align: center; padding: 8px; color: #00aaff;">Razem</th></tr>';
+                        table.style.cssText = 'width: 100%; border-collapse: collapse; table-layout: fixed;';
+                        table.innerHTML = '<colgroup><col style="width:45%"><col style="width:18%"><col style="width:18%"><col style="width:19%"></colgroup><tr style="border-bottom: 1px solid #0066cc;"><th style="text-align: left; padding: 6px 4px; color: #00aaff; font-size:0.85em;">Gracz</th><th style="text-align: center; padding: 6px 4px; color: #00aaff; font-size:0.85em;">Traf.</th><th style="text-align: center; padding: 6px 4px; color: #00aaff; font-size:0.85em;">Pudła</th><th style="text-align: center; padding: 6px 4px; color: #00aaff; font-size:0.85em;">Razem</th></tr>';
                         
                         if (statsArray.length === 0) {
                             const row = document.createElement('tr');
@@ -1806,7 +1824,7 @@
                             statsArray.forEach(stats => {
                                 const row = document.createElement('tr');
                                 row.style.cssText = 'border-bottom: 1px solid rgba(0,102,204,0.3);';
-                                row.innerHTML = `<td style="padding: 8px; color: #fff;">${stats.nick}</td><td style="text-align: center; padding: 8px; color: #00ff00; font-weight: bold;">${stats.hits}</td><td style="text-align: center; padding: 8px; color: #ff0044;">${stats.misses}</td><td style="text-align: center; padding: 8px; color: #fff;">${stats.hits + stats.misses}</td>`;
+                                row.innerHTML = `<td style="padding:5px 4px; color:#fff; font-size:0.85em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${stats.nick}">${stats.nick}</td><td style="text-align:center; padding:5px 4px; color:#00ff00; font-weight:bold; font-size:0.9em;">${stats.hits}</td><td style="text-align:center; padding:5px 4px; color:#ff4466; font-size:0.9em;">${stats.misses}</td><td style="text-align:center; padding:5px 4px; color:#fff; font-weight:bold; font-size:0.9em;">${stats.hits + stats.misses}</td>`;
                                 table.appendChild(row);
                             });
                         }
@@ -2226,12 +2244,15 @@
         function hidePodiumPopup() { document.getElementById('podium-popup').style.display = 'none'; }
         function showRankingPopup() {
             socket.emit('admin_show_leaderboard');
-            const popup = document.getElementById('ranking-popup');
-            if (popup) popup.style.display = 'block';
+            const panel = document.getElementById('ranking-inline');
+            if (!panel) return;
+            const isOpen = panel.style.display === 'block';
+            panel.style.display = isOpen ? 'none' : 'block';
+            if (!isOpen) panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
         function hideRankingPopup() {
-            const popup = document.getElementById('ranking-popup');
-            if (popup) popup.style.display = 'none';
+            const panel = document.getElementById('ranking-inline');
+            if (panel) panel.style.display = 'none';
         }
         function sendPodiumStep(step) { 
             log('🏆 sendPodiumStep wywołane, step:', step, 'teamBattleMode:', currentGameState?.teamBattleMode);

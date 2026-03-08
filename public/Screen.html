@@ -988,6 +988,11 @@
         .lb-row:nth-child(1) { transform: scale(1.05); background: rgba(241, 196, 15, 0.1); border-color: #ffd700; }
         .lb-row:nth-child(2) { border-color: #c0c0c0; }
         .lb-row:nth-child(3) { border-color: #cd7f32; }
+        #lb-list.lb-animating .lb-row { transform: none !important; }
+        .lb-delta-screen { font-size: 2.8vw; font-weight: 900; min-width: 4vw; text-align: right; margin-right: 20px; opacity: 0; transition: opacity 0.4s; }
+        .lb-delta-screen.lb-up   { color: #2ecc71; }
+        .lb-delta-screen.lb-down { color: #e74c3c; }
+        .lb-delta-screen.lb-visible { opacity: 1; }
 
         /* QR – skalowanie na pełen dostępny ekran, bez ucinania */
         .qr-container { display: flex; flex-direction: row; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: center; margin-top: 12px; padding: 0 12px; max-width: 100%; }
@@ -1480,7 +1485,7 @@
 
     <div id="leaderboard" class="overlay-screen">
         <h1 id="lb-title" style="font-size: 5vw; color:#f1c40f; margin-bottom:30px; text-transform:uppercase; font-weight:900; text-shadow: 0 2px 8px rgba(0,0,0,0.5), 0 0 30px rgba(241,196,15,0.5);">TOP 10 GRACZY</h1>
-        <div id="lb-list" style="width:100%; display:flex; flex-direction:column; align-items:center;"></div>
+        <div id="lb-list" style="width:100%; display:flex; flex-direction:column; align-items:center; position:relative;"></div>
 
         <!-- Wynik drużynowy (Team Battle) – pokazywany zamiast TOP 10 gdy teamBattleMode === true -->
         <div id="team-score-display" style="display:none;">
@@ -1544,11 +1549,16 @@
 
     <!-- EKRAN PODZIĘKOWAŃ -->
     <div id="thanks" class="overlay-screen" style="display: none;">
-        <img src="/img/logo_imprezja.png" alt="Imprezja Quiz" class="logo-imprezja-large" style="margin-bottom: 24px;">
-        <div class="thanks-title-screen" id="thanks-title-screen" style="font-size: clamp(3rem, 10vw, 6rem); font-weight: 900; margin-bottom: 40px; text-align: center; background: -webkit-linear-gradient(#f1c40f, #e67e22); -webkit-background-clip: text; -webkit-text-fill-color: transparent; line-height: 1.2;">Imprezja Quiz</div>
-        <div class="thanks-content-screen" id="thanks-content-screen" style="font-size: clamp(1.5rem, 5vw, 3rem); color: rgba(255, 255, 255, 0.9); margin-bottom: 40px; line-height: 1.6; max-width: 1200px; margin-left: auto; margin-right: auto; text-align: center;">Dziękuję za udział w zabawie</div>
-        <div class="thanks-image-container-screen" id="thanks-image-container-screen" style="display: none; text-align: center; margin-top: 40px;">
-            <img id="thanks-image-screen" src="" alt="Podziękowania" style="max-width: 90vw; max-height: 70vh; border-radius: 20px; box-shadow: 0 15px 50px rgba(0,0,0,0.6); object-fit: contain;">
+        <img src="/img/logo_imprezja.png" alt="Imprezja Quiz" class="logo-imprezja-large" id="thanks-logo" style="margin-bottom: 16px;">
+        <!-- Wrapper: kolumna (bez obrazka) lub rząd (z obrazkiem) -->
+        <div id="thanks-body" style="display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%; flex:1; gap:32px;">
+            <div id="thanks-text-col" style="display:flex; flex-direction:column; align-items:center; text-align:center; flex:1; min-width:0;">
+                <div class="thanks-title-screen" id="thanks-title-screen" style="font-size: clamp(2rem, 6vw, 5rem); font-weight: 900; margin-bottom: 24px; text-align: center; background: -webkit-linear-gradient(#f1c40f, #e67e22); -webkit-background-clip: text; -webkit-text-fill-color: transparent; line-height: 1.2;">Imprezja Quiz</div>
+                <div class="thanks-content-screen" id="thanks-content-screen" style="font-size: clamp(1.2rem, 3.5vw, 2.4rem); color: rgba(255, 255, 255, 0.9); line-height: 1.6; max-width: 800px; text-align: center;">Dziękuję za udział w zabawie</div>
+            </div>
+            <div class="thanks-image-container-screen" id="thanks-image-container-screen" style="display: none; flex-shrink:0;">
+                <img id="thanks-image-screen" src="" alt="Podziękowania" style="max-width: 100%; max-height: 60vh; border-radius: 20px; box-shadow: 0 15px 50px rgba(0,0,0,0.6); object-fit: contain; display:block;">
+            </div>
         </div>
     </div>
 
@@ -1629,6 +1639,136 @@
         let wakeLock = null;
         let lastStateType = null;
         let lastQuestionId = null;
+        let lbPrevOrder = null; // nick → rank (0-indexed), null = pierwsze wyświetlenie
+        let lbSavedPositions = null; // nick → {top, left, width} zapisane PO renderu w normal flow
+
+        // ── Animowany leaderboard (etapowy FLIP przez absolute top) ───────────────
+        let lbAnimCleanupTimer = null; // guard przeciwko race condition
+        function renderLbAnimated(list, leaderboard, skipAnim) {
+            const ANIM_MS = 900, STEP_MS = 1000;
+
+            // Anuluj poprzednią animację jeśli trwa (race condition guard)
+            if (lbAnimCleanupTimer !== null) {
+                clearTimeout(lbAnimCleanupTimer);
+                lbAnimCleanupTimer = null;
+                list.querySelectorAll('.lb-row[data-lbnick]').forEach(el => {
+                    el.style.position = el.style.top = el.style.left =
+                        el.style.width = el.style.transition = el.style.marginBottom = '';
+                });
+                list.style.height = '';
+                list.classList.remove('lb-animating');
+                // Zapisz pozycje PO cleanup (elementy są w normalnym flow)
+                const listRectC = list.getBoundingClientRect();
+                const savedC = {};
+                list.querySelectorAll('.lb-row[data-lbnick]').forEach(el => {
+                    const r = el.getBoundingClientRect();
+                    savedC[el.dataset.lbnick] = { top: r.top - listRectC.top, left: r.left - listRectC.left, w: r.width };
+                });
+                lbSavedPositions = savedC;
+            }
+
+            // Użyj zapisanych pozycji (z poprzedniego renderu, gdy elementy były widoczne)
+            const oldTopMap = lbSavedPositions || {};
+
+            // Buduj nowy DOM
+            list.innerHTML = '';
+            (leaderboard || []).forEach((p, i) => {
+                const oldIdx = lbPrevOrder !== null ? lbPrevOrder[p.nick] : undefined;
+                const delta  = oldIdx !== undefined ? (oldIdx - i) : null;
+                const correctInfo = p.correctCount !== undefined
+                    ? `<span class="lb-correct-count">${p.correctCount}/${p.totalQuestions || 0}</span>` : '';
+                let deltaHtml = '';
+                if (delta !== null && delta > 0)  deltaHtml = `<span class="lb-delta-screen lb-up">▲${delta}</span>`;
+                else if (delta !== null && delta < 0) deltaHtml = `<span class="lb-delta-screen lb-down">▼${Math.abs(delta)}</span>`;
+                else if (delta !== null)              deltaHtml = `<span class="lb-delta-screen">–</span>`;
+
+                const row = document.createElement('div');
+                row.className = 'lb-row';
+                row.dataset.lbnick = p.nick;
+                row.innerHTML = `<div>${i+1}. ${p.nick}</div>
+                    <div style="display:flex;align-items:center;">${deltaHtml}${correctInfo}${p.score}</div>`;
+                list.appendChild(row);
+            });
+
+            // Zmierz nowe pozycje (w normalnym flow — przed absolutyzacją)
+            const newRows = [...list.querySelectorAll('.lb-row[data-lbnick]')];
+            const newListRect = list.getBoundingClientRect();
+            const newTopMap = {}, newLeftMap = {}, newWMap = {};
+            newRows.forEach(el => {
+                const r = el.getBoundingClientRect();
+                newTopMap [el.dataset.lbnick] = r.top  - newListRect.top;
+                newLeftMap[el.dataset.lbnick] = r.left - newListRect.left;
+                newWMap   [el.dataset.lbnick] = r.width;
+            });
+
+            // Zapisz NOWE pozycje jako "stare" dla następnego renderu
+            lbSavedPositions = {};
+            newRows.forEach(el => {
+                lbSavedPositions[el.dataset.lbnick] = { top: newTopMap[el.dataset.lbnick], left: newLeftMap[el.dataset.lbnick], w: newWMap[el.dataset.lbnick] };
+            });
+
+            if (skipAnim || Object.keys(oldTopMap).length === 0) {
+                list.querySelectorAll('.lb-delta-screen').forEach(d => d.classList.add('lb-visible'));
+                return;
+            }
+
+            // Ustaw fixed height + absolute
+            const totalH = newRows.reduce((s, el) => s + el.getBoundingClientRect().height + 10, 0);
+            list.style.height   = totalH + 'px';
+            list.classList.add('lb-animating');
+
+            newRows.forEach(el => {
+                const nick = el.dataset.lbnick;
+                const saved = oldTopMap[nick];
+                const oldTop  = saved ? (typeof saved === 'object' ? saved.top  : saved) : undefined;
+                const oldLeft = saved ? (typeof saved === 'object' ? saved.left : undefined) : undefined;
+                const oldW    = saved ? (typeof saved === 'object' ? saved.w    : undefined) : undefined;
+                el.style.position  = 'absolute';
+                el.style.top       = (oldTop  !== undefined ? oldTop  : newTopMap [nick]) + 'px';
+                el.style.left      = (oldLeft !== undefined ? oldLeft : newLeftMap[nick]) + 'px';
+                el.style.width     = (oldW    !== undefined ? oldW    : newWMap   [nick]) + 'px';
+                el.style.marginBottom = '0';
+                el.style.transition   = 'none';
+            });
+
+            list.offsetHeight; // reflow
+
+            // Kolejka: tylko wiersze które się poruszyły
+            const changed = newRows.filter(el => {
+                const nick = el.dataset.lbnick;
+                const saved = oldTopMap[nick];
+                const o = saved ? (typeof saved === 'object' ? saved.top : saved) : undefined;
+                return o !== undefined && Math.abs(o - newTopMap[nick]) > 2;
+            }).sort((a, b) => newTopMap[a.dataset.lbnick] - newTopMap[b.dataset.lbnick]);
+
+            changed.forEach((el, i) => {
+                setTimeout(() => {
+                    el.style.transition = `top ${ANIM_MS}ms cubic-bezier(0.4,0,0.2,1)`;
+                    el.style.top  = newTopMap [el.dataset.lbnick] + 'px';
+                    el.style.left = newLeftMap[el.dataset.lbnick] + 'px';
+                }, i * STEP_MS);
+            });
+
+            const wait = (changed.length > 0 ? (changed.length - 1) * STEP_MS : 0) + ANIM_MS + 350;
+            lbAnimCleanupTimer = setTimeout(() => {
+                lbAnimCleanupTimer = null;
+                newRows.forEach(el => {
+                    el.style.position = el.style.top = el.style.left =
+                        el.style.width = el.style.transition = el.style.marginBottom = '';
+                });
+                list.style.height = '';
+                list.classList.remove('lb-animating');
+                list.querySelectorAll('.lb-delta-screen').forEach(d => d.classList.add('lb-visible'));
+                // Zapisz pozycje PO cleanup (w normalnym flow) dla następnej animacji
+                const listRectAfter = list.getBoundingClientRect();
+                const savedAfter = {};
+                list.querySelectorAll('.lb-row[data-lbnick]').forEach(el => {
+                    const r = el.getBoundingClientRect();
+                    savedAfter[el.dataset.lbnick] = { top: r.top - listRectAfter.top, left: r.left - listRectAfter.left, w: r.width };
+                });
+                lbSavedPositions = savedAfter;
+            }, wait);
+        }
 
         // Wake Lock – ekran (TV/projektor) nie gaśnie w trybie pełnoekranowym
         async function requestWakeLock() {
@@ -1691,10 +1831,21 @@
         (function() {
             const btn = document.getElementById('btn-fullscreen-screen');
             if (!btn) return;
-            const backBtn = document.getElementById('btn-back-screen');
+            // Wszystkie przyciski/linki UI które chowamy w trybie pełnoekranowym
+            const uiBtnIds = [
+                'btn-back-screen',
+                'btn-editor-intro',
+                'btn-admin-intro',
+                'btn-rozpocznij-intro',
+                'btn-zakoncz-intro'
+            ];
             function updateFullscreenButton() {
-                btn.style.display = document.fullscreenElement ? 'none' : 'flex';
-                if (backBtn) backBtn.style.display = document.fullscreenElement ? 'none' : 'flex';
+                const isFs = !!document.fullscreenElement;
+                btn.style.display = isFs ? 'none' : 'flex';
+                uiBtnIds.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.style.display = isFs ? 'none' : '';
+                });
             }
             btn.addEventListener('click', function() {
                 if (!document.fullscreenElement) {
@@ -1706,8 +1857,13 @@
             updateFullscreenButton();
         })();
 
-        // Admin na tym komputerze – nie ukrywaj QR po otwarciu (flaga ustawiana przy kliknięciu)
-        document.getElementById('btn-admin-intro')?.addEventListener('click', function() { window._adminOpenedFromScreen = true; });
+        // Admin QR — raz ukryty (zdalna sesja admina) nigdy nie wraca.
+        // Lokalne otwarcie ("Admin na komputerze") nie liczy się jako "admin zalogował się".
+        let adminQrHidden = false;
+
+        document.getElementById('btn-admin-intro')?.addEventListener('click', function() {
+            window._adminOpenedFromScreen = true;
+        });
 
         // Rozpocznij – pokaż ekran "Zaraz zaczynamy" i dopiero wtedy zamknij QR admina (komp i telefon mogły mieć panel równocześnie)
         function syncZarazQRCodes() {
@@ -1999,11 +2155,14 @@
                     urlDisplay.textContent = data.url;
                     urlDisplay.style.display = 'block';
                 }
-                if (wrap) wrap.style.display = 'flex';
-                const ba = document.getElementById('btn-admin-intro');
-                const br = document.getElementById('btn-rozpocznij-intro');
-                if (ba) ba.style.display = '';
-                if (br) br.style.display = '';
+                // Pokaż QR i przyciski tylko jeśli nie był jeszcze trwale ukryty
+                if (!adminQrHidden) {
+                    if (wrap) wrap.style.display = 'flex';
+                    const ba = document.getElementById('btn-admin-intro');
+                    const br = document.getElementById('btn-rozpocznij-intro');
+                    if (ba) ba.style.display = '';
+                    if (br) br.style.display = '';
+                }
                 log('✅ QR admin otrzymany, URL:', data.url);
             } else {
                 if (img) img.src = '';
@@ -2017,6 +2176,7 @@
             }
         });
         socket.on('hide_admin_qr', () => {
+            adminQrHidden = true;
             const wrap = document.getElementById('qr-box-admin-wrap');
             if (wrap) wrap.style.display = 'none';
             const ba = document.getElementById('btn-admin-intro');
@@ -2109,14 +2269,32 @@
             const zarazOverlay = document.getElementById('zaraz-zaczynamy-overlay');
             if (zarazOverlay && (state.type === 'IDLE' || state.type === 'GAME' || state.type === 'GAME_STATS')) zarazOverlay.style.display = 'none';
 
-            // Widoczność QR admina: tylko gdy serwer każe (brak zalogowanego admina). Po zalogowaniu admina panel znika – bezpieczeństwo.
+            // Widoczność QR admina:
+            // - raz na zawsze ukryty (adminQrHidden=true) gdy zdalna sesja admina się zaloguje
+            // - kliknięcie "Admin na komputerze" (window._adminOpenedFromScreen) nie liczy się
             const qrBoxAdminWrap = document.getElementById('qr-box-admin-wrap');
-            const showAdmin = !!state.showAdminQR;
-            if (qrBoxAdminWrap) qrBoxAdminWrap.style.display = showAdmin ? 'flex' : 'none';
             const btnAdminIntro = document.getElementById('btn-admin-intro');
             const btnRozpocznijIntro = document.getElementById('btn-rozpocznij-intro');
-            if (btnAdminIntro) btnAdminIntro.style.display = showAdmin ? '' : 'none';
-            if (btnRozpocznijIntro) btnRozpocznijIntro.style.display = showAdmin ? '' : 'none';
+            if (!adminQrHidden) {
+                if (!state.showAdminQR) {
+                    // Admin dołączył — sprawdź czy to lokalne otwarcie czy zdalne
+                    if (window._adminOpenedFromScreen) {
+                        // Lokalne — zresetuj flagę, nie ukrywaj QR
+                        window._adminOpenedFromScreen = false;
+                    } else {
+                        // Zdalne (skan QR) — ukryj na zawsze
+                        adminQrHidden = true;
+                        if (qrBoxAdminWrap) qrBoxAdminWrap.style.display = 'none';
+                        if (btnAdminIntro) btnAdminIntro.style.display = 'none';
+                        if (btnRozpocznijIntro) btnRozpocznijIntro.style.display = 'none';
+                    }
+                } else {
+                    // Brak admina — pokazuj QR
+                    if (qrBoxAdminWrap) qrBoxAdminWrap.style.display = 'flex';
+                    if (btnAdminIntro) btnAdminIntro.style.display = '';
+                    if (btnRozpocznijIntro) btnRozpocznijIntro.style.display = '';
+                }
+            }
             // Widoczność QR: pole jednego koloru (1-WiFi, 2-Gra) → LUB → LTE (bez nr) lub info
             const qrWrapper = document.getElementById('qr-wrapper');
             const qrLub = document.getElementById('qr-lub');
@@ -2147,7 +2325,7 @@
                     }
                 } else if (state.sessionCode) {
                     // Brak skróconego URL — pokaż adres Render /dolacz i kod
-                    var dolaczUrl = state.renderDolaczUrl || 'imprezja.onrender.com/dolacz';
+                    var dolaczUrl = state.renderDolaczUrl || 'imprezja-quiz-1-0-2-beta.onrender.com/dolacz';
                     shortUrlText && (shortUrlText.textContent = dolaczUrl.replace(/^https?:\/\//, ''));
                     if (codeWrap && codeEl) {
                         codeEl.textContent = state.sessionCode.split('').join(' '); // "6 3 6 2"
@@ -2299,19 +2477,12 @@
                     if(teamBox) teamBox.style.display = 'none';
                     if(list) list.style.display = 'flex';
 
-                    if(list) list.innerHTML = '';
-                    if(state.leaderboard && list) {
-                        state.leaderboard.forEach((p, i) => {
-                            const correctInfo = p.correctCount !== undefined ? 
-                                `<span class="lb-correct-count">${p.correctCount}/${p.totalQuestions || 0}</span>` : '';
-                            list.innerHTML += `
-                                <div class="lb-row">
-                                    <div>${i+1}. ${p.nick}</div>
-                                    <div style="display:flex; align-items:center;">${correctInfo}${p.score}</div>
-                                </div>
-                            `;
-                        });
-                    }
+                    const isFirst = (lbPrevOrder === null);
+                    renderLbAnimated(list, state.leaderboard, isFirst);
+
+                    // Zaktualizuj poprzedni ranking
+                    lbPrevOrder = {};
+                    (state.leaderboard || []).forEach((p, i) => { lbPrevOrder[p.nick] = i; });
                 }
 
                 if(list && !list.dataset.played) {
@@ -2344,36 +2515,36 @@
                     thanksEl.dataset.played = 'true';
                 }
                 
+                const thanksBody = document.getElementById('thanks-body');
+                const thanksLogo = document.getElementById('thanks-logo');
+
                 if (state.thanksScreen && (state.thanksScreen.text || state.thanksScreen.image)) {
-                    // Użyj niestandardowego ekranu końcowego
-                    if (titleEl) {
-                        titleEl.textContent = state.quizTitle || 'Imprezja Quiz';
-                    }
-                    
-                    if (state.thanksScreen.text) {
-                        contentEl.textContent = state.thanksScreen.text;
-                        contentEl.style.display = 'block';
-                    } else {
-                        contentEl.style.display = 'none';
-                    }
-                    
+                    if (titleEl) titleEl.textContent = state.quizTitle || 'Imprezja Quiz';
+
+                    contentEl.textContent = state.thanksScreen.text || '';
+                    contentEl.style.display = state.thanksScreen.text ? 'block' : 'none';
+
                     if (state.thanksScreen.image) {
-                        const imgSrc = state.thanksScreen.image.startsWith('/') || state.thanksScreen.image.startsWith('http') 
-                            ? state.thanksScreen.image 
+                        const imgSrc = state.thanksScreen.image.startsWith('/') || state.thanksScreen.image.startsWith('http')
+                            ? state.thanksScreen.image
                             : '/uploads/' + state.thanksScreen.image;
                         imageEl.src = imgSrc;
                         imageContainer.style.display = 'block';
+                        // Układ poziomy: tekst po lewej, obrazek po prawej
+                        if (thanksBody) thanksBody.style.flexDirection = 'row';
+                        if (thanksLogo) thanksLogo.style.display = 'none'; // logo zajmuje miejsce – ukrywamy
                     } else {
                         imageContainer.style.display = 'none';
+                        if (thanksBody) thanksBody.style.flexDirection = 'column';
+                        if (thanksLogo) thanksLogo.style.display = '';
                     }
                 } else {
-                    // Domyślny ekran końcowy
-                    if (titleEl) {
-                        titleEl.textContent = state.quizTitle || 'Imprezja Quiz';
-                    }
+                    if (titleEl) titleEl.textContent = state.quizTitle || 'Imprezja Quiz';
                     contentEl.textContent = 'Dziękuję za udział w zabawie';
                     contentEl.style.display = 'block';
                     imageContainer.style.display = 'none';
+                    if (thanksBody) thanksBody.style.flexDirection = 'column';
+                    if (thanksLogo) thanksLogo.style.display = '';
                 }
                 // NIE wywołuj stopAllAudio() tutaj – zatrzymałoby dźwięk podziękowań
             }
@@ -4418,25 +4589,29 @@
             const roundColor = state.showStats ? '#ffcc00' : '#00aaff';
             html += `<div style="text-align: left; color: ${roundColor}; font-size: clamp(1.5rem, 3vw, 2rem); font-weight: bold; text-shadow: 0 0 20px rgba(0, 170, 255, 0.8); padding: 12px 20px; background: rgba(0, 0, 0, 0.3); border-radius: 8px; border: 2px solid ${roundColor}; box-sizing: border-box; width: 100%;">${roundText}</div>`;
             
-            if (state.showStats && shipsGameState?.playerStats) {
-                const playerStats = shipsGameState.playerStats;
-                const statsArray = Object.values(playerStats).sort((a, b) => (b.hits + b.misses) - (a.hits + a.misses));
-                
-                html += `<div class="ships-stats-screen" style="width: 100%; padding: 20px; background: rgba(0,0,0,0.5); border-radius: 8px; border: 2px solid #00aaff; box-sizing: border-box;">`;
-                html += `<h3 style="color: #00aaff; margin: 0 0 18px 0; text-align: left; font-size: 1.4em;">📊 Statystyki trafień</h3>`;
-                html += `<table style="width: 100%; border-collapse: collapse; font-size: 1.05em;">`;
-                html += `<tr style="border-bottom: 2px solid #00aaff;"><th style="text-align: left; padding: 12px 8px; color: #00aaff; font-size: 1.15em; font-weight: bold;">Gracz</th><th style="text-align: center; padding: 12px 8px; color: #00aaff; font-size: 1.15em; font-weight: bold;">Trafienia</th><th style="text-align: center; padding: 12px 8px; color: #00aaff; font-size: 1.15em; font-weight: bold;">Pudła</th><th style="text-align: center; padding: 12px 8px; color: #00aaff; font-size: 1.15em; font-weight: bold;">Razem</th></tr>`;
-                
-                if (statsArray.length === 0) {
-                    html += `<tr><td colspan="4" style="padding: 15px; color: rgba(255,255,255,0.5); text-align: center;">Brak trafień</td></tr>`;
-                } else {
-                    statsArray.forEach(stats => {
-                        html += `<tr style="border-bottom: 1px solid rgba(0,170,255,0.3);"><td style="padding: 12px 8px; color: #fff; font-size: 1.1em; word-break: break-word;">${stats.nick}</td><td style="text-align: center; padding: 12px 8px; color: #00ff00; font-size: 1.15em; font-weight: bold;">${stats.hits}</td><td style="text-align: center; padding: 12px 8px; color: #ff0044; font-size: 1.15em;">${stats.misses}</td><td style="text-align: center; padding: 12px 8px; color: #fff; font-size: 1.15em; font-weight: bold;">${stats.hits + stats.misses}</td></tr>`;
-                    });
-                }
-                
-                html += `</table></div>`;
+            // Baner statusu rundy
+            if (!shipsGameState.gameEnded) {
+                const bannerColor = state.showStats ? '#ffcc00' : '#00ff88';
+                const bannerText  = state.showStats ? '📊 RUNDA ZAKOŃCZONA' : '⚡ GRACZE STRZELAJĄ!';
+                html += `<div style="padding:10px 18px; background:rgba(0,0,0,0.5); border-radius:8px; border:2px solid ${bannerColor}; color:${bannerColor}; font-size:clamp(1rem,2vw,1.4rem); font-weight:900; text-align:center; letter-spacing:1px;">${bannerText}</div>`;
             }
+
+            // Tabela statystyk — zawsze widoczna gdy jest jakikolwiek stan gry
+            const playerStats = shipsGameState.playerStats || {};
+            const statsArray = Object.values(playerStats).sort((a, b) => (b.hits + b.misses) - (a.hits + a.misses));
+            html += `<div style="width:100%; padding:16px; background:rgba(0,0,0,0.5); border-radius:8px; border:2px solid #00aaff; box-sizing:border-box;">`;
+            html += `<h3 style="color:#00aaff; margin:0 0 12px 0; text-align:left; font-size:1.2em;">📊 Statystyki trafień</h3>`;
+            html += `<table style="width:100%; border-collapse:collapse; table-layout:fixed; font-size:1em;">`;
+            html += `<colgroup><col style="width:45%"><col style="width:18%"><col style="width:18%"><col style="width:19%"></colgroup>`;
+            html += `<tr style="border-bottom:2px solid #00aaff;"><th style="text-align:left;padding:8px 6px;color:#00aaff;">Gracz</th><th style="text-align:center;padding:8px 4px;color:#00aaff;">Traf.</th><th style="text-align:center;padding:8px 4px;color:#00aaff;">Pudła</th><th style="text-align:center;padding:8px 4px;color:#00aaff;">Razem</th></tr>`;
+            if (statsArray.length === 0) {
+                html += `<tr><td colspan="4" style="padding:12px;color:rgba(255,255,255,0.4);text-align:center;">Brak strzałów</td></tr>`;
+            } else {
+                statsArray.forEach(stats => {
+                    html += `<tr style="border-bottom:1px solid rgba(0,170,255,0.25);"><td style="padding:8px 6px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${stats.nick}</td><td style="text-align:center;padding:8px 4px;color:#00ff00;font-weight:bold;">${stats.hits}</td><td style="text-align:center;padding:8px 4px;color:#ff4466;">${stats.misses}</td><td style="text-align:center;padding:8px 4px;color:#fff;font-weight:bold;">${stats.hits + stats.misses}</td></tr>`;
+                });
+            }
+            html += `</table></div>`;
             html += `</div>`; // Zamknij div ze statystykami
             html += `</div>`; // Zamknij ships-board-screen
             
