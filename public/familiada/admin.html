@@ -94,6 +94,19 @@
             <button class="btn-audio" id="btn-intro" style="background: #ffaa00;" onclick="toggleIntro()">🎵 INTRO START/STOP</button>
             <button class="btn-audio" style="background: #00bcd4;" onclick="playJingle()">🔔 DŻINGIEL</button>
         </div>
+        <div style="background:#111;border-radius:8px;padding:10px 12px;margin-top:6px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <span style="font-size:13px;font-weight:bold;color:#ffd700;">🔊 Głośność master</span>
+                <span id="vol-val" style="font-size:14px;font-weight:900;color:#fff;min-width:38px;text-align:right;">80%</span>
+            </div>
+            <input type="range" id="vol-slider" min="0" max="100" value="80"
+                style="width:100%;accent-color:#ffd700;height:6px;cursor:pointer;">
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:#666;margin-top:3px;">
+                <span>Wyciszony</span>
+                <span style="color:#888;font-size:10px;">intro/outro -10%</span>
+                <span>Max</span>
+            </div>
+        </div>
 
         <h3>😄 SUCHARY</h3>
         <button class="btn-audio" style="background: #9b59b6; width: 100%; padding: 18px; margin-bottom: 10px;" onclick="dajSuchara()">🎭 DAJ SUCHARA</button>
@@ -573,6 +586,31 @@
             const t2 = document.getElementById('fam-team-2').value.trim() || 'Czerwoni';
             socket.emit('familiada_set_team_names', { team1: t1, team2: t2 });
         }
+
+        // ── Głośność master ──────────────────────────────────────────
+        (function initVolumeSlider() {
+            const slider = document.getElementById('vol-slider');
+            const valEl  = document.getElementById('vol-val');
+            if (!slider) return;
+            // Przywróć zapisaną wartość
+            const saved = parseFloat(localStorage.getItem('familiada_master_vol') || '0.8');
+            const pct = Math.round(saved * 100);
+            slider.value = pct;
+            valEl.textContent = pct + '%';
+
+            let emitTimer = null;
+            slider.addEventListener('input', () => {
+                const v = parseInt(slider.value);
+                valEl.textContent = v + '%';
+                // Debounce – emituj max co 80ms
+                clearTimeout(emitTimer);
+                emitTimer = setTimeout(() => {
+                    const normalized = v / 100;
+                    localStorage.setItem('familiada_master_vol', normalized);
+                    socket.emit('familiada_volume', normalized);
+                }, 80);
+            });
+        })();
 
         function sendError(team, count) { socket.emit('send_error', { team, count }); }
 
