@@ -4134,6 +4134,7 @@ io.on('connection', (socket) => {
         if (!question.id) question.id = `q_${Date.now()}_${index}`;
         
         gameState.type = 'GAME';
+        gameState.showPlayersWithQR = false;
         gameState.activeQuestionIndex = index;
         gameState.activeQuestion = question;
         gameState.showStats = false;

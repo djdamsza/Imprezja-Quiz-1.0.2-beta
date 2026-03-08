@@ -1906,8 +1906,6 @@
             if (zarazContainer) zarazContainer.style.display = hasAny ? 'flex' : 'none';
         }
 
-        var DEMO_NICKS = ['Ania', 'Bartek', 'Kasia', 'Michał', 'Ola', 'Piotr', 'Magda', 'Tomek', 'Natalia', 'Kamil', 'Julia', 'Adam', 'Zuzia', 'Jakub', 'Weronika', 'Filip', 'Martyna', 'Kacper', 'Lena', 'Mikołaj'];
-
         function syncPlayersQRCodes(state) {
             var s = state || currentGameState;
             var wifiImg = document.getElementById('qr-wifi');
@@ -1939,12 +1937,13 @@
         function updateFloatingNicks(state) {
             var container = document.getElementById('players-qr-float-container');
             if (!container) return;
-            var nicks = (state && state.playerNicks && state.playerNicks.length > 0) ? state.playerNicks : DEMO_NICKS;
+            var nicks = (state && state.playerNicks && state.playerNicks.length > 0) ? state.playerNicks : [];
             container.innerHTML = '';
             floatingNicksData = [];
-            var box = container.getBoundingClientRect();
+            if (nicks.length === 0) { stopFloatingNicks(); return; }
             for (var i = 0; i < nicks.length; i++) {
-                var nick = String(nicks[i] || '').trim() || DEMO_NICKS[i % DEMO_NICKS.length];
+                var nick = String(nicks[i] || '').trim();
+                if (!nick) continue;
                 var el = document.createElement('span');
                 el.className = 'float-nick';
                 el.textContent = nick;
