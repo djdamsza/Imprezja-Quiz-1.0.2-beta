@@ -7,9 +7,22 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1a1a2e; color: #fff; min-height: 100vh; padding: 40px 20px; }
-        .container { max-width: 900px; margin: 0 auto; }
+        .container { max-width: 960px; margin: 0 auto; }
         h1 { text-align: center; margin-bottom: 10px; font-size: 1.8rem; }
-        .subtitle { text-align: center; color: #95a5a6; margin-bottom: 40px; }
+        .subtitle { text-align: center; color: #95a5a6; margin-bottom: 28px; }
+
+        /* Przełącznik trybu płatności */
+        .mode-toggle { display: flex; justify-content: center; align-items: center; gap: 0; margin-bottom: 32px; }
+        .mode-toggle button {
+            padding: 10px 28px; font-size: 0.9rem; font-weight: 600; border: 2px solid #3498db;
+            cursor: pointer; transition: all 0.2s; outline: none;
+        }
+        .mode-toggle button:first-child { border-radius: 24px 0 0 24px; }
+        .mode-toggle button:last-child  { border-radius: 0 24px 24px 0; }
+        .mode-toggle button.active { background: #3498db; color: #fff; }
+        .mode-toggle button:not(.active) { background: transparent; color: #3498db; }
+        .mode-note { text-align: center; font-size: 0.82rem; color: #95a5a6; margin-bottom: 28px; min-height: 20px; }
+
         .pricing { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
         .plan { background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 24px; text-align: center; transition: all 0.2s; }
         .plan:hover { border-color: #f1c40f; background: rgba(241,196,15,0.08); }
@@ -24,7 +37,10 @@
         .btn-lifetime { background: #27ae60; }
         .btn-lifetime:hover { background: #219a52; }
         .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .payment-icons { font-size: 0.8rem; color: #7f8c8d; margin-top: 8px; }
         .error { color: #e74c3c; margin-top: 10px; font-size: 0.9rem; }
+
+        .blik-badge { display: inline-block; background: rgba(52,152,219,0.2); border: 1px solid #3498db; color: #74b9d8; font-size: 0.7rem; font-weight: 700; padding: 2px 7px; border-radius: 4px; margin-left: 5px; vertical-align: middle; letter-spacing: 0.04em; }
     </style>
 </head>
 <body>
@@ -32,29 +48,38 @@
         <h1>Imprezja Quiz</h1>
         <p class="subtitle">Quiz i głosowanie na imprezach – działa offline</p>
 
+        <div class="mode-toggle">
+            <button id="btn-sub" class="active" onclick="setMode('sub')">🔄 Subskrypcja</button>
+            <button id="btn-once" onclick="setMode('once')">BLIK / Jednorazowy</button>
+        </div>
+        <p class="mode-note" id="mode-note">Auto-odnowienie co miesiąc/kwartał/rok · płatność kartą lub Revolut Pay</p>
+
         <div class="pricing">
             <div class="plan">
                 <div class="plan-name">1 miesiąc</div>
                 <div class="plan-price" id="price-1m">—</div>
-                <div class="plan-period">subskrypcja miesięczna</div>
+                <div class="plan-period" id="period-1m">subskrypcja miesięczna</div>
                 <div class="plan-desc">Dla okazjonalnych imprez</div>
-                <button class="btn" data-lookup="imprezja-1m" onclick="checkout(this)">Wybierz</button>
+                <button class="btn" id="btn-1m" data-lookup-sub="imprezja-1m" data-lookup-once="imprezja-1m-onetime" onclick="checkout(this)">Wybierz</button>
+                <p class="payment-icons" id="pay-1m">💳 Karta · Revolut Pay</p>
             </div>
 
             <div class="plan popular">
                 <div class="plan-name">3 miesiące</div>
                 <div class="plan-price" id="price-3m">—</div>
-                <div class="plan-period">subskrypcja kwartalna</div>
+                <div class="plan-period" id="period-3m">subskrypcja kwartalna</div>
                 <div class="plan-desc">Oszczędność ~15%</div>
-                <button class="btn" data-lookup="imprezja-3m" onclick="checkout(this)">Wybierz</button>
+                <button class="btn" id="btn-3m" data-lookup-sub="imprezja-3m" data-lookup-once="imprezja-3m-onetime" onclick="checkout(this)">Wybierz</button>
+                <p class="payment-icons" id="pay-3m">💳 Karta · Revolut Pay</p>
             </div>
 
             <div class="plan">
                 <div class="plan-name">12 miesięcy</div>
                 <div class="plan-price" id="price-12m">—</div>
-                <div class="plan-period">subskrypcja roczna</div>
+                <div class="plan-period" id="period-12m">subskrypcja roczna</div>
                 <div class="plan-desc">Najlepsza wartość – oszczędność ~30%</div>
-                <button class="btn" data-lookup="imprezja-12m" onclick="checkout(this)">Wybierz</button>
+                <button class="btn" id="btn-12m" data-lookup-sub="imprezja-12m" data-lookup-once="imprezja-12m-onetime" onclick="checkout(this)">Wybierz</button>
+                <p class="payment-icons" id="pay-12m">💳 Karta · Revolut Pay</p>
             </div>
 
             <div class="plan">
@@ -62,7 +87,8 @@
                 <div class="plan-price" id="price-lifetime">—</div>
                 <div class="plan-period">jednorazowa płatność</div>
                 <div class="plan-desc">Bez limitów, na zawsze</div>
-                <button class="btn btn-lifetime" data-lookup="imprezja-lifetime" onclick="checkout(this)">Kup</button>
+                <button class="btn btn-lifetime" data-lookup-sub="imprezja-lifetime" data-lookup-once="imprezja-lifetime" onclick="checkout(this)">Kup <span class="blik-badge">BLIK ✓</span></button>
+                <p class="payment-icons">💳 Karta · BLIK · Revolut Pay</p>
             </div>
         </div>
 
@@ -71,9 +97,38 @@
 
     <script>
         const API_BASE = window.location.origin;
+        let currentMode = 'sub'; // 'sub' | 'once'
+
+        const PERIOD_LABELS = {
+            sub:  { '1m': 'subskrypcja miesięczna', '3m': 'subskrypcja kwartalna', '12m': 'subskrypcja roczna' },
+            once: { '1m': 'jednorazowo · 30 dni',  '3m': 'jednorazowo · 90 dni', '12m': 'jednorazowo · 365 dni' }
+        };
+        const PAY_LABELS = {
+            sub:  '💳 Karta · Revolut Pay',
+            once: '💳 Karta · BLIK · Revolut Pay'
+        };
+        const MODE_NOTES = {
+            sub:  'Auto-odnowienie co miesiąc/kwartał/rok · płatność kartą lub Revolut Pay',
+            once: 'Brak auto-odnowienia – licencja wygasa po okresie · płatność kartą, BLIK lub Revolut Pay'
+        };
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.getElementById('btn-sub').classList.toggle('active', mode === 'sub');
+            document.getElementById('btn-once').classList.toggle('active', mode === 'once');
+            document.getElementById('mode-note').textContent = MODE_NOTES[mode];
+
+            ['1m','3m','12m'].forEach(k => {
+                document.getElementById('period-' + k).textContent = PERIOD_LABELS[mode][k];
+                document.getElementById('pay-' + k).textContent = PAY_LABELS[mode];
+            });
+
+            // Aktualizuj wyświetlane ceny jeśli zostały już załadowane
+            if (window._prices) renderPrices(window._prices);
+        }
 
         async function checkout(btn) {
-            const lookup = btn.dataset.lookup;
+            const lookup = currentMode === 'sub' ? btn.dataset.lookupSub : btn.dataset.lookupOnce;
             btn.disabled = true;
             document.getElementById('error').style.display = 'none';
 
@@ -100,26 +155,35 @@
             }
         }
 
-        // Opcjonalnie: załaduj ceny z API (wymaga produktów w Stripe)
+        function renderPrices(prices) {
+            prices.forEach(p => {
+                const key = p.lookup_key || '';
+                const isOnetime = key.includes('onetime');
+                if (currentMode === 'sub' && isOnetime) return;
+                if (currentMode === 'once' && !isOnetime && !key.includes('lifetime')) return;
+
+                const amount = (p.unit_amount / 100).toFixed(2);
+                const currency = (p.currency || 'pln').toUpperCase();
+                const recurring = p.recurring;
+                let label = amount + ' ' + currency;
+                if (recurring) {
+                    const cnt = recurring.interval_count > 1 ? recurring.interval_count + ' ' : '';
+                    label += '/' + cnt + (recurring.interval === 'month' ? 'mc' : 'rok');
+                }
+
+                if (key.includes('1m')) document.getElementById('price-1m').textContent = label;
+                else if (key.includes('3m')) document.getElementById('price-3m').textContent = label;
+                else if (key.includes('12m')) document.getElementById('price-12m').textContent = label;
+                else if (key.includes('lifetime')) document.getElementById('price-lifetime').textContent = label;
+            });
+        }
+
         async function loadPrices() {
             try {
                 const res = await fetch(API_BASE + '/api/prices');
                 const { prices } = await res.json();
-                prices.forEach(p => {
-                    const amount = (p.unit_amount / 100).toFixed(2);
-                    const currency = (p.currency || 'pln').toUpperCase();
-                    const recurring = p.recurring;
-                    let label = amount + ' ' + currency;
-                    if (recurring) {
-                        const interval = recurring.interval_count > 1 ? recurring.interval_count + ' ' : '';
-                        label += '/' + interval + (recurring.interval === 'month' ? 'mc' : 'rok');
-                    }
-                    const key = p.lookup_key || '';
-                    if (key.includes('1m')) document.getElementById('price-1m').textContent = label;
-                    else if (key.includes('3m')) document.getElementById('price-3m').textContent = label;
-                    else if (key.includes('12m')) document.getElementById('price-12m').textContent = label;
-                    else if (key.includes('lifetime')) document.getElementById('price-lifetime').textContent = label;
-                });
+                window._prices = prices;
+                renderPrices(prices);
             } catch (_) {}
         }
         loadPrices();

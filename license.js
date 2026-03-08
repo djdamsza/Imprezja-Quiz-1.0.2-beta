@@ -219,10 +219,6 @@ function verifyLicenseKey(licenseKey) {
     }
     const key = licenseKey.trim();
 
-    if (key === 'IMPREZJA-TEST-TEST-TEST-TEST') {
-        return { valid: true, type: 'test', expires: null };
-    }
-
     if (key.startsWith('IMPREZJA-RSA-')) {
         return verifyRSAFormat(key);
     }

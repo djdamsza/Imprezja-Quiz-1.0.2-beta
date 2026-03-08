@@ -3,7 +3,7 @@
 ## Problem
 
 Stripe zgłasza: *"25 requests had other errors"* dla endpointu:
-`https://imprezja-quiz-1-0-2-beta.onrender.com/webhook`
+`https://imprezja.onrender.com/webhook`
 
 Stripe wymaga odpowiedzi HTTP 200–299, aby uznać webhook za dostarczony. Błędy „other” to zwykle: **timeout**, **connection refused**, **connection reset** – nie błędy 4xx/5xx z serwera.
 
@@ -29,7 +29,7 @@ Użyj **UptimeRobot** (lub innego cronu), aby serwis nie zasypiał:
 1. Załóż konto na [uptimerobot.com](https://uptimerobot.com) (darmowe)
 2. **Add New Monitor**
 3. **Monitor Type:** HTTP(s)
-4. **URL:** `https://imprezja-quiz-1-0-2-beta.onrender.com/health`
+4. **URL:** `https://imprezja.onrender.com/health`
 5. **Monitoring Interval:** 5 minut (lub 10 min – ważne, żeby było krócej niż 15 min)
 6. Zapisz
 
@@ -42,7 +42,7 @@ Serwer stripe-shop ma już endpoint `/health` – Render będzie pingowany regul
 Jeśli używasz **Live mode** w Stripe:
 
 1. Stripe Dashboard → **Developers** → **Webhooks**
-2. Kliknij endpoint `https://imprezja-quiz-1-0-2-beta.onrender.com/webhook`
+2. Kliknij endpoint `https://imprezja.onrender.com/webhook`
 3. Upewnij się, że endpoint jest w trybie **Live** (nie Test)
 4. Skopiuj **Signing secret** (`whsec_...`)
 5. Render → **Environment** → upewnij się, że `STRIPE_WEBHOOK_SECRET` = ten sam `whsec_...`
@@ -57,7 +57,7 @@ Jeśli masz webhook w **Workbench → Event destinations** i nadal dostajesz 400
 
 1. Wejdź bezpośrednio: **https://dashboard.stripe.com/webhooks**
 2. Kliknij **Add endpoint** (lub „Dodaj endpoint”)
-3. **Endpoint URL:** `https://imprezja-quiz-1-0-2-beta.onrender.com/webhook`
+3. **Endpoint URL:** `https://imprezja.onrender.com/webhook`
 4. Wybierz eventy: `checkout.session.completed`, `invoice.paid`, `customer.subscription.*` itd.
 5. **Add endpoint**
 6. Skopiuj **Signing secret** (Reveal → skopiuj `whsec_...`)

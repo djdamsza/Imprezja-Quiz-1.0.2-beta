@@ -35,7 +35,7 @@ Ten komunikat pochodzi z **motywu WordPress lub wtyczki** (np. WooCommerce), a n
    - Otwórz stronę sklepu w przeglądarce, **F12 → zakładka Sieć (Network)**.
    - Kliknij przycisk „Wybierz” / „Kup”.
    - Sprawdź, czy pojawia się żądanie do `create-checkout-session`. Jeśli nie ma – skrypt na stronie nie wysyła requestu (błąd JS, zły adres API lub blokada).
-   - **Adres API:** w bloku Własny HTML musi być `STRIPE_API_URL = 'https://imprezja-quiz-1-0-2-beta.onrender.com'` (bez slash na końcu). Na stronie produkcyjnej nie może być `localhost`.
+   - **Adres API:** w bloku Własny HTML musi być `STRIPE_API_URL = 'https://imprezja.onrender.com'` (bez slash na końcu). Na stronie produkcyjnej nie może być `localhost`.
    - Jeśli żądanie jest wysyłane, ale ma status **CORS error** lub **blocked** – ustaw na Render zmienną `CORS_ORIGIN=https://twoja-domena.pl` (dokładna domena strony ze sklepem).
 
 3. **Jeśli w logach widać „Checkout request”** – serwer dostaje klik. Wtedy ewentualny błąd (np. brak STRIPE_SECRET_KEY, błąd Stripe) będzie w kolejnej linii logu.
@@ -46,10 +46,10 @@ Ten komunikat pochodzi z **motywu WordPress lub wtyczki** (np. WooCommerce), a n
 
 - Po ok. 15 minutach bez ruchu Render może **uśpić** serwis (cold start). Pierwsze żądanie po uśpieniu trwa dłużej (nawet 30–60 s) i może się nie udać (timeout).
 - **Cron / UptimeRobot:** ustaw ping co 10–14 minut na adres stripe-shop, np.  
-  `https://imprezja-quiz-1-0-2-beta.onrender.com/health`  
+  `https://imprezja.onrender.com/health`  
   (plik `docs/wordpress/cron.php` opisuje taki ping).
 - Po **restarcie** serwisu na Render poczekaj 1–2 minuty, aż instancja wstanie, potem sprawdź w przeglądarce:  
-  `https://imprezja-quiz-1-0-2-beta.onrender.com/health`  
+  `https://imprezja.onrender.com/health`  
   Powinien zwrócić status 200.
 
 ---
@@ -58,7 +58,7 @@ Ten komunikat pochodzi z **motywu WordPress lub wtyczki** (np. WooCommerce), a n
 
 W bloku musi być poprawny URL serwisu stripe-shop, np.:
 
-- Produkcja (Render): `https://imprezja-quiz-1-0-2-beta.onrender.com`
+- Produkcja (Render): `https://imprezja.onrender.com`
 - Lokalnie: `http://localhost:4242` lub `http://localhost:10000` (zależnie od `PORT` / `STRIPE_PORT`)
 
 Jeśli wdrożysz stripe-shop pod inną domeną, zmień w skrypcie zmienną `STRIPE_API_URL` na ten adres.

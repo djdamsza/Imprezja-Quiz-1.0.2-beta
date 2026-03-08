@@ -81,7 +81,6 @@ Użycie:
   node scripts/generate-license-key.js --type <TYP> <MachineID>
     → Klucz danego typu dla klienta.
 
-Klucz testowy: IMPREZJA-TEST-TEST-TEST-TEST
 `);
         process.exit(0);
     }
