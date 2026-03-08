@@ -589,10 +589,10 @@
                 <div id="start-game-wrap" style="display: none; margin-bottom: 10px;">
                     <button type="button" onclick="startGame()" class="btn btn-primary" style="width: 100%;">▶️ Rozpocznij rozgrywkę</button>
                 </div>
-                <button onclick="sendCommand('admin_intro')" class="btn btn-secondary">🎬 Ekran Start</button>
                 <button type="button" id="btn-players-qr-screen" onclick="togglePlayersQRScreen()" class="btn btn-secondary">👥 QR + nicki na ekranie</button>
                 <button onclick="sendCommand('admin_idle')" class="btn btn-secondary">⏸️ Pauza muzyka</button>
                 <button onclick="showPodium()" class="btn btn-gold">🏆 Podium</button>
+                <button type="button" id="btn-zaraz-zaczynamy" onclick="toggleZaraz()" class="btn btn-secondary">🎬 Ekran startowy</button>
             </div>
 
             <!-- Ranking graczy (jak na TV) + Podium – kto na którym miejscu -->
@@ -1588,7 +1588,18 @@
                     playersQrBtn.style.background = '';
                 }
             }
-                        // Lista nicków – gdy QR+nicki włączone i brak aktywnego pytania
+            // Aktualizuj stan przycisku „Ekran startowy"
+            const zarazBtn = document.getElementById('btn-zaraz-zaczynamy');
+            if (zarazBtn) {
+                if (state.showZarazZaczynamy) {
+                    zarazBtn.textContent = '🎬 Ukryj ekran startowy';
+                    zarazBtn.style.background = '#28a745';
+                } else {
+                    zarazBtn.textContent = '🎬 Ekran startowy';
+                    zarazBtn.style.background = '';
+                }
+            }
+            // Lista nicków – gdy QR+nicki włączone i brak aktywnego pytania
             (function(){
                 const nicksLobby = document.getElementById('admin-nicks-lobby');
                 const nicksList = document.getElementById('admin-nicks-list');
@@ -2211,6 +2222,9 @@
         }
         function togglePlayersQRScreen() {
             socket.emit('admin_toggle_show_players_with_qr');
+        }
+        function toggleZaraz() {
+            socket.emit('admin_toggle_zaraz');
         }
         function toggleSendImagesToPhones() {
             socket.emit('admin_toggle_send_images_to_phones');

@@ -1422,7 +1422,8 @@
     <!-- Ekran "Zaraz zaczynamy" – pokazywany po kliknięciu Rozpocznij; zawiera QR kody jeśli były wcześniej wygenerowane -->
     <div id="zaraz-zaczynamy-overlay" class="overlay-screen" style="display: none; z-index: 9999;">
         <img src="/img/logo_imprezja.png" alt="Imprezja Quiz" class="logo-imprezja-large">
-        <div class="intro-title" style="font-size: clamp(2rem, 10vw, 6rem); margin-bottom: 20px;">Zaraz zaczynamy</div>
+        <div class="intro-title" style="font-size: clamp(2rem, 10vw, 6rem); margin-bottom: 8px;">Zaraz zaczynamy</div>
+        <div id="zaraz-quiz-title" style="font-size: clamp(1rem, 3.5vw, 2.2rem); color: rgba(255,255,255,0.75); margin-bottom: 20px; font-weight: 600; letter-spacing: 0.03em;"></div>
         <div id="zaraz-qr-container" class="qr-container" style="display: none;">
             <div id="zaraz-qr-wrapper" class="qr-wrapper" style="display: none;">
                 <div id="zaraz-qr-wifi" class="qr-box" style="display: none;">
@@ -1988,6 +1989,7 @@
 
         document.getElementById('btn-rozpocznij-intro')?.addEventListener('click', function() {
             window._adminOpenedFromScreen = false;
+            window._zarazShownLocally = true;
             const wrap = document.getElementById('qr-box-admin-wrap');
             if (wrap) wrap.style.display = 'none';
             const el = document.getElementById('zaraz-zaczynamy-overlay');
@@ -2000,6 +2002,7 @@
             if (intro) intro.style.display = 'flex';
         });
         document.getElementById('btn-zakoncz-zaraz')?.addEventListener('click', function() {
+            window._zarazShownLocally = false;
             if (typeof socket !== 'undefined') socket.emit('admin_reset_game');
             const zaraz = document.getElementById('zaraz-zaczynamy-overlay');
             const intro = document.getElementById('intro-screen');
@@ -2266,7 +2269,10 @@
             const lb = document.getElementById('leaderboard');
             const main = document.getElementById('main-content');
             const zarazOverlay = document.getElementById('zaraz-zaczynamy-overlay');
-            if (zarazOverlay && (state.type === 'IDLE' || state.type === 'GAME' || state.type === 'GAME_STATS')) zarazOverlay.style.display = 'none';
+            if (zarazOverlay && (state.type === 'IDLE' || state.type === 'GAME' || state.type === 'GAME_STATS')) {
+                zarazOverlay.style.display = 'none';
+                window._zarazShownLocally = false;
+            }
 
             // Widoczność QR admina:
             // - raz na zawsze ukryty (adminQrHidden=true) gdy zdalna sesja admina się zaloguje
@@ -2321,14 +2327,6 @@
                     if (codeWrap && codeEl && state.sessionCode) {
                         codeEl.textContent = state.sessionCode;
                         codeWrap.style.display = 'none'; // kod zbędny gdy jest krótki URL
-                    }
-                } else if (state.sessionCode) {
-                    // Brak skróconego URL — pokaż adres Render /dolacz i kod
-                    var dolaczUrl = state.renderDolaczUrl || 'imprezja-quiz-1-0-2-beta.onrender.com/dolacz';
-                    shortUrlText && (shortUrlText.textContent = dolaczUrl.replace(/^https?:\/\//, ''));
-                    if (codeWrap && codeEl) {
-                        codeEl.textContent = state.sessionCode.split('').join(' '); // "6 3 6 2"
-                        codeWrap.style.display = 'block';
                     }
                 } else {
                     shortUrlWrap.style.display = 'none';
@@ -2389,7 +2387,29 @@
                 return;
             }
 
-            // Ekran „QR + latające nicki” (priorytet – przycisk w adminie)
+            // Ekran „ZARAZ ZACZYNAMY” (priorytet 1 – najwyższy, z admina)
+            if (state.showZarazZaczynamy) {
+                if (zarazOverlay) {
+                    const zarazTitleEl = document.getElementById('zaraz-quiz-title');
+                    if (zarazTitleEl) zarazTitleEl.textContent = state.quizTitle || '';
+                    zarazOverlay.style.display = 'flex';
+                }
+                intro.style.display = 'none';
+                pod.style.display = 'none';
+                lb.style.display = 'none';
+                main.style.display = 'none';
+                const playersQrScreenEl = document.getElementById('players-qr-screen');
+                if (playersQrScreenEl) playersQrScreenEl.style.display = 'none';
+                if (typeof stopFloatingNicks === 'function') stopFloatingNicks();
+                const thanksElZ = document.getElementById('thanks');
+                if (thanksElZ) thanksElZ.style.display = 'none';
+                if (typeof syncZarazQRCodes === 'function') syncZarazQRCodes(state);
+                return;
+            } else if (zarazOverlay) {
+                if (!window._zarazShownLocally) zarazOverlay.style.display = 'none';
+            }
+
+            // Ekran „QR + latające nicki” (priorytet 2 – przycisk w adminie)
             const playersQrScreen = document.getElementById('players-qr-screen');
             if (playersQrScreen) {
                 if (state.showPlayersWithQR) {

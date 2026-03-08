@@ -2548,6 +2548,7 @@ let gameState = {
     teamBattleMode: false,
     showQROnPhones: false,
     showPlayersWithQR: false,  // ekran TV: QR + latające nicki zalogowanych graczy
+    showZarazZaczynamy: false, // ekran TV + telefony: "ZARAZ ZACZYNAMY" + nazwa quizu
     sendImagesToPhones: true,  // false = nie ładuj obrazków na telefonach (zalecane przy wielu graczach)
     teams: {
         A: { name: "", score: 0 },
@@ -3224,6 +3225,7 @@ function getStateForBroadcast() {
         showAdminQR: !(io.sockets.adapter.rooms.get(ADMIN_ROOM)?.size > 0),
         adminUrl: httpsServer ? `https://${IP}:${PORT_HTTPS}/admin.html` : `http://${getAdminHost()}:${PORT}/admin.html`,
         showPlayersWithQR: gameState.showPlayersWithQR,
+        showZarazZaczynamy: gameState.showZarazZaczynamy,
         playerNicks: Array.from(players.values()).map(p => p.nick || '').filter(Boolean)
     };
 }
@@ -4135,6 +4137,7 @@ io.on('connection', (socket) => {
         
         gameState.type = 'GAME';
         gameState.showPlayersWithQR = false;
+        gameState.showZarazZaczynamy = false;
         gameState.activeQuestionIndex = index;
         gameState.activeQuestion = question;
         gameState.showStats = false;
@@ -4657,6 +4660,12 @@ io.on('connection', (socket) => {
     socket.on('admin_toggle_show_players_with_qr', () => {
         gameState.showPlayersWithQR = !gameState.showPlayersWithQR;
         console.log('👥 QR + nicki na ekranie:', gameState.showPlayersWithQR ? 'WŁĄCZONE' : 'WYŁĄCZONE');
+        broadcastStateImmediate();
+    });
+
+    socket.on('admin_toggle_zaraz', () => {
+        gameState.showZarazZaczynamy = !gameState.showZarazZaczynamy;
+        console.log('🎬 Ekran ZARAZ ZACZYNAMY:', gameState.showZarazZaczynamy ? 'WŁĄCZONY' : 'WYŁĄCZONY');
         broadcastStateImmediate();
     });
 
