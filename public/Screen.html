@@ -1391,6 +1391,14 @@
                 <div class="qr-label tunnel">GRA (LTE)</div>
                 <img id="qr-tunnel" class="qr-image" src="" alt="QR Tunel">
                 <div class="qr-wifi-info"><strong>Alternatywa – sieć komórkowa</strong></div>
+                <div id="qr-tunnel-shorturl" style="display:none;margin-top:8px;padding:8px 12px;background:rgba(14,165,233,.15);border:1px solid rgba(14,165,233,.35);border-radius:10px;text-align:center;">
+                    <div style="font-size:0.7em;color:rgba(255,255,255,.6);margin-bottom:3px;">Brak skanera? Wpisz w przeglądarce:</div>
+                    <div id="qr-tunnel-shorturl-text" style="font-size:1em;font-weight:800;color:#7dd3fc;letter-spacing:.02em;word-break:break-all;"></div>
+                    <div id="qr-tunnel-code-wrap" style="display:none;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.1);">
+                        <div style="font-size:0.65em;color:rgba(255,255,255,.5);">lub wejdź na powyższy adres i podaj kod:</div>
+                        <div id="qr-tunnel-code" style="font-size:1.6em;font-weight:900;color:#fbbf24;letter-spacing:.15em;"></div>
+                    </div>
+                </div>
             </div>
             <div id="qr-box-lte-info" class="qr-box qr-box-lte-info" style="display: none;">
                 <strong>Gra przez LTE</strong><br>
@@ -2123,6 +2131,22 @@
             if (qrLub) qrLub.style.display = hasWifiOrLocal ? 'block' : 'none';
             if (qrBoxTunnel) qrBoxTunnel.style.display = state.tunnelUrl ? 'flex' : 'none';
             if (qrBoxLteInfo) qrBoxLteInfo.style.display = (!state.tunnelUrl && hasWifiOrLocal) ? 'flex' : 'none';
+            // Krótki URL i kod sesji — alternatywa dla skanera QR
+            var shortUrlWrap = document.getElementById('qr-tunnel-shorturl');
+            var shortUrlText = document.getElementById('qr-tunnel-shorturl-text');
+            var codeWrap = document.getElementById('qr-tunnel-code-wrap');
+            var codeEl = document.getElementById('qr-tunnel-code');
+            if (shortUrlWrap && state.tunnelUrl) {
+                var displayUrl = state.shortUrl || (state.tunnelUrl + '/dolacz');
+                shortUrlText && (shortUrlText.textContent = displayUrl.replace(/^https?:\/\//, ''));
+                shortUrlWrap.style.display = 'block';
+                if (codeWrap && codeEl && state.sessionCode) {
+                    codeEl.textContent = state.sessionCode;
+                    codeWrap.style.display = state.shortUrl ? 'none' : 'block'; // kod tylko gdy brak TinyURL
+                }
+            } else if (shortUrlWrap) {
+                shortUrlWrap.style.display = 'none';
+            }
             const zarazOverlayEl = document.getElementById('zaraz-zaczynamy-overlay');
             if (zarazOverlayEl && zarazOverlayEl.style.display === 'flex' && typeof syncZarazQRCodes === 'function') syncZarazQRCodes();
 
