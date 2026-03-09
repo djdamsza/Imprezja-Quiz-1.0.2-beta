@@ -5,6 +5,8 @@
 ## v1.1.6 (marzec 2026) — wydanie stabilne
 
 ### Ekran TV (Screen.html)
+- **Statystyki quizu:** naprawiono pasek procentowy – zamiast kwadratu wyświetla się teraz prawidłowy pasek odpowiadający udziałowi procentowemu odpowiedzi.
+- **Pytania muzyczne z 5 odpowiedziami:** odpowiedzi wyświetlają się zawsze w 5 wierszach (1 kolumna), bez zmiennego układu.
 - Animowany ranking: gracze zmieniający pozycję przesuwają się płynnie w górę lub dół (animacja FLIP, 0,9 s, etapowo co 1 s). Animacja nie pojawia się przy pierwszym otwarciu – tylko przy kolejnych zmianach.
 - Naprawiono pozycję startową animacji rankingu – wiersze nie pojawiają się już za wysoko (nad napisem „Ranking").
 - Przyciski (Edytor, Cofnij, Admin, Rozpocznij, Zakończ) znikają automatycznie po włączeniu trybu pełnoekranowego.
@@ -32,6 +34,9 @@
 
 ### Edytor
 - Ostrzeżenie przy uploadzie za małego obrazka (zbyt mała rozdzielczość dla pytań quizowych lub ekranu TV).
+
+### Dokumentacja
+- Dodano informację: zminimalizowanie okna aplikacji lub karty z panelem admina może rozłączyć graczy – podczas imprezy trzymaj okno widoczne (INSTRUKCJA_UZYTKOWNIKA.md, FAQ.md).
 
 ### Statki Solo (tryb standalone)
 - Ekran TV: dodano baner statusu „🎯 STRZELAJ!" / „CZEKAJ", wizualne odliczanie 10 s, licznik strzałów „Strzał X".

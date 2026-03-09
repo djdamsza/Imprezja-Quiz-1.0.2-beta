@@ -279,6 +279,10 @@ Zamknij inne aplikacje używające portu 3000 lub zmień port w konfiguracji (wy
 
 Uruchom **`napraw-uninstaller.bat`** (jako administrator) lub usuń ręcznie foldery `%APPDATA%\Imprezja Quiz` i folder instalacji, potem zainstaluj ponownie. Szczegóły w **FAQ.md** (sekcja „Uninstaller Windows nie działa”).
 
+### Zminimalizowanie okna rozłącza grę
+
+**Panel admina i ekran TV** – gdy zminimalizujesz okno aplikacji (np. schowasz do paska zadań), przeglądarka może zawiesić połączenie WebSocket. Gracze mogą stracić połączenie z grą. **Podczas imprezy trzymaj okno Imprezja Quiz widoczne** (możesz je zmniejszyć, ale nie minimalizuj). Jeśli używasz panelu admina w przeglądarce na tym samym komputerze – ta sama zasada: nie minimalizuj karty z panelem.
+
 ### Dźwięki nie grają
 
 - Sprawdź czy przeglądarka/ekran nie jest wyciszony.
