@@ -240,7 +240,7 @@ Edytor: `http://localhost:3000/editor.html` (lub z adresem IP w sieci).
 ### Tryb drużynowy
 
 - Punkty gracza są dodawane do sumy drużyny.
-- Przy nierównych drużynach słabsza drużyna (mniej graczy) dostaje mnożnik 1,1× na swoje punkty.
+- Przy nierównych drużynach mniejsza drużyna dostaje mnożnik proporcjonalny do dysproporcji: 10% więcej w drugiej = 1,1×, stosunek 2:1 = 2× punkty.
 
 ---
 
