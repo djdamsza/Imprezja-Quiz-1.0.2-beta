@@ -2572,7 +2572,7 @@ const DISCONNECT_GRACE_PERIOD = 60000; // 60 sekund grace period
 // Timer dla automatycznego pokazywania statystyk po upływie czasu pytania
 let questionTimer = null;
 
-/** Balansowanie drużyn: przy 10% różnicy graczy mnożnik 1.1 dla słabszej drużyny */
+/** Balansowanie drużyn: mnożnik proporcjonalny do dysproporcji. Ratio 1.1 (10% więcej) = 1.1×, ratio 2 (2:1) = 2× dla mniejszej drużyny */
 function getTeamBalanceMultiplier(team) {
     if (!gameState.teamBattleMode || !team) return 1;
     let countA = 0, countB = 0;
@@ -2582,12 +2582,11 @@ function getTeamBalanceMultiplier(team) {
     });
     const smaller = Math.min(countA, countB);
     const larger = Math.max(countA, countB);
-    // Gdy jedna lub obie drużyny puste – brak balansu
     if (larger === 0 || smaller === 0) return 1;
     const ratio = larger / smaller;
-    if (ratio < 1.1) return 1; // próg 10% różnicy (ratio >= 1.1)
+    if (ratio <= 1) return 1; // równe drużyny
     const weakerTeam = countA <= countB ? 'A' : 'B';
-    return team === weakerTeam ? 1.1 : 1;
+    return team === weakerTeam ? ratio : 1;
 }
 
 // === FUNKCJE POMOCNICZE ===
