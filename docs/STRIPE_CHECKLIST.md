@@ -128,8 +128,8 @@ Railway pobiera kod z GitHuba. Musisz mieć projekt VoteBattle w repozytorium na
 
 ### 3.2 Strona sukcesu (wymagana)
 - [ ] Utwórz stronę „Sukces” (slug: `sukces`) – adres: `https://nowajakoscrozrywki.pl/sukces/`
-- [ ] Otwórz plik `docs/wordpress/stripe-sukces.html` – skopiuj całą zawartość do bloku **Własny HTML**
-- [ ] W stripe-sukces.html zmień `STRIPE_API_URL` na URL stripe-shop (Railway)
+- [ ] Otwórz plik `docs/wordpress/sukces.html` – skopiuj całą zawartość do bloku **Własny HTML**
+- [ ] W sukces.html zmień `STRIPE_API_URL` na URL stripe-shop (Railway)
 - [ ] W pliku stripe-cennik.html upewnij się, że `success_url` to `window.location.origin + '/sukces/?session_id={CHECKOUT_SESSION_ID}'`
 - [ ] Railway → **Variables** → dodaj:
   - `SUCCESS_PAGE_URL` = `https://nowajakoscrozrywki.pl/sukces/` (link w e-mailu po płatności)
