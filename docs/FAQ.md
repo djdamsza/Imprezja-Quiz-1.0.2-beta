@@ -252,6 +252,10 @@ Dodatkowo: **Speedrun** (punkty za kolejność) i **Eliminacja** (zła odpowied�
 
 ## Problemy techniczne
 
+### Zminimalizowanie okna rozłącza grę
+
+Gdy zminimalizujesz okno aplikacji (ekran TV) lub kartę z panelem admina, przeglądarka może zawiesić połączenie – gracze stracą połączenie. **Podczas imprezy trzymaj okno widoczne** (możesz je zmniejszyć, ale nie minimalizuj).
+
 ### Dźwięki nie grają
 
 - Sprawdź czy przeglądarka/ekran nie jest wyciszony.

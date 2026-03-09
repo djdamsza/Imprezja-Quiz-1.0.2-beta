@@ -581,6 +581,8 @@
         .grid-4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
         .grid-5 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr 0.8fr; }
         .grid-5 .qc-e { grid-column: 1 / -1; }
+        /* Pytania muzyczne z 5 odpowiedziami – zawsze 5 wierszy (1 kolumna) */
+        .grid-5-rows { grid-template-columns: 1fr; grid-template-rows: repeat(5, 1fr); }
         
         .grid-vote-text {
             display: flex; width: 100%; gap: 40px;
@@ -800,8 +802,8 @@
             transition: transform 0.3s, box-shadow 0.3s, opacity 0.5s, filter 0.5s, border-color 0.5s;
         }
         .q-card .q-letter,
-        .q-card .q-text,
-        .q-card .q-result-bar { position: relative; z-index: 2; }
+        .q-card .q-text { position: relative; z-index: 2; }
+        /* q-result-bar NIE może mieć position: relative – musi zostać absolute, żeby pasek procentowy wypełniał kartę */
         
         /* Animacja wejścia */
         @keyframes cardEnter { 
@@ -899,9 +901,11 @@
         .q-text { font-size: 2.2vw; font-weight: 700; flex: 1; text-shadow: 0 2px 4px rgba(0,0,0,0.8); z-index: 5; }
         
         .q-result-bar {
-            position: absolute; bottom: 0; left: 0; height: 100%;
+            position: absolute !important; top: 0; left: 0; bottom: 0;
+            width: 0%; min-width: 0; height: 100%;
             background: linear-gradient(90deg, rgba(255,255,255,0.1), rgba(255,255,255,0.25));
-            width: 0%; transition: width 1s ease-out; z-index: 1;
+            transition: width 1s ease-out; z-index: 1;
+            pointer-events: none;
         }
 
         /* STANY ODPOWIEDZI */
@@ -4017,7 +4021,8 @@
                 // Użyj liczby niepustych odpowiedzi do wyboru gridu
                 // Nie dodawaj run-animation jeśli pokazujemy statystyki lub poprawną odpowiedź (aby nie restartować animacji przy aktualizacji statystyk)
                 const shouldAnimate = !state.showStats && !state.showCorrect && state.activeQuestionIndex !== window.lastQIndex;
-                const gridClass = (answerCount === 4) ? 'quiz-grid grid-4' : 'quiz-grid grid-5';
+                let gridClass = (answerCount === 4) ? 'quiz-grid grid-4' : 'quiz-grid grid-5';
+                if (q?.type === 'MUSIC' && answerCount === 5) gridClass = 'quiz-grid grid-5-rows';
                 grid.className = gridClass + (shouldAnimate ? ' run-animation' : '');
                 heroContainer.classList.remove('vote-mode');
                 contentArea.classList.remove('has-vote-image');
