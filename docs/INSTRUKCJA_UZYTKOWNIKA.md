@@ -198,22 +198,35 @@ Edytor: `http://localhost:3000/editor.html` (lub z adresem IP w sieci).
 
 ### Standardowe pytania (QUIZ, Muzyka)
 
-- **Poprawna odpowiedź:** 100 pkt + bonus za czas (10 pkt za każdą sekundę do końca).
+- **Poprawna odpowiedź:** 100 pkt + bonus za czas (proporcjonalny do pozostałego czasu, max 100 pkt).
+- Zakres: 100–200 pkt (odpowiedź na ostatnią sekundę = 100, natychmiastowa = 200).
 - **Zła odpowiedź:** 0 pkt.
 - **Opcja „Wyłącz punkty za czas”:** tylko 100 pkt za poprawną (bez bonusu).
 
 ### Głosowanie / Foto Głos
 
 - **100 pkt** za udział (wybór A lub B).
+- Gdy w edytorze ustawisz poprawną odpowiedź: punkty tylko za poprawną, z bonusem za czas (jak QUIZ).
 
 ### Hot or Not
 
-- 100 pkt za wybór (lub według poprawnej odpowiedzi, jeśli jest ustawiona).
+- **Bez poprawnej odpowiedzi (ankieta):** 100 pkt za oddanie głosu.
+- **Z poprawną odpowiedzią (np. które zdjęcie jest prawdziwe):** punkty tylko za poprawną, z bonusem za czas (jak QUIZ).
+
+### Pytanie otwarte / Pytanie z literą
+
+- **100 pkt** za wysłanie odpowiedzi (za udział). Dogrywka TAK/NIE nie daje punktów.
+
+### Szacowanie
+
+- Punkty według **względnej odległości** od poprawnej wartości.
+- 100 pkt za dokładne trafienie, 0 pkt przy odchyleniu ≥50% od poprawnej wartości.
+- Im bliżej poprawnej odpowiedzi, tym więcej punktów.
 
 ### Speedrun
 
 - Punkty według kolejności: 1. miejsce = 1000 pkt, 2. = 900, …, 10. = 100.
-- Tylko 10 pierwszych poprawnych odpowiedzi dostaje punkty.
+- **Gracze poza top 10** (ale z poprawną odpowiedzią) dostają **50 pkt pocieszenia**.
 
 ### Eliminacja
 
@@ -221,11 +234,13 @@ Edytor: `http://localhost:3000/editor.html` (lub z adresem IP w sieci).
 
 ### Statki
 
-- Trafienie = 100 pkt.
+- Trafienie w komórkę statku = **100 pkt** (dzielone między graczy, jeśli kilku trafiło w tę samą komórkę w tej samej rundzie).
+- Punkty przyznawane **tylko w rundzie**, w której komórka została odkryta po raz pierwszy. Trafienie w już odkrytą komórkę w kolejnej rundzie = 0 pkt.
 
 ### Tryb drużynowy
 
 - Punkty gracza są dodawane do sumy drużyny.
+- Przy nierównych drużynach słabsza drużyna (mniej graczy) dostaje mnożnik 1,1× na swoje punkty.
 
 ---
 
