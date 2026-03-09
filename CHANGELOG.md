@@ -4,6 +4,9 @@
 
 ## v1.1.6 (marzec 2026) — wydanie stabilne
 
+### Tunel (Mac Intel)
+- **Naprawiono crash przy uruchomieniu tunelu na Mac Intel:** build Mac x64 był pakowany z binarką cloudflared dla arm64 (pobraną na Apple Silicon). Na Intel Mac spawn(arm64) wywalał program. Przed buildem Mac x64 binarka jest teraz podmieniana na darwin-amd64.
+
 ### Ekran TV (Screen.html)
 - **Statystyki quizu:** naprawiono pasek procentowy – zamiast kwadratu wyświetla się teraz prawidłowy pasek odpowiadający udziałowi procentowemu odpowiedzi.
 - **Pytania muzyczne z 5 odpowiedziami:** odpowiedzi wyświetlają się zawsze w 5 wierszach (1 kolumna), bez zmiennego układu.

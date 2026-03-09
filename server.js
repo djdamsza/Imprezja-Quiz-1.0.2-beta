@@ -3930,9 +3930,6 @@ io.on('connection', (socket) => {
             });
             child.on('close', (code) => {
                 clearTimeout(timeout);
-                // #region agent log
-                try { fs.appendFileSync('/Users/test/Documents/VoteBattle/.cursor/debug-86fe69.log', JSON.stringify({sessionId:'86fe69',location:'server.js:child.close',message:'cloudflared closed',data:{code,urlSent,isTunnelProcess:(tunnelProcess===child),hasCurrentUrl:!!currentPinggyUrl},timestamp:Date.now(),hypothesisId:'A'})+'\n'); } catch(_) {}
-                // #endregion
                 if (tunnelProcess === child) {
                     tunnelProcess = null;
                     currentPinggyUrl = null;
@@ -3941,9 +3938,6 @@ io.on('connection', (socket) => {
                     io.emit('qr_code', null);
                     io.emit('update_state', getStateForBroadcast());
                     io.to(ADMIN_ROOM).emit('tunnel_stopped');
-                    // #region agent log
-                    try { fs.appendFileSync('/Users/test/Documents/VoteBattle/.cursor/debug-86fe69.log', JSON.stringify({sessionId:'86fe69',location:'server.js:child.close-natural-drop',message:'natural drop: emitted tunnel_stopped to ADMIN_ROOM',data:{code},timestamp:Date.now(),hypothesisId:'A'})+'\n'); } catch(_) {}
-                    // #endregion
                 }
                 if (!urlSent) {
                     urlSent = true;
