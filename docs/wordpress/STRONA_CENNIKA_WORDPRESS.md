@@ -54,7 +54,7 @@ Po płatności użytkownik trafia na `/sukces/`. **Musisz utworzyć tę stronę*
 1. **Strony** → **Dodaj nową**
 2. **Tytuł:** np. „Dziękujemy” lub „Sukces”
 3. **Slug (adres):** wpisz `sukces` – strona będzie pod `nowajakoscrozrywki.pl/sukces/`
-4. Wklej treść z pliku **`docs/wordpress/stripe-sukces.html`** (blok Własny HTML lub zwykły blok)
+4. Wklej treść z pliku **`docs/wordpress/sukces.html`** (blok Własny HTML lub zwykły blok)
 5. Opublikuj
 
 ---

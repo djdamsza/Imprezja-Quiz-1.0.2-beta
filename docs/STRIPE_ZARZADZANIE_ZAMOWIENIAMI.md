@@ -49,6 +49,6 @@ Jeśli klient zapłacił, ale nie dostał klucza (np. nie wypełnił formularza)
 
 ## 5. Strona sukcesu na WordPress
 
-Treść strony `/sukces/` – wklej z `docs/wordpress/stripe-sukces.html`.
+Treść strony `/sukces/` – wklej z `docs/wordpress/sukces.html`.
 
-**Ważne:** W pliku stripe-sukces.html ustaw `STRIPE_API_URL` na URL stripe-shop (np. Railway).
+**Ważne:** W pliku sukces.html ustaw `STRIPE_API_URL` na URL stripe-shop (np. Railway).

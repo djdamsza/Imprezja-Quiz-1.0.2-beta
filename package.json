@@ -100,8 +100,7 @@
       "!launcher.js",
       "!license-private.pem",
       "!VoteBattle-zrodla*.zip",
-      "!resources/tunnelmole-windows/**",
-      "!scripts/download-tmole-windows.js"
+      "!resources/tunnelmole-windows/**"
     ],
     "asar": true,
     "asarUnpack": [
