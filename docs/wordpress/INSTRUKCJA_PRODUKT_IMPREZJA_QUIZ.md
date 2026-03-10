@@ -1,5 +1,7 @@
 # Instrukcja: Strona produktu Imprezja Quiz – przycisk pobierania + cennik
 
+**Strona:** https://nowajakoscrozrywki.pl/produkt/imprezja-quiz/
+
 ## Krok 1: Dodaj blok na początku treści
 
 1. **WooCommerce** → **Produkty** → **Imprezja Quiz** → **Edytuj**

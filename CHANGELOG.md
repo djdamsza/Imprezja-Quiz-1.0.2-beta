@@ -2,6 +2,18 @@
 
 ---
 
+## v1.1.7 (marzec 2026) — wydanie stabilne
+
+### Imprezator (utwory do tańca)
+- **Nowa wtyczka:** Imprezator – muzyka do tańca dla animatorów. Dodawanie plików i folderów z dysku, lista utworów zapisywana w JSON (tylko odwołania, pliki pozostają na dysku). Każdy użytkownik wgrywa własne pliki – build zawiera pustą domyślną listę.
+- Ekran z QR do telefonu, panel na komputerze i na telefonie.
+
+### Build
+- Wykluczenie `public/imprezator-configs` z paczki – domyślna lista Imprezatora jest pusta, bez prywatnych linków.
+- Skrypt `rebuild:full` – pełne przebudowanie (czyszczenie cache, reinstalacja Electron, build).
+
+---
+
 ## v1.1.6 (marzec 2026) — wydanie stabilne
 
 ### Tunel (Mac Intel)
