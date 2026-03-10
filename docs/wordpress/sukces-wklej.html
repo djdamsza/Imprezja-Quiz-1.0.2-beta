@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dziękujemy za zakup – Imprezja Quiz</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1e293b;background:#fff}
+#iq-sukces{max-width:640px;margin:40px auto;padding:0 16px}
+.iq-hero{text-align:center;padding:40px 24px 32px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-radius:20px;margin-bottom:32px;border:1px solid #bbf7d0}
+.iq-hero-icon{font-size:3.5rem;margin-bottom:12px}
+.iq-hero h1{margin:0 0 10px;font-size:1.8rem;font-weight:700;color:#15803d}
+.iq-hero p{margin:0;color:#166534;font-size:1rem;line-height:1.6}
+.iq-steps{display:flex;flex-direction:column;gap:12px;margin-bottom:32px}
+.iq-step{display:flex;align-items:flex-start;gap:14px;padding:16px 18px;border-radius:12px;border:1px solid #e2e8f0;background:#fff}
+.iq-step.active{border-color:#3b82f6;background:#eff6ff;box-shadow:0 0 0 3px rgba(59,130,246,0.1)}
+.iq-step.done{border-color:#22c55e;background:#f0fdf4;opacity:.7}
+.iq-step-num{flex-shrink:0;width:32px;height:32px;border-radius:50%;background:#e2e8f0;color:#64748b;font-weight:700;font-size:0.9rem;display:flex;align-items:center;justify-content:center}
+.iq-step.active .iq-step-num{background:#3b82f6;color:#fff}
+.iq-step.done .iq-step-num{background:#22c55e;color:#fff}
+.iq-step-body h3{margin:0 0 4px;font-size:0.95rem;font-weight:600;color:#1e293b}
+.iq-step-body p{margin:0;font-size:0.85rem;color:#64748b;line-height:1.5}
+.iq-card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:28px;margin-bottom:24px;box-shadow:0 2px 8px rgba(0,0,0,0.04)}
+#iq-sukces label{display:block;margin-bottom:8px;font-weight:600;font-size:0.9rem;color:#374151}
+#iq-sukces input[type=text]{width:100%;padding:13px 14px;font-family:monospace;font-size:1rem;border:2px solid #e2e8f0;border-radius:10px;outline:none;color:#1e293b;box-sizing:border-box}
+#iq-sukces input[type=text]:focus{border-color:#3b82f6}
+.iq-hint{margin:8px 0 0;font-size:0.8rem;color:#94a3b8;line-height:1.5}
+.iq-btn{display:block;width:100%;padding:14px;background:#27ae60;color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;margin-top:18px}
+.iq-btn:hover:not(:disabled){background:#219a52}
+.iq-btn:disabled{opacity:0.6;cursor:not-allowed}
+.iq-error{background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;padding:12px 14px;border-radius:8px;font-size:0.88rem;margin-top:14px;display:none;line-height:1.5}
+.iq-no-session{background:#fffbeb;border:1px solid #fde68a;color:#92400e;padding:14px 18px;border-radius:10px;margin-bottom:24px;font-size:0.9rem;text-align:center;display:none}
+.iq-no-session button{margin-top:10px;padding:9px 20px;background:#92400e;color:#fff;border:none;border-radius:7px;cursor:pointer;font-weight:600;font-size:0.88rem}
+.iq-success-card{display:none;text-align:center;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #86efac;border-radius:16px;padding:36px 24px;margin-bottom:24px}
+.iq-success-card h2{margin:12px 0 8px;color:#15803d;font-size:1.3rem}
+.iq-success-card p{margin:0 0 8px;color:#166534;font-size:0.95rem;line-height:1.6}
+.iq-footer{text-align:center;padding-top:8px}
+.iq-footer a{display:inline-block;padding:12px 24px;background:#f1f5f9;color:#1e293b;text-decoration:none;border-radius:8px;font-weight:600;font-size:0.9rem;margin:4px}
+.iq-footer a:hover{background:#e2e8f0}
+.iq-dl-row{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+.iq-dl-btn{flex:1;min-width:140px;display:block;padding:11px 12px;background:#0073aa;color:#fff!important;text-decoration:none!important;border-radius:8px;font-size:0.82rem;font-weight:600;text-align:center;line-height:1.4}
+.iq-dl-btn.win{background:#0078d4}
+@media(max-width:500px){.iq-hero h1{font-size:1.4rem}.iq-dl-row{flex-direction:column}}
+</style>
+</head>
+<body>
+<div id="iq-sukces">
+  <div class="iq-hero">
+    <div class="iq-hero-icon">🎉</div>
+    <h1>Dziękujemy za zakup!</h1>
+    <p>Płatność przebiegła pomyślnie. Wykonaj 3 kroki poniżej, aby aktywować licencję.</p>
+  </div>
+  <div id="iq-no-session" class="iq-no-session">
+    <strong>Nie wykryto sesji płatności.</strong> Jeśli właśnie zapłaciłeś — odśwież stronę, adres URL powinien zawierać parametr <code>session_id</code>.
+    <br><button onclick="location.reload()">Odśwież stronę</button>
+  </div>
+  <div class="iq-steps">
+    <div class="iq-step done" id="iq-step1">
+      <div class="iq-step-num">✓</div>
+      <div class="iq-step-body">
+        <h3>Płatność zrealizowana</h3>
+        <p>Otrzymasz e-mail z potwierdzeniem zakupu na podany adres.</p>
+      </div>
+    </div>
+    <div class="iq-step active" id="iq-step2">
+      <div class="iq-step-num">2</div>
+      <div class="iq-step-body">
+        <h3>Pobierz i uruchom Imprezja Quiz</h3>
+        <p>Jeśli nie pobrałeś jeszcze aplikacji, pobierz ją teraz:</p>
+        <div class="iq-dl-row">
+          <a class="iq-dl-btn win" href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.1.7/Imprezja%20Quiz%20Setup%201.1.7.exe">🪟 Windows (.exe)</a>
+          <a class="iq-dl-btn" href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.1.7/Imprezja%20Quiz-1.1.7-arm64.dmg">🍎 macOS Apple Silicon</a>
+          <a class="iq-dl-btn" href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.1.7/Imprezja%20Quiz-1.1.7.dmg">🍎 macOS Intel</a>
+        </div>
+      </div>
+    </div>
+    <div class="iq-step" id="iq-step3">
+      <div class="iq-step-num">3</div>
+      <div class="iq-step-body">
+        <h3>Podaj ID komputera → odbierz klucz e-mailem</h3>
+        <p>Na ekranie aktywacji w programie znajdziesz swój <strong>ID komputera</strong>. Wpisz go poniżej.</p>
+      </div>
+    </div>
+  </div>
+  <div class="iq-card" id="iq-form-card">
+    <form id="iq-form">
+      <label for="iq-machine-id">ID komputera (Machine ID)</label>
+      <input type="text" id="iq-machine-id" placeholder="np. a1b2c3d4e5f6g7h8" autocomplete="off" spellcheck="false">
+      <p class="iq-hint">📍 Gdzie to znaleźć? Uruchom Imprezja Quiz → ekran aktywacji (przy braku licencji) lub <strong>Panel admina → sekcja Licencja</strong>.</p>
+      <div id="iq-error" class="iq-error"></div>
+      <button type="submit" class="iq-btn" id="iq-submit">Wyślij klucz licencyjny na e-mail →</button>
+    </form>
+  </div>
+  <div class="iq-success-card" id="iq-success-card">
+    <div style="font-size:2.5rem">✅</div>
+    <h2>Klucz wysłany!</h2>
+    <p>Sprawdź swoją skrzynkę e-mail (również folder <strong>Spam/Oferty</strong>).<br>Klucz wklej w polu „Klucz licencyjny" w programie i kliknij <strong>Aktywuj</strong>.</p>
+    <p style="margin-top:16px;font-size:0.85rem">Nie dostałeś e-maila po 5 minutach? Napisz: <a href="mailto:biuro@imprezja.pl" style="color:#15803d;font-weight:600">biuro@imprezja.pl</a></p>
+  </div>
+  <div class="iq-footer">
+    <a href="https://nowajakoscrozrywki.pl/produkt/imprezja-quiz/">← Wróć do sklepu</a>
+    <a href="https://nowajakoscrozrywki.pl/faq-imprezja-quiz/">❓ FAQ</a>
+    <a href="mailto:biuro@imprezja.pl">✉️ Kontakt</a>
+  </div>
+</div>
+<script>
+(function(){
+  var API='https://imprezja-quiz-1-0-2-beta.onrender.com';
+  var sessionId=(new URLSearchParams(window.location.search)).get('session_id')||'';
+  var noSession=document.getElementById('iq-no-session');
+  var formCard=document.getElementById('iq-form-card');
+  var successCard=document.getElementById('iq-success-card');
+  var input=document.getElementById('iq-machine-id');
+  var btn=document.getElementById('iq-submit');
+  var errorEl=document.getElementById('iq-error');
+  var step3=document.getElementById('iq-step3');
+  if(!sessionId){noSession.style.display='block';btn.disabled=true}else{step3.classList.add('active')}
+  function showError(m){errorEl.textContent=m;errorEl.style.display='block';btn.disabled=false;btn.textContent='Wyślij klucz licencyjny na e-mail →'}
+  document.getElementById('iq-form').addEventListener('submit',function(e){
+    e.preventDefault();
+    if(!sessionId||btn.disabled)return;
+    var m=input.value.trim();
+    if(m.length<8){showError('ID komputera jest za krótkie.');return}
+    errorEl.style.display='none';btn.disabled=true;btn.textContent='⏳ Wysyłanie…';
+    var ctrl=new AbortController();
+    var tid=setTimeout(function(){ctrl.abort()},92000);
+    fetch(API+'/api/license/deliver',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:sessionId,machine_id:m}),signal:ctrl.signal})
+    .then(function(r){clearTimeout(tid);return r.json().then(function(d){return{ok:r.ok,data:d}})})
+    .then(function(r){if(r.ok&&r.data.success){formCard.style.display='none';successCard.style.display='block';step3.classList.remove('active');step3.classList.add('done');step3.querySelector('.iq-step-num').textContent='✓'}else{showError(r.data.error||'Wystąpił błąd. Spróbuj ponownie.')}})
+    .catch(function(err){clearTimeout(tid);showError(err.name==='AbortError'?'Serwer się uruchamia. Poczekaj i kliknij ponownie.':'Błąd połączenia. Sprawdź internet.')})
+  });
+})();
+</script>
+</body>
+</html>

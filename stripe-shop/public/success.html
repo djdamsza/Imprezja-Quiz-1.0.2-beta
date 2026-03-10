@@ -3,56 +3,114 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Płatność zakończona – Imprezja Quiz</title>
+    <title>Dziękujemy za zakup – Imprezja Quiz</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1a1a2e; color: #fff; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
-        .card { background: rgba(255,255,255,0.08); border: 2px solid #27ae60; border-radius: 16px; padding: 40px; max-width: 520px; width: 100%; }
-        h1 { color: #27ae60; margin-bottom: 16px; font-size: 1.5rem; }
-        p { color: #bdc3c7; margin-bottom: 20px; line-height: 1.6; }
-        .form-box { background: rgba(0,0,0,0.2); padding: 24px; border-radius: 12px; margin: 24px 0; }
-        label { display: block; margin-bottom: 8px; font-weight: bold; color: #ecf0f1; }
-        input { width: 100%; padding: 12px; font-family: monospace; font-size: 1rem; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: rgba(0,0,0,0.3); color: #fff; box-sizing: border-box; }
-        input::placeholder { color: #7f8c8d; }
-        .error { color: #e74c3c; margin-top: 8px; font-size: 0.9rem; display: none; }
-        .success-msg { color: #27ae60; font-size: 1.1rem; margin: 20px 0; display: none; }
-        .btn { display: inline-block; padding: 14px 28px; background: #27ae60; color: #fff; border: none; border-radius: 8px; font-weight: bold; font-size: 1rem; cursor: pointer; transition: background 0.2s; }
-        .btn:hover { background: #219a52; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1a1a2e; color: #fff; min-height: 100vh; padding: 24px; }
+        .container { max-width: 640px; margin: 0 auto; }
+        .hero { text-align: center; padding: 40px 24px 32px; background: linear-gradient(135deg, rgba(39,174,96,0.2), rgba(34,153,85,0.15)); border-radius: 20px; margin-bottom: 32px; border: 1px solid rgba(39,174,96,0.4); }
+        .hero-icon { font-size: 3.5rem; margin-bottom: 12px; }
+        .hero h1 { margin: 0 0 10px; font-size: 1.8rem; font-weight: 700; color: #27ae60; }
+        .hero p { margin: 0; color: #bdc3c7; font-size: 1rem; line-height: 1.6; }
+        .steps { display: flex; flex-direction: column; gap: 12px; margin-bottom: 32px; }
+        .step { display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); }
+        .step.active { border-color: #3498db; background: rgba(52,152,219,0.15); }
+        .step.done { border-color: #27ae60; background: rgba(39,174,96,0.1); opacity: 0.9; }
+        .step-num { flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.15); color: #95a5a6; font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; }
+        .step.active .step-num { background: #3498db; color: #fff; }
+        .step.done .step-num { background: #27ae60; color: #fff; }
+        .step-body h3 { margin: 0 0 4px; font-size: 0.95rem; font-weight: 600; color: #ecf0f1; }
+        .step-body p { margin: 0; font-size: 0.85rem; color: #95a5a6; line-height: 1.5; }
+        .dl-row { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+        .dl-btn { flex: 1; min-width: 140px; display: block; padding: 11px 12px; background: #3498db; color: #fff !important; text-decoration: none !important; border-radius: 8px; font-size: 0.82rem; font-weight: 600; text-align: center; line-height: 1.4; }
+        .dl-btn.win { background: #0078d4; }
+        .dl-btn:hover { opacity: 0.9; }
+        .form-card { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 28px; margin-bottom: 24px; }
+        .form-card label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 0.9rem; color: #ecf0f1; }
+        .form-card input { width: 100%; padding: 13px 14px; font-family: monospace; font-size: 1rem; border: 2px solid rgba(255,255,255,0.2); border-radius: 10px; background: rgba(0,0,0,0.3); color: #fff; }
+        .form-card input:focus { outline: none; border-color: #3498db; }
+        .form-card .hint { margin: 8px 0 0; font-size: 0.8rem; color: #7f8c8d; line-height: 1.5; }
+        .btn { display: block; width: 100%; padding: 14px; background: #27ae60; color: #fff; border: none; border-radius: 10px; font-size: 1rem; font-weight: 700; cursor: pointer; margin-top: 18px; transition: background 0.2s; }
+        .btn:hover:not(:disabled) { background: #219a52; }
         .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .btn-secondary { background: #3498db; margin-top: 16px; text-decoration: none; }
-        .btn-secondary:hover { background: #2980b9; }
-        .alert { background: rgba(255,193,7,0.15); border: 1px solid #ffc107; color: #f1c40f; padding: 16px; border-radius: 8px; margin-bottom: 20px; text-align: center; display: none; }
+        .error { background: rgba(231,76,60,0.2); border: 1px solid #e74c3c; color: #e74c3c; padding: 12px 14px; border-radius: 8px; font-size: 0.88rem; margin-top: 14px; display: none; line-height: 1.5; }
+        .no-session { background: rgba(255,193,7,0.15); border: 1px solid #f1c40f; color: #f1c40f; padding: 14px 18px; border-radius: 10px; margin-bottom: 24px; font-size: 0.9rem; text-align: center; display: none; }
+        .no-session button { margin-top: 10px; padding: 9px 20px; background: #f1c40f; color: #000; border: none; border-radius: 7px; cursor: pointer; font-weight: 600; font-size: 0.88rem; }
+        .success-card { display: none; text-align: center; background: linear-gradient(135deg, rgba(39,174,96,0.2), rgba(34,153,85,0.15)); border: 1px solid rgba(39,174,96,0.5); border-radius: 16px; padding: 36px 24px; margin-bottom: 24px; }
+        .success-card h2 { margin: 12px 0 8px; color: #27ae60; font-size: 1.3rem; }
+        .success-card p { margin: 0 0 8px; color: #bdc3c7; font-size: 0.95rem; line-height: 1.6; }
+        .success-card a { color: #27ae60; font-weight: 600; }
+        .footer { text-align: center; padding-top: 24px; }
+        .footer a { display: inline-block; padding: 12px 24px; background: rgba(255,255,255,0.1); color: #bdc3c7; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 0.9rem; margin: 4px; }
+        .footer a:hover { background: rgba(255,255,255,0.15); color: #fff; }
+        @media (max-width: 500px) { .hero h1 { font-size: 1.4rem; } .dl-row { flex-direction: column; } }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h1>✅ Płatność zakończona pomyślnie</h1>
-        <p>Dziękujemy za zakup Imprezja Quiz. Aby otrzymać klucz licencyjny na e-mail, podaj <strong>ID komputera</strong> z programu.</p>
-        <p style="font-size: 0.95rem; color: #95a5a6;">ID komputera znajdziesz w programie Imprezja Quiz w <strong>panelu admina</strong> (sekcja licencji) lub na ekranie aktywacji przy braku licencji.</p>
-
-        <div id="no-session" class="alert">
-            <strong>Nie wykryto sesji płatności.</strong> Jeśli właśnie zapłaciłeś, odśwież stronę – adres URL powinien się zaktualizować.
-            <p style="margin-top: 12px;"><button type="button" onclick="location.reload()" class="btn btn-secondary">Odśwież stronę</button></p>
+    <div class="container">
+        <div class="hero">
+            <div class="hero-icon">🎉</div>
+            <h1>Dziękujemy za zakup!</h1>
+            <p>Płatność przebiegła pomyślnie. Wykonaj 3 kroki poniżej, aby aktywować licencję.</p>
         </div>
 
-        <div id="form-container" class="form-box">
-            <form id="machine-form">
-                <label for="machine-id">ID komputera</label>
-                <input type="text" id="machine-id" name="machine_id" placeholder="np. a1b2c3d4e5f6g7h8" required>
-                <p id="form-error" class="error"></p>
-                <div style="text-align: center; margin-top: 16px;">
-                    <button type="submit" id="submit-btn" class="btn">Wyślij klucz na e-mail</button>
+        <div id="no-session" class="no-session">
+            <strong>Nie wykryto sesji płatności.</strong> Jeśli właśnie zapłaciłeś — odśwież stronę, adres URL powinien zawierać parametr <code>session_id</code>.
+            <br><button onclick="location.reload()">Odśwież stronę</button>
+        </div>
+
+        <div class="steps">
+            <div class="step done" id="step1">
+                <div class="step-num">✓</div>
+                <div class="step-body">
+                    <h3>Płatność zrealizowana</h3>
+                    <p>Otrzymasz e-mail z potwierdzeniem zakupu na podany adres.</p>
                 </div>
+            </div>
+            <div class="step active" id="step2">
+                <div class="step-num">2</div>
+                <div class="step-body">
+                    <h3>Pobierz i uruchom Imprezja Quiz</h3>
+                    <p>Jeśli nie pobrałeś jeszcze aplikacji, pobierz ją teraz:</p>
+                    <div class="dl-row">
+                        <a class="dl-btn win" href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.1.7/Imprezja%20Quiz%20Setup%201.1.7.exe">🪟 Windows (.exe)</a>
+                        <a class="dl-btn" href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.1.7/Imprezja%20Quiz-1.1.7-arm64.dmg">🍎 macOS Apple Silicon</a>
+                        <a class="dl-btn" href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.1.7/Imprezja%20Quiz-1.1.7.dmg">🍎 macOS Intel</a>
+                    </div>
+                </div>
+            </div>
+            <div class="step" id="step3">
+                <div class="step-num">3</div>
+                <div class="step-body">
+                    <h3>Podaj ID komputera → odbierz klucz e-mailem</h3>
+                    <p>Na ekranie aktywacji w programie znajdziesz swój <strong>ID komputera</strong>. Wpisz go poniżej.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-card" id="form-card">
+            <form id="machine-form">
+                <label for="machine-id">ID komputera (Machine ID)</label>
+                <input type="text" id="machine-id" placeholder="np. a1b2c3d4e5f6g7h8" autocomplete="off" spellcheck="false">
+                <p class="hint">📍 Gdzie to znaleźć? Uruchom Imprezja Quiz → ekran aktywacji (przy braku licencji) lub <strong>Panel admina → sekcja Licencja</strong>.</p>
+                <div id="error" class="error"></div>
+                <button type="submit" class="btn" id="submit-btn">Wyślij klucz licencyjny na e-mail →</button>
             </form>
         </div>
 
-        <div id="success-msg" class="success-msg">
-            Klucz licencyjny został wysłany na Twój adres e-mail. Sprawdź skrzynkę (również spam).
+        <div class="success-card" id="success-card">
+            <div style="font-size: 2.5rem;">✅</div>
+            <h2>Klucz wysłany!</h2>
+            <p>Sprawdź swoją skrzynkę e-mail (również folder <strong>Spam/Oferty</strong>).<br>
+            Klucz wklej w polu „Klucz licencyjny" w programie i kliknij <strong>Aktywuj</strong>.</p>
+            <p style="margin-top: 16px; font-size: 0.85rem;">Nie dostałeś e-maila po 5 minutach? Napisz do nas: <a href="mailto:biuro@imprezja.pl">biuro@imprezja.pl</a></p>
         </div>
 
-        <p style="margin-top: 24px; font-size: 0.9rem;">
-            <a href="/checkout.html" class="btn btn-secondary">← Wróć do sklepu</a>
-        </p>
+        <div class="footer">
+            <a href="/checkout.html">← Wróć do sklepu</a>
+            <a href="https://nowajakoscrozrywki.pl/faq-imprezja-quiz/">❓ FAQ</a>
+            <a href="mailto:biuro@imprezja.pl">✉️ Kontakt</a>
+        </div>
     </div>
 
     <script>
@@ -61,60 +119,72 @@
         const API_BASE = window.location.origin;
 
         const noSessionEl = document.getElementById('no-session');
-        const formContainer = document.getElementById('form-container');
-        const successMsg = document.getElementById('success-msg');
-        const form = document.getElementById('machine-form');
-        const errorEl = document.getElementById('form-error');
+        const formCard = document.getElementById('form-card');
+        const successCard = document.getElementById('success-card');
+        const step3 = document.getElementById('step3');
+        const input = document.getElementById('machine-id');
         const submitBtn = document.getElementById('submit-btn');
+        const errorEl = document.getElementById('error');
 
         if (!sessionId) {
             noSessionEl.style.display = 'block';
             submitBtn.disabled = true;
+        } else {
+            step3.classList.add('active');
         }
 
-        form.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            if (!sessionId) return;
-            const machineId = document.getElementById('machine-id').value.trim();
-            if (!machineId) return;
+        document.getElementById('machine-form').addEventListener('submit', handler);
 
+        function handler(e) {
+            e.preventDefault();
+            if (!sessionId || submitBtn.disabled) return;
+            const machineId = input.value.trim();
+            if (machineId.length < 8) {
+                errorEl.textContent = 'ID komputera jest za krótkie. Sprawdź, czy skopiowałeś całość.';
+                errorEl.style.display = 'block';
+                return;
+            }
             errorEl.style.display = 'none';
             submitBtn.disabled = true;
-            submitBtn.textContent = 'Wysyłanie... (może potrwać do 90 s)';
+            submitBtn.textContent = '⏳ Wysyłanie… (może potrwać do 90 s)';
 
-            try {
-                const controller = new AbortController();
-                setTimeout(() => controller.abort(), 90000);
+            const controller = new AbortController();
+            const tid = setTimeout(() => controller.abort(), 92000);
 
-                const res = await fetch(API_BASE + '/api/license/deliver', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ session_id: sessionId, machine_id: machineId }),
-                    signal: controller.signal
-                });
-
-                const data = await res.json();
-
-                if (res.ok && data.success) {
-                    formContainer.style.display = 'none';
-                    noSessionEl.style.display = 'none';
-                    successMsg.style.display = 'block';
+            fetch(API_BASE + '/api/license/deliver', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ session_id: sessionId, machine_id: machineId }),
+                signal: controller.signal
+            })
+            .then(res => res.json().then(data => ({ ok: res.ok, data })))
+            .then(r => {
+                clearTimeout(tid);
+                if (r.ok && r.data.success) {
+                    formCard.style.display = 'none';
+                    successCard.style.display = 'block';
+                    step3.classList.remove('active');
+                    step3.classList.add('done');
+                    step3.querySelector('.step-num').textContent = '✓';
                 } else {
-                    errorEl.textContent = data.error || 'Wystąpił błąd. Spróbuj ponownie lub skontaktuj się z nami.';
+                    errorEl.textContent = r.data.error || 'Wystąpił błąd. Spróbuj ponownie lub napisz na biuro@imprezja.pl';
                     errorEl.style.display = 'block';
                     submitBtn.disabled = false;
-                    submitBtn.textContent = 'Wyślij klucz na e-mail';
+                    submitBtn.textContent = 'Wyślij klucz licencyjny na e-mail →';
                 }
-            } catch (err) {
-                const isTimeout = err.name === 'AbortError';
-                errorEl.textContent = isTimeout
-                    ? 'Serwer się budzi po uśpieniu. Kliknij ponownie „Wyślij klucz na e-mail” – za chwilę powinno działać szybciej.'
-                    : 'Błąd połączenia. Sprawdź internet i spróbuj ponownie.';
+            })
+            .catch(err => {
+                clearTimeout(tid);
+                if (err.name === 'AbortError') {
+                    errorEl.textContent = 'Serwer się uruchamia po uśpieniu. Poczekaj chwilę i kliknij ponownie.';
+                } else {
+                    errorEl.textContent = 'Błąd połączenia. Sprawdź internet i spróbuj ponownie.';
+                }
                 errorEl.style.display = 'block';
                 submitBtn.disabled = false;
-                submitBtn.textContent = 'Wyślij klucz na e-mail';
-            }
-        });
+                submitBtn.textContent = 'Wyślij klucz licencyjny na e-mail →';
+            });
+        }
     </script>
 </body>
 </html>
