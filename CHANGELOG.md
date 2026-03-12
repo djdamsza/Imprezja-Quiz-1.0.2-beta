@@ -2,6 +2,41 @@
 
 ---
 
+## v1.1.9 (marzec 2026) — wydanie stabilne
+
+**Ta wersja zastępuje 1.1.5 – naprawia krytyczny błąd rozłączania graczy.**
+
+### Połączenie (krytyczna naprawa)
+- **Naprawiono krytyczny błąd rozłączania** – wersja 1.1.5 miała poważny problem z utrzymaniem połączenia; 1.1.9 go naprawia i zajmuje jej miejsce jako stabilna.
+
+### Panel admina
+- **Przycisk „Ranking graczy”** – przywrócony we wszystkich trybach (quiz, WYBORCZY, SHIPS itd.). Ukrywany tylko podczas pytania HNC (Hot or Not Championship), zgodnie z zamierzeniem.
+
+### Statki Solo
+- **Soundtrack** – usunięto pole wyszukiwania w uploads; wybór pliku audio tylko przez systemowe okno plików.
+
+### Statki w quizie (Screen.html, vote.html)
+- **Panel floty** – liczba statków, rozmiary (np. 1×5 1×4 2×3 1×2), wizualizacja trafień per statek, licznik „Trafienia: X/Y”.
+- **Panel floty i tabela trafień** – zawsze widoczne na vote.html (nie znika po „Następna runda”).
+
+### Audio (Screen.html)
+- **Głośność SHIPS** – suwak master volume w adminie zmienia teraz głośność tła statków.
+- **Konflikt muzyki** – przy wejściu w pytania WYBORCZY i HNC zatrzymywane są intro, ships, podium, clock, sfx – aby nie grały równolegle.
+
+### Stripe-shop (sklep, WordPress)
+- **Linki checkout** – trasa `GET /checkout?plan=...` zarejestrowana przed `express.static`, dzięki czemu przekierowanie do Stripe działa zamiast serwowania strony checkout.html.
+- **Linki w nowej karcie** – przyciski „Wybierz”/„Kup” mają `target="_blank"` – Stripe Checkout otwiera się w nowej karcie.
+
+### Build
+- **Windows** – skrypt `prepare-win-icon.js` – generuje icon.ico 256×256 z PNG przed buildem (wymagane przez electron-builder).
+- **Dependency** – dodano `sharp-ico` do devDependencies.
+
+### Strony WordPress / linki
+- Zaktualizowane linki do pobrania (v1.1.9) – nazwy plików na GitHub: kropki zamiast spacji (`Imprezja.Quiz.Setup.1.1.9.exe` itd.).
+- Pliki: sukces.html, sukces-wklej.html, stripe-cennik.html, 09-pobierz-1.1.6.html, imprezja-quiz-produkt-pelna-tresc.html.
+
+---
+
 ## v1.1.7 (marzec 2026) — wydanie stabilne
 
 ### Imprezator (utwory do tańca)

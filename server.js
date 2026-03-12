@@ -147,6 +147,50 @@ const vdjRecordingsBank = process.platform === 'darwin'
     : (process.platform === 'win32' ? path.join(process.env.APPDATA || os.homedir(), 'VirtualDJ', 'Sampler', 'Recordings.bank') : '');
 console.log('   📂 Katalog danych (quizy, uploady, sampler, śpiewaj dalej):', dataDir);
 
+// === DEV-SYNC ===
+// Gdy serwer działa w trybie deweloperskim (bez IMPREZJA_APP_PATH = nie spakowana aplikacja),
+// zmiany dokonane w aplikacji są automatycznie lustrzane do katalogu projektu.
+// Dzięki temu to co DODASZ w Electron trafi do kolejnego builda,
+// a to co USUNIESZ zniknie z builda. Imprezator jest wyjątkiem – zawsze prywatny.
+const isDevMode = !process.env.IMPREZJA_APP_PATH;
+const devProjectRoot = isDevMode ? __dirname : null;
+
+function devSyncWrite(projectRelPath, srcFilePath) {
+    if (!devProjectRoot) return;
+    try {
+        const dst = path.join(devProjectRoot, projectRelPath);
+        const dstDir = path.dirname(dst);
+        if (!fs.existsSync(dstDir)) fs.mkdirSync(dstDir, { recursive: true });
+        fs.copyFileSync(srcFilePath, dst);
+        console.log('🔄 Dev-sync +', projectRelPath);
+    } catch (e) { console.warn('⚠️ Dev-sync write error:', e.message); }
+}
+function devSyncWriteData(projectRelPath, data) {
+    if (!devProjectRoot) return;
+    try {
+        const dst = path.join(devProjectRoot, projectRelPath);
+        const dstDir = path.dirname(dst);
+        if (!fs.existsSync(dstDir)) fs.mkdirSync(dstDir, { recursive: true });
+        fs.writeFileSync(dst, data, 'utf8');
+        console.log('🔄 Dev-sync +', projectRelPath);
+    } catch (e) { console.warn('⚠️ Dev-sync write error:', e.message); }
+}
+function devSyncDelete(projectRelPath) {
+    if (!devProjectRoot) return;
+    try {
+        const dst = path.join(devProjectRoot, projectRelPath);
+        if (fs.existsSync(dst)) { fs.unlinkSync(dst); console.log('🔄 Dev-sync -', projectRelPath); }
+    } catch (e) { console.warn('⚠️ Dev-sync delete error:', e.message); }
+}
+function devSyncRename(oldRel, newRel) {
+    if (!devProjectRoot) return;
+    try {
+        const oldDst = path.join(devProjectRoot, oldRel);
+        const newDst = path.join(devProjectRoot, newRel);
+        if (fs.existsSync(oldDst)) { fs.renameSync(oldDst, newDst); console.log('🔄 Dev-sync rename', oldRel, '->', newRel); }
+    } catch (e) { console.warn('⚠️ Dev-sync rename error:', e.message); }
+}
+
 const tunnelLogPath = dataDir ? path.join(dataDir, 'tunnel.log') : '';
 function appendTunnelLog(line) {
     if (!tunnelLogPath) return;
@@ -309,11 +353,127 @@ const SPIEWAJ_DALEJ_CONFIGS_DIR = path.join(path.dirname(quizzesDir), 'spiewaj-d
 const SPIEWAJ_DALEJ_LAST_FILE = path.join(path.dirname(quizzesDir), 'spiewaj-dalej-last.json');
 const BITWA_WOKALNA_CONFIGS_DIR = path.join(path.dirname(quizzesDir), 'bitwa-wokalna-configs');
 const BITWA_WOKALNA_LAST_FILE = path.join(path.dirname(quizzesDir), 'bitwa-wokalna-last.json');
+const IMPREZATOR_CONFIGS_DIR = path.join(path.dirname(quizzesDir), 'imprezator-configs');
+const IMPREZATOR_LAST_FILE = path.join(path.dirname(quizzesDir), 'imprezator-last.json');
+const IMPREZATOR_SETTINGS_FILE = path.join(path.dirname(quizzesDir), 'imprezator-settings.json');
 let njrSamplerConfig = { tileCount: 8, tiles: [] };
 let njrSamplerActive = false;
 let njrSamplerPlayingTile = null; // one-shot (oklaski itd.)
 let njrSamplerPlayingBackgroundTile = null; // tło muzyczne – gra do wyłączenia lub końca
+let njrSamplerPlayingImprezatorTrack = null; // imprezator track odtwarzany przez sampler
 let njrSamplerVolume = 1; // 0–1, master z telefonu
+let imprezatorCurrentlyPlaying = false;    // standalone imprezator odtwarza utwór
+let audioMonitorLast = null;               // ostatnio odtwarzane: { type, ...data } – dla play-last
+
+// ===== DODATEK WYBORCZY – stan sesji =====
+let wyborczySession = null;
+let wyborczyVoters = new Set();    // socket.id voterów (vote.html)
+let wyborczyVotedThis = new Set(); // socket.id którzy zagłosowali w tej rundzie
+
+function calcAvg(arr) {
+    if (!arr || arr.length === 0) return 0;
+    return Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 100) / 100;
+}
+
+function buildWyborczyState() {
+    if (!wyborczySession) return { phase: 'idle', photos: [], currentIndex: -1, ranking: [], voteSummary: [] };
+    const { photos, currentIndex, votes, phase } = wyborczySession;
+
+    const voteSummary = photos.map((p, i) => ({
+        index: i, url: p.url, label: p.label,
+        avg: calcAvg(votes[i]),
+        count: (votes[i] || []).length
+    }));
+
+    const ranking = [...voteSummary]
+        .filter(p => p.count > 0)
+        .sort((a, b) => b.avg - a.avg || b.count - a.count)
+        .map((p, rank) => ({ ...p, place: rank + 1 }));
+
+    return {
+        phase,
+        photos,
+        currentIndex,
+        total: photos.length,
+        photo: currentIndex >= 0 ? photos[currentIndex] : null,
+        currentVotes: currentIndex >= 0 ? (votes[currentIndex] || []).length : 0,
+        currentAvg: currentIndex >= 0 ? calcAvg(votes[currentIndex]) : 0,
+        ranking,
+        voteSummary,
+        voterCount: wyborczyVoters.size
+    };
+}
+
+function checkWyborczyAllVoted() {
+    if (!wyborczySession || wyborczySession.phase !== 'voting') return;
+    if (wyborczyVoters.size === 0) return;
+    const allVoted = [...wyborczyVoters].every(id => wyborczyVotedThis.has(id));
+    if (allVoted) {
+        io.emit('wyborczy_all_voted');
+    }
+}
+// Wyborczy per-photo countdown timer
+let wyborczyPhotoTimer = null;
+let wyborczyPhotoTimeLeft = 0;
+
+function startWyborczyPhotoTimer(duration) {
+    if (wyborczyPhotoTimer) { clearInterval(wyborczyPhotoTimer); wyborczyPhotoTimer = null; }
+    if (!duration || duration <= 0) return;
+    wyborczyPhotoTimeLeft = duration;
+    wyborczyPhotoTimer = setInterval(() => {
+        wyborczyPhotoTimeLeft = Math.max(0, wyborczyPhotoTimeLeft - 1);
+        io.emit('wyborczy_timer', { timeLeft: wyborczyPhotoTimeLeft, duration });
+        if (wyborczyPhotoTimeLeft <= 0) {
+            clearInterval(wyborczyPhotoTimer);
+            wyborczyPhotoTimer = null;
+            io.emit('wyborczy_all_voted'); // czas minął – informuj admina
+        }
+    }, 1000);
+}
+
+function stopWyborczyPhotoTimer() {
+    if (wyborczyPhotoTimer) { clearInterval(wyborczyPhotoTimer); wyborczyPhotoTimer = null; }
+    wyborczyPhotoTimeLeft = 0;
+}
+
+function getWyborczyTies(ranking) {
+    if (!ranking || ranking.length < 2) return [];
+    const podiumPlaces = ranking.filter(r => r.place <= 3);
+    const ties = [];
+    for (let i = 0; i < podiumPlaces.length; i++) {
+        for (let j = i + 1; j < podiumPlaces.length; j++) {
+            if (podiumPlaces[i].avg === podiumPlaces[j].avg) {
+                if (!ties.includes(podiumPlaces[i].index)) ties.push(podiumPlaces[i].index);
+                if (!ties.includes(podiumPlaces[j].index)) ties.push(podiumPlaces[j].index);
+            }
+        }
+    }
+    return ties;
+}
+// ===== /DODATEK WYBORCZY =====
+
+function emitAudioMonitorState() {
+    const isPlaying = !!(njrSamplerPlayingTile || njrSamplerPlayingBackgroundTile || njrSamplerPlayingImprezatorTrack || imprezatorCurrentlyPlaying);
+    io.to('audio_monitor').emit('audio_monitor_state', { isPlaying, hasLast: !!audioMonitorLast });
+}
+
+function buildNjrSamplerStateForPhone() {
+    const cfg = JSON.parse(JSON.stringify(njrSamplerConfig));
+    if (!cfg.banks || !cfg.banks.length) {
+        cfg.banks = [{ id: 'b1', name: 'Bank 1', tiles: cfg.tiles || [] }];
+    }
+    cfg.banks = cfg.banks.filter(b => b.id !== '__imprezator__');
+    const tracks = [];
+    if (imprezatorConfig && imprezatorConfig.banks && Array.isArray(imprezatorConfig.banks)) {
+        for (const b of imprezatorConfig.banks) for (const t of (b.tracks || [])) tracks.push(t);
+    } else if (imprezatorConfig) {
+        (imprezatorConfig.tracks || []).forEach(t => tracks.push(t));
+    }
+    if (tracks.length > 0) {
+        cfg.banks.push({ id: '__imprezator__', name: '🎵 Imprezator', type: 'imprezator', tracks });
+    }
+    return cfg;
+}
 
 function safeConfigName(name) {
     const s = String(name || '').trim().replace(/[^a-zA-Z0-9_\-\sąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/g, '').replace(/\s+/g, '_');
@@ -376,8 +536,10 @@ function saveNjrSamplerConfig(name) {
     try {
         const cfgName = name ? safeConfigName(name) : 'domyslna';
         const cfgPath = getNjrSamplerConfigPath(cfgName);
-        fs.writeFileSync(cfgPath, JSON.stringify(njrSamplerConfig, null, 2), 'utf8');
+        const data = JSON.stringify(njrSamplerConfig, null, 2);
+        fs.writeFileSync(cfgPath, data, 'utf8');
         fs.writeFileSync(NJR_SAMPLER_LAST_FILE, JSON.stringify({ name: cfgName }), 'utf8');
+        devSyncWriteData(`public/njr-sampler-configs/${cfgName}.json`, data);
     } catch (err) {
         console.warn('⚠️ NJR Sampler: błąd zapisu config:', err.message);
     }
@@ -530,8 +692,8 @@ if (dataDir) {
                 }
             }
         }
-        // Śpiewaj Dalej / NJR Sampler / Bitwa – przy nowej wersji aplikacji nadpisz configi z builda, żeby build miał te same banki co wersja deweloperska
-        const overwriteConfigs = shouldSyncConfigsFromApp;
+        // Zasada: nie nadpisuj plików użytkownika. Nowe pliki z builda kopiowane tylko jeśli nie istnieją.
+        const overwriteConfigs = false; // nigdy nie nadpisujemy – użytkownik jest właścicielem swoich danych
         const appSpiewajDalej = path.join(appPathForCopy, 'public', 'spiewaj-dalej-configs');
         if (fs.existsSync(appSpiewajDalej)) {
             if (!fs.existsSync(SPIEWAJ_DALEJ_CONFIGS_DIR)) fs.mkdirSync(SPIEWAJ_DALEJ_CONFIGS_DIR, { recursive: true });
@@ -539,9 +701,9 @@ if (dataDir) {
             for (const name of appFiles) {
                 const src = path.join(appSpiewajDalej, name);
                 const dest = path.join(SPIEWAJ_DALEJ_CONFIGS_DIR, name);
-                if (overwriteConfigs || !fs.existsSync(dest)) {
+                if (!fs.existsSync(dest)) {
                     fs.copyFileSync(src, dest);
-                    console.log('   📋 Skopiowano listę Śpiewaj Dalej:', name);
+                    console.log('   📋 Skopiowano listę Śpiewaj Dalej (nowy plik):', name);
                 }
             }
         }
@@ -552,9 +714,9 @@ if (dataDir) {
             for (const name of appFiles) {
                 const src = path.join(appNjrSampler, name);
                 const dest = path.join(NJR_SAMPLER_CONFIGS_DIR, name);
-                if (overwriteConfigs || !fs.existsSync(dest)) {
+                if (!fs.existsSync(dest)) {
                     fs.copyFileSync(src, dest);
-                    console.log('   📋 Skopiowano konfigurację NJR Sampler:', name);
+                    console.log('   📋 Skopiowano konfigurację NJR Sampler (nowy plik):', name);
                 }
             }
         }
@@ -565,9 +727,22 @@ if (dataDir) {
             for (const name of appFiles) {
                 const src = path.join(appBitwaWokalna, name);
                 const dest = path.join(BITWA_WOKALNA_CONFIGS_DIR, name);
-                if (overwriteConfigs || !fs.existsSync(dest)) {
+                if (!fs.existsSync(dest)) {
                     fs.copyFileSync(src, dest);
-                    console.log('   📋 Skopiowano listę Bitwy wokalnej:', name);
+                    console.log('   📋 Skopiowano listę Bitwy wokalnej (nowy plik):', name);
+                }
+            }
+        }
+        const appImprezator = path.join(appPathForCopy, 'public', 'imprezator-configs');
+        if (fs.existsSync(appImprezator)) {
+            if (!fs.existsSync(IMPREZATOR_CONFIGS_DIR)) fs.mkdirSync(IMPREZATOR_CONFIGS_DIR, { recursive: true });
+            const appFiles = fs.readdirSync(appImprezator).filter(f => f.toLowerCase().endsWith('.json'));
+            for (const name of appFiles) {
+                const src = path.join(appImprezator, name);
+                const dest = path.join(IMPREZATOR_CONFIGS_DIR, name);
+                if (!fs.existsSync(dest)) {
+                    fs.copyFileSync(src, dest);
+                    console.log('   📋 Skopiowano listę Imprezator (nowy plik):', name);
                 }
             }
         }
@@ -579,19 +754,20 @@ if (dataDir) {
                 console.log('   📋 Skopiowano domyślne przypisanie banków NJR Sampler');
             } catch (_) {}
         }
-        if (overwriteConfigs && CONFIGS_SYNCED_VERSION_FILE && appVersionForSync) {
+        if (shouldSyncConfigsFromApp && CONFIGS_SYNCED_VERSION_FILE && appVersionForSync) {
             try {
                 fs.writeFileSync(CONFIGS_SYNCED_VERSION_FILE, appVersionForSync, 'utf8');
-                console.log('   📋 Zapisano wersję zsynchronizowanych configów:', appVersionForSync);
+                console.log('   📋 Nowa wersja aplikacji:', appVersionForSync, '– dane użytkownika zachowane, dodano tylko nowe pliki');
             } catch (_) {}
         }
-        // Gry muzyczne – skopiuj pliki audio z configów (Whitney, Prank Nerd, Śpiewaj Dalej, Bitwa) z aplikacji do userData/uploads
+        // Gry muzyczne – skopiuj pliki audio z configów z aplikacji do userData/uploads
         const appUploads = path.join(appPathForCopy, 'public', 'uploads');
         if (fs.existsSync(appUploads) && fs.existsSync(uploadsDir)) {
             const configDirs = [
                 path.join(appPathForCopy, 'public', 'njr-sampler-configs'),
                 path.join(appPathForCopy, 'public', 'spiewaj-dalej-configs'),
-                path.join(appPathForCopy, 'public', 'bitwa-wokalna-configs')
+                path.join(appPathForCopy, 'public', 'bitwa-wokalna-configs'),
+                path.join(appPathForCopy, 'public', 'imprezator-configs')
             ];
             const collected = new Set();
             function extractAudioPaths(obj) {
@@ -619,10 +795,10 @@ if (dataDir) {
             for (const fileName of collected) {
                 const src = path.join(appUploads, fileName);
                 const dest = path.join(uploadsDir, fileName);
-                if (fs.existsSync(src) && (shouldSyncConfigsFromApp || !fs.existsSync(dest))) {
+                if (fs.existsSync(src) && !fs.existsSync(dest)) {
                     try {
                         fs.copyFileSync(src, dest);
-                        console.log('   📋 Skopiowano plik audio do banków:', fileName);
+                        console.log('   📋 Skopiowano plik audio do banków (nowy):', fileName);
                     } catch (e) { console.warn('   ⚠️ Nie skopiowano', fileName, e.message); }
                 }
             }
@@ -635,6 +811,21 @@ loadWhitneyConfig();
 
 // Middleware
 app.use(express.json());
+
+// === UPLOADS LIST (dla Dodatku Wyborczego i innych) ===
+app.get('/api/uploads-list', (req, res) => {
+    try {
+        const imgExts = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.JPG', '.JPEG', '.PNG', '.WEBP'];
+        const dir = path.join(__dirname, 'public', 'uploads');
+        if (!fs.existsSync(dir)) return res.json({ files: [] });
+        const files = fs.readdirSync(dir)
+            .filter(f => imgExts.includes(path.extname(f)) && !f.includes('thumb'))
+            .sort((a, b) => b.localeCompare(a));
+        res.json({ files });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
 
 // === ENDPOINTY LICENCJI ===
 app.get('/api/license/status', (req, res) => {
@@ -735,6 +926,7 @@ app.patch('/api/njr-sampler/config', (req, res) => {
     try {
         if (fs.existsSync(oldPath)) {
             fs.renameSync(oldPath, newPath);
+            devSyncRename(`public/njr-sampler-configs/${safeConfigName(oldName)}.json`, `public/njr-sampler-configs/${safeNew}.json`);
         } else {
             if (!fs.existsSync(NJR_SAMPLER_CONFIGS_DIR)) fs.mkdirSync(NJR_SAMPLER_CONFIGS_DIR, { recursive: true });
             const hasBanks = bodyConfig && bodyConfig.banks && Array.isArray(bodyConfig.banks) && bodyConfig.banks.length > 0;
@@ -742,7 +934,9 @@ app.patch('/api/njr-sampler/config', (req, res) => {
             const cfgToSave = (bodyConfig && typeof bodyConfig.tileCount === 'number' && (hasBanks || hasTiles))
                 ? (hasBanks ? bodyConfig : { tileCount: bodyConfig.tileCount, banks: [{ id: 'b1', name: 'Bank 1', tiles: bodyConfig.tiles }] })
                 : njrSamplerConfig;
-            fs.writeFileSync(newPath, JSON.stringify(cfgToSave, null, 2), 'utf8');
+            const cfgData = JSON.stringify(cfgToSave, null, 2);
+            fs.writeFileSync(newPath, cfgData, 'utf8');
+            devSyncWriteData(`public/njr-sampler-configs/${safeNew}.json`, cfgData);
         }
         try {
             fs.writeFileSync(NJR_SAMPLER_LAST_FILE, JSON.stringify({ name: safeConfigName(newName) }), 'utf8');
@@ -760,6 +954,7 @@ app.delete('/api/njr-sampler/config', (req, res) => {
     if (fs.existsSync(cfgPath)) {
         try {
             fs.unlinkSync(cfgPath);
+            devSyncDelete(`public/njr-sampler-configs/${safeConfigName(name)}.json`);
             let current = 'domyslna';
             if (fs.existsSync(NJR_SAMPLER_LAST_FILE)) {
                 try {
@@ -788,16 +983,18 @@ app.get('/api/njr-sampler/audio-files', (req, res) => {
         if (vdjRecordingsBank) dirs.push(vdjRecordingsBank);
         for (const dir of dirs) {
             if (!fs.existsSync(dir)) continue;
-            for (const f of fs.readdirSync(dir)) {
-                const ext = path.extname(f).toLowerCase();
-                if (!exts.includes(ext)) continue;
-                const name = f.toLowerCase();
-                if (q && !name.includes(q)) continue;
-                const filepath = '/uploads/' + f;
-                if (!files.some(x => x.path === filepath)) {
-                    files.push({ path: filepath, name: f });
+            try {
+                for (const f of fs.readdirSync(dir)) {
+                    const ext = path.extname(f).toLowerCase();
+                    if (!exts.includes(ext)) continue;
+                    const name = f.toLowerCase();
+                    if (q && !name.includes(q)) continue;
+                    const filepath = '/uploads/' + f;
+                    if (!files.some(x => x.path === filepath)) {
+                        files.push({ path: filepath, name: f });
+                    }
                 }
-            }
+            } catch (_) {}
         }
         files.sort((a, b) => a.name.localeCompare(b.name));
         res.json({ files: files.slice(0, 100) });
@@ -807,14 +1004,7 @@ app.get('/api/njr-sampler/audio-files', (req, res) => {
 });
 // Tylko jedna gra muzyczna aktywna naraz – przy starcie jednej zatrzymaj pozostałe
 function stopOtherMusicGames(except) {
-    if (except !== 'njr' && njrSamplerActive) {
-        njrSamplerActive = false;
-        njrSamplerPlayingTile = null;
-        njrSamplerPlayingBackgroundTile = null;
-        io.to('njr_sampler_screen').emit('njr_sampler_state', { active: false });
-        io.to('njr_sampler_phone').emit('njr_sampler_state', { active: false });
-        io.to('njr_sampler_screen').emit('njr_sampler_stop');
-    }
+    // NJR Sampler i Imprezator grają niezależnie – nie przerywamy ich przy starcie innych trybów
     if (except !== 'whitney' && whitneyActive) {
         whitneyActive = false;
         whitneyPlayingTile = null;
@@ -859,8 +1049,9 @@ app.post('/api/njr-sampler/start', (req, res) => {
     njrSamplerActive = true;
     njrSamplerPlayingTile = null;
     njrSamplerPlayingBackgroundTile = null;
+    njrSamplerPlayingImprezatorTrack = null;
     io.to('njr_sampler_screen').emit('njr_sampler_state', { active: true, config: njrSamplerConfig });
-    io.to('njr_sampler_phone').emit('njr_sampler_state', { active: true, config: njrSamplerConfig });
+    io.to('njr_sampler_phone').emit('njr_sampler_state', { active: true, config: buildNjrSamplerStateForPhone() });
     res.json({ success: true });
 });
 app.post('/api/njr-sampler/stop', (req, res) => {
@@ -941,7 +1132,9 @@ app.post('/api/whitney/config', (req, res) => {
         const slice = tiles.slice(0, 8);
         for (let i = slice.length; i < 8; i++) slice.push({ id: 't' + i, color: '#3498db', label: '', image: '', audio: '', volume: 100, isBackground: false });
         whitneyConfig = { tileCount: 8, tiles: slice };
-        fs.writeFileSync(WHITNEY_CONFIG_FILE, JSON.stringify(whitneyConfig, null, 2), 'utf8');
+        const whitneyData = JSON.stringify(whitneyConfig, null, 2);
+        fs.writeFileSync(WHITNEY_CONFIG_FILE, whitneyData, 'utf8');
+        devSyncWriteData('public/njr-sampler-configs/Whitney.json', whitneyData);
         if (whitneyActive) {
             io.to('whitney_screen').emit('whitney_state', { active: true, config: whitneyConfig });
             io.to('whitney_phone').emit('whitney_state', { active: true, config: whitneyConfig });
@@ -1002,14 +1195,16 @@ app.get('/api/whitney/audio-files', (req, res) => {
         const files = [];
         for (const dir of [uploadsDir, path.join(__dirname, 'public', 'uploads'), vdjRecordingsBank]) {
             if (!fs.existsSync(dir)) continue;
-            for (const f of fs.readdirSync(dir)) {
-                const ext = path.extname(f).toLowerCase();
-                if (!exts.includes(ext)) continue;
-                const name = f.toLowerCase();
-                if (q && !name.includes(q)) continue;
-                const filepath = '/uploads/' + f;
-                if (!files.some(x => x.path === filepath)) files.push({ path: filepath, name: f });
-            }
+            try {
+                for (const f of fs.readdirSync(dir)) {
+                    const ext = path.extname(f).toLowerCase();
+                    if (!exts.includes(ext)) continue;
+                    const name = f.toLowerCase();
+                    if (q && !name.includes(q)) continue;
+                    const filepath = '/uploads/' + f;
+                    if (!files.some(x => x.path === filepath)) files.push({ path: filepath, name: f });
+                }
+            } catch (_) {}
         }
         files.sort((a, b) => a.name.localeCompare(b.name));
         res.json({ files: files.slice(0, 100) });
@@ -1075,8 +1270,10 @@ app.post('/api/spiewaj-dalej/config', (req, res) => {
         spiewajDalejConfig = config;
         const cfgName = name ? safeConfigName(name) : 'domyslna';
         if (!fs.existsSync(SPIEWAJ_DALEJ_CONFIGS_DIR)) fs.mkdirSync(SPIEWAJ_DALEJ_CONFIGS_DIR, { recursive: true });
-        fs.writeFileSync(getSpiewajDalejConfigPath(cfgName), JSON.stringify(spiewajDalejConfig, null, 2), 'utf8');
+        const sdData = JSON.stringify(spiewajDalejConfig, null, 2);
+        fs.writeFileSync(getSpiewajDalejConfigPath(cfgName), sdData, 'utf8');
         fs.writeFileSync(SPIEWAJ_DALEJ_LAST_FILE, JSON.stringify({ name: cfgName }), 'utf8');
+        devSyncWriteData(`public/spiewaj-dalej-configs/${cfgName}.json`, sdData);
         res.json({ success: true });
     } else {
         res.status(400).json({ error: 'Nieprawidłowa konfiguracja' });
@@ -1092,16 +1289,16 @@ app.get('/api/spiewaj-dalej/audio-files', (req, res) => {
         if (vdjRecordingsBank) dirs.push(vdjRecordingsBank);
         for (const dir of dirs) {
             if (!fs.existsSync(dir)) continue;
-            for (const f of fs.readdirSync(dir)) {
-                const ext = path.extname(f).toLowerCase();
-                if (!exts.includes(ext)) continue;
-                const name = f.toLowerCase();
-                if (q && !name.includes(q)) continue;
-                const filepath = '/uploads/' + f;
-                if (!files.some(x => x.path === filepath)) {
-                    files.push({ path: filepath, name: f });
+            try {
+                for (const f of fs.readdirSync(dir)) {
+                    const ext = path.extname(f).toLowerCase();
+                    if (!exts.includes(ext)) continue;
+                    const name = f.toLowerCase();
+                    if (q && !name.includes(q)) continue;
+                    const filepath = '/uploads/' + f;
+                    if (!files.some(x => x.path === filepath)) files.push({ path: filepath, name: f });
                 }
-            }
+            } catch (_) {}
         }
         files.sort((a, b) => a.name.localeCompare(b.name));
         res.json({ files: files.slice(0, 100) });
@@ -1190,6 +1387,7 @@ app.delete('/api/spiewaj-dalej/config', (req, res) => {
         const cfgPath = getSpiewajDalejConfigPath(name);
         if (fs.existsSync(cfgPath)) {
             fs.unlinkSync(cfgPath);
+            devSyncDelete(`public/spiewaj-dalej-configs/${safeConfigName(name)}.json`);
             try {
                 const last = JSON.parse(fs.readFileSync(SPIEWAJ_DALEJ_LAST_FILE, 'utf8'));
                 if (last && last.name === safeConfigName(name)) {
@@ -1283,8 +1481,10 @@ app.post('/api/bitwa-wokalna/config', (req, res) => {
         bitwaWokalnaConfig = config;
         const cfgName = name ? safeConfigName(name) : 'domyslna';
         if (!fs.existsSync(BITWA_WOKALNA_CONFIGS_DIR)) fs.mkdirSync(BITWA_WOKALNA_CONFIGS_DIR, { recursive: true });
-        fs.writeFileSync(getBitwaWokalnaConfigPath(cfgName), JSON.stringify(bitwaWokalnaConfig, null, 2), 'utf8');
+        const bwData = JSON.stringify(bitwaWokalnaConfig, null, 2);
+        fs.writeFileSync(getBitwaWokalnaConfigPath(cfgName), bwData, 'utf8');
         fs.writeFileSync(BITWA_WOKALNA_LAST_FILE, JSON.stringify({ name: cfgName }), 'utf8');
+        devSyncWriteData(`public/bitwa-wokalna-configs/${cfgName}.json`, bwData);
         res.json({ success: true });
     } else {
         res.status(400).json({ error: 'Nieprawidłowa konfiguracja' });
@@ -1300,16 +1500,16 @@ app.get('/api/bitwa-wokalna/audio-files', (req, res) => {
         if (vdjRecordingsBank) dirs.push(vdjRecordingsBank);
         for (const dir of dirs) {
             if (!fs.existsSync(dir)) continue;
-            for (const f of fs.readdirSync(dir)) {
-                const ext = path.extname(f).toLowerCase();
-                if (!exts.includes(ext)) continue;
-                const name = f.toLowerCase();
-                if (q && !name.includes(q)) continue;
-                const filepath = '/uploads/' + f;
-                if (!files.some(x => x.path === filepath)) {
-                    files.push({ path: filepath, name: f });
+            try {
+                for (const f of fs.readdirSync(dir)) {
+                    const ext = path.extname(f).toLowerCase();
+                    if (!exts.includes(ext)) continue;
+                    const name = f.toLowerCase();
+                    if (q && !name.includes(q)) continue;
+                    const filepath = '/uploads/' + f;
+                    if (!files.some(x => x.path === filepath)) files.push({ path: filepath, name: f });
                 }
-            }
+            } catch (_) {}
         }
         files.sort((a, b) => a.name.localeCompare(b.name));
         res.json({ files: files.slice(0, 100) });
@@ -1398,11 +1598,349 @@ app.delete('/api/bitwa-wokalna/config', (req, res) => {
         const cfgPath = getBitwaWokalnaConfigPath(name);
         if (fs.existsSync(cfgPath)) {
             fs.unlinkSync(cfgPath);
+            devSyncDelete(`public/bitwa-wokalna-configs/${safeConfigName(name)}.json`);
             try {
                 const last = JSON.parse(fs.readFileSync(BITWA_WOKALNA_LAST_FILE, 'utf8'));
                 if (last && last.name === safeConfigName(name)) {
                     fs.writeFileSync(BITWA_WOKALNA_LAST_FILE, JSON.stringify({ name: 'domyslna' }), 'utf8');
                     bitwaWokalnaConfig = { tracks: [] };
+                }
+            } catch (_) {}
+        }
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// === IMPREZATOR – muzyka do tańca dla animatorów ===
+let imprezatorConfig = { tracks: [] };
+let imprezatorActive = false;
+let imprezatorVolume = 1;
+
+function getImprezatorConfigPath(name) {
+    return path.join(IMPREZATOR_CONFIGS_DIR, safeConfigName(name) + '.json');
+}
+
+app.get('/api/imprezator/configs', (req, res) => {
+    try {
+        if (!fs.existsSync(IMPREZATOR_CONFIGS_DIR)) {
+            return res.json({ configs: [], current: 'domyslna' });
+        }
+        const files = fs.readdirSync(IMPREZATOR_CONFIGS_DIR)
+            .filter(f => f.endsWith('.json'))
+            .map(f => f.replace(/\.json$/, ''));
+        const configs = [...new Set(['domyslna', ...files])].sort();
+        let current = 'domyslna';
+        if (fs.existsSync(IMPREZATOR_LAST_FILE)) {
+            try {
+                const last = JSON.parse(fs.readFileSync(IMPREZATOR_LAST_FILE, 'utf8'));
+                if (last && last.name && configs.includes(last.name)) {
+                    const lastCfgPath = getImprezatorConfigPath(last.name);
+                    if (fs.existsSync(lastCfgPath)) current = last.name;
+                }
+            } catch (_) {}
+        }
+        res.json({ configs, current });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/imprezator/config', (req, res) => {
+    const name = req.query.name;
+    if (name) {
+        const cfgPath = getImprezatorConfigPath(name);
+        if (fs.existsSync(cfgPath)) {
+            try {
+                const data = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+                imprezatorConfig = data.banks ? data : { tracks: data.tracks || [] };
+                fs.writeFileSync(IMPREZATOR_LAST_FILE, JSON.stringify({ name: safeConfigName(name) }), 'utf8');
+            } catch (err) {
+                return res.status(500).json({ error: err.message });
+            }
+        }
+    }
+    res.json({ config: imprezatorConfig, active: imprezatorActive });
+});
+
+app.post('/api/imprezator/config', (req, res) => {
+    const { config, name } = req.body || {};
+    const hasTracks = config && Array.isArray(config.tracks);
+    const hasBanks = config && Array.isArray(config.banks) && config.banks.length > 0;
+    if (config && (hasTracks || hasBanks)) {
+        imprezatorConfig = config;
+        const cfgName = name ? safeConfigName(name) : 'domyslna';
+        if (!fs.existsSync(IMPREZATOR_CONFIGS_DIR)) fs.mkdirSync(IMPREZATOR_CONFIGS_DIR, { recursive: true });
+        fs.writeFileSync(getImprezatorConfigPath(cfgName), JSON.stringify(imprezatorConfig, null, 2), 'utf8');
+        fs.writeFileSync(IMPREZATOR_LAST_FILE, JSON.stringify({ name: cfgName }), 'utf8');
+        res.json({ success: true });
+    } else {
+        res.status(400).json({ error: 'Nieprawidłowa konfiguracja' });
+    }
+});
+
+function getImprezatorMusicFolder() {
+    try {
+        if (process.env.IMPREZATOR_MUSIC_DIR) return process.env.IMPREZATOR_MUSIC_DIR.trim() || null;
+        if (fs.existsSync(IMPREZATOR_SETTINGS_FILE)) {
+            const d = JSON.parse(fs.readFileSync(IMPREZATOR_SETTINGS_FILE, 'utf8'));
+            const p = (d && d.musicFolder) ? String(d.musicFolder).trim() : null;
+            if (p && fs.existsSync(p)) return p;
+        }
+        const home = os.homedir();
+        const defaults = [
+            path.join(home, 'Music', 'Imprezja'),
+            path.join(home, 'Music'),
+            path.join(home, 'Muzyka')
+        ];
+        for (const d of defaults) {
+            if (fs.existsSync(d) && fs.statSync(d).isDirectory()) return d;
+        }
+    } catch (_) {}
+    return null;
+}
+
+function getImprezatorMusicFolders() {
+    const primary = getImprezatorMusicFolder();
+    const folders = primary ? [primary] : [];
+    try {
+        if (fs.existsSync(IMPREZATOR_SETTINGS_FILE)) {
+            const d = JSON.parse(fs.readFileSync(IMPREZATOR_SETTINGS_FILE, 'utf8'));
+            const arr = d && Array.isArray(d.musicFolders) ? d.musicFolders : [];
+            for (const p of arr) {
+                const p2 = String(p).trim();
+                if (p2 && fs.existsSync(p2) && fs.statSync(p2).isDirectory() && !folders.includes(p2)) {
+                    folders.push(p2);
+                }
+            }
+        }
+    } catch (_) {}
+    return folders;
+}
+
+function scanFolderForAudio(dir, exts, q, prefix = '', returnFullPaths = false) {
+    const files = [];
+    if (!fs.existsSync(dir)) return files;
+    try {
+        for (const name of fs.readdirSync(dir)) {
+            const full = path.join(dir, name);
+            const rel = prefix ? prefix + '/' + name : name;
+            const stat = fs.statSync(full);
+            if (stat.isDirectory()) {
+                files.push(...scanFolderForAudio(full, exts, q, rel, returnFullPaths));
+            } else {
+                const ext = path.extname(name).toLowerCase();
+                if (!exts.includes(ext)) continue;
+                if (q && !name.toLowerCase().includes(q)) continue;
+                files.push({ path: returnFullPaths ? full : rel, name });
+            }
+        }
+    } catch (_) {}
+    return files;
+}
+
+function isImprezatorPathAllowed(filePath) {
+    try {
+        const normalized = path.resolve(filePath);
+        const home = os.homedir();
+        if (normalized.startsWith(home)) return true;
+        if (process.platform === 'darwin' && normalized.startsWith('/Volumes')) return true;
+        return false;
+    } catch (_) { return false; }
+}
+
+app.get('/api/imprezator/settings', (req, res) => {
+    try {
+        const musicFolder = getImprezatorMusicFolder() || '';
+        const musicFolders = getImprezatorMusicFolders();
+        res.json({ musicFolder, musicFolders });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/imprezator/settings', (req, res) => {
+    try {
+        const { musicFolder, musicFolders } = req.body || {};
+        const p = typeof musicFolder === 'string' ? musicFolder.trim() : '';
+        const arr = Array.isArray(musicFolders) ? musicFolders.map(x => String(x).trim()).filter(Boolean) : [];
+        const dir = path.dirname(IMPREZATOR_SETTINGS_FILE);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(IMPREZATOR_SETTINGS_FILE, JSON.stringify({ musicFolder: p, musicFolders: arr }, null, 2), 'utf8');
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/imprezator/stream', (req, res) => {
+    const rawPath = (req.query.path || '').trim();
+    if (!rawPath) return res.status(400).json({ error: 'Brak ścieżki' });
+    let full;
+    if (path.isAbsolute(rawPath) || (process.platform === 'win32' && /^[a-zA-Z]:[\\/]/.test(rawPath))) {
+        if (!isImprezatorPathAllowed(rawPath)) return res.status(403).json({ error: 'Ścieżka niedozwolona' });
+        full = path.resolve(rawPath);
+    } else {
+        const musicFolder = getImprezatorMusicFolder();
+        if (!musicFolder) return res.status(404).json({ error: 'Folder muzyki nie skonfigurowany' });
+        const rel = rawPath.replace(/^[/\\]+/, '').split(/[/\\]/).filter(s => s !== '..' && s !== '').join(path.sep);
+        if (!rel) return res.status(400).json({ error: 'Brak ścieżki' });
+        full = path.join(musicFolder, rel);
+        const relCheck = path.relative(musicFolder, full);
+        if (relCheck.startsWith('..') || path.isAbsolute(relCheck)) return res.status(403).json({ error: 'Nieprawidłowa ścieżka' });
+    }
+    if (!fs.existsSync(full) || !fs.statSync(full).isFile()) return res.status(404).json({ error: 'Plik nie istnieje' });
+    res.sendFile(full);
+});
+
+app.get('/api/imprezator/audio-files', (req, res) => {
+    try {
+        const q = (req.query.q || '').toLowerCase().trim();
+        const folderParam = (req.query.folder || '').trim();
+        const exts = ['.mp3', '.wav', '.m4a', '.ogg', '.aac', '.flac', '.vdjsample'];
+        const files = [];
+        if (folderParam) {
+            const absFolder = path.resolve(folderParam);
+            if (!isImprezatorPathAllowed(absFolder)) return res.status(403).json({ error: 'Folder niedozwolony (tylko ~ lub /Volumes)' });
+            if (!fs.existsSync(absFolder) || !fs.statSync(absFolder).isDirectory()) return res.status(404).json({ error: 'Folder nie istnieje' });
+            const scanned = scanFolderForAudio(absFolder, exts, q, '', true);
+            for (const f of scanned) {
+                files.push({ path: f.path, name: path.basename(f.path) });
+            }
+        } else {
+            const folders = getImprezatorMusicFolders();
+            for (const dir of folders) {
+                const scanned = scanFolderForAudio(dir, exts, q, '', true);
+                for (const f of scanned) {
+                    files.push({ path: f.path, name: path.basename(f.path) });
+                }
+            }
+        }
+        files.sort((a, b) => (a.name || a.path).localeCompare(b.name || b.path));
+        res.json({ files: files.slice(0, 300) });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Proxy do natywnego dialogu Electrona (port 3099 – tylko localhost)
+const ELECTRON_IPC_PORT = 3099;
+async function callElectronIpc(endpoint) {
+    return new Promise((resolve, reject) => {
+        const req = require('http').request(
+            { hostname: '127.0.0.1', port: ELECTRON_IPC_PORT, path: endpoint, method: 'POST', timeout: 30000 },
+            (res) => {
+                let data = '';
+                res.on('data', c => data += c);
+                res.on('end', () => { try { resolve(JSON.parse(data)); } catch (e) { resolve({}); } });
+            }
+        );
+        req.on('error', reject);
+        req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+        req.end();
+    });
+}
+app.post('/api/imprezator/native-open-file', async (req, res) => {
+    try {
+        const d = await callElectronIpc('/open-file');
+        res.json({ filePath: d.filePath || null });
+    } catch (e) {
+        res.json({ filePath: null, error: 'Electron IPC nie dostępne' });
+    }
+});
+app.post('/api/imprezator/native-open-directory', async (req, res) => {
+    try {
+        const d = await callElectronIpc('/open-directory');
+        res.json({ dirPath: d.dirPath || null });
+    } catch (e) {
+        res.json({ dirPath: null, error: 'Electron IPC nie dostępne' });
+    }
+});
+
+app.post('/api/imprezator/start', (req, res) => {
+    stopOtherMusicGames('imprezator');
+    imprezatorActive = true;
+    io.to('imprezator_screen').emit('imprezator_state', { active: true, config: imprezatorConfig });
+    io.to('imprezator_phone').emit('imprezator_state', { active: true, config: imprezatorConfig });
+    res.json({ success: true });
+});
+
+app.post('/api/imprezator/stop', (req, res) => {
+    imprezatorActive = false;
+    io.to('imprezator_screen').emit('imprezator_state', { active: false });
+    io.to('imprezator_phone').emit('imprezator_state', { active: false });
+    io.to('imprezator_screen').emit('imprezator_stop');
+    res.json({ success: true });
+});
+
+app.get('/api/imprezator/phone-qr', async (req, res) => {
+    try {
+        const mode = (req.query.mode || '').toLowerCase();
+        let baseUrl;
+        if (mode === 'local') {
+            baseUrl = httpsServer ? `https://${IP}:${PORT_HTTPS}` : `http://${IP}:${PORT}`;
+        } else if (mode === 'pinggy') {
+            const pinggyOrigin = currentPinggyUrl ? (normalizePinggyUrl(currentPinggyUrl) || currentPinggyUrl.replace(/\/$/, '').replace(/\/[^/].*$/, '')) : null;
+            if (!pinggyOrigin) return res.status(400).json({ error: 'Tunel Pinggy nie jest uruchomiony.' });
+            baseUrl = pinggyOrigin;
+        } else {
+            baseUrl = currentPinggyUrl ? (normalizePinggyUrl(currentPinggyUrl) || currentPinggyUrl.replace(/\/$/, '').replace(/\/[^/].*$/, '')) : (httpsServer ? `https://${IP}:${PORT_HTTPS}` : `http://${IP}:${PORT}`);
+        }
+        const phoneUrl = `${baseUrl.replace(/\/$/, '')}/imprezator/phone.html`;
+        const qrCode = await QRCode.toDataURL(phoneUrl, { width: 280, margin: 2 });
+        res.json({ url: phoneUrl, qrCode });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/imprezator/connection-info', (req, res) => {
+    res.json({
+        pinggyAvailable: !!currentPinggyUrl,
+        localUrl: (httpsServer ? `https://${IP}:${PORT_HTTPS}` : `http://${IP}:${PORT}`) + '/imprezator/phone.html'
+    });
+});
+
+app.patch('/api/imprezator/config', (req, res) => {
+    const { oldName, newName, config: bodyConfig } = req.body || {};
+    if (!oldName || !newName) return res.status(400).json({ error: 'Brak oldName lub newName' });
+    const safeNew = safeConfigName(newName);
+    if (!safeNew) return res.status(400).json({ error: 'Nieprawidłowa nazwa' });
+    const oldPath = getImprezatorConfigPath(oldName);
+    const newPath = getImprezatorConfigPath(newName);
+    try {
+        if (fs.existsSync(oldPath)) {
+            fs.renameSync(oldPath, newPath);
+            if (bodyConfig && (bodyConfig.banks || bodyConfig.tracks)) {
+                imprezatorConfig = bodyConfig;
+                fs.writeFileSync(newPath, JSON.stringify(imprezatorConfig, null, 2), 'utf8');
+            }
+            try {
+                const last = JSON.parse(fs.readFileSync(IMPREZATOR_LAST_FILE, 'utf8'));
+                if (last && last.name === safeConfigName(oldName)) {
+                    fs.writeFileSync(IMPREZATOR_LAST_FILE, JSON.stringify({ name: safeConfigName(newName) }), 'utf8');
+                }
+            } catch (_) {}
+        }
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/imprezator/config', (req, res) => {
+    const name = req.query.name;
+    if (!name) return res.status(400).json({ error: 'Brak nazwy' });
+    try {
+        const cfgPath = getImprezatorConfigPath(name);
+        if (fs.existsSync(cfgPath)) {
+            fs.unlinkSync(cfgPath);
+            try {
+                const last = JSON.parse(fs.readFileSync(IMPREZATOR_LAST_FILE, 'utf8'));
+                if (last && last.name === safeConfigName(name)) {
+                    fs.writeFileSync(IMPREZATOR_LAST_FILE, JSON.stringify({ name: 'domyslna' }), 'utf8');
+                    imprezatorConfig = { tracks: [] };
                 }
             } catch (_) {}
         }
@@ -1699,8 +2237,8 @@ const BLOCKED_PATHS = [
 const BLOCKED_PREFIXES = ['/familiada/'];
 
 /* Nowe tryby gry – wymagają wykupionej licencji (trial nie wystarczy) */
-const NEW_MODE_PATHS = ['/njr-sampler.html', '/whitney.html', '/spiewaj-dalej.html', '/bitwa-wokalna.html'];
-const NEW_MODE_PREFIXES = ['/njr-sampler/', '/whitney/', '/spiewaj-dalej/', '/bitwa-wokalna/'];
+const NEW_MODE_PATHS = ['/njr-sampler.html', '/whitney.html', '/spiewaj-dalej.html', '/bitwa-wokalna.html', '/imprezator.html'];
+const NEW_MODE_PREFIXES = ['/njr-sampler/', '/whitney/', '/spiewaj-dalej/', '/bitwa-wokalna/', '/imprezator/'];
 
 function hasFullLicense(status) {
     return status.valid && status.type !== 'trial';
@@ -1809,6 +2347,10 @@ app.get('/spiewaj-dalej.html', (req, res) => {
 });
 app.get('/bitwa-wokalna.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'bitwa-wokalna', 'index.html'));
+});
+
+app.get('/imprezator.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'imprezator', 'index.html'));
 });
 
 // .vdjsample i .ogg z VDJ: nagłówek zmiennej długości (zawiera ścieżkę do oryginału), potem Ogg Opus
@@ -1966,6 +2508,174 @@ app.get('/api/current-wifi-ssid', (req, res) => {
         console.warn('⚠️ Nie można pobrać SSID:', err.message);
     }
     res.json({ ssid: ssid || null });
+});
+
+// === API: skan WiFi 2,4 GHz – siła sygnału i zajętość pasm (dla WiFi Analyzer) ===
+function parseSystemProfilerWifi(stdout) {
+    const networks = [];
+    const channelCount = {};
+    for (let ch = 1; ch <= 13; ch++) channelCount[ch] = 0;
+    const seen = new Set();
+    const propKeys = ['PHY Mode', 'Channel', 'Network Type', 'Security', 'Signal', 'Country Code', 'MAC Address', 'Transmit Rate', 'MCS Index'];
+
+    const lines = stdout.split('\n');
+    let inSection = false;
+    let curSsid = null;
+    let curChannel = null;
+    let curRssi = -70;
+
+    function flush() {
+        if (curSsid && curChannel !== null) {
+            const key = curSsid + '|' + curChannel;
+            if (!seen.has(key)) {
+                seen.add(key);
+                networks.push({ ssid: curSsid, bssid: '', rssi: curRssi, channel: curChannel });
+                channelCount[curChannel] = (channelCount[curChannel] || 0) + 1;
+            }
+        }
+    }
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (line.includes('Current Network Information:') || line.includes('Other Local Wi-Fi Networks:')) {
+            flush();
+            inSection = true;
+            curSsid = null;
+            curChannel = null;
+            curRssi = -70;
+            continue;
+        }
+        if (!inSection) continue;
+        const nameMatch = line.match(/^\s{10,}([^:]+):\s*$/);
+        if (nameMatch) {
+            const key = nameMatch[1].trim();
+            if (!propKeys.some(p => key.startsWith(p))) {
+                flush();
+                curSsid = key;
+                curChannel = null;
+                curRssi = -70;
+            }
+            continue;
+        }
+        if (curSsid) {
+            const chM = line.match(/Channel:\s*(\d+)\s*\(2GHz/i);
+            if (chM) {
+                const ch = parseInt(chM[1], 10);
+                if (ch >= 1 && ch <= 13) curChannel = ch;
+            }
+            const sigM = line.match(/Signal\s*\/\s*Noise:\s*(-?\d+)\s*dBm/i);
+            if (sigM) curRssi = parseInt(sigM[1], 10);
+        }
+    }
+    flush();
+    return { networks, channelCount };
+}
+
+function parseWifiScan(stdout, platform, source) {
+    const networks = [];
+    const channelCount = {};
+    for (let ch = 1; ch <= 13; ch++) channelCount[ch] = 0;
+
+    if (platform === 'darwin' && source === 'system_profiler') {
+        return parseSystemProfilerWifi(stdout);
+    }
+    if (platform === 'darwin') {
+        // airport -s (przestarzały od macOS 14.4): SSID BSSID RSSI CHANNEL
+        const lines = stdout.split('\n').slice(1);
+        const bssidRe = /([0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2})/i;
+        for (const line of lines) {
+            const bssidMatch = line.match(bssidRe);
+            if (!bssidMatch) continue;
+            const idx = line.indexOf(bssidMatch[1]);
+            const ssid = line.substring(0, idx).trim();
+            const rest = line.substring(idx + bssidMatch[1].length).trim();
+            const numParts = rest.split(/\s+/);
+            const rssi = parseInt(numParts[0], 10);
+            const channel = parseInt(numParts[1], 10);
+            if (isNaN(rssi) || isNaN(channel) || channel < 1 || channel > 13) continue;
+            networks.push({ ssid, bssid: bssidMatch[1], rssi, channel });
+            channelCount[channel] = (channelCount[channel] || 0) + 1;
+        }
+    } else if (platform === 'win32') {
+        // netsh wlan show networks mode=bssid – bloki z BSSID, Signal, Channel
+        let curSsid = '';
+        const lines = stdout.split(/\r?\n/);
+        for (let j = 0; j < lines.length; j++) {
+            const line = lines[j];
+            const ssidM = line.match(/^\s*SSID\s+\d+\s*:\s*(.+)/);
+            if (ssidM) { curSsid = ssidM[1].trim(); continue; }
+            const bssidM = line.match(/^\s*BSSID\s+\d+\s*:\s*(.+)/);
+            if (bssidM) {
+                const bssid = bssidM[1].trim();
+                let rssi = -70, channel = 0;
+                for (let i = 0; i < 8 && j + i < lines.length; i++) {
+                    const l = lines[j + i];
+                    const sigM = l.match(/Signal\s*:\s*(\d+)%/);
+                    const chM = l.match(/Channel\s*:\s*(\d+)/);
+                    if (sigM) rssi = Math.round(-95 + (parseInt(sigM[1], 10) / 100) * 45);
+                    if (chM) channel = parseInt(chM[1], 10);
+                }
+                if (channel >= 1 && channel <= 13) {
+                    networks.push({ ssid: curSsid, bssid, rssi, channel });
+                    channelCount[channel] = (channelCount[channel] || 0) + 1;
+                }
+            }
+        }
+    } else {
+        // Linux: nmcli -t -f SSID,BSSID,CHAN,RATE,SIGNAL (SSID:BSSID1:...:BSSID6:CHAN:RATE:SIGNAL)
+        const lines = stdout.split('\n').filter(Boolean);
+        for (const line of lines) {
+            const parts = line.split(':');
+            if (parts.length < 10) continue;
+            const ssid = parts[0];
+            const bssid = parts.slice(1, 7).join(':');
+            const channel = parseInt(parts[7], 10);
+            const signalPct = parseInt(parts[9], 10);
+            const rssi = isNaN(signalPct) ? -70 : Math.round(-95 + (signalPct / 100) * 45);
+            if (channel < 1 || channel > 13) continue;
+            networks.push({ ssid, bssid, rssi, channel });
+            channelCount[channel] = (channelCount[channel] || 0) + 1;
+        }
+    }
+
+    return { networks, channelCount };
+}
+
+app.get('/api/wifi-scan', (req, res) => {
+    let cmd, args, platform = process.platform;
+    let source = null; // 'system_profiler' | 'airport' | null
+    if (platform === 'darwin') {
+        // macOS Sonoma 14.4+: airport -s nie zwraca już skanów. Używamy system_profiler.
+        cmd = 'system_profiler';
+        args = ['SPAirPortDataType'];
+        source = 'system_profiler';
+    } else if (platform === 'win32') {
+        cmd = 'netsh';
+        args = ['wlan', 'show', 'networks', 'mode=bssid'];
+    } else {
+        cmd = 'nmcli';
+        args = ['-t', '-e', 'no', '-f', 'SSID,BSSID,CHAN,RATE,SIGNAL', 'dev', 'wifi', 'list'];
+    }
+
+    const proc = spawn(cmd, args, { encoding: 'utf8', timeout: 15000 });
+    let stdout = '';
+    let stderr = '';
+    proc.stdout?.on('data', (d) => { stdout += d; });
+    proc.stderr?.on('data', (d) => { stderr += d; });
+    proc.on('close', (code) => {
+        if (code !== 0 && platform !== 'win32') {
+            return res.status(500).json({ error: 'Skan nieudany', detail: stderr || stdout });
+        }
+        try {
+            const { networks, channelCount } = parseWifiScan(stdout, platform, source);
+            res.json({ networks, channelCount });
+        } catch (err) {
+            res.status(500).json({ error: 'Błąd parsowania', detail: err.message });
+        }
+    });
+    proc.on('error', (err) => {
+        res.status(500).json({ error: 'Nie można uruchomić skanu', detail: err.message });
+    });
 });
 
 // === QR 2.0: Strona /join – maksymalny komfort: wyświetl na TV, skanuj telefonem ===
@@ -2301,6 +3011,7 @@ app.post('/upload', upload.fields([{ name: 'file' }, { name: 'thumbnail' }]), as
                 fs.writeFileSync(filePath, finalBuffer);
                 response.filepath = `/uploads/${filename}`;
                 console.log(`✅ Zapisano nowy plik: ${filename} (hash: ${fileHash.substring(0, 8)}...)`);
+                devSyncWrite(`public/uploads/${filename}`, filePath);
             }
         }
         
@@ -2332,6 +3043,7 @@ app.post('/upload', upload.fields([{ name: 'file' }, { name: 'thumbnail' }]), as
                 fs.writeFileSync(thumbPath, thumb.buffer);
                 response.thumbnailpath = `/uploads/${thumbFilename}`;
                 console.log(`✅ Zapisano nową miniaturę: ${thumbFilename} (hash: ${thumbHash.substring(0, 8)}...)`);
+                devSyncWrite(`public/uploads/${thumbFilename}`, thumbPath);
             }
         }
         
@@ -3204,7 +3916,14 @@ function getStateForBroadcast() {
         adminUrl: httpsServer ? `https://${IP}:${PORT_HTTPS}/admin.html` : `http://${getAdminHost()}:${PORT}/admin.html`,
         showPlayersWithQR: gameState.showPlayersWithQR,
         showZarazZaczynamy: gameState.showZarazZaczynamy,
-        playerNicks: Array.from(players.values()).map(p => p.nick || '').filter(Boolean)
+        playerNicks: Array.from(players.values()).map(p => p.nick || '').filter(Boolean),
+        wyborczyState: (wyborczySession && q && q.type === 'WYBORCZY') ? (function() {
+            const ws = buildWyborczyState();
+            ws.photoTimeLeft = wyborczyPhotoTimeLeft;
+            ws.photoDuration = q.time || 15;
+            ws.tiedIndices = getWyborczyTies(ws.ranking);
+            return ws;
+        })() : null
     };
 }
 
@@ -3404,7 +4123,7 @@ io.on('connection', (socket) => {
     });
     socket.on('njr_sampler_join_phone', () => {
         socket.join('njr_sampler_phone');
-        socket.emit('njr_sampler_state', { active: njrSamplerActive, config: njrSamplerConfig });
+        socket.emit('njr_sampler_state', { active: njrSamplerActive, config: buildNjrSamplerStateForPhone() });
         socket.emit('njr_sampler_volume_sync', njrSamplerVolume); // telefon ustawia suwak
     });
     socket.on('njr_sampler_toggle', (payload) => {
@@ -3417,7 +4136,7 @@ io.on('connection', (socket) => {
         const tile = tiles.find(t => t.id === tileId);
         if (!tile || !tile.audio) return;
         const vol = Math.max(0, Math.min(100, tile.volume ?? 100)) / 100;
-        let audioUrl = tile.audio.startsWith('/') ? tile.audio : '/uploads/' + tile.audio;
+        let audioUrl = tile.audio.startsWith('/') || tile.audio.startsWith('http') ? tile.audio : '/uploads/' + tile.audio;
         if (/\.(vdjsample|ogg)$/i.test(audioUrl)) audioUrl = '/api/audio/stream?path=' + encodeURIComponent(audioUrl);
         const isBg = !!tile.isBackground;
         const loop = !!tile.loop;
@@ -3428,7 +4147,13 @@ io.on('connection', (socket) => {
                 io.to('njr_sampler_screen').emit('njr_sampler_stop_background', { fadeOut: !!tile.fadeOut });
                 io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: null, isBackground: true });
             } else {
+                if (njrSamplerPlayingImprezatorTrack) {
+                    njrSamplerPlayingImprezatorTrack = null;
+                    io.to('njr_sampler_screen').emit('njr_sampler_imprezator_stop');
+                    io.to('njr_sampler_phone').emit('njr_sampler_imprezator_playing', null);
+                }
                 njrSamplerPlayingBackgroundTile = tileId;
+                audioMonitorLast = { type: 'sampler_tile', tileId, bankIndex, isBg: true };
                 io.to('njr_sampler_screen').emit('njr_sampler_play', { url: audioUrl, volume: vol, isBackground: true, loop });
                 io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId, isBackground: true });
             }
@@ -3438,19 +4163,147 @@ io.on('connection', (socket) => {
                 io.to('njr_sampler_screen').emit('njr_sampler_stop', { fadeOut: !!tile.fadeOut });
                 io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: null, isBackground: false });
             } else {
+                if (njrSamplerPlayingImprezatorTrack) {
+                    njrSamplerPlayingImprezatorTrack = null;
+                    io.to('njr_sampler_screen').emit('njr_sampler_imprezator_stop');
+                    io.to('njr_sampler_phone').emit('njr_sampler_imprezator_playing', null);
+                }
                 njrSamplerPlayingTile = tileId;
+                audioMonitorLast = { type: 'sampler_tile', tileId, bankIndex, isBg: false };
                 io.to('njr_sampler_screen').emit('njr_sampler_play', { url: audioUrl, volume: vol, isBackground: false, loop });
                 io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId, isBackground: false });
             }
         }
+        emitAudioMonitorState();
     });
     socket.on('njr_sampler_background_ended', () => {
         njrSamplerPlayingBackgroundTile = null;
         io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: null, isBackground: true });
+        emitAudioMonitorState();
     });
     socket.on('njr_sampler_volume', (vol) => {
         njrSamplerVolume = Math.max(0, Math.min(1, vol));
         io.to('njr_sampler_screen').emit('njr_sampler_volume', njrSamplerVolume);
+    });
+
+    socket.on('njr_sampler_imprezator_toggle', (trackId) => {
+        if (!njrSamplerActive || !trackId) return;
+        let track = null;
+        if (imprezatorConfig && imprezatorConfig.banks && Array.isArray(imprezatorConfig.banks)) {
+            for (const b of imprezatorConfig.banks) {
+                track = (b.tracks || []).find(t => t.id === trackId);
+                if (track) break;
+            }
+        } else if (imprezatorConfig) {
+            track = (imprezatorConfig.tracks || []).find(t => t.id === trackId);
+        }
+        if (!track || !track.audio) return;
+
+        if (njrSamplerPlayingImprezatorTrack === trackId) {
+            njrSamplerPlayingImprezatorTrack = null;
+            io.to('njr_sampler_screen').emit('njr_sampler_imprezator_stop');
+            io.to('njr_sampler_phone').emit('njr_sampler_imprezator_playing', null);
+        } else {
+            if (njrSamplerPlayingTile) {
+                njrSamplerPlayingTile = null;
+                io.to('njr_sampler_screen').emit('njr_sampler_stop');
+                io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: null, isBackground: false });
+            }
+            njrSamplerPlayingImprezatorTrack = trackId;
+            audioMonitorLast = { type: 'sampler_imprezator', trackId };
+            const audioUrl = '/api/imprezator/stream?path=' + encodeURIComponent(track.audio);
+            io.to('njr_sampler_screen').emit('njr_sampler_imprezator_play', {
+                url: audioUrl,
+                volume: njrSamplerVolume,
+                trackId
+            });
+            io.to('njr_sampler_phone').emit('njr_sampler_imprezator_playing', trackId);
+        }
+        emitAudioMonitorState();
+    });
+
+    socket.on('njr_sampler_imprezator_ended', () => {
+        njrSamplerPlayingImprezatorTrack = null;
+        io.to('njr_sampler_phone').emit('njr_sampler_imprezator_playing', null);
+        emitAudioMonitorState();
+    });
+
+    // Monitor audio – przycisk play/pause na ekranie głównym start.html
+    socket.on('join_audio_monitor', () => {
+        socket.join('audio_monitor');
+        const isPlaying = !!(njrSamplerPlayingTile || njrSamplerPlayingBackgroundTile || njrSamplerPlayingImprezatorTrack || imprezatorCurrentlyPlaying);
+        socket.emit('audio_monitor_state', { isPlaying, hasLast: !!audioMonitorLast });
+    });
+
+    socket.on('audio_monitor_stop', () => {
+        if (njrSamplerPlayingTile) {
+            njrSamplerPlayingTile = null;
+            io.to('njr_sampler_screen').emit('njr_sampler_stop');
+            io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: null, isBackground: false });
+        }
+        if (njrSamplerPlayingBackgroundTile) {
+            njrSamplerPlayingBackgroundTile = null;
+            io.to('njr_sampler_screen').emit('njr_sampler_stop_background', { fadeOut: false });
+            io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: null, isBackground: true });
+        }
+        if (njrSamplerPlayingImprezatorTrack) {
+            njrSamplerPlayingImprezatorTrack = null;
+            io.to('njr_sampler_screen').emit('njr_sampler_imprezator_stop');
+            io.to('njr_sampler_phone').emit('njr_sampler_imprezator_playing', null);
+        }
+        if (imprezatorCurrentlyPlaying) {
+            imprezatorCurrentlyPlaying = false;
+            io.to('imprezator_screen').emit('imprezator_stop');
+        }
+        emitAudioMonitorState();
+    });
+
+    socket.on('audio_monitor_play_last', () => {
+        if (!audioMonitorLast) return;
+        const last = audioMonitorLast;
+        if (last.type === 'sampler_tile') {
+            const banks = njrSamplerConfig.banks || [{ tiles: njrSamplerConfig.tiles || [] }];
+            const bank = banks[last.bankIndex] || banks[0];
+            const tile = (bank ? (bank.tiles || []) : []).find(t => t.id === last.tileId);
+            if (!tile || !tile.audio) return;
+            const vol = Math.max(0, Math.min(100, tile.volume ?? 100)) / 100;
+            let audioUrl = tile.audio.startsWith('/') || tile.audio.startsWith('http') ? tile.audio : '/uploads/' + tile.audio;
+            if (/\.(vdjsample|ogg)$/i.test(audioUrl)) audioUrl = '/api/audio/stream?path=' + encodeURIComponent(audioUrl);
+            if (last.isBg) {
+                njrSamplerPlayingBackgroundTile = last.tileId;
+                io.to('njr_sampler_screen').emit('njr_sampler_play', { url: audioUrl, volume: vol, isBackground: true, loop: !!tile.loop });
+                io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: last.tileId, isBackground: true });
+            } else {
+                njrSamplerPlayingTile = last.tileId;
+                io.to('njr_sampler_screen').emit('njr_sampler_play', { url: audioUrl, volume: vol, isBackground: false, loop: !!tile.loop });
+                io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: last.tileId, isBackground: false });
+            }
+        } else if (last.type === 'sampler_imprezator') {
+            let track = null;
+            if (imprezatorConfig && imprezatorConfig.banks) {
+                for (const b of imprezatorConfig.banks) { track = (b.tracks || []).find(t => t.id === last.trackId); if (track) break; }
+            } else if (imprezatorConfig) {
+                track = (imprezatorConfig.tracks || []).find(t => t.id === last.trackId);
+            }
+            if (!track || !track.audio) return;
+            njrSamplerPlayingImprezatorTrack = last.trackId;
+            const audioUrl = '/api/imprezator/stream?path=' + encodeURIComponent(track.audio);
+            io.to('njr_sampler_screen').emit('njr_sampler_imprezator_play', { url: audioUrl, volume: njrSamplerVolume, trackId: last.trackId });
+            io.to('njr_sampler_phone').emit('njr_sampler_imprezator_playing', last.trackId);
+        } else if (last.type === 'imprezator') {
+            let track = null;
+            if (imprezatorConfig && imprezatorConfig.banks) {
+                for (const b of imprezatorConfig.banks) { track = (b.tracks || []).find(t => t.id === last.trackId); if (track) break; }
+            } else if (imprezatorConfig) {
+                track = (imprezatorConfig.tracks || []).find(t => t.id === last.trackId);
+            }
+            if (!track || !track.audio) return;
+            imprezatorCurrentlyPlaying = true;
+            const audioUrl = '/api/imprezator/stream?path=' + encodeURIComponent(track.audio);
+            const displayName = track.displayName || track.audio.replace(/^.*[/\\]/, '').replace(/\.[^.]+$/, '') || 'Utwór';
+            io.to('imprezator_screen').emit('imprezator_play', { url: audioUrl, volume: imprezatorVolume, trackId: last.trackId, displayName });
+        }
+        emitAudioMonitorState();
     });
 
     // Whitney – ekran i telefon (8 kafelków, bez banków)
@@ -3470,7 +4323,7 @@ io.on('connection', (socket) => {
         const tiles = whitneyConfig.tiles || [];
         const tile = tiles.find(t => t.id === tileId);
         if (!tile || !tile.audio) return;
-        let audioUrl = tile.audio.startsWith('/') ? tile.audio : '/uploads/' + tile.audio;
+        let audioUrl = tile.audio.startsWith('/') || tile.audio.startsWith('http') ? tile.audio : '/uploads/' + tile.audio;
         if (/\.(vdjsample|ogg)$/i.test(audioUrl)) audioUrl = '/api/audio/stream?path=' + encodeURIComponent(audioUrl);
         const vol = Math.max(0, Math.min(100, tile.volume ?? 100)) / 100;
         const isBg = !!tile.isBackground;
@@ -3595,6 +4448,51 @@ io.on('connection', (socket) => {
     socket.on('bitwa_wokalna_volume', (vol) => {
         bitwaWokalnaVolume = Math.max(0, Math.min(1, vol));
         io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_volume', bitwaWokalnaVolume);
+    });
+
+    // Imprezator – muzyka do tańca
+    socket.on('imprezator_join_screen', () => {
+        socket.join('imprezator_screen');
+        socket.emit('imprezator_state', { active: imprezatorActive, config: imprezatorConfig });
+        socket.emit('imprezator_volume', imprezatorVolume);
+    });
+    socket.on('imprezator_join_phone', () => {
+        socket.join('imprezator_phone');
+        socket.emit('imprezator_state', { active: imprezatorActive, config: imprezatorConfig });
+        socket.emit('imprezator_volume_sync', imprezatorVolume);
+    });
+    socket.on('imprezator_play', (trackId) => {
+        if (!imprezatorActive || !trackId) return;
+        let track = null;
+        if (imprezatorConfig.banks && Array.isArray(imprezatorConfig.banks)) {
+            for (const b of imprezatorConfig.banks) {
+                track = (b.tracks || []).find(t => t.id === trackId);
+                if (track) break;
+            }
+        } else {
+            track = (imprezatorConfig.tracks || []).find(t => t.id === trackId);
+        }
+        if (!track || !track.audio) return;
+        const audioUrl = '/api/imprezator/stream?path=' + encodeURIComponent(track.audio);
+        const displayName = track.displayName || track.audio.replace(/^.*[/\\]/, '').replace(/\.[^.]+$/, '') || 'Utwór';
+        imprezatorCurrentlyPlaying = true;
+        audioMonitorLast = { type: 'imprezator', trackId };
+        io.to('imprezator_screen').emit('imprezator_play', { url: audioUrl, volume: imprezatorVolume, trackId, displayName });
+        emitAudioMonitorState();
+    });
+    socket.on('imprezator_stop', (trackId) => {
+        imprezatorCurrentlyPlaying = false;
+        io.to('imprezator_screen').emit('imprezator_stop', { trackId });
+        emitAudioMonitorState();
+    });
+    socket.on('imprezator_ended', (data) => {
+        imprezatorCurrentlyPlaying = false;
+        io.to('imprezator_phone').emit('imprezator_ended', data);
+        emitAudioMonitorState();
+    });
+    socket.on('imprezator_volume', (vol) => {
+        imprezatorVolume = Math.max(0, Math.min(1, vol));
+        io.to('imprezator_screen').emit('imprezator_volume', imprezatorVolume);
     });
 
     socket.on('select_question', (index) => {
@@ -3911,6 +4809,7 @@ io.on('connection', (socket) => {
                         io.to('njr_sampler_screen').emit('tunnel_started', tunnelPayload);
                         io.to('spiewaj_dalej_screen').emit('tunnel_started', tunnelPayload);
                         io.to('bitwa_wokalna_screen').emit('tunnel_started', tunnelPayload);
+                        io.to('imprezator_screen').emit('tunnel_started', tunnelPayload);
                         io.to('whitney_screen').emit('tunnel_started', tunnelPayload);
                         io.emit('update_state', getStateForBroadcast());
                         if (gameState.showQROnPhones) {
@@ -4136,12 +5035,29 @@ io.on('connection', (socket) => {
             };
             gameState.shipsGame = null;
             console.log(`🔤 [LETTER] Przygotowanie: questionId=${question.id}, letterCount=${letterCount || question.letterCount || 1}, gameStarted=false – oczekiwanie na admin_start_letter_game (Wyślij 1/2 litery)`);
+        } else if (question.type === 'WYBORCZY') {
+            stopWyborczyPhotoTimer();
+            wyborczySession = {
+                photos: (question.photos || []).map(p => ({ url: p.url, label: p.label || '' })),
+                currentIndex: -1,
+                votes: {},
+                voterIds: {},
+                phase: 'idle'
+            };
+            wyborczyVotedThis.clear();
+            gameState.timeLeft = 0;
+            gameState.duration = question.time || 15;
+            gameState.questionStartTime = null;
+            gameState.shipsGame = null;
+            gameState.letterGame = null;
+            const bgMusic = question.bgMusic || '/uploads/sfx/tlowyborcze.mp3';
+            io.emit('wyborczy_bg_music', { url: bgMusic });
         } else {
             // Dla innych typów pytań - normalna logika
             gameState.timeLeft = question.time || 30;
             gameState.duration = question.time || 30;
             gameState.questionStartTime = Date.now();
-            
+
             // Inicjalizuj stan gry SHIPS_SOLO (admin+screen, bez telefonów)
             if (question.type === 'SHIPS_SOLO') {
                 const boardSize = question.boardSize || 8;
@@ -4758,13 +5674,15 @@ io.on('connection', (socket) => {
         // Upewnij się że ma rozszerzenie .json
         if (!safeName.toLowerCase().endsWith('.json')) safeName += '.json';
         const filePath = path.join(quizzesDir, safeName);
-        fs.writeFile(filePath, JSON.stringify(data.content, null, 2), (err) => {
+        const quizJsonData = JSON.stringify(data.content, null, 2);
+        fs.writeFile(filePath, quizJsonData, (err) => {
             if (err) {
                 socket.emit('editor_save_status', { success: false, message: 'Błąd zapisu' });
             } else {
                 socket.emit('editor_save_status', { success: true, message: `Zapisano ${safeName}` });
                 io.emit('files_list', getQuizFiles()); 
-                socket.emit('editor_files_list', getQuizFiles()); 
+                socket.emit('editor_files_list', getQuizFiles());
+                devSyncWriteData(`public/quizzes/${safeName}`, quizJsonData);
             }
         });
     });
@@ -4957,6 +5875,7 @@ io.on('connection', (socket) => {
                             fs.unlinkSync(fullPath);
                             deletedFiles.push(fileName);
                             console.log(`✅ Usunięto powiązany plik: ${fileName}`);
+                            devSyncDelete(`public/uploads/${fileName}`);
                         } catch (err) {
                             errors.push(`Błąd usuwania ${fileName}: ${err.message}`);
                             console.error(`❌ Błąd usuwania ${fileName}:`, err);
@@ -4970,6 +5889,7 @@ io.on('connection', (socket) => {
                 fs.unlinkSync(filePath);
                 deletedFiles.push(filename);
                 console.log(`✅ Usunięto quiz: ${filename}`);
+                devSyncDelete(`public/quizzes/${filename}`);
             } catch (err) {
                 errors.push(`Błąd usuwania ${filename}: ${err.message}`);
                 console.error(`❌ Błąd usuwania ${filename}:`, err);
@@ -5685,7 +6605,199 @@ io.on('connection', (socket) => {
         broadcastState();
     });
 
+    // ===== DODATEK WYBORCZY =====
+    socket.on('wyborczy_join_voters', () => {
+        wyborczyVoters.add(socket.id);
+        // Jeśli już zagłosował w tej rundzie (reconnect)
+        if (wyborczySession && wyborczySession.currentIndex >= 0) {
+            const idx = wyborczySession.currentIndex;
+            if (wyborczySession.voterIds[idx] && wyborczySession.voterIds[idx].has(socket.id)) {
+                wyborczyVotedThis.add(socket.id);
+            }
+        }
+        checkWyborczyAllVoted();
+    });
+
+    socket.on('wyborczy_admin_start', (data) => {
+        wyborczySession = {
+            photos: data.photos || [],
+            currentIndex: -1,
+            votes: {},
+            voterIds: {},
+            phase: 'idle'
+        };
+        wyborczyVotedThis.clear();
+        io.emit('wyborczy_state', buildWyborczyState());
+    });
+
+    socket.on('wyborczy_admin_next', () => {
+        if (!wyborczySession) return;
+        const next = wyborczySession.currentIndex + 1;
+        stopWyborczyPhotoTimer();
+        if (next >= wyborczySession.photos.length) {
+            wyborczySession.phase = 'podium';
+            wyborczyVotedThis.clear();
+            io.emit('wyborczy_state', buildWyborczyState());
+            broadcastState();
+            return;
+        }
+        wyborczySession.currentIndex = next;
+        wyborczySession.phase = 'voting';
+        wyborczyVotedThis.clear();
+        if (!wyborczySession.votes[next]) wyborczySession.votes[next] = [];
+        if (!wyborczySession.voterIds[next]) wyborczySession.voterIds[next] = new Set();
+        const phDuration = (gameState.activeQuestion && gameState.activeQuestion.type === 'WYBORCZY')
+            ? (gameState.activeQuestion.time || 15) : 15;
+        startWyborczyPhotoTimer(phDuration);
+        io.emit('wyborczy_state', buildWyborczyState());
+        broadcastState();
+    });
+
+    socket.on('wyborczy_admin_prev', () => {
+        if (!wyborczySession) return;
+        const prev = wyborczySession.currentIndex - 1;
+        if (prev < 0) return;
+        stopWyborczyPhotoTimer();
+        wyborczySession.currentIndex = prev;
+        wyborczySession.phase = 'voting';
+        wyborczyVotedThis.clear();
+        const phDuration = (gameState.activeQuestion && gameState.activeQuestion.type === 'WYBORCZY')
+            ? (gameState.activeQuestion.time || 15) : 15;
+        startWyborczyPhotoTimer(phDuration);
+        io.emit('wyborczy_state', buildWyborczyState());
+        broadcastState();
+    });
+
+    socket.on('wyborczy_admin_podium', () => {
+        if (!wyborczySession) return;
+        stopWyborczyPhotoTimer();
+        wyborczySession.phase = 'podium';
+        io.emit('wyborczy_state', buildWyborczyState());
+        broadcastState();
+    });
+
+    socket.on('wyborczy_admin_stats', () => {
+        if (!wyborczySession) return;
+        wyborczySession.phase = 'stats';
+        io.emit('wyborczy_state', buildWyborczyState());
+        broadcastState();
+    });
+
+    // Dogrywka – głosowanie tylko na remisowe zdjęcia
+    socket.on('wyborczy_dogrywka_start', () => {
+        if (!wyborczySession) return;
+        const st = buildWyborczyState();
+        const tiedIndices = getWyborczyTies(st.ranking);
+        if (!tiedIndices.length) return;
+        // Reset votes only for tied photos
+        tiedIndices.forEach(idx => {
+            wyborczySession.votes[idx] = [];
+            wyborczySession.voterIds[idx] = new Set();
+        });
+        // Narrow photos to tied ones only (virtual dogrywka session)
+        wyborczySession.dogrywkaIndices = tiedIndices;
+        wyborczySession.dogrywkaPhotoPos = -1;
+        wyborczySession.phase = 'dogrywka';
+        wyborczyVotedThis.clear();
+        io.emit('wyborczy_state', buildWyborczyState());
+        broadcastState();
+    });
+
+    socket.on('wyborczy_dogrywka_next', () => {
+        if (!wyborczySession || wyborczySession.phase !== 'dogrywka') return;
+        const indices = wyborczySession.dogrywkaIndices || [];
+        const nextPos = (wyborczySession.dogrywkaPhotoPos || -1) + 1;
+        stopWyborczyPhotoTimer();
+        if (nextPos >= indices.length) {
+            wyborczySession.phase = 'podium';
+            wyborczySession.dogrywkaIndices = null;
+            wyborczyVotedThis.clear();
+            io.emit('wyborczy_state', buildWyborczyState());
+            broadcastState();
+            return;
+        }
+        wyborczySession.dogrywkaPhotoPos = nextPos;
+        const realIdx = indices[nextPos];
+        wyborczySession.currentIndex = realIdx;
+        wyborczyVotedThis.clear();
+        if (!wyborczySession.votes[realIdx]) wyborczySession.votes[realIdx] = [];
+        if (!wyborczySession.voterIds[realIdx]) wyborczySession.voterIds[realIdx] = new Set();
+        const phDuration = (gameState.activeQuestion && gameState.activeQuestion.type === 'WYBORCZY')
+            ? (gameState.activeQuestion.time || 15) : 15;
+        startWyborczyPhotoTimer(phDuration);
+        io.emit('wyborczy_state', buildWyborczyState());
+        broadcastState();
+    });
+
+    socket.on('wyborczy_podium_reveal', (data) => {
+        // Dołącz dane zdjęcia do eventu – screen.html nie musi ich szukać
+        let photoData = {};
+        if (wyborczySession) {
+            const st = buildWyborczyState();
+            const r = st.ranking.find(x => x.place === data.place);
+            if (r) photoData = { url: r.url, label: r.label, avg: r.avg, count: r.count };
+        }
+        io.emit('wyborczy_podium_reveal', {
+            place: data.place,
+            confetti: data.confetti !== false,
+            ...photoData
+        });
+    });
+
+    socket.on('wyborczy_podium_full', () => {
+        if (!wyborczySession) return;
+        wyborczySession.phase = 'podium_full';
+        io.emit('wyborczy_state', buildWyborczyState());
+    });
+
+    socket.on('wyborczy_admin_reset', () => {
+        stopWyborczyPhotoTimer();
+        wyborczySession = null;
+        wyborczyVoters.clear();
+        wyborczyVotedThis.clear();
+        io.emit('wyborczy_state', { phase: 'idle', photos: [], currentIndex: -1, ranking: [], voteSummary: [] });
+        broadcastState();
+    });
+
+    socket.on('wyborczy_vote', (data) => {
+        if (!wyborczySession || (wyborczySession.phase !== 'voting' && wyborczySession.phase !== 'dogrywka')) return;
+        const idx = wyborczySession.currentIndex;
+        if (wyborczySession.voterIds[idx] && wyborczySession.voterIds[idx].has(socket.id)) return;
+        if (!wyborczySession.votes[idx]) wyborczySession.votes[idx] = [];
+        if (!wyborczySession.voterIds[idx]) wyborczySession.voterIds[idx] = new Set();
+        const stars = Math.max(1, Math.min(10, parseInt(data.stars || data.rating || 1)));
+        wyborczySession.votes[idx].push(stars);
+        wyborczySession.voterIds[idx].add(socket.id);
+        wyborczyVotedThis.add(socket.id);
+        socket.emit('wyborczy_vote_ok', { photoIndex: idx });
+        io.emit('wyborczy_vote_update', {
+            photoIndex: idx,
+            count: wyborczySession.votes[idx].length,
+            avg: calcAvg(wyborczySession.votes[idx])
+        });
+        checkWyborczyAllVoted();
+    });
+
+    socket.on('wyborczy_get_state', () => {
+        if (!wyborczySession) {
+            socket.emit('wyborczy_state', { phase: 'idle', photos: [], currentIndex: -1, ranking: [], voteSummary: [] });
+        } else {
+            const st = buildWyborczyState();
+            const idx = wyborczySession.currentIndex;
+            const alreadyVoted = idx >= 0 && wyborczySession.voterIds[idx] && wyborczySession.voterIds[idx].has(socket.id);
+            socket.emit('wyborczy_state', { ...st, alreadyVoted });
+        }
+    });
+    // ===== /DODATEK WYBORCZY =====
+
     socket.on('disconnect', () => {
+        // Wyborczy – usuń votera i sprawdź czy wszyscy zagłosowali
+        if (wyborczyVoters.has(socket.id)) {
+            wyborczyVoters.delete(socket.id);
+            wyborczyVotedThis.delete(socket.id);
+            checkWyborczyAllVoted();
+        }
+
         const player = players.get(socket.id);
         if (player) {
             // Zamiast natychmiast usuwać, przenieś do pendingDisconnects z timestamp
@@ -5729,6 +6841,7 @@ function onServerReady(urlPrefix) {
     console.log(`   🎛️  NJR Sampler:       http://${IP}:${PORT}/njr-sampler.html`);
     console.log(`   🎤  Śpiewaj Dalej:     http://${IP}:${PORT}/spiewaj-dalej.html`);
     console.log(`   🎙️  Bitwa wokalna:     http://${IP}:${PORT}/bitwa-wokalna.html`);
+    console.log(`   🎵  Imprezator:        http://${IP}:${PORT}/imprezator.html`);
     console.log('   ─────────────────────────────────────────────────');
     console.log(`   📂 Katalog quizzes:   ${quizzesDir}`);
     if (IP === 'localhost') {

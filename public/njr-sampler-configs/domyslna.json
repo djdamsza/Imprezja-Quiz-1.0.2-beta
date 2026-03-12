@@ -1,0 +1,13 @@
+{
+  "tileCount": 8,
+  "tiles": [
+    { "id": "t0", "color": "#3498db", "label": "", "image": "", "audio": "", "volume": 100, "isBackground": false, "loop": false, "fadeOut": true },
+    { "id": "t1", "color": "#3498db", "label": "", "image": "", "audio": "", "volume": 100, "isBackground": false, "loop": false, "fadeOut": true },
+    { "id": "t2", "color": "#3498db", "label": "", "image": "", "audio": "", "volume": 100, "isBackground": false, "loop": false, "fadeOut": true },
+    { "id": "t3", "color": "#3498db", "label": "", "image": "", "audio": "", "volume": 100, "isBackground": false, "loop": false, "fadeOut": true },
+    { "id": "t4", "color": "#3498db", "label": "", "image": "", "audio": "", "volume": 100, "isBackground": false, "loop": false, "fadeOut": true },
+    { "id": "t5", "color": "#3498db", "label": "", "image": "", "audio": "", "volume": 100, "isBackground": false, "loop": false, "fadeOut": true },
+    { "id": "t6", "color": "#3498db", "label": "", "image": "", "audio": "", "volume": 100, "isBackground": false, "loop": false, "fadeOut": false },
+    { "id": "t7", "color": "#3498db", "label": "", "image": "", "audio": "", "volume": 100, "isBackground": false, "loop": false, "fadeOut": false }
+  ]
+}
