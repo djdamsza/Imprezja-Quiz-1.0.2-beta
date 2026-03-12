@@ -72,15 +72,7 @@
       "**/*",
       "resources/njr-converter/**",
       "!tools/vdj-database-editor/**",
-      "!public/quizzes/Quiz Kardasz.json",
-      "!public/quizzes/Quiz Emil.json",
-      "!public/quizzes/Quiz Dominika i Mateusz 2026.json",
       "!public/imprezator-configs/**",
-      "!public/uploads/177021*",
-      "!public/uploads/177037*",
-      "!public/uploads/177038*",
-      "!public/uploads/177090*",
-      "!public/uploads/177091*",
       "!node_modules/.cache",
       "!node_modules/**/test/**",
       "!node_modules/**/tests/**",
@@ -116,7 +108,8 @@
       "**/node_modules/sharp/**",
       "**/node_modules/@img/**",
       "**/node_modules/cloudflared/**",
-      "resources/njr-converter/**"
+      "resources/njr-converter/**",
+      "preload-imprezator.js"
     ],
     "mac": {
       "category": "public.app-category.entertainment",

@@ -22,3 +22,6 @@ license-private.pem
 # Cursor IDE – konfiguracja lokalna, nie do repo
 .cursor/
 .cursorignore
+
+# Prywatna zawartość Imprezatora – TYLKO to jest prywatne i nie trafia do builda
+public/imprezator-configs/*.json
