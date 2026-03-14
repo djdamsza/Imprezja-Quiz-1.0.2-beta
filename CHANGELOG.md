@@ -2,6 +2,24 @@
 
 ---
 
+## v1.2.0 (marzec 2026) — wydanie stabilne
+
+### Familiada
+- **Bank pytań uniwersalnych** – nowy plik `universal-bank.json` z ok. 275 pytaniami (jedzenie, muzyka, sport, transport, kolory, film itd.). Panel w edytorze: paginacja, przyciski „Dodaj” i „Usuń”.
+- **Pytania klasyczne** – lista `Pytania klasyczne.json` z wyborem pytań z banku uniwersalnego, gotowa do użycia.
+- **Przycisk „Reset przycisków”** – w panelu admina Familiady, pod DŻINGIEL. Ponowne odblokowanie przycisków na telefonach po przypadkowym naciśnięciu.
+
+### Kamera (stream na TV)
+- **Optymalizacje streamingu** – rozdzielczość 640×480, 12 kl/s, JPEG 0.5, binarny Blob zamiast base64. Wysyłka ramek tylko do ekranu TV (nie do admina/telefonów). Znacznie mniejsze obciążenie sieci lokalnej.
+
+### Pierwsze uruchomienie
+- **Instrukcja onboarding** – przy pierwszym uruchomieniu pojawia się overlay z krótką instrukcją: ekran główny, ekran prezentera, Admin PWA (jedna synchronizacja), edytor, wymagania techniczne (kamera, mikrofon, Wi‑Fi). Wymaga kliknięcia „Zapoznałem się”. Można wyświetlić ponownie przez menu ⚙️ → „Pokaż instrukcję ponownie”.
+
+### Strony WordPress / linki
+- Zaktualizowane linki do pobrania v1.2.0 – sukces.html, sukces-wklej.html, stripe-cennik.html.
+
+---
+
 ## v1.1.9 (marzec 2026) — wydanie stabilne
 
 **Ta wersja zastępuje 1.1.5 – naprawia krytyczny błąd rozłączania graczy.**
