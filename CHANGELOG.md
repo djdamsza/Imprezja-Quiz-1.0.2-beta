@@ -2,6 +2,39 @@
 
 ---
 
+## v1.2.1 (marzec 2026) — wydanie stabilne
+
+### Build
+- **Cloudflared** – aktualizacja binarki do wersji 2026.2.0 w buildach Mac (arm64, x64) i Windows.
+- Skrypty `prepare-cloudflared-for-mac-arm64.js` i `prepare-cloudflared-for-mac-x64.js` – pobierają najnowszą wersję cloudflared przed buildem.
+
+### Audio
+- **Normalizacja dźwięku** – ujednolicenie głośności odtwarzanych plików.
+- **Naprawa interfejsu audio** – poprawki obsługi urządzeń audio.
+
+### Ekran
+- **Poprawiona obsługa 2 monitorów** – lepsza współpraca z konfiguracją wielomonitorową.
+
+### Admin PWA
+- **Status połączenia** – widoczny status połączenia z serwerem (Połączono / Łączenie… / Rozłączono).
+- **Zwijane menu** – Kamera, Prezentacja, Powitanie w tej samej formie (rozwijane karty).
+- **Mikser głośności** – Master volume na wierzchu, kanały (Quiz, Familiada itd.) po rozwinięciu.
+
+### WiFi Analyzer
+- **Szerokość kanału 20/40 MHz** – przy 40 MHz sieć zajmuje 5 kanałów (np. 1–5). Tabela pokazuje zakres, wykres liczy zajętość poprawnie.
+
+### Wizualizacje / Prezentacja
+- **Beat detection** – zakres 80–150 BPM, wsparcie dla 140 BPM (częste na imprezach).
+- **Milkdrop** – throttle 30 fps (spokojniejsza animacja), gain +10 dB.
+
+### Poprawki (kolejne buildy 1.2.1, marzec 2026)
+- **Admin PWA – panel muzyczny** – wymuszone przeładowanie iframe (`cache-bust`), odświeżenie zakładek banków NJR Samplera po faktycznym `load` iframe oraz po ponownym połączeniu WebSocket – bez ręcznego odświeżania strony, gdy kafelki samplera lub gier muzycznych ładowały się nieprawidłowo (zwłaszcza na telefonie).
+- **NJR Sampler – panel na telefonie** – po połączeniu dodatkowe pobranie konfiguracji przez `GET /api/njr-sampler/config` (`cache: no-store`, parametr anty-cache), opóźnione dociągnięcie po `njr_sampler_state` oraz po powrocie na kartę – naprawa sytuacji, w której przed pierwszym odświeżeniem widać było puste lub domyślne kafelki.
+- **Familiada – ekran TV** – po „Zakończ grę” z admina: ekran z samym napisem FAMILIADA (bez starego panelu pilota z przyciskami), bez muzyki; widok na TV dalej przełączany z PWA admin. Usunięty przycisk „Zakończ” z ekranu TV (także pływający). Serwer przy końcu gry sam wysyła reset stanu i sygnał idle.
+- **Quiz – pytanie Wyborcze (WYBORCZY)** – muzyka tła i overlay Wyborczego zatrzymywane po opuszczeniu pytania (następne pytanie, IDLE, ranking, podium itd.); `stopAllAudio` na ekranie TV uwzględnia audio Wyborczego (wcześniej przy pauzie grało dalej). Serwer: `wyborczy_question_media_stop` i czyszczenie sesji przy wyjściu z trybu Wyborczego.
+
+---
+
 ## v1.2.0 (marzec 2026) — wydanie stabilne
 
 ### Familiada
