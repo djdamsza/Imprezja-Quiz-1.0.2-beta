@@ -46,15 +46,33 @@
   font-size: 19px;
 }
 
-form {
+/* Formularze tylko w treści – globalne `form` psuje menu mobilne Blocksy */
+.site-main .entry-content form,
+.site-main article .entry-content form,
+.wp-block-post-content form,
+main .entry-content > form {
   display: flex;
   flex-direction: column;
   align-items: center !important;
 }
 
-form input,
-form textarea {
+.site-main .entry-content form input,
+.site-main .entry-content form textarea,
+.wp-block-post-content form input,
+.wp-block-post-content form textarea {
   width: 100%;
+}
+
+.ct-panel form,
+.ct-drawer form,
+.ct-header form,
+.ct-footer form,
+.widget-area form,
+form.search-form,
+#searchform {
+  display: block !important;
+  flex-direction: initial !important;
+  align-items: initial !important;
 }
 
 .kadence-blocks-form-field.google-recaptcha-checkout-wrap,
@@ -195,3 +213,28 @@ figure.wp-block-embed {
 #imprezja-cennik-stripe button:hover { opacity: 0.9; }
 #imprezja-cennik-stripe button:disabled { opacity: 0.6; cursor: not-allowed; }
 #imprezja-cennik-stripe button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+
+/* Kadence „Certyfikaty” – fluid carousel: łagodniejszy limit (bez flex-shrink:1) */
+.kb-gallery-wrap-id-4546_2622a2-ab .kb-gallery-type-fluidcarousel .splide__slide.kb-slide-item,
+.kb-gallery-id-4546_2622a2-ab.kb-gallery-type-fluidcarousel .splide__slide.kb-slide-item {
+  display: flex !important;
+  align-items: center !important;
+  max-width: min(540px, calc(50vw - 24px)) !important;
+  min-width: min(260px, 42vw) !important;
+  flex-shrink: 0 !important;
+  flex-basis: auto !important;
+  box-sizing: border-box !important;
+}
+.kb-gallery-wrap-id-4546_2622a2-ab .kb-gallery-type-fluidcarousel .splide__viewport,
+.kb-gallery-id-4546_2622a2-ab.kb-gallery-type-fluidcarousel .splide__viewport {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  min-height: min(200px, 35vh) !important;
+}
+@media (max-width: 600px) {
+  .kb-gallery-wrap-id-4546_2622a2-ab .kb-gallery-type-fluidcarousel .splide__slide.kb-slide-item,
+  .kb-gallery-id-4546_2622a2-ab.kb-gallery-type-fluidcarousel .splide__slide.kb-slide-item {
+    max-width: min(94vw, 480px) !important;
+    min-width: min(220px, 88vw) !important;
+  }
+}

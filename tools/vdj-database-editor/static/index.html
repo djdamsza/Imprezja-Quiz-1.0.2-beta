@@ -1097,11 +1097,13 @@
       try {
         const r = await fetch('/api/check-updates', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
         const d = await r.json();
+        const safeUrl = (d.manualUrl && (d.manualUrl.startsWith('http://') || d.manualUrl.startsWith('https://'))) ? d.manualUrl : '';
+        const msg = (d.message || d.error || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         if (d.error && !d.available) {
-          resultEl.innerHTML = 'ℹ️ ' + (d.message || d.error) + (d.manualUrl ? ' <a href="' + d.manualUrl + '" target="_blank" rel="noopener" style="color:var(--warn);">Pobierz ręcznie →</a>' : '');
+          resultEl.innerHTML = 'ℹ️ ' + msg + (safeUrl ? ' <a href="' + safeUrl.replace(/"/g, '&quot;') + '" target="_blank" rel="noopener" style="color:var(--warn);">Pobierz ręcznie →</a>' : '');
           resultEl.style.background = 'rgba(255,255,255,0.08)';
         } else if (d.available) {
-          resultEl.innerHTML = '✅ ' + (d.message || 'Dostępna nowa wersja') + (d.manualUrl ? ' <a href="' + d.manualUrl + '" target="_blank" rel="noopener" style="color:var(--success);">Pobierz →</a>' : '');
+          resultEl.innerHTML = '✅ ' + msg + (safeUrl ? ' <a href="' + safeUrl.replace(/"/g, '&quot;') + '" target="_blank" rel="noopener" style="color:var(--success);">Pobierz →</a>' : '');
           resultEl.style.background = 'rgba(34, 197, 94, 0.15)';
         } else {
           resultEl.textContent = '✅ ' + (d.message || 'Masz najnowszą wersję.');

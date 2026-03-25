@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel na telefonie – QR | Imprezja</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/img/icon-32.png">
+    <link rel="stylesheet" href="/css/admin-editor-shared.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: var(--imp-font);
+            background: var(--imp-bg-gradient);
+            min-height: 100vh;
+            color: var(--imp-text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            text-align: center;
+        }
+        h1 {
+            color: var(--imp-accent);
+            font-size: 1.5rem;
+            margin-bottom: 12px;
+        }
+        .desc {
+            color: rgba(255,255,255,0.7);
+            font-size: 0.95rem;
+            margin-bottom: 24px;
+            max-width: 320px;
+        }
+        .qr-wrap {
+            background: #fff;
+            padding: 16px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        }
+        .qr-wrap img {
+            display: block;
+            width: 260px;
+            height: 260px;
+        }
+        .qr-url {
+            font-size: 0.8rem;
+            word-break: break-all;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 24px;
+            max-width: 320px;
+        }
+        .back-link {
+            color: #f1c40f;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        .back-link:hover { text-decoration: underline; }
+        .loading { color: rgba(255,255,255,0.6); }
+        .error { color: #e74c3c; margin-bottom: 16px; }
+    </style>
+</head>
+<body class="imp-admin-editor">
+    <a href="/start.html" class="back-link">← Powrót do wyboru trybu</a>
+    <h1>📱 Panel na telefonie</h1>
+    <p class="desc">Zeskanuj kod QR telefonem, aby otworzyć panel sterowania na urządzeniu mobilnym.</p>
+    <div id="qr-container">
+        <p class="loading">Ładowanie QR…</p>
+    </div>
+    <p id="qr-url" class="qr-url"></p>
+
+    <script>
+        (async function() {
+            const container = document.getElementById('qr-url');
+            const qrContainer = document.getElementById('qr-container');
+            try {
+                const r = await fetch('/api/admin-pwa-qr');
+                const d = await r.json();
+                if (d.qrCode) {
+                    qrContainer.innerHTML = '<div class="qr-wrap"><img src="' + d.qrCode + '" alt="QR"></div>';
+                    container.textContent = d.url || '';
+                } else {
+                    qrContainer.innerHTML = '<p class="error">' + (d.error || 'Błąd generowania QR') + '</p>';
+                }
+            } catch (e) {
+                qrContainer.innerHTML = '<p class="error">Błąd połączenia: ' + (e.message || 'Nieznany') + '</p>';
+            }
+        })();
+    </script>
+</body>
+</html>

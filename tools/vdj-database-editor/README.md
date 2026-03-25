@@ -19,6 +19,24 @@ Następnie otwórz w przeglądarce: **http://127.0.0.1:5050**
 
 Na Macu możesz też dwukrotnie kliknąć `run.command`.
 
+## Testy automatyczne
+
+**Na macOS** w terminalu zwykle jest tylko **`python3`** – polecenie `python` bywa niedostępne (`command not found`). Użyj `python3` we wszystkich komendach poniżej.
+
+- **API (Flask):** `python3 test_api.py` – wymaga `test-backup-vdj.zip` lub ścieżki w `BACKUP_PATHS` w skrypcie.  
+  **Szybko na Macu:** dow z `~/Documents/backup.zip` (plik nie trafia do gita):
+  `ln -sf "$HOME/Documents/backup.zip" "$(pwd)/test-backup-vdj.zip"` *(wykonaj w katalogu `vdj-database-editor`)*.
+- **Round-trip formatów (bez serwera):** sprawdza VDJ → DJXML / Rekordbox XML → VDJ oraz zapis `database.xml`. **Musisz być w katalogu** `vdj-database-editor`:
+  ```bash
+  cd /ścieżka/do/VoteBattle/tools/vdj-database-editor
+  python3 -m unittest test_roundtrip_formats -v
+  ```
+  Opcjonalnie z prawdziwym backupem ZIP (podaj **prawdziwą** ścieżkę do pliku `.zip`, nie przykładową):
+  ```bash
+  NJR_TEST_BACKUP="$HOME/Documents/backup.zip" python3 -m unittest test_roundtrip_formats.TestRoundtripWithRealBackup -v
+  ```
+  Uwaga: trasa **Rekordbox XML** w teście nie weryfikuje zachowania `<Comment>` (ograniczenie eksportu RB). DJXML może przenosić tagi między polami – test porównuje **zbiór** tokenów (Genre + User1/2 + Comment).
+
 ## Przygotowanie bazy
 
 1. Kliknij **Wybierz folder z database.xml** i wskaż folder, w którym znajduje się plik `database.xml`.

@@ -119,6 +119,13 @@ if (!machineId) {
     process.exit(0);
 }
 
+if (machineId && !/^[a-fA-F0-9]{16}$/.test(String(machineId).trim())) {
+    console.error('BŁĄD: Machine ID musi być dokładnie 16 znaków szesnastkowych (0-9, A-F), jak w oknie „Licencja” w programie.');
+    console.error('Podano: ' + JSON.stringify(machineId));
+    console.error('Nie używaj innych ciągów (np. z literami J, Q) — to nie jest ID z programu.');
+    process.exit(1);
+}
+
 try {
     const key = generateLicenseKeyRSA(machineId, type);
     const typeLabel = license.LICENSE_TYPE_LABELS[type] || type;
@@ -126,6 +133,10 @@ try {
     console.log('Typ: ' + typeLabel + ' (' + type + ')');
     console.log('Klucz:');
     console.log(key);
+    console.log('');
+    console.log('Jeśli klient zgłasza „nie pasuje”: na jego PC uruchom Imprezja Quiz → ekran licencji pokazuje też alternatywne ID,');
+    console.log('albo: node scripts/show-machine-ids.js (na komputerze klienta). Wygeneruj klucz dla każdego z wyświetlonych ID.');
+    console.log('Test klucza lokalnie: node scripts/verify-license-key-cli.js "' + key + '"');
 } catch (err) {
     console.error('Błąd:', err.message);
     process.exit(1);

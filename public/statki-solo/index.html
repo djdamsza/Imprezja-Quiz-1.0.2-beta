@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Statki Solo – Imprezja Quiz</title>
-<link rel="icon" href="data:,">
+<link rel="icon" type="image/x-icon" href="/favicon.ico"><link rel="icon" type="image/png" sizes="32x32" href="/img/icon-32.png"><link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <script src="/socket.io/socket.io.js"></script>
 <style>
     :root {
@@ -108,12 +108,12 @@
             <a href="/statki-solo/screen.html" class="intro-btn intro-btn-screen" target="_blank">📺 Otwórz Screen (TV)</a>
             <a href="/statki-solo/admin.html" class="intro-btn intro-btn-admin" target="_blank">🎯 Admin na komputerze</a>
             <a href="/statki-solo/editor.html" class="intro-btn intro-btn-editor">✏️ Edytor planszy</a>
-            <a href="/start.html" class="intro-btn intro-btn-back">← Wróć</a>
+            <button type="button" class="intro-btn intro-btn-back back-to-start">← Wróć</button>
         </div>
     </div>
 </div>
 
-<a href="/start.html" class="cofnij-btn">← Cofnij</a>
+<button type="button" class="cofnij-btn back-to-start">← Cofnij</button>
 
 <script>
 const socket = io();
@@ -190,6 +190,16 @@ socket.on('tunnel_error', (d) => {
 // ── Init ───────────────────────────────────────────────────
 loadQRData();
 loadBoardInfo();
+
+document.querySelectorAll('.back-to-start').forEach(el => {
+    el.addEventListener('click', () => {
+        if (window.self !== window.top) {
+            window.parent.postMessage({ type: 'impreja-embed-minimize' }, '*');
+        } else {
+            window.location.href = '/start.html';
+        }
+    });
+});
 </script>
 </body>
 </html>

@@ -1,0 +1,290 @@
+{
+  "name": "automail-followup-2d",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Follow-up (Resend + arkusz) — codziennie ~10:00\n\n1. **Strefa czasu:** w pliku jest `settings.timezone` = **Europe/Warsaw** — **Schedule** o **10:00** = polska dziesiąta.\n2. **Render / UTC:** jeśli instancja ignoruje timezone workflowu, użyj **Custom Cron** w Schedule: `0 0 9 * * *` (≈ 10:00 CET) lub `0 0 8 * * *` (≈ 10:00 CEST).\n3. **Credentials:** ten sam **Google Sheets OAuth2** co w automail (**Read** + **Update**).\n4. **Resend:** `$env.RESEND_API_KEY`; `N8N_BLOCK_ENV_ACCESS_IN_NODE` ≠ true.\n5. **Test:** **Manual_Trigger_FollowupTest**.\n6. Arkusz: **workflow_run** + follow-up — `N8N_FOLLOWUP_3D_SHEETS.md` (domyślne opóźnienie: **2 dni / 48 h**).\n7. **FOLLOWUP_BCC** — kopia follow-upu na Twój mail (Resend). **FOLLOWUP_DELAY_HOURS** / **FOLLOWUP_DELAY_DAYS** — bez env: **48 h (2 dni)** w automailu i w filtrze follow-upu.",
+        "height": 420,
+        "width": 400
+      },
+      "id": "a1b2c3d4-e5f6-7890-abcd-followup-sticky",
+      "name": "Sticky_Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1,
+              "triggerAtHour": 10,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "b2c3d4e5-f6a7-8901-bcde-sched10",
+      "name": "Schedule_Daily_10",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        300
+      ],
+      "notesInFlow": true,
+      "notes": "10:00 w **timezone workflowu** (np. Europe/Warsaw). Zob. sticky."
+    },
+    {
+      "parameters": {},
+      "id": "c3d4e5f6-a7b8-9012-cdef-manualfu",
+      "name": "Manual_Trigger_FollowupTest",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        480
+      ],
+      "notesInFlow": true,
+      "notes": "Ręczny test bez czekania na harmonogram."
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "11vKJ7Df-lxeu_fVIA3B3JAssSxCEMByut5gneULLbfk",
+          "mode": "id",
+          "cachedResultName": "Zapytania_Imprezja_2026"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Arkusz1",
+          "mode": "name",
+          "cachedResultName": "Arkusz1"
+        },
+        "filtersUI": {
+          "values": []
+        },
+        "combineFilters": "AND",
+        "options": {}
+      },
+      "id": "d4e5f6a7-b8c9-0123-def0-readsh",
+      "name": "GoogleSheets_ReadZapytania",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        520,
+        380
+      ],
+      "notesInFlow": true,
+      "notes": "Ten sam dokument / arkusz co **GoogleSheets_AppendZapytania** w automail.",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "NmthFQ76Y1NQwXQy",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Follow-up — wiersze do Resend.\n * Kandydat: followup_candidate=TRUE/1; albo kolumna candidate pusta i wtedy: is_event_inquiry + nie human + nie needs_human_review + nie skip_client_offer_resend.\n * Wyłączenie: jawne followup_candidate=FALSE/0.\n * Ścisły tylko TRUE z arkusza: env FOLLOWUP_STRICT_CANDIDATE=1.\n * Adres: resend_to → client_to_email → wp_form_client_email → email → emailFrom.\n * eligible: followup_eligible_at lub zapisano_at + FOLLOWUP_DELAY_HOURS (domyślnie 48 h = 2 dni) lub FOLLOWUP_DELAY_DAYS×24.\n * Temat/HTML z arkusza; gdy puste — domyślny krótki mail (wyłącz: FOLLOWUP_NO_MINIMAL_TEMPLATE=1).\n */\nfunction truthyCandidate(v) {\n  if (v === true) return true;\n  const s = String(v ?? '').trim().toUpperCase();\n  return s === 'TRUE' || s === '1' || s === 'TAK' || s === 'YES';\n}\nfunction explicitNoFollowup(row) {\n  const s = String(row.followup_candidate ?? '').trim().toUpperCase();\n  return row.followup_candidate === false || s === 'FALSE' || s === '0';\n}\nfunction notSentYet(v) {\n  const s = String(v ?? '').trim().toUpperCase();\n  if (s === 'TRUE' || s === '1' || v === true) return false;\n  if (v === false || s === 'FALSE' || s === '0' || s === '') return true;\n  return true;\n}\nfunction parseIso(s) {\n  if (!s) return null;\n  const d = new Date(String(s).trim());\n  return Number.isNaN(d.getTime()) ? null : d;\n}\nfunction pickRecipient(row) {\n  const tryList = [row.resend_to, row.client_to_email, row.wp_form_client_email, row.email];\n  for (let i = 0; i < tryList.length; i++) {\n    const c = tryList[i];\n    if (c && String(c).includes('@')) return String(c).trim();\n  }\n  const ef = row.emailFrom;\n  if (typeof ef === 'string') {\n    const m = ef.match(/<([^>\\s]+@[^>\\s]+)>/);\n    if (m) return m[1].trim();\n    if (ef.includes('@')) return ef.trim();\n  }\n  if (ef && typeof ef === 'object') {\n    if (ef.address && String(ef.address).includes('@')) return String(ef.address).trim();\n  }\n  return '';\n}\nfunction delayHours() {\n  try {\n    const eh = String($env.FOLLOWUP_DELAY_HOURS ?? '').trim();\n    if (eh !== '') {\n      const n = parseInt(eh, 10);\n      if (Number.isFinite(n) && n >= 0) return n;\n    }\n    const ed = String($env.FOLLOWUP_DELAY_DAYS ?? '').trim();\n    if (ed !== '') {\n      const d = parseInt(ed, 10);\n      if (Number.isFinite(d) && d >= 0) return d * 24;\n    }\n  } catch (e) {}\n  return 48;\n}\nfunction strictCandidateOnly() {\n  try {\n    return String($env.FOLLOWUP_STRICT_CANDIDATE || '').trim() === '1';\n  } catch (e) {\n    return false;\n  }\n}\nfunction noMinimalTemplate() {\n  try {\n    return String($env.FOLLOWUP_NO_MINIMAL_TEMPLATE || '').trim() === '1';\n  } catch (e) {\n    return false;\n  }\n}\nfunction bypassEligibleDate() {\n  try {\n    return String($env.FOLLOWUP_BYPASS_ELIGIBLE_DATE || '').trim() === '1';\n  } catch (e) {\n    return false;\n  }\n}\nfunction inferCandidateFromInquiry(row) {\n  if (!truthyCandidate(row.is_event_inquiry)) return false;\n  if (truthyCandidate(row.human)) return false;\n  if (truthyCandidate(row.needs_human_review)) return false;\n  if (truthyCandidate(row.skip_client_offer_resend)) return false;\n  return true;\n}\nfunction candidateMissingOrEmpty(row) {\n  const fc = row.followup_candidate;\n  if (fc === undefined || fc === null) return true;\n  return String(fc).trim() === '';\n}\nfunction isRowCandidate(row) {\n  if (explicitNoFollowup(row)) return false;\n  if (strictCandidateOnly()) return truthyCandidate(row.followup_candidate);\n  if (truthyCandidate(row.followup_candidate)) return true;\n  if (candidateMissingOrEmpty(row) && inferCandidateFromInquiry(row)) return true;\n  return false;\n}\n\nconst DEFAULT_SUBJ = 'Imprezja — w razie pytań: odpowiedź na mail lub telefon 🙂';\nconst DEFAULT_HTML =\n  '<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:15px;line-height:1.5;color:#222;\">' +\n  '<p>Dzień dobry,</p>' +\n  '<p>Piszę z biura <strong>Imprezja</strong> — wracam krótko po naszej wiadomości z ofertą. Jeśli nadal szukacie <strong>DJ-a i wodzireja</strong>, chętnie doprecyzujemy wszystko: muzykę, scenariusz, atrakcje — w spokojnym tempie, bez pośpiechu.</p>' +\n  '<p><strong>Napiszcie śmiało</strong> — wystarczy odpowiedź na tego maila albo telefon <strong>503&nbsp;836&nbsp;965</strong>.</p>' +\n  '<p>Relacje z imprez i opinie:</p>' +\n  '<ul style=\"margin:0 0 1em 1.2em;\">' +\n  '<li><strong>Facebook:</strong> <a href=\"https://www.facebook.com/imprezjadamiannowaczyk\">facebook.com/imprezjadamiannowaczyk</a></li>' +\n  '<li><strong>Instagram:</strong> <a href=\"https://www.instagram.com/imprezja/\">instagram.com/imprezja</a></li>' +\n  '</ul>' +\n  '<p>Jeśli temat jest już zamknięty, spokojnie zignorujcie tę wiadomość. W przeciwnym razie czekam na sygnał 🙂</p>' +\n  '<p>Pozdrawiam serdecznie,<br/><strong>Damian Nowaczyk</strong><br/>DJ / wodzirej Imprezja<br/><a href=\"https://www.imprezja.pl\">www.imprezja.pl</a></p></div>';\n\nconst now = new Date();\nconst dh = delayHours();\nconst strictMin = noMinimalTemplate();\nconst out = [];\nfor (const item of $input.all()) {\n  const row = item.json;\n  if (!isRowCandidate(row)) continue;\n  if (!notSentYet(row.followup_sent)) continue;\n  let el = parseIso(row.followup_eligible_at);\n  if (!el) {\n    const zb = parseIso(row.zapisano_at);\n    if (zb) {\n      const d = new Date(zb.getTime());\n      d.setUTCHours(d.getUTCHours() + dh);\n      el = d;\n    }\n  }\n  if (!el) continue;\n  if (!bypassEligibleDate() && el > now) continue;\n  const to = pickRecipient(row);\n  if (!to.includes('@')) continue;\n  let subj = String(row.subject_followup_3d || '').trim();\n  let html = String(row.html_followup_3d || '').trim();\n  if ((!subj || !html) && !strictMin) {\n    if (!subj) subj = DEFAULT_SUBJ;\n    if (!html) html = DEFAULT_HTML;\n  }\n  if (!subj || !html) continue;\n  const wr = String(row.workflow_run || '').trim();\n  if (!wr) continue;\n  const resend = row.resend_to && String(row.resend_to).includes('@') ? String(row.resend_to).trim() : to;\n  out.push({\n    json: { ...row, resend_to: resend, subject_followup_3d: subj, html_followup_3d: html },\n    pairedItem: item.pairedItem,\n  });\n}\nreturn out;"
+      },
+      "id": "e5f6a7b8-c9d0-1234-ef01-filter",
+      "name": "Code_FilterFollowupEligible",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        380
+      ],
+      "notesInFlow": true,
+      "notes": "Opóźnienie: FOLLOWUP_DELAY_HOURS (domyślnie 48 h / 2 dni) lub FOLLOWUP_DELAY_DAYS×24. FOLLOWUP_BCC=adres — kopia na Twoją skrzynkę. FOLLOWUP_STRICT_CANDIDATE, FOLLOWUP_NO_MINIMAL_TEMPLATE, FOLLOWUP_BYPASS_ELIGIBLE_DATE."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.RESEND_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (function () { const o = { from: String($json.mail_from || 'Biuro Imprezja <biuro@imprezja.pl>').trim(), to: String($json.resend_to || $json.email || '').trim(), reply_to: String($json.reply_to || 'biuro@imprezja.pl').trim(), subject: $json.subject_followup_3d, html: $json.html_followup_3d }; try { const b = String($env.FOLLOWUP_BCC || '').trim(); if (b.includes('@')) o.bcc = [b]; } catch (e) {} return JSON.stringify(o); })() }}",
+        "options": {},
+        "authentication": "none"
+      },
+      "id": "f6a7b8c9-d0e1-2345-f012-resend",
+      "name": "Resend_Followup3d",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1040,
+        380
+      ],
+      "notesInFlow": true,
+      "notes": "Resend: to = klient (resend_to). Kopia dla Ciebie: env **FOLLOWUP_BCC**=twój@email. `$env.RESEND_API_KEY`."
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Przywróć workflow_run + flagi pod Update (HTTP zwraca tylko odpowiedź Resend).\n */\nconst httpItems = $input.all();\nconst rows = $('Code_FilterFollowupEligible').all();\nif (httpItems.length !== rows.length) {\n  throw new Error('followup: liczba odpowiedzi Resend != liczba wierszy do wysłania');\n}\nconst at = new Date().toISOString();\nreturn httpItems.map((item, i) => ({\n  json: {\n    workflow_run: String(rows[i].json.workflow_run || '').trim(),\n    followup_sent: 'TRUE',\n    followup_sent_at: at\n  },\n  pairedItem: item.pairedItem\n}));"
+      },
+      "id": "a7b8c9d0-e1f2-3456-0123-afterhttp",
+      "name": "Code_AfterFollowupResendForSheet",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        380
+      ],
+      "notesInFlow": true,
+      "notes": "Oznacza wiersz dopiero po udanym Resend."
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "sheet",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "11vKJ7Df-lxeu_fVIA3B3JAssSxCEMByut5gneULLbfk",
+          "mode": "id",
+          "cachedResultName": "Zapytania_Imprezja_2026"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Arkusz1",
+          "mode": "name",
+          "cachedResultName": "Arkusz1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "workflow_run"
+          ],
+          "value": {
+            "workflow_run": "={{ $json.workflow_run }}",
+            "followup_sent": "TRUE",
+            "followup_sent_at": "={{ $json.followup_sent_at }}"
+          },
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "b8c9d0e1-f2a3-4567-1234-updsh",
+      "name": "GoogleSheets_UpdateFollowupFlags",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1540,
+        380
+      ],
+      "notesInFlow": true,
+      "notes": "Dopasowanie po **workflow_run** (jak w automail). Po imporcie: otwórz node i potwierdź kolumny, jeśli n8n poprosi.",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "NmthFQ76Y1NQwXQy",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule_Daily_10": {
+      "main": [
+        [
+          {
+            "node": "GoogleSheets_ReadZapytania",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual_Trigger_FollowupTest": {
+      "main": [
+        [
+          {
+            "node": "GoogleSheets_ReadZapytania",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GoogleSheets_ReadZapytania": {
+      "main": [
+        [
+          {
+            "node": "Code_FilterFollowupEligible",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code_FilterFollowupEligible": {
+      "main": [
+        [
+          {
+            "node": "Resend_Followup3d",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resend_Followup3d": {
+      "main": [
+        [
+          {
+            "node": "Code_AfterFollowupResendForSheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code_AfterFollowupResendForSheet": {
+      "main": [
+        [
+          {
+            "node": "GoogleSheets_UpdateFollowupFlags",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timezone": "Europe/Warsaw"
+  },
+  "versionId": "00000000-0000-4000-8000-followup2d01",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

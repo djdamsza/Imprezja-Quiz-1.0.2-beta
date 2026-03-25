@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Imprezja Quiz - Głosowanie</title>
-    <link rel="icon" href="data:,">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico"><link rel="icon" type="image/png" sizes="32x32" href="/img/icon-32.png"><link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
     <link rel="manifest" href="/manifest.json">
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/profanity-filter.js"></script>
@@ -523,6 +523,11 @@
         /* === Przyciski odpowiedzi – wyjeżdżają po kolei === */
         .answers-grid .answer-btn {
             animation: answerSlideIn 0.45s ease-out backwards;
+        }
+        /* NAPRAWA: Wyłącz animację gdy gracz już odpowiedział – unika migania przy update_state */
+        .answers-grid.has-answered .answer-btn,
+        .answers-grid.has-answered .hot-image-card {
+            animation: none !important;
         }
         .answers-grid .answer-btn:nth-child(1) { animation-delay: 0.05s; }
         .answers-grid .answer-btn:nth-child(2) { animation-delay: 0.12s; }
@@ -1755,7 +1760,16 @@
             grid-template-columns: 1fr;
         }
         
-        /* Responsywność - na bardzo małych ekranach zawsze 1 kolumna */
+        /* Responsywność - na telefonach (max 768px) wymuś 1 kolumnę = układ wierszy */
+        /* 360px było za wąskie – większość telefonów ma 375–428px, po buildzie Electron style nie działały */
+        @media (max-width: 768px) {
+            .answers-grid,
+            #voting-screen.music-mode .answers-grid {
+                grid-template-columns: 1fr !important;
+            }
+        }
+        
+        /* Fallback dla bardzo małych ekranów */
         @media (max-width: 360px) {
             .answers-grid {
                 grid-template-columns: 1fr !important;
@@ -2934,6 +2948,7 @@
         let playerNick = '';
         let playerScore = 0;
         let currentQuestionId = null;
+        let lastActiveQuestionIndex = -1;
         let hasAnswered = false;
         let playerAnswerIndex = null; // Przechowuj indeks odpowiedzi gracza
         let currentPodiumStep = -1;
@@ -3073,6 +3088,10 @@
 
         socket.on('connect', () => {
             log('✅ Połączono z serwerem, socket.id:', socket.id);
+            // Reset question tracking on reconnect so the same question re-renders after disconnect
+            // (without this, questionId === currentQuestionId → showVotingScreen is skipped)
+            if (typeof currentQuestionId !== 'undefined') currentQuestionId = null;
+            if (typeof hncVLastKey !== 'undefined') hncVLastKey = '';
             hideConnectionLost();
 
             // Automatyczna rejestracja przy reconnect jeśli gracz był wcześniej zarejestrowany
@@ -3104,7 +3123,7 @@
             socket.emit('request_state');
         });
         
-        socket.on('disconnect', () => {
+        socket.on('disconnect', (reason) => {
             log('❌ Rozłączono z serwerem');
             showConnectionLost();
         });
@@ -3370,6 +3389,8 @@
             if (state.type === 'GAME' || state.type === 'GAME_STATS') scheduleStateRefresh();
             else if (stateRefreshTimer) { clearTimeout(stateRefreshTimer); stateRefreshTimer = null; }
             playerEliminated = !!(state.eliminatedMap && state.eliminatedMap[socket.id]);
+            // Ukryj HNC overlay gdy nie ma aktywnego pytania HNC (fix: overlay może blokować widok po zakończeniu HNC)
+            if (!state.hncState) { const hncScr = document.getElementById('hnc-vote-screen'); if (hncScr && hncScr.style.display !== 'none') hncScr.style.display = 'none'; }
             
             // WAŻNE: Jeśli dogrywka jest aktywna, natychmiast ukryj wszystkie obrazy i upewnij się że dogrywka jest wyświetlona
             log('🎤 Wczesne sprawdzenie dogrywki:', {
@@ -3733,6 +3754,10 @@
                 }
                 
                 if (state.type === 'GAME') {
+                    // Ukryj overlay WYBORCZY gdy pytanie nie jest wyborcze (fix: po zakończeniu pytania wyborczego overlay blokował głosowanie)
+                    if (state.activeQuestion && state.activeQuestion.type !== 'WYBORCZY') {
+                        showWybVoteScreen(false);
+                    }
                     // WAŻNE: Sprawdź czy to dogrywka PRZED wywołaniem showVotingScreen
                     const isPlayoffActive = state.playoff && state.playoff.active;
                     if (isPlayoffActive) {
@@ -3761,7 +3786,8 @@
                                 type: q.type 
                             });
                             currentQuestionId = questionId;
-                            // WAŻNE: Resetuj hasAnswered dla nowego pytania - sprawdź localStorage
+                            lastActiveQuestionIndex = state.activeQuestionIndex ?? 0;
+                            // Resetuj hasAnswered dla nowego pytania - sprawdź localStorage
                             const answeredKey = `voteBattle_answered_${questionId}`;
                             
                             // DEBUG: Sprawdź wszystkie klucze localStorage związane z odpowiedziami
@@ -3809,11 +3835,22 @@
                             }
                             // Sprawdź ponownie czy dogrywka nie została aktywowana przed wywołaniem showVotingScreen
                             if (!(state.playoff && state.playoff.active)) {
+                                // Jeśli nowe pytanie NIE jest HNC, ukryj ekran HNC (fix: HNC overlay blokowała widok)
+                                if (q.type !== 'HNC') {
+                                    const hncScr = document.getElementById('hnc-vote-screen');
+                                    if (hncScr) hncScr.style.display = 'none';
+                                }
                                 showVotingScreen(q, state.timeLeft || 30);
                             } else {
                                 log('🎤 Dogrywka aktywna - pomijam showVotingScreen dla pytania', questionId);
                                 showPlayoffScreen(state.playoff);
                             }
+                        } else if (q.type === 'HNC') {
+                            // HNC – update on hncState change
+                            updateHncVoteScreen(state);
+                        } else if (q.type === 'WYBORCZY') {
+                            // Wyborczy - update on wyborczyState change (new photo)
+                            updateWybVoteScreen(state);
                         } else {
                             // LETTER: gdy litery właśnie przyszły (gameStarted=true), przeładuj widok żeby pokazać pola na odpowiedź
                             const letterJustStarted = q.type === 'LETTER' && state.letterGame && state.letterGame.questionId === questionId && state.letterGame.gameStarted === true;
@@ -3858,6 +3895,7 @@
                         if (state.activeQuestion && state.activeQuestion.type === 'LETTER') {
                             log('🎤 Dogrywka zakończona – powrót do chmury słów dla LETTER');
                             currentQuestionId = null;
+                            lastActiveQuestionIndex = -1;
                         }
                     }
                     
@@ -3887,8 +3925,10 @@
                                     const imgSrc = (state.activeQuestion.imageSmall || state.activeQuestion.image || state.activeQuestion.media || '').trim();
                                     const skipImages = state.sendImagesToPhones === false;
                                     if (imgSrc && heroContainer && heroImg && !skipImages) {
-                                        log('📊 [GAME_STATS] OPEN - Utrzymuję widoczność grafiki podczas pokazywania statystyk');
                                         const src = (imgSrc.startsWith('/') || imgSrc.startsWith('http')) ? imgSrc : '/uploads/' + imgSrc;
+                                        const sameImg = heroImg.src && (() => { try { const a = new URL(heroImg.src, location.origin).pathname; const b = src.startsWith('/') ? src : (src.startsWith('http') ? new URL(src).pathname : '/uploads/' + src); return a === b; } catch(_) { return false; } })();
+                                        if (!sameImg) heroImg.src = src;
+                                        log('📊 [GAME_STATS] OPEN - Utrzymuję widoczność grafiki podczas pokazywania statystyk');
                                         heroContainer.style.display = 'block';
                                         heroContainer.style.visibility = 'visible';
                                         heroContainer.style.opacity = '1';
@@ -3896,7 +3936,6 @@
                                         heroContainer.style.width = 'auto';
                                         heroContainer.style.position = 'static';
                                         heroContainer.style.left = 'auto';
-                                        heroImg.src = src;
                                         if (questionHeader) {
                                             questionHeader.style.display = 'block';
                                             questionHeader.style.visibility = 'visible';
@@ -4660,6 +4699,16 @@
             const heroImg = document.getElementById('hero-image');
             if (!heroContainer || !heroImg || !q) return;
             
+            // Pomocnik: czy src wskazuje na ten sam obraz co heroImg (unika przeładowania co 2–4 s przy update_state)
+            function sameHeroImage(newSrc) {
+                if (!newSrc || !heroImg.src) return false;
+                try {
+                    const a = heroImg.src ? new URL(heroImg.src, location.origin).pathname : '';
+                    const b = newSrc.startsWith('/') ? newSrc : (newSrc.startsWith('http') ? new URL(newSrc).pathname : '/uploads/' + newSrc);
+                    return a === b;
+                } catch (_) { return false; }
+            }
+            
             // WAŻNE: Dla pytań otwartych - grafika powinna być widoczna podczas wpisywania odpowiedzi i pokazywania statystyk
             // Grafika znika dopiero gdy zaczyna się dogrywka (sprawdzenie wyżej)
             const skipImages = currentGameState?.sendImagesToPhones === false;
@@ -4667,6 +4716,11 @@
                 const imgSrc = (q.imageSmall || q.image || q.media || '').trim();
                 if (imgSrc && !skipImages) {
                     const src = (imgSrc.startsWith('/') || imgSrc.startsWith('http')) ? imgSrc : '/uploads/' + imgSrc;
+                    if (!sameHeroImage(src)) {
+                        log('📊 updateQuestionDisplay OPEN - Ustawiam grafikę:', src);
+                        heroImg.src = src;
+                        triggerHeroReveal();
+                    }
                     log('📊 updateQuestionDisplay OPEN - Utrzymuję widoczność grafiki:', src);
                     heroContainer.style.display = 'block';
                     heroContainer.style.visibility = 'visible';
@@ -4675,8 +4729,6 @@
                     heroContainer.style.width = 'auto';
                     heroContainer.style.position = 'static';
                     heroContainer.style.left = 'auto';
-                    heroImg.src = src;
-                    triggerHeroReveal();
                     const questionHeader = document.querySelector('.question-header');
                     if (questionHeader) {
                         questionHeader.style.display = 'block';
@@ -4698,8 +4750,10 @@
                 if (imgSrc && !skipImages) {
                     const src = (imgSrc.startsWith('/') || imgSrc.startsWith('http')) ? imgSrc : '/uploads/' + imgSrc;
                     heroContainer.style.display = 'block';
-                    heroImg.src = src;
-                    triggerHeroReveal();
+                    if (!sameHeroImage(src)) {
+                        heroImg.src = src;
+                        triggerHeroReveal();
+                    }
                     document.getElementById('voting-screen').classList.remove('no-image');
                 } else {
                     heroContainer.style.display = 'none';
@@ -5133,6 +5187,12 @@
                 return;
             }
             
+            // WYBORCZY – specjalny widok gwiazdkowy
+            if (question.type === 'WYBORCZY') {
+                showWybVotingScreen(question);
+                return;
+            }
+
             // WAŻNE: Resetuj hasAnswered dla nowego pytania (sprawdź czy questionId się zmienił)
             const questionId = question.id !== undefined && question.id !== null ? question.id : `q_${Date.now()}`;
             
@@ -5226,7 +5286,7 @@
                 votingScreen.classList.remove('playoff-mode', 'no-image', 'ships-mode', 'hot-or-not-mode', 'music-mode');
             }
             if (grid) {
-                grid.classList.remove('playoff-mode', 'list-mode', 'hot-or-not-grid', 'ships-mode', 'layout-horizontal', 'layout-vertical');
+                grid.classList.remove('playoff-mode', 'list-mode', 'hot-or-not-grid', 'ships-mode', 'layout-horizontal', 'layout-vertical', 'has-answered');
                 grid.innerHTML = '';
                 grid.style.pointerEvents = '';
                 grid.style.cursor = '';
@@ -6234,7 +6294,72 @@
             hasShotThisTurn: false,
             gameEnded: false
         };
-        
+
+        function getShipsFleetSummary(ships, shots) {
+            const safeShips = Array.isArray(ships) ? ships : [];
+            const safeShots = shots || {};
+            const sizeCounts = {};
+            let totalMasts = 0;
+            let hitMasts = 0;
+            let sunkShips = 0;
+            for (const ship of safeShips) {
+                sizeCounts[ship.size] = (sizeCounts[ship.size] || 0) + 1;
+                let shipHit = 0;
+                for (let i = 0; i < ship.size; i++) {
+                    const r = ship.row + (ship.vertical ? i : 0);
+                    const c = ship.col + (ship.vertical ? 0 : i);
+                    totalMasts++;
+                    if (safeShots[`${r}_${c}`]?.hit) {
+                        hitMasts++;
+                        shipHit++;
+                    }
+                }
+                if (shipHit === ship.size) sunkShips++;
+            }
+            const sizeLabel = Object.keys(sizeCounts)
+                .sort((a, b) => Number(b) - Number(a))
+                .map(sz => `${sizeCounts[sz]}x${sz}`)
+                .join(' ');
+            return { shipsCount: safeShips.length, totalMasts, hitMasts, sunkShips, sizeLabel };
+        }
+
+        function buildShipsFleetHtml(ships, shots) {
+            const safeShips = Array.isArray(ships) ? [...ships] : [];
+            if (!safeShips.length) {
+                return `<div style="width:100%; padding:10px; background:rgba(0,0,0,0.42); border-radius:8px; border:2px solid #00aaff; box-sizing:border-box; margin-bottom:10px;">
+                    <div style="color:#00aaff; font-size:clamp(0.95rem,3vw,1.05rem); font-weight:900; margin-bottom:4px;">⚓ Flota</div>
+                    <div style="color:rgba(255,255,255,0.55); font-size:clamp(0.78rem,2.8vw,0.9rem);">Brak statków w tym pytaniu.</div>
+                </div>`;
+            }
+            const safeShots = shots || {};
+            const sortedShips = safeShips.sort((a, b) => b.size - a.size);
+            const summary = getShipsFleetSummary(sortedShips, safeShots);
+            const titleLine = summary.sunkShips > 0
+                ? `${summary.sunkShips}/${summary.shipsCount} zatopionych`
+                : `${summary.shipsCount} statków`;
+            let html = `<div style="width:100%; padding:10px; background:rgba(0,0,0,0.42); border-radius:8px; border:2px solid #00aaff; box-sizing:border-box; margin-bottom:10px;">`;
+            html += `<div style="color:#7dd3fc; font-size:clamp(1rem,3.6vw,1.15rem); font-weight:900; margin-bottom:4px;">⚓ ${titleLine}</div>`;
+            html += `<div style="color:#64748b; font-size:clamp(0.72rem,2.6vw,0.86rem); margin-bottom:8px; letter-spacing:.02em;">${summary.sizeLabel || '-'}</div>`;
+            html += `<div style="display:flex;flex-direction:column;gap:5px;">`;
+            for (const ship of sortedShips) {
+                const cells = [];
+                for (let i = 0; i < ship.size; i++) {
+                    const r = ship.row + (ship.vertical ? i : 0);
+                    const c = ship.col + (ship.vertical ? 0 : i);
+                    const hit = !!safeShots[`${r}_${c}`]?.hit;
+                    cells.push(hit);
+                }
+                const shipSunk = cells.length > 0 && cells.every(Boolean);
+                html += `<div style="display:flex;gap:4px;opacity:${shipSunk ? '0.45' : '1'};">`;
+                html += cells.map(hit => `<div style="width:16px;height:16px;border-radius:3px;border:1.5px solid ${hit ? '#4ade80' : 'rgba(14,165,233,.5)'};background:${hit ? '#15803d' : 'rgba(14,165,233,.15)'};"></div>`).join('');
+                html += `</div>`;
+            }
+            html += `</div>`;
+            html += `<div style="margin-top:8px;color:#94a3b8;font-size:clamp(0.72rem,2.7vw,0.86rem);">Trafienia: <strong style="color:#4ade80">${summary.hitMasts}/${summary.totalMasts}</strong></div>`;
+            html += `</div>`;
+            return html;
+        }
+
         // Globalny handler dla aktualizacji stanu statków (działa dla wszystkich pytań)
         socket.on('ships_game_update', (data) => {
             if (shipsGameState.questionId === data.questionId) {
@@ -6269,12 +6394,11 @@
                     updateShipsBoard(shipsGameState.questionId);
                     // Aktualizuj też numer rundy w nagłówku
                     updateShipsRoundInfo(shipsGameState.questionId);
-                    
-                    // Jeśli showStats zmieniło się na false, ukryj statystyki
-                    if (data.showStats === false) {
-                        const statsContainer = document.getElementById(`ships-stats-container-${shipsGameState.questionId}`);
-                        if (statsContainer) statsContainer.style.display = 'none';
-                    }
+                    renderShipsStats(shipsGameState.questionId, {
+                        shipsGame: shipsGameState,
+                        showStats: currentGameState?.showStats,
+                        showCorrect: currentGameState?.showCorrect
+                    });
                 }
             }
         });
@@ -6339,9 +6463,9 @@
                 hasShotThisTurn: false,
                 gameEnded: false
             };
-            
             renderShipsBoard(questionId);
             updateShipsStatus(questionId);
+            renderShipsStats(questionId, { shipsGame: shipsGameState, showStats: false, showCorrect: false });
             
             // Nasłuchuj aktualizacji stanu gry tylko dla tego pytania SHIPS
             const stateUpdateHandler = (state) => {
@@ -6379,13 +6503,7 @@
                         updateShipsRoundInfo(questionId);
                         updateShipsStatus(questionId);
                         
-                        if (state.showStats) {
-                            renderShipsStats(questionId, state);
-                        } else {
-                            // Ukryj statystyki jeśli showStats = false
-                            const statsContainer = document.getElementById(`ships-stats-container-${questionId}`);
-                            if (statsContainer) statsContainer.style.display = 'none';
-                        }
+                        renderShipsStats(questionId, state);
                         if (state.showCorrect) {
                             renderShipsAnswer(questionId, state);
                         }
@@ -6615,7 +6733,7 @@
 
         function renderShipsStats(questionId, state) {
             const statsContainer = document.getElementById(`ships-stats-container-${questionId}`);
-            if (!statsContainer || !state.shipsGame) {
+            if (!statsContainer) {
                 if(DEBUG) console.warn('⚠️ renderShipsStats - brak kontenera lub state.shipsGame:', {
                     hasContainer: !!statsContainer,
                     hasShipsGame: !!state.shipsGame
@@ -6625,10 +6743,13 @@
             
             statsContainer.style.display = 'block';
             
-            // Użyj statystyk z serwera
-            const playerStats = state.shipsGame.playerStats || {};
-            
+            const gameData = state?.shipsGame || shipsGameState || {};
+            const shipsData = Array.isArray(gameData.ships) ? gameData.ships.filter(s => s && typeof s.size === 'number') : [];
+            const shotsData = gameData.shots || {};
+            const playerStats = gameData.playerStats || {};
+            const fleetSummary = getShipsFleetSummary(shipsData, shotsData);
             let html = '<div class="ships-stats-table" style="width: 100%; padding: 12px; background: rgba(0,0,0,0.5); border-radius: 8px; border: 2px solid #00aaff; box-sizing: border-box;">';
+            html += buildShipsFleetHtml(shipsData, shotsData);
             html += '<h3 style="color: #00aaff; margin: 0 0 10px 0; text-align: center; font-size: clamp(1rem, 3vw, 1.2em);">📊 Statystyki trafień</h3>';
             html += '<table class="ships-stats-inner-table" style="width: 100%; border-collapse: collapse;">';
             html += '<tr style="border-bottom: 2px solid #00aaff;"><th style="text-align: left; padding: 6px 4px; color: #00aaff; font-weight: bold;">Gracz</th><th style="text-align: center; padding: 6px 4px; color: #00aaff; font-weight: bold;">Trafienia</th><th style="text-align: center; padding: 6px 4px; color: #00aaff; font-weight: bold;">Pudła</th><th style="text-align: center; padding: 6px 4px; color: #00aaff; font-weight: bold;">Razem</th></tr>';
@@ -6880,6 +7001,8 @@
                 });
                 btn.classList.add('answer-selected');
                 btn.classList.remove('answer-locked');
+                const ansGrid = document.getElementById('answers-grid');
+                if (ansGrid) ansGrid.classList.add('has-answered');
             } else {
                 // Standardowe przyciski
                 document.querySelectorAll('.answer-btn').forEach(b => {
@@ -6889,6 +7012,8 @@
                 btn.classList.add('answer-selected');
                 btn.classList.remove('answer-locked');
             }
+            const ansGrid = document.getElementById('answers-grid');
+            if (ansGrid) ansGrid.classList.add('has-answered');
         }
 
         // === WYBÓR DRUŻYNY ===
@@ -6962,6 +7087,7 @@
             hasAnswered = false;
             playerAnswerIndex = null;
             currentQuestionId = null;
+            lastActiveQuestionIndex = -1;
             
             // WAŻNE: Resetuj stan gry w statki
             shipsGameState = {
@@ -7153,6 +7279,7 @@
                 // Upewnij się że zmienne są zresetowane
                 hasAnswered = false;
                 currentQuestionId = null;
+                lastActiveQuestionIndex = -1;
                 playerAnswerIndex = null;
             }, 500);
         });
@@ -7756,9 +7883,400 @@
         }
     </script>
     <script>
-        if ('serviceWorker' in navigator) {
+        if ('serviceWorker' in navigator && !navigator.userAgent.includes('Electron')) {
             navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function() {});
         }
+    </script>
+
+    <!-- ══════════════════ HNC VOTE OVERLAY ══════════════════ -->
+    <div id="hnc-vote-screen" style="display:none; position:fixed; inset:0; z-index:950; background:#0a0a18; flex-direction:column; overflow:hidden; font-family:Arial,sans-serif;">
+        <!-- header -->
+        <div style="padding:8px 14px 4px; flex-shrink:0;">
+            <div id="hnc-v-qtext" style="font-size:14px;color:#ffd700;font-weight:900;text-align:center;display:none;"></div>
+            <div id="hnc-v-round" style="font-size:36px;font-weight:900;text-align:center;color:#fff;letter-spacing:2px;line-height:1;"></div>
+            <div id="hnc-v-matchinfo" style="font-size:11px;color:#666;text-align:center;letter-spacing:1px;"></div>
+        </div>
+        <!-- voting buttons -->
+        <div id="hnc-v-area" style="flex:1;display:flex;flex-direction:column;gap:6px;padding:0 6px 6px;min-height:0;">
+            <button class="vote-btn" id="hnc-v-btnA" onclick="hncVoteQuiz('A')" style="flex:1;display:flex;flex-direction:column;align-items:center;border:3px solid transparent;border-radius:14px;overflow:hidden;background:#12121f;cursor:pointer;padding:6px 6px 8px;gap:4px;min-height:0;">
+                <div style="font-size:22px;font-weight:900;opacity:.7;color:#3498db;line-height:1;flex-shrink:0;">A</div>
+                <div style="flex:1;width:100%;display:flex;align-items:center;justify-content:center;min-height:0;">
+                    <img id="hnc-v-imgA" src="" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;">
+                </div>
+                <div id="hnc-v-descA" style="font-size:3.2vw;font-weight:900;text-align:center;padding:2px 6px 0;color:#fff;width:100%;overflow:hidden;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;flex-shrink:0;"></div>
+            </button>
+            <button class="vote-btn" id="hnc-v-btnB" onclick="hncVoteQuiz('B')" style="flex:1;display:flex;flex-direction:column;align-items:center;border:3px solid transparent;border-radius:14px;overflow:hidden;background:#12121f;cursor:pointer;padding:6px 6px 8px;gap:4px;min-height:0;">
+                <div style="font-size:22px;font-weight:900;opacity:.7;color:#e74c3c;line-height:1;flex-shrink:0;">B</div>
+                <div style="flex:1;width:100%;display:flex;align-items:center;justify-content:center;min-height:0;">
+                    <img id="hnc-v-imgB" src="" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;">
+                </div>
+                <div id="hnc-v-descB" style="font-size:3.2vw;font-weight:900;text-align:center;padding:2px 6px 0;color:#fff;width:100%;overflow:hidden;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;flex-shrink:0;"></div>
+            </button>
+        </div>
+        <!-- battle bar (result) -->
+        <div id="hnc-v-barwrap" style="padding:4px 12px 0;flex-shrink:0;display:none;">
+            <div style="height:6vw;max-height:36px;border-radius:40px;overflow:hidden;background:linear-gradient(to right,#c0392b,#e74c3c);position:relative;">
+                <div id="hnc-v-score-a" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:4.5vw;font-weight:900;color:#fff;z-index:5;">0%</div>
+                <div id="hnc-v-barfill" style="height:100%;width:50%;background:linear-gradient(to right,#2980b9,#3498db);transition:width .8s;border-right:2px solid rgba(0,0,0,.35);"></div>
+                <div id="hnc-v-score-b" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:4.5vw;font-weight:900;color:#fff;z-index:5;">0%</div>
+            </div>
+        </div>
+        <!-- submit button hidden — click = instant vote -->
+        <!-- status screen (round complete / champion / wait) -->
+        <div id="hnc-v-status" style="display:none;position:absolute;inset:0;background:#0a0a18;align-items:center;justify-content:center;flex-direction:column;gap:10px;text-align:center;padding:20px;">
+            <div id="hnc-v-status-title" style="font-size:40px;font-weight:900;color:#ffd700;"></div>
+            <div id="hnc-v-status-sub" style="font-size:17px;color:#888;"></div>
+        </div>
+    </div>
+    <!-- ══════════════════ /HNC VOTE OVERLAY ══════════════════ -->
+
+    <!-- ══════════════════ WYBORCZY VOTE OVERLAY ══════════════════ -->
+    <div id="wyb-vote-screen" style="display:none; position:fixed; inset:0; z-index:900; background:#111; flex-direction:column; overflow-y:auto;">
+        <div style="padding:16px 16px 0;">
+            <div id="wyb-vote-title" style="font-size:1.2rem; font-weight:800; color:#ffd700; text-align:center; margin-bottom:4px;"></div>
+            <div id="wyb-vote-progress" style="font-size:0.9rem; color:#aaa; text-align:center; margin-bottom:10px;"></div>
+            <div id="wyb-vote-timer" style="display:none; font-size:1.4rem; font-weight:900; color:#ffd700; text-align:center; margin-bottom:8px;">⏱ <span id="wyb-vote-timer-val">0</span>s</div>
+        </div>
+        <div style="flex:1; display:flex; align-items:center; justify-content:center; padding:0 10px;">
+            <img id="wyb-vote-img" src="" style="max-width:100%; max-height:38vh; object-fit:contain; border-radius:10px; display:block;">
+        </div>
+        <div id="wyb-vote-label" style="text-align:center; color:#ddd; font-size:1rem; padding:8px 16px; font-weight:600;"></div>
+
+        <!-- Star rating -->
+        <div id="wyb-stars-area" style="display:none; padding:14px 10px; text-align:center;">
+            <div style="color:#aaa; font-size:0.9rem; margin-bottom:8px;">Oceń (1–10 gwiazdek):</div>
+            <div id="wyb-stars" style="display:flex; justify-content:center; flex-wrap:wrap; gap:6px; margin-bottom:14px;"></div>
+            <button id="wyb-btn-vote" class="vote-btn" disabled onclick="submitWybVote()" style="width:100%; padding:16px; font-size:1.2rem; font-weight:900; background:rgba(255,215,0,0.2); border:2px solid #ffd700; color:#ffd700; border-radius:12px; cursor:not-allowed; transition:all 0.3s;">Zagłosuj ★</button>
+        </div>
+
+        <!-- Voted state -->
+        <div id="wyb-voted-area" style="display:none; padding:20px; text-align:center;">
+            <div style="font-size:3rem; margin-bottom:10px;">✅</div>
+            <div id="wyb-voted-msg" style="font-size:1.4rem; font-weight:700; color:#7fc;">Zagłosowałeś!</div>
+            <div id="wyb-voted-stars" style="font-size:1.8rem; color:#ffd700; margin-top:8px;"></div>
+            <div style="color:#aaa; font-size:0.9rem; margin-top:8px;">Poczekaj na następne zdjęcie…</div>
+        </div>
+
+        <!-- Podium phase -->
+        <div id="wyb-podium-phone" style="display:none; padding:30px 16px; text-align:center;">
+            <div style="font-size:3rem; margin-bottom:10px;">🏆</div>
+            <div style="font-size:1.4rem; font-weight:700; color:#ffd700;">Głosowanie zakończone!</div>
+            <div style="color:#aaa; margin-top:8px;">Wyniki ogłaszane na ekranie głównym</div>
+        </div>
+    </div>
+
+    <style>
+        #wyb-btn-vote.ready { background: linear-gradient(135deg,#c0a000,#ffd700) !important; color:#000 !important; cursor:pointer !important; animation:wybVotePulse 1s infinite; border-color:#ffd700 !important; }
+        @keyframes wybVotePulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.03);} }
+        .wyb-star { font-size:clamp(1.6rem,6vw,2.4rem); cursor:pointer; transition:transform 0.1s; user-select:none; }
+        .wyb-star:hover { transform:scale(1.15); }
+        .wyb-star.active { filter:drop-shadow(0 0 6px #ffd700); }
+    </style>
+
+    <script>
+    // ═══════════════ WYBORCZY VOTE LOGIC ═══════════════
+    let wybSelectedStars = 0;
+    let wybVotedThisPhoto = false;
+    let wybCurrentPhotoIndex = -1;
+
+    socket.on('connect', () => {
+        if (playerNick) socket.emit('wyborczy_join_voters');
+    });
+
+    function showWybVoteScreen(show) {
+        const el = document.getElementById('wyb-vote-screen');
+        if (el) el.style.display = show ? 'flex' : 'none';
+    }
+
+    function showWybVotingScreen(question) {
+        const ws = (currentGameState && currentGameState.wyborczyState) || null;
+        showWybVoteScreen(true);
+        socket.emit('wyborczy_join_voters');
+        updateWybVoteScreen(currentGameState || { activeQuestion: question, wyborczyState: ws });
+    }
+
+    function updateWybVoteScreen(state) {
+        const ws = state && state.wyborczyState;
+        const q = state && state.activeQuestion;
+        if (!ws || !q || q.type !== 'WYBORCZY') {
+            showWybVoteScreen(false);
+            return;
+        }
+        showWybVoteScreen(true);
+
+        const phase = ws.phase || 'idle';
+        const photos = ws.photos || [];
+        const ci = ws.currentIndex;
+        const photo = ci >= 0 && ci < photos.length ? photos[ci] : null;
+
+        const titleEl = document.getElementById('wyb-vote-title');
+        const progressEl = document.getElementById('wyb-vote-progress');
+        const timerEl = document.getElementById('wyb-vote-timer');
+        const timerVal = document.getElementById('wyb-vote-timer-val');
+        const img = document.getElementById('wyb-vote-img');
+        const labelEl = document.getElementById('wyb-vote-label');
+        const starsArea = document.getElementById('wyb-stars-area');
+        const votedArea = document.getElementById('wyb-voted-area');
+        const podiumArea = document.getElementById('wyb-podium-phone');
+
+        if (titleEl) titleEl.textContent = q.question || 'Głosowanie';
+
+        // When photo changes, reset vote state
+        if (ci !== wybCurrentPhotoIndex) {
+            wybCurrentPhotoIndex = ci;
+            wybVotedThisPhoto = false;
+            wybSelectedStars = 0;
+        }
+
+        if (phase === 'podium' || phase === 'podium_full' || phase === 'stats') {
+            if (starsArea) starsArea.style.display = 'none';
+            if (votedArea) votedArea.style.display = 'none';
+            if (podiumArea) podiumArea.style.display = '';
+            if (img) img.style.display = 'none';
+            if (progressEl) progressEl.textContent = '';
+            if (timerEl) timerEl.style.display = 'none';
+            return;
+        }
+
+        if (podiumArea) podiumArea.style.display = 'none';
+
+        if (photo) {
+            if (img) { img.src = photo.url; img.style.display = 'block'; }
+            if (labelEl) labelEl.textContent = photo.label || '';
+        } else {
+            if (img) { img.src = ''; img.style.display = 'none'; }
+            if (labelEl) labelEl.textContent = '';
+        }
+
+        if (progressEl) progressEl.textContent = ci >= 0 ? `Zdjęcie ${ci + 1} / ${photos.length}` : '';
+
+        // Timer
+        if (ws.photoDuration > 0 && ws.photoTimeLeft > 0 && phase === 'voting') {
+            if (timerEl) timerEl.style.display = '';
+            if (timerVal) timerVal.textContent = ws.photoTimeLeft;
+        } else {
+            if (timerEl) timerEl.style.display = 'none';
+        }
+
+        if (phase === 'voting' || phase === 'dogrywka') {
+            if (wybVotedThisPhoto) {
+                if (starsArea) starsArea.style.display = 'none';
+                if (votedArea) votedArea.style.display = '';
+                const starsDisplay = document.getElementById('wyb-voted-stars');
+                if (starsDisplay) starsDisplay.textContent = '★'.repeat(wybSelectedStars) + '☆'.repeat(10 - wybSelectedStars) + ' (' + wybSelectedStars + '/10)';
+            } else {
+                if (starsArea) starsArea.style.display = '';
+                if (votedArea) votedArea.style.display = 'none';
+                buildWybStars();
+            }
+        } else {
+            // Idle
+            if (starsArea) starsArea.style.display = 'none';
+            if (votedArea) votedArea.style.display = 'none';
+        }
+    }
+
+    function buildWybStars() {
+        const container = document.getElementById('wyb-stars');
+        if (!container) return;
+        container.innerHTML = '';
+        for (let i = 1; i <= 10; i++) {
+            const span = document.createElement('span');
+            span.className = 'wyb-star' + (i <= wybSelectedStars ? ' active' : '');
+            span.textContent = i <= wybSelectedStars ? '★' : '☆';
+            span.dataset.val = i;
+            span.onclick = () => selectWybStar(i);
+            container.appendChild(span);
+        }
+        const btn = document.getElementById('wyb-btn-vote');
+        if (btn) {
+            btn.disabled = wybSelectedStars === 0;
+            btn.className = 'vote-btn' + (wybSelectedStars > 0 ? ' ready' : '');
+        }
+    }
+
+    function selectWybStar(val) {
+        wybSelectedStars = val;
+        buildWybStars();
+        const btn = document.getElementById('wyb-btn-vote');
+        if (btn) {
+            btn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }
+
+    function submitWybVote() {
+        if (!wybSelectedStars || wybVotedThisPhoto) return;
+        const ws = currentGameState && currentGameState.wyborczyState;
+        if (!ws) return;
+        socket.emit('wyborczy_vote', { rating: wybSelectedStars });
+        wybVotedThisPhoto = true;
+        const btn = document.getElementById('wyb-btn-vote');
+        if (btn) btn.classList.remove('ready');
+        // Show voted state
+        const starsArea = document.getElementById('wyb-stars-area');
+        const votedArea = document.getElementById('wyb-voted-area');
+        if (starsArea) starsArea.style.display = 'none';
+        if (votedArea) votedArea.style.display = '';
+        const starsDisplay = document.getElementById('wyb-voted-stars');
+        if (starsDisplay) starsDisplay.textContent = '★'.repeat(wybSelectedStars) + '☆'.repeat(10 - wybSelectedStars) + ' (' + wybSelectedStars + '/10)';
+        const votedMsg = document.getElementById('wyb-voted-msg');
+        if (votedMsg) votedMsg.textContent = 'Zagłosowałeś! (' + wybSelectedStars + '/10 ★)';
+    }
+
+    socket.on('wyborczy_vote_ok', () => {
+        wybVotedThisPhoto = true;
+    });
+
+    socket.on('wyborczy_timer', (data) => {
+        const v = document.getElementById('wyb-vote-timer-val');
+        if (v) v.textContent = data.timeLeft;
+        const t = document.getElementById('wyb-vote-timer');
+        if (t) t.style.display = data.timeLeft > 0 ? '' : 'none';
+    });
+
+    socket.on('wyborczy_state', (ws) => {
+        // Handle photo changes from wyborczy_state event (not just update_state)
+        if (ws && ws.currentIndex !== wybCurrentPhotoIndex) {
+            wybCurrentPhotoIndex = ws.currentIndex;
+            wybVotedThisPhoto = false;
+            wybSelectedStars = 0;
+        }
+        if (currentGameState && currentGameState.activeQuestion && currentGameState.activeQuestion.type === 'WYBORCZY') {
+            updateWybVoteScreen({ ...currentGameState, wyborczyState: ws });
+        }
+    });
+    // ═══════════════ /WYBORCZY VOTE LOGIC ═══════════════
+
+    // ═══════════════ HNC VOTE LOGIC ═══════════════
+    let hncVChosen = null;
+    let hncVVoted = false;
+    let hncVLastKey = '';
+    let hncVPhase = '';
+
+    // Key uses round+match only (not phase) so hncVVoted resets only on genuine new match
+    function hncMatchKey(s) { return `${s.currentRound}-${s.currentMatch}`; }
+
+    function updateHncVoteScreen(state) {
+        const hs = state.hncState;
+        const scr = document.getElementById('hnc-vote-screen');
+        if (!scr) return;
+
+        if (!hs) { scr.style.display = 'none'; hncVLastKey = ''; hncVVoted = false; hncVChosen = null; return; }
+        scr.style.display = 'flex';
+
+        const key = hncMatchKey(hs);
+        if (key !== hncVLastKey) {
+            hncVChosen = null; hncVVoted = false; hncVLastKey = key;
+        }
+        if (hs.phase === 'setup' && hncVPhase !== 'setup') socket.emit('hnc_join_phone');
+        hncVPhase = hs.phase;
+
+        const status = document.getElementById('hnc-v-status');
+        const area = document.getElementById('hnc-v-area');
+        const barwrap = document.getElementById('hnc-v-barwrap');
+
+        status.style.display = 'none';
+        area.style.display = 'flex';
+
+        if (hs.phase === 'round_complete') {
+            status.style.display = 'flex';
+            barwrap.style.display = 'none';
+            // Zgodnie z screen.html: pokaż NASTĘPNĄ rundę jako główny tytuł
+            document.getElementById('hnc-v-status-title').textContent = hs.matchName || '✅ DALEJ';
+            document.getElementById('hnc-v-status-sub').textContent = hs.completedRoundName ? `Koniec: ${hs.completedRoundName}` : '';
+            area.style.display = 'none';
+            return;
+        }
+        if (hs.phase === 'champion') {
+            const w = hs.bracket?.[hs.bracket.length-1]?.[0]?.winner;
+            status.style.display = 'flex';
+            barwrap.style.display = 'none';
+            document.getElementById('hnc-v-status-title').textContent = '🏆 KONIEC TURNIEJU';
+            document.getElementById('hnc-v-status-sub').textContent = w ? (w.desc||'') : '';
+            area.style.display = 'none';
+            return;
+        }
+        if (!hs.match || hs.phase === 'setup' || hs.phase === 'ready') {
+            status.style.display = 'flex';
+            barwrap.style.display = 'none';
+            document.getElementById('hnc-v-status-title').textContent = '⏳';
+            document.getElementById('hnc-v-status-sub').textContent = 'Oczekiwanie…';
+            area.style.display = 'none';
+            return;
+        }
+
+        const qt = document.getElementById('hnc-v-qtext');
+        qt.textContent = hs.questionText || '';
+        qt.style.display = hs.questionText ? 'block' : 'none';
+        document.getElementById('hnc-v-round').textContent = hs.matchName || 'RUNDA';
+        document.getElementById('hnc-v-matchinfo').textContent = `Mecz ${hs.currentMatch+1}/${hs.matchesInRound}`;
+
+        const m = hs.match;
+        document.getElementById('hnc-v-imgA').src = m.photoA?.url||'';
+        document.getElementById('hnc-v-descA').textContent = m.photoA?.desc||'';
+        document.getElementById('hnc-v-imgB').src = m.photoB?.url||'';
+        document.getElementById('hnc-v-descB').textContent = m.photoB?.desc||'';
+
+        // Button selection style
+        const bA = document.getElementById('hnc-v-btnA');
+        const bB = document.getElementById('hnc-v-btnB');
+        bA.disabled = false; bB.disabled = false;
+        bA.style.borderColor = hncVChosen==='A' ? '#3498db' : 'transparent';
+        bA.style.background = hncVChosen==='A' ? 'rgba(52,152,219,.12)' : '#12121f';
+        bB.style.borderColor = hncVChosen==='B' ? '#e74c3c' : 'transparent';
+        bB.style.background = hncVChosen==='B' ? 'rgba(231,76,60,.12)' : '#12121f';
+
+        // Show result bar
+        const showR = hs.phase === 'match_result';
+        barwrap.style.display = showR ? 'block' : 'none';
+        if (showR) {
+            const total = (m.votesA||0) + (m.votesB||0);
+            const pA = total ? Math.round(m.votesA/total*100) : 50;
+            document.getElementById('hnc-v-barfill').style.width = pA+'%';
+            document.getElementById('hnc-v-score-a').textContent = pA+'%';
+            document.getElementById('hnc-v-score-b').textContent = (100-pA)+'%';
+            // Mark winner
+            if (m.winner) {
+                bA.style.borderColor = m.winner.id===m.photoA?.id ? '#ffd700' : 'transparent';
+                bB.style.borderColor = m.winner.id===m.photoB?.id ? '#ffd700' : 'transparent';
+            }
+        }
+
+    }
+
+    function hncVoteQuiz(side) {
+        // Guard only on hncVVoted — let server reject if phase is wrong.
+        // Removing hncVPhase==='match_result' guard since phase can become stale on lossy network.
+        if (hncVVoted) return;
+        hncVVoted = true;
+        hncVChosen = side;
+        socket.emit('hnc_vote', { side });
+        const bA = document.getElementById('hnc-v-btnA');
+        const bB = document.getElementById('hnc-v-btnB');
+        if (bA) { bA.style.borderColor = side==='A'?'#3498db':'transparent'; bA.style.background = side==='A'?'rgba(52,152,219,.18)':'#12121f'; bA.disabled = side!=='A'; }
+        if (bB) { bB.style.borderColor = side==='B'?'#e74c3c':'transparent'; bB.style.background = side==='B'?'rgba(231,76,60,.18)':'#12121f'; bB.disabled = side!=='B'; }
+    }
+
+    // Re-register to hncVoters on reconnect if HNC match is in progress
+    socket.on('connect', () => {
+        if (currentGameState?.activeQuestion?.type === 'HNC') {
+            socket.emit('hnc_join_phone');
+        }
+    });
+
+    socket.on('hnc_preload', (urls) => {
+        if (!Array.isArray(urls)) return;
+        urls.forEach(url => { const img = new Image(); img.src = url; });
+    });
+
+    socket.on('hnc_state', (hs) => {
+        const hncGameActive = !!(currentGameState?.activeQuestion?.type==='HNC');
+        const shouldShowHnc = hs && (hs.phase === 'voting' || hs.phase === 'match_result' || hs.phase === 'round_complete' || hs.phase === 'champion' || hs.phase === 'ready');
+        if (shouldShowHnc || hncGameActive) {
+            updateHncVoteScreen({ ...currentGameState, hncState: hs });
+        }
+    });
+    // ═══════════════ /HNC VOTE LOGIC ═══════════════
     </script>
 </body>
 </html>

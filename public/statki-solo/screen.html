@@ -2,6 +2,7 @@
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico"><link rel="icon" type="image/png" sizes="32x32" href="/img/icon-32.png"><link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Statki Solo – Screen</title>
 <style>
@@ -31,13 +32,19 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000c1a;color:#fff;f
 #phase-bar.active{color:#7dd3fc;border-color:rgba(14,165,233,.7);background:rgba(14,165,233,.1)}
 #phase-bar span{font-weight:800;color:#fbbf24;font-size:1.15em}
 
-/* STRZELAJ / CZEKAJ status banner */
-#status-banner{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:60;
-    display:flex;align-items:center;gap:16px;pointer-events:none;transition:opacity .3s}
-#status-text{font-size:clamp(2rem,5vw,4rem);font-weight:900;letter-spacing:2px;
+/* STRZELAJ / CZEKAJ status banner — right side, below legend */
+#status-banner{position:fixed;right:16px;bottom:10%;z-index:60;
+    display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;transition:opacity .3s}
+#status-text{font-size:clamp(1.4rem,3vw,2.4rem);font-weight:900;letter-spacing:3px;
     text-shadow:0 2px 20px currentColor;transition:color .3s,text-shadow .3s}
 #status-text.strzelaj{color:#ef4444;animation:strzelaj-pulse 0.9s ease-in-out infinite;text-shadow:0 0 40px rgba(239,68,68,.7),0 2px 8px rgba(0,0,0,.8)}
-#status-text.czekaj{color:#64748b;animation:none;text-shadow:none}
+#status-text.celowanie{color:#fbbf24;animation:none;text-shadow:0 0 24px rgba(251,191,36,.5)}
+
+/* Navigation buttons — bottom corners, hidden in fullscreen */
+#btn-solo-fs{position:fixed;bottom:16px;right:16px;z-index:200;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.2);color:#94a3b8;font-size:.82rem;font-weight:700;padding:8px 18px;border-radius:10px;cursor:pointer;display:flex;align-items:center;gap:6px}
+#btn-solo-fs:hover{background:rgba(255,255,255,.14);color:#fff}
+#btn-solo-back{position:fixed;bottom:16px;left:16px;z-index:200;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.15);color:#64748b;font-size:.82rem;font-weight:600;padding:8px 18px;border-radius:10px;cursor:pointer;text-decoration:none;display:flex;align-items:center;gap:6px}
+#btn-solo-back:hover{background:rgba(255,255,255,.1);color:#94a3b8}
 
 /* Shot countdown ring */
 #countdown-wrap{display:none;flex-direction:column;align-items:center;gap:4px}
@@ -49,6 +56,21 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000c1a;color:#fff;f
 #shot-counter{position:fixed;top:14px;right:20px;z-index:50;
     background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.15);
     border-radius:20px;padding:5px 16px;font-size:.9rem;color:#94a3b8;pointer-events:none}
+
+/* Ship legend — right side, near board edge */
+#ship-legend{position:fixed;right:10px;top:70px;z-index:50;
+    background:rgba(0,8,20,.88);border:1.5px solid rgba(14,165,233,.35);
+    border-radius:18px;padding:20px 22px;display:none;flex-direction:column;
+    gap:10px;pointer-events:none;backdrop-filter:blur(6px)}
+.sl-title{color:#7dd3fc;font-size:1.3rem;font-weight:800;letter-spacing:.08em;
+    text-transform:uppercase;text-align:center;margin-bottom:6px;
+    padding-bottom:8px;border-bottom:1px solid rgba(14,165,233,.25)}
+.sl-row{display:flex;gap:6px;align-items:center}
+.sl-row.sunk{opacity:.32}
+.sl-cell{width:31px;height:31px;border-radius:4px;flex-shrink:0;
+    border:2px solid rgba(14,165,233,.5);background:rgba(14,165,233,.15);
+    transition:background .35s,border-color .35s}
+.sl-cell.hit{background:#15803d;border-color:#4ade80}
 </style>
 </head>
 <body>
@@ -60,6 +82,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000c1a;color:#fff;f
 <div id="overlay"></div>
 <div id="phase-bar">Oczekiwanie…</div>
 <div id="shot-counter" style="display:none">Strzał 1</div>
+<div id="ship-legend"></div>
 <div id="status-banner">
     <div id="status-text" class="czekaj">CZEKAJ</div>
     <div id="countdown-wrap">
@@ -68,9 +91,13 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000c1a;color:#fff;f
     </div>
 </div>
 
+<button id="btn-solo-fs" onclick="document.documentElement.requestFullscreen().catch(()=>{})">⛶ Pełny ekran</button>
+<a id="btn-solo-back" href="/statki-solo/">← Cofnij</a>
+
 <audio id="soundtrack" loop></audio>
 
 <script src="/socket.io/socket.io.js"></script>
+<script src="/lib/audio-normalize.js"></script>
 <script>
 const socket = io();
 const LETTERS = 'ABCDEFGHIJ';
@@ -89,7 +116,17 @@ async function keepAwake() {
     } catch(e) {}
 }
 keepAwake();
+
+// ── Fullscreen — hide nav buttons when in fullscreen ────
+document.addEventListener('fullscreenchange', () => {
+    const fs = !!document.fullscreenElement;
+    document.getElementById('btn-solo-fs').style.display = fs ? 'none' : 'flex';
+    document.getElementById('btn-solo-back').style.display = fs ? 'none' : 'flex';
+});
+
 let gameState = null;
+/** Po zakończeniu gry (lub „Koniec”) nie wznawiaj muzyki przy kolejnych ships_solo_state (np. visibilitychange). */
+let statkiSoundtrackAllowed = true;
 let audioUnlocked = false;
 let actx = null;
 
@@ -109,14 +146,20 @@ const SHOT_TIMEOUT_S = 10;
 let countdownInterval = null;
 let countdownLeft = SHOT_TIMEOUT_S;
 
-function setStatus(mode) { // 'strzelaj' | 'czekaj'
-    statusText.className = 'czekaj';
+function setStatus(mode) { // 'strzelaj' | 'celowanie' | 'hidden'
+    const banner = document.getElementById('status-banner');
     if (mode === 'strzelaj') {
         statusText.textContent = '🎯 STRZELAJ!';
         statusText.className = 'strzelaj';
+        banner.style.opacity = '1';
         startCountdown();
+    } else if (mode === 'celowanie') {
+        statusText.textContent = '🔭 CELOWANIE';
+        statusText.className = 'celowanie';
+        banner.style.opacity = '1';
+        stopCountdown();
     } else {
-        statusText.textContent = 'CZEKAJ';
+        banner.style.opacity = '0';
         stopCountdown();
     }
 }
@@ -263,17 +306,89 @@ function playVictory() {
     } catch(e) {}
 }
 
-// ── Soundtrack ─────────────────────────────────────────────
-function startSoundtrack(url) {
+// ── Soundtrack (kanał × master) ────────────────────────────
+let statkiSoundtrackGain = 1;
+let statkiChannelVolume = 1;
+let statkiMasterVolume = 1;
+function applyStatkiVolume() {
+    soundtrackEl.volume = Math.min(1, statkiChannelVolume * statkiMasterVolume) * statkiSoundtrackGain;
+}
+function prepareStatkiSoundtrackForActiveGame() {
+    statkiSoundtrackAllowed = true;
+}
+
+/** Zatrzymaj muzykę; lockPlayback=true — nie odtwarzaj aż do nowej gry (init / reset). */
+function stopSoundtrack(lockPlayback) {
+    soundtrackEl.loop = false;
+    try {
+        soundtrackEl.pause();
+        soundtrackEl.currentTime = 0;
+    } catch (e) {}
+    if (lockPlayback) statkiSoundtrackAllowed = false;
+}
+
+async function startSoundtrack(url) {
     if (!url) return;
-    const src = url.startsWith('http') ? url : '/uploads/' + url;
+    if (!statkiSoundtrackAllowed || (gameState && gameState.gameEnded)) return;
+    const src = url.startsWith('http') || url.startsWith('/') ? url : '/uploads/' + url;
     if (!soundtrackEl.src || !soundtrackEl.src.endsWith(encodeURI(src.replace(/^.*\/uploads\//, '')))) {
-        soundtrackEl.src = src; soundtrackEl.volume = 0.65;
+        statkiSoundtrackGain = 1;
+        if (typeof window.AudioNormalize !== 'undefined' && (src.startsWith('/') || src.includes(window.location.host))) {
+            statkiSoundtrackGain = await window.AudioNormalize.getNormalizedGainForUrl(src);
+        }
+        soundtrackEl.src = src;
+        applyStatkiVolume();
     }
+    if (!statkiSoundtrackAllowed || (gameState && gameState.gameEnded)) return;
+    soundtrackEl.loop = gameState && gameState.soundtrackLoop === false ? false : true;
     soundtrackEl.play().catch(()=>{});
 }
-function stopSoundtrack() { soundtrackEl.pause(); soundtrackEl.currentTime = 0; }
-socket.on('ships_solo_volume', d => { soundtrackEl.volume = Math.max(0, Math.min(1, d.volume)); });
+socket.on('ships_solo_volume', d => { statkiChannelVolume = Math.max(0, Math.min(1, d.volume)); applyStatkiVolume(); });
+socket.on('master_volume', d => { statkiMasterVolume = (d && d.volume != null) ? Math.max(0, Math.min(1, d.volume)) : 1; applyStatkiVolume(); });
+socket.on('ships_solo_stop_music', () => stopSoundtrack(true));
+
+// ── Ship legend ────────────────────────────────────────────
+function renderShipLegend() {
+    const el = document.getElementById('ship-legend');
+    if (!gameState || !gameState.ships || !gameState.ships.length) {
+        el.style.display = 'none'; return;
+    }
+    const shots = gameState.shots || {};
+    const ships = [...gameState.ships].sort((a, b) => b.size - a.size);
+
+    let sunkCount = 0;
+    const shipData = ships.map(ship => {
+        const cells = [];
+        for (let i = 0; i < ship.size; i++) {
+            const r = ship.vertical ? ship.row + i : ship.row;
+            const c = ship.vertical ? ship.col : ship.col + i;
+            cells.push(!!(shots[`${r}_${c}`] && shots[`${r}_${c}`].hit));
+        }
+        const isSunk = cells.length > 0 && cells.every(Boolean);
+        if (isSunk) sunkCount++;
+        return { cells, sunk: isSunk };
+    });
+
+    // Fleet size summary (e.g. "1×5  1×4  2×3  1×2")
+    const sizeCounts = {};
+    ships.forEach(s => { sizeCounts[s.size] = (sizeCounts[s.size] || 0) + 1; });
+    const sizeLabel = Object.keys(sizeCounts).sort((a,b)=>b-a)
+        .map(sz => `${sizeCounts[sz]}×${sz}▬`).join('  ');
+
+    const titleLine = sunkCount > 0
+        ? `${sunkCount}/${ships.length} zatopionych`
+        : `${ships.length} statków`;
+
+    let html = `<div class="sl-title">⚓ ${titleLine}</div>`;
+    html += `<div style="color:#475569;font-size:1.15rem;text-align:center;margin-bottom:6px;letter-spacing:.04em">${sizeLabel}</div>`;
+    for (const sd of shipData) {
+        html += `<div class="sl-row${sd.sunk ? ' sunk' : ''}">`;
+        html += sd.cells.map(h => `<div class="sl-cell${h ? ' hit' : ''}"></div>`).join('');
+        html += '</div>';
+    }
+    el.innerHTML = html;
+    el.style.display = 'flex';
+}
 
 // ── Board rendering ────────────────────────────────────────
 let lastAimPhase = null;
@@ -362,7 +477,7 @@ function renderBoard() {
                     extra = 'box-shadow:inset 0 0 12px rgba(74,222,128,.3);';
                 } else {
                     bg = '#0f172a';
-                    content = `<span style="color:#334155;font-size:${Math.max(10,cellPx*0.4)}px;font-weight:700;">✕</span>`;
+                    content = `<span style="color:#64748b;font-size:${Math.max(10,cellPx*0.4)}px;font-weight:700;">✕</span>`;
                 }
             } else if (isAimCell) {
                 // Czerwone skrzyżowanie — tu trafi pocisk
@@ -387,6 +502,7 @@ function renderBoard() {
 
     html += `</table>`;
     boardWrap.innerHTML = html;
+    renderShipLegend();
 }
 
 // ── Shot overlay — dwufazowy: trafienie znika, nagroda zostaje +3s ──────────
@@ -434,34 +550,46 @@ socket.on('ships_solo_state', (g) => {
         waiting.style.display = 'flex'; boardWrap.style.display = 'none';
         phaseBar.classList.remove('active'); phaseBar.textContent = 'Oczekiwanie…';
         shotCounter.style.display = 'none';
-        setStatus('czekaj');
+        document.getElementById('ship-legend').style.display = 'none';
+        setStatus('hidden');
+        stopSoundtrack(false);
+        prepareStatkiSoundtrackForActiveGame();
+        try {
+            soundtrackEl.removeAttribute('src');
+            soundtrackEl.load();
+        } catch (e) {}
         return;
     }
     gameState = g;
     waiting.style.display = 'none';
     boardWrap.style.display = 'flex';
-    if (g.soundtrack) startSoundtrack(g.soundtrack);
+    if (g.gameEnded) {
+        stopSoundtrack(true);
+    } else {
+        prepareStatkiSoundtrackForActiveGame();
+        if (g.soundtrack) startSoundtrack(g.soundtrack);
+    }
     updateShotCounter();
-    // Przywróć status na podstawie stanu
     if (g.aimCol !== null && g.phase === 'row') setStatus('strzelaj');
-    else setStatus('czekaj');
+    else if (g.aimCol !== null && g.phase === 'col') setStatus('celowanie');
+    else setStatus('hidden');
     renderBoard();
 });
 
 socket.on('ships_solo_aim_update', (d) => {
     if (!gameState) return;
-    const prevPhase = gameState.phase;
     gameState.aimRow = d.aimRow;
     gameState.aimCol = d.aimCol;
     gameState.phase = d.phase;
     renderBoard();
-    // Status: STRZELAJ gdy kolumna wybrana i faza 'row', CZEKAJ inaczej
     if (d.phase === 'row') {
         setStatus('strzelaj');
         playAimLock();
-    } else {
-        setStatus('czekaj');
+    } else if (d.phase === 'col') {
+        setStatus('celowanie');
         playSonar();
+    } else {
+        setStatus('hidden');
     }
 });
 
@@ -471,7 +599,7 @@ socket.on('ships_solo_shot_result', (d) => {
     if (d.phase !== undefined) gameState.phase = d.phase;
     gameState.aimRow = null; gameState.aimCol = null;
     if (d.gameEnded) gameState.gameEnded = true;
-    setStatus('czekaj');
+    setStatus('hidden');
     updateShotCounter();
     renderBoard();
     if (d.hit !== undefined) {
@@ -482,20 +610,26 @@ socket.on('ships_solo_shot_result', (d) => {
         }, 380);
         showShotOverlay(d.hit, d.reward, d.shipSize, d.gameEnded);
     }
-    if (d.gameEnded) stopSoundtrack();
+    if (d.gameEnded) stopSoundtrack(true);
 });
 
 // Timeout rundy – admin nie strzelił w czasie
 socket.on('ships_solo_timeout', () => {
     if (!gameState) return;
     gameState.aimRow = null; gameState.aimCol = null; gameState.phase = 'col';
-    setStatus('czekaj');
+    setStatus('hidden');
     renderBoard();
     overlay.innerHTML = '<div style="animation:rewardSlide .35s ease both;color:#64748b;font-size:clamp(20px,4vw,54px);font-weight:700;">⏱ Czas minął</div>';
     setTimeout(() => { overlay.innerHTML = ''; }, 2000);
 });
 
 window.addEventListener('resize', renderBoard);
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        socket.emit('ships_solo_get_state');
+        setTimeout(renderBoard, 200);
+    }
+});
 socket.on('connect', () => socket.emit('ships_solo_get_state'));
 </script>
 </body>

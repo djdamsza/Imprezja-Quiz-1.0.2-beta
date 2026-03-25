@@ -14,7 +14,6 @@
 |-------------------|--------------|
 | imprezja-1m       | 1M           |
 | imprezja-3m       | 3M           |
-| imprezja-12m      | 1Y           |
 | imprezja-lifetime | LT           |
 
 ## Wymagania techniczne

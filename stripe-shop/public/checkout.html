@@ -73,13 +73,13 @@
                 <p class="payment-icons" id="pay-3m">💳 Karta · Revolut Pay</p>
             </div>
 
-            <div class="plan">
+            <div class="plan" id="plan-12m" style="display:none">
                 <div class="plan-name">12 miesięcy</div>
                 <div class="plan-price" id="price-12m">—</div>
-                <div class="plan-period" id="period-12m">subskrypcja roczna</div>
-                <div class="plan-desc">Najlepsza wartość – oszczędność ~30%</div>
-                <button class="btn" id="btn-12m" data-lookup-sub="imprezja-12m" data-lookup-once="imprezja-12m-onetime" onclick="checkout(this)">Wybierz</button>
-                <p class="payment-icons" id="pay-12m">💳 Karta · Revolut Pay</p>
+                <div class="plan-period" id="period-12m">jednorazowo · 365 dni</div>
+                <div class="plan-desc">Bez auto-odnowienia</div>
+                <button class="btn" id="btn-12m" data-lookup-sub="imprezja-12m-onetime" data-lookup-once="imprezja-12m-onetime" onclick="checkout(this)">Wybierz</button>
+                <p class="payment-icons" id="pay-12m">💳 Karta · BLIK · Revolut Pay</p>
             </div>
 
             <div class="plan">
@@ -100,7 +100,7 @@
         let currentMode = 'sub'; // 'sub' | 'once'
 
         const PERIOD_LABELS = {
-            sub:  { '1m': 'subskrypcja miesięczna', '3m': 'subskrypcja kwartalna', '12m': 'subskrypcja roczna' },
+            sub:  { '1m': 'subskrypcja miesięczna', '3m': 'subskrypcja kwartalna', '12m': 'jednorazowo · 365 dni' },
             once: { '1m': 'jednorazowo · 30 dni',  '3m': 'jednorazowo · 90 dni', '12m': 'jednorazowo · 365 dni' }
         };
         const PAY_LABELS = {
@@ -108,7 +108,7 @@
             once: '💳 Karta · BLIK · Revolut Pay'
         };
         const MODE_NOTES = {
-            sub:  'Auto-odnowienie co miesiąc/kwartał/rok · płatność kartą lub Revolut Pay',
+            sub:  'Auto-odnowienie co miesiąc/kwartał · płatność kartą lub Revolut Pay',
             once: 'Brak auto-odnowienia – licencja wygasa po okresie · płatność kartą, BLIK lub Revolut Pay'
         };
 
@@ -117,6 +117,8 @@
             document.getElementById('btn-sub').classList.toggle('active', mode === 'sub');
             document.getElementById('btn-once').classList.toggle('active', mode === 'once');
             document.getElementById('mode-note').textContent = MODE_NOTES[mode];
+            const plan12m = document.getElementById('plan-12m');
+            if (plan12m) plan12m.style.display = mode === 'once' ? '' : 'none';
 
             ['1m','3m','12m'].forEach(k => {
                 document.getElementById('period-' + k).textContent = PERIOD_LABELS[mode][k];
@@ -171,7 +173,7 @@
                     label += '/' + cnt + (recurring.interval === 'month' ? 'mc' : 'rok');
                 }
 
-                if (key.includes('1m')) document.getElementById('price-1m').textContent = label;
+                if (key.includes('1m') && !key.includes('12m')) document.getElementById('price-1m').textContent = label;
                 else if (key.includes('3m')) document.getElementById('price-3m').textContent = label;
                 else if (key.includes('12m')) document.getElementById('price-12m').textContent = label;
                 else if (key.includes('lifetime')) document.getElementById('price-lifetime').textContent = label;

@@ -30,6 +30,12 @@
       "col": 5,
       "size": 3,
       "vertical": false
+    },
+    {
+      "row": 3,
+      "col": 5,
+      "size": 2,
+      "vertical": false
     }
   ],
   "rewards": [
@@ -37,6 +43,7 @@
     "Wycieczka we dwoje",
     "Flaszka"
   ],
-  "rewardMode": "buciki",
-  "soundtrack": "/uploads/1772484404387-seabattle.mp3"
+  "rewardMode": "buciki_2",
+  "soundtrack": "/uploads/1772484404387-seabattle.mp3",
+  "soundtrackLoop": true
 }

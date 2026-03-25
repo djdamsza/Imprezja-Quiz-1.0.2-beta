@@ -2,11 +2,21 @@
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico"><link rel="icon" type="image/png" sizes="32x32" href="/img/icon-32.png"><link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
 <title>Statki Solo – Admin</title>
+<link rel="stylesheet" href="/css/admin-editor-shared.css">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{width:100%;height:100%;overflow:hidden;background:#000c1a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;user-select:none}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--imp-bg);color:var(--imp-text);font-family:var(--imp-font);user-select:none}
+body{padding-top:52px;padding-top:calc(52px + env(safe-area-inset-top))}
+
+.volume-bar{position:fixed;top:0;left:0;right:0;z-index:100;padding:12px 16px;padding-top:max(12px,env(safe-area-inset-top));background:#000c1a;border-bottom:1px solid rgba(255,255,255,.1)}
+.volume-bar input[type=range]{width:100%;height:8px;-webkit-appearance:none;appearance:none;background:rgba(255,255,255,.2);border-radius:4px;outline:none}
+.volume-bar input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;background:#0ea5e9;border-radius:50%;cursor:pointer}
+
+.fullscreen-btn{position:fixed;bottom:max(16px,env(safe-area-inset-bottom));right:max(16px,env(safe-area-inset-right));width:48px;height:48px;border-radius:8px;background:rgba(14,165,233,.9);border:2px solid rgba(255,255,255,.3);color:#fff;font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1000;box-shadow:0 2px 12px rgba(0,0,0,.4)}
+.fullscreen-btn:hover,.fullscreen-btn:active{background:rgba(14,165,233,1)}
 
 .screen{position:fixed;inset:0;display:none;flex-direction:column}
 .screen.active{display:flex}
@@ -20,22 +30,17 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000c1a;color:#fff;f
 .board-summary strong{color:#7dd3fc}
 .music-panel{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:12px 16px;width:100%;max-width:340px}
 .music-panel h3{color:#94a3b8;font-size:.75rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px}
-.volume-row{display:flex;align-items:center;gap:8px}
-.volume-row input[type=range]{flex:1;accent-color:#0ea5e9;cursor:pointer;height:4px}
-.vol-val{color:#7dd3fc;font-size:.82rem;min-width:36px;text-align:right}
 .btn-play{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:9px;background:rgba(14,165,233,.15);border:1px solid rgba(14,165,233,.3);border-radius:8px;color:#7dd3fc;cursor:pointer;font-size:.88rem;margin-top:8px}
 .btn-play:hover{background:rgba(14,165,233,.25)}
 .btn-main{width:100%;max-width:340px;padding:15px;font-size:1.05rem;font-weight:800;border:none;border-radius:14px;cursor:pointer;transition:all .2s}
 .btn-blue{background:linear-gradient(135deg,#0ea5e9,#0284c7);color:#fff;box-shadow:0 6px 24px rgba(14,165,233,.35)}
 .btn-blue:hover{box-shadow:0 8px 32px rgba(14,165,233,.55);transform:translateY(-1px)}
 .btn-blue:disabled{opacity:.4;pointer-events:none}
-.btn-fs{background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.2);color:#94a3b8;display:flex;align-items:center;justify-content:center;gap:8px}
-.btn-fs:hover{background:rgba(255,255,255,.1);color:#fff}
 /* End button — only visible outside fullscreen */
 .btn-end{background:rgba(239,68,68,.1);border:2px solid rgba(239,68,68,.4);color:#f87171;font-size:.88rem;padding:10px}
 .btn-end:hover{background:rgba(239,68,68,.2)}
 
-/* ── Drum screens ── */
+/* ── Grid picker screens ── */
 #s-col,#s-row{background:#000c1a}
 .phase-header{flex-shrink:0;display:flex;align-items:center;padding:12px 14px 8px;gap:8px;border-bottom:1px solid rgba(255,255,255,.05)}
 .phase-title{flex:1;text-align:center;color:#64748b;font-size:.9rem;font-weight:600}
@@ -55,28 +60,14 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000c1a;color:#fff;f
 .tbar-hint.ready{color:#22c55e;font-weight:700;font-size:.75rem}
 .tbar-warn{font-size:.75rem;color:#ef4444;font-weight:700;margin-top:4px}
 
-/* Drum container */
-.drum-outer{flex:1;position:relative;overflow:hidden;--item-h:120px;min-height:0}
-.drum-outer::before,.drum-outer::after{content:'';position:absolute;left:0;right:0;height:20%;z-index:4;pointer-events:none}
-.drum-outer::before{top:0;background:linear-gradient(to bottom,#000c1a 0%,rgba(0,12,26,0) 100%)}
-.drum-outer::after{bottom:0;background:linear-gradient(to top,#000c1a 0%,rgba(0,12,26,0) 100%)}
-.drum-zone{position:absolute;left:12px;right:12px;top:50%;transform:translateY(-50%);height:var(--item-h);background:rgba(14,165,233,.13);border:2px solid rgba(14,165,233,.55);border-radius:18px;box-shadow:0 0 28px rgba(14,165,233,.22),inset 0 0 16px rgba(14,165,233,.06);z-index:3;pointer-events:none;transition:background .3s,border-color .3s,box-shadow .3s}
-.drum-zone.phase-fire{background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.55);box-shadow:0 0 28px rgba(239,68,68,.22),inset 0 0 16px rgba(239,68,68,.05)}
-.drum-zone.zone-blocked{background:rgba(100,116,139,.08);border-color:rgba(100,116,139,.3);box-shadow:none}
-.drum-track{position:absolute;left:0;right:0;touch-action:none;cursor:grab;display:flex;flex-direction:column;align-items:center;will-change:transform}
-.drum-track.dragging{cursor:grabbing}
-.drum-item{width:calc(100% - 24px);display:flex;align-items:center;justify-content:center;border-radius:16px;border:2px solid transparent;flex-shrink:0;position:relative;transition:opacity .12s}
-.drum-item.active{border-color:rgba(14,165,233,.4);cursor:pointer}
-.drum-item.active.phase-fire{border-color:rgba(239,68,68,.5)}
-.drum-item.active::after{content:'dotknij';position:absolute;bottom:8px;left:0;right:0;text-align:center;font-size:.62rem;color:rgba(14,165,233,.7);letter-spacing:.1em;text-transform:uppercase;font-weight:600;animation:hint-in .4s ease both}
-.drum-item.active.phase-fire::after{content:'STRZELAJ';color:rgba(239,68,68,.8);font-size:.7rem}
-.drum-item.active.blocked::after{content:'już strzelano';color:rgba(100,116,139,.8)}
-.drum-item.blocked{opacity:.25 !important}
-.drum-val{font-size:4rem;font-weight:900;line-height:1;letter-spacing:-2px;color:#fff;text-shadow:0 0 28px rgba(14,165,233,.55);pointer-events:none}
-.phase-fire .drum-val{text-shadow:0 0 28px rgba(239,68,68,.5);color:#fca5a5}
-@keyframes tap-flash{0%{background:rgba(14,165,233,.3)}100%{background:transparent}}
-@keyframes hint-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
-.drum-item.tapped{animation:tap-flash .22s ease}
+/* Grid picker */
+.grid-picker{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:16px;align-content:center;min-height:0;overflow-y:auto}
+.grid-btn{display:flex;align-items:center;justify-content:center;border-radius:16px;border:2.5px solid rgba(14,165,233,.4);background:rgba(14,165,233,.08);color:#7dd3fc;font-size:2.8rem;font-weight:900;cursor:pointer;min-height:72px;transition:all .15s;-webkit-tap-highlight-color:transparent;user-select:none}
+.grid-btn:active{background:rgba(14,165,233,.35);transform:scale(.94)}
+.grid-btn.fire{border-color:rgba(239,68,68,.5);background:rgba(239,68,68,.06);color:#fca5a5}
+.grid-btn.fire:active{background:rgba(239,68,68,.3);transform:scale(.94)}
+.grid-btn.shot-hit{border-color:rgba(74,222,128,.25);background:rgba(22,101,52,.15);color:#4ade80;font-size:1.4rem;opacity:.5;pointer-events:none}
+.grid-btn.shot-miss{border-color:rgba(100,116,139,.15);background:rgba(15,23,42,.4);color:#475569;font-size:1.4rem;opacity:.35;pointer-events:none}
 
 /* ── Result ── */
 #s-result{align-items:center;justify-content:center;gap:12px;padding:20px;text-align:center}
@@ -93,7 +84,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000c1a;color:#fff;f
 #btn-end-game:hover{background:rgba(239,68,68,.2)}
 </style>
 </head>
-<body>
+<body class="imp-admin-editor">
+
+<div class="volume-bar">
+    <input type="range" id="volume" min="0" max="100" value="65" title="Głośność">
+</div>
 
 <!-- Ładowanie -->
 <div class="screen active" id="s-loading">
@@ -109,60 +104,43 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000c1a;color:#fff;f
     <!-- Suwak dostępny przed grą -->
     <div class="music-panel" id="music-panel" style="display:none">
         <h3>🎵 Soundtrack</h3>
-        <div class="volume-row">
-            <span>🔈</span>
-            <input type="range" min="0" max="1" step="0.05" value="0.65" id="vol-slider">
-            <span>🔊</span>
-            <span class="vol-val" id="vol-val">65%</span>
-        </div>
         <button class="btn-play" id="btn-music-toggle" onclick="toggleMusic()">▶ Włącz muzykę</button>
     </div>
 
-    <button class="btn-main btn-fs" id="btn-fullscreen" onclick="enterFullscreen()">⛶ Tryb pełnoekranowy</button>
     <button class="btn-main btn-blue" id="btn-start" onclick="startGame()">🚀 Rozpocznij grę</button>
     <a href="/statki-solo/" style="color:#475569;font-size:.8rem;text-decoration:none">← Powrót</a>
 </div>
 
-<!-- Faza 1: Kolumna (litera A–H) -->
+<button type="button" class="fullscreen-btn" id="btn-fs-float" onclick="enterFullscreen()" title="Pełny ekran">⛶</button>
+
+<!-- Faza 1: Kolumna -->
 <div class="screen" id="s-col">
     <div class="phase-header">
         <span style="min-width:60px"></span>
-        <span class="phase-title">Faza 1 – Kolumna</span>
-        <span class="phase-badge">A – H</span>
+        <span class="phase-title">Wybierz kolumnę</span>
+        <span class="phase-badge" id="col-phase-badge">A – H</span>
     </div>
-    <div class="drum-outer" id="drum-col-outer">
-        <div class="drum-zone" id="drum-col-zone"></div>
-        <div class="drum-track" id="drum-col-track"></div>
-    </div>
+    <div class="grid-picker" id="col-grid"></div>
     <div class="target-bar">
-        <div class="tbar-label">Celuję w kolumnę</div>
-        <div class="tbar-coord">
-            <div class="tbar-box" id="tb-col-letter">A</div>
-        </div>
-        <div class="tbar-hint" id="tb-col-hint">Przewiń i dotknij aby wybrać kolumnę</div>
+        <div class="tbar-hint">Dotknij literę kolumny</div>
     </div>
 </div>
 
-<!-- Faza 2: Rząd (cyfra 1–N) -->
+<!-- Faza 2: Rząd (strzał) -->
 <div class="screen" id="s-row">
     <div class="phase-header">
-        <button class="btn-back" onclick="backToCol()">← Kolumna</button>
-        <span class="phase-title" id="row-phase-title">Faza 2 – Rząd</span>
+        <button class="btn-back" onclick="backToCol()">← Zmień kolumnę</button>
+        <span class="phase-title" id="row-phase-title">Kolumna A → Rząd</span>
         <span class="phase-badge" id="row-phase-badge">1–8</span>
     </div>
-    <div class="drum-outer" id="drum-row-outer">
-        <div class="drum-zone phase-fire" id="drum-row-zone"></div>
-        <div class="drum-track" id="drum-row-track"></div>
-    </div>
+    <div class="grid-picker" id="row-grid"></div>
     <div class="target-bar">
-        <div class="tbar-label" id="tb-row-label">Celuję w rząd</div>
         <div class="tbar-coord">
             <div class="tbar-box chosen" id="tb-row-col">A</div>
             <div class="tbar-sep">+</div>
-            <div class="tbar-box fire" id="tb-row-num">1</div>
+            <div class="tbar-box fire" id="tb-row-num">?</div>
         </div>
-        <div class="tbar-hint ready" id="tb-row-hint">Przewiń i dotknij aby STRZELIĆ 🎯</div>
-        <div class="tbar-warn" id="tb-row-warn" style="display:none">⚠️ To pole już strzelano – wybierz inny rząd</div>
+        <div class="tbar-hint ready">Dotknij numer aby STRZELIĆ 🎯</div>
     </div>
 </div>
 
@@ -172,6 +150,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000c1a;color:#fff;f
     <div class="r-text" id="r-text"></div>
     <div class="r-reward" id="r-reward"></div>
     <div class="r-coord" id="r-coord"></div>
+    <div id="admin-ship-legend" style="display:none;flex-wrap:wrap;gap:6px;justify-content:center;align-items:center;max-width:320px;width:100%;padding:8px 12px;background:rgba(14,165,233,.05);border:1px solid rgba(14,165,233,.14);border-radius:10px;margin-top:4px;margin-bottom:2px;"></div>
     <div style="overflow-x:auto;text-align:center;max-width:320px;width:100%;margin-top:2px" id="mini-board-wrap"></div>
     <div class="result-actions">
         <button class="btn-main btn-blue" onclick="nextShot()" id="btn-next">🎯 Następny strzał</button>
@@ -227,12 +206,10 @@ document.addEventListener('fullscreenchange', onFsChange);
 document.addEventListener('webkitfullscreenchange', onFsChange);
 function onFsChange() {
     isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement);
-    // Fullscreen button: hide when in fullscreen
-    document.getElementById('btn-fullscreen').style.display = isFullscreen ? 'none' : 'flex';
-    // Floating end button: only visible outside fullscreen during game
+    const fsBtn = document.getElementById('btn-fs-float');
+    if (fsBtn) fsBtn.style.display = isFullscreen ? 'none' : 'flex';
     const floatEnd = document.getElementById('btn-end-game');
     floatEnd.style.display = (!isFullscreen && gameRunning && document.getElementById('s-result').classList.contains('active') === false) ? 'block' : 'none';
-    // End button on result: always visible there (deliberate action)
 }
 
 // ── Web Audio ──────────────────────────────────────────────
@@ -327,31 +304,27 @@ function renderStartScreen() {
         return;
     }
     const rewards = Object.values(config.rewards || {}).filter(Boolean);
-    el.innerHTML = `Plansza <strong>${config.boardSize}×${config.boardSize}</strong> · <strong>${config.ships.length}</strong> statków · <strong>${rewards.length}</strong> nagród`;
+    // Fleet composition: count per size
+    const sizeCounts = {};
+    config.ships.forEach(s => { sizeCounts[s.size] = (sizeCounts[s.size] || 0) + 1; });
+    const fleetStr = Object.keys(sizeCounts).sort((a,b)=>b-a)
+        .map(sz => `${sizeCounts[sz]}×${sz}-mast.`).join(' · ');
+    el.innerHTML = `Plansza <strong>${config.boardSize}×${config.boardSize}</strong> · <strong>${config.ships.length}</strong> statków · <strong>${rewards.length}</strong> nagród<br><small style="color:#64748b">${fleetStr}</small>`;
     if (config.soundtrack) document.getElementById('music-panel').style.display = 'block';
 }
 
-// ── Muzyka ─────────────────────────────────────────────────
-const volSlider = document.getElementById('vol-slider');
-const volVal = document.getElementById('vol-val');
-volSlider.oninput = () => {
-    const v = parseFloat(volSlider.value);
-    audioEl.volume = v; volVal.textContent = Math.round(v * 100) + '%';
+// ── Głośność — regulator na górze ───────────────────────────
+const volSlider = document.getElementById('volume');
+function emitVolume() {
+    const v = parseFloat(volSlider.value) / 100;
     socket.emit('ships_solo_volume', { volume: v });
-};
+}
+volSlider.oninput = emitVolume;
+socket.on('ships_solo_volume', (d) => { if (d && typeof d.volume === 'number') { volSlider.value = Math.round(d.volume * 100); } });
 function toggleMusic() {
     if (!config || !config.soundtrack) return;
-    if (musicPlaying) {
-        audioEl.pause(); musicPlaying = false;
-        document.getElementById('btn-music-toggle').textContent = '▶ Włącz muzykę';
-    } else {
-        const src = config.soundtrack.startsWith('http') ? config.soundtrack : '/uploads/' + config.soundtrack;
-        audioEl.src = src; audioEl.volume = parseFloat(volSlider.value);
-        audioEl.loop = !!config.soundtrackLoop;
-        audioEl.play().catch(()=>{});
-        musicPlaying = true;
-        document.getElementById('btn-music-toggle').textContent = '⏸ Zatrzymaj muzykę';
-    }
+    musicPlaying = !musicPlaying;
+    document.getElementById('btn-music-toggle').textContent = musicPlaying ? '⏸ Zatrzymaj muzykę' : '▶ Włącz muzykę';
 }
 
 // ── Start / Koniec ─────────────────────────────────────────
@@ -360,201 +333,93 @@ function startGame() {
     shots = {}; gameRunning = true;
     socket.emit('ships_solo_init', config);
     selectedCol = 0; selectedRow = 0;
-    buildDrumCol();
+    buildColGrid();
 }
 function endGame() {
     if (!confirm('Zakończyć grę?')) return;
     socket.emit('ships_solo_end', {});
     gameRunning = false;
-    audioEl.pause(); musicPlaying = false;
+    musicPlaying = false;
+    if (audioEl) { audioEl.pause(); audioEl.currentTime = 0; }
     document.getElementById('btn-music-toggle').textContent = '▶ Włącz muzykę';
     document.getElementById('btn-end-game').style.display = 'none';
     show('s-start');
 }
 function nextShot() {
     document.getElementById('btn-next').style.display = 'flex';
-    buildDrumCol();
+    buildColGrid();
 }
 function backToCol() {
     socket.emit('ships_solo_aim', { aimRow: null, aimCol: selectedCol, phase: 'col' });
-    buildDrumCol();
+    buildColGrid();
 }
 
-// ── Target bar updates ─────────────────────────────────────
-function updateColBar(idx) {
-    document.getElementById('tb-col-letter').textContent = LETTERS[idx];
-}
-function updateRowBar(colIdx, rowIdx) {
-    const key = `${rowIdx}_${colIdx}`;
-    const alreadyShot = !!shots[key];
-    document.getElementById('tb-row-col').textContent = LETTERS[colIdx];
-    document.getElementById('tb-row-num').textContent = rowIdx + 1;
-    document.getElementById('tb-row-label').textContent = alreadyShot
-        ? `Kolumna ${LETTERS[colIdx]} · Rząd ${rowIdx + 1}`
-        : `Celuję w pole: ${LETTERS[colIdx]}${rowIdx + 1}`;
-    const hint = document.getElementById('tb-row-hint');
-    const warn = document.getElementById('tb-row-warn');
-    const zone = document.getElementById('drum-row-zone');
-    if (alreadyShot) {
-        hint.style.display = 'none'; warn.style.display = 'block';
-        zone.classList.add('zone-blocked'); zone.classList.remove('phase-fire');
-    } else {
-        hint.style.display = 'block'; warn.style.display = 'none';
-        zone.classList.remove('zone-blocked'); zone.classList.add('phase-fire');
+// ── Grid Picker ────────────────────────────────────────────
+
+let _shotPending = false;
+
+function buildColGrid() {
+    _shotPending = false;
+    const grid = document.getElementById('col-grid');
+    const n = config.boardSize;
+    document.getElementById('col-phase-badge').textContent = `A – ${LETTERS[n-1]}`;
+    grid.innerHTML = '';
+    for (let c = 0; c < n; c++) {
+        const btn = document.createElement('button');
+        btn.className = 'grid-btn';
+        btn.textContent = LETTERS[c];
+        btn.onclick = () => {
+            selectedCol = c;
+            playConfirm();
+            socket.emit('ships_solo_aim', { aimRow: null, aimCol: c, phase: 'col' });
+            buildRowGrid();
+        };
+        grid.appendChild(btn);
     }
-}
-
-// ── Drum Picker ────────────────────────────────────────────
-let colPickerCleanup = null, rowPickerCleanup = null;
-
-function buildDrum(outerEl, zoneEl, trackEl, items, initIdx, isFirePhase, onChangeCb, onConfirmCb) {
-    const outerH = outerEl.getBoundingClientRect().height || Math.floor(window.innerHeight * 0.6);
-    const VISIBLE = 4;
-    const itemH = Math.floor(outerH / VISIBLE);
-    const PAD = 2;
-    outerEl.style.setProperty('--item-h', itemH + 'px');
-    zoneEl.style.height = itemH + 'px';
-
-    trackEl.innerHTML = '';
-    const makeItem = (label, idx) => {
-        const el = document.createElement('div');
-        el.className = 'drum-item' + (isFirePhase ? ' phase-fire' : '');
-        el.style.height = itemH + 'px';
-        if (idx !== undefined) {
-            el.dataset.idx = idx;
-            el.innerHTML = `<span class="drum-val">${label}</span>`;
-            if (isFirePhase && shots[`${idx}_${selectedCol}`]) el.classList.add('blocked');
-        } else {
-            el.style.opacity = '0'; el.style.pointerEvents = 'none';
-        }
-        return el;
-    };
-    for (let i = 0; i < PAD; i++) trackEl.appendChild(makeItem(''));
-    items.forEach((lbl, idx) => trackEl.appendChild(makeItem(lbl, idx)));
-    for (let i = 0; i < PAD; i++) trackEl.appendChild(makeItem(''));
-
-    const baseY = outerH / 2 - itemH / 2 - PAD * itemH;
-    let translateY = baseY - initIdx * itemH;
-    let currentIdx = initIdx;
-    let lastEmit = -1;
-    let startY = 0, startTY = 0, isDrag = false, totalMove = 0;
-
-    const clamp = y => Math.max(baseY - (items.length - 1) * itemH, Math.min(baseY, y));
-    const idxOf = y => Math.max(0, Math.min(items.length - 1, Math.round((baseY - y) / itemH)));
-
-    function applyY(y, anim) {
-        trackEl.style.transition = anim ? 'transform .27s cubic-bezier(.25,.46,.45,.94)' : 'none';
-        trackEl.style.transform = `translateY(${y}px)`;
-        updateVisuals(y);
-    }
-    function updateVisuals(y) {
-        const act = idxOf(y);
-        trackEl.querySelectorAll('.drum-item[data-idx]').forEach(el => {
-            const i = parseInt(el.dataset.idx);
-            const d = Math.abs(i - act);
-            const ops = [1, .52, .24, .09];
-            const scs = [1, .8, .62, .45];
-            const fs = Math.max(18, Math.floor(itemH * 0.55 * (scs[Math.min(d,3)] ?? 0.28)));
-            el.style.opacity = ops[Math.min(d,3)] ?? 0.04;
-            el.querySelector('.drum-val').style.fontSize = fs + 'px';
-            el.classList.toggle('active', d === 0);
-        });
-        if (act !== lastEmit) {
-            lastEmit = act; currentIdx = act;
-            playTick();
-            onChangeCb(act);
-        }
-    }
-
-    const getY = e => (e.touches ? e.touches[0] : e).clientY;
-    const onStart = e => { isDrag = true; totalMove = 0; startY = getY(e); startTY = translateY; trackEl.style.transition = 'none'; trackEl.classList.add('dragging'); };
-    const onMove = e => {
-        if (!isDrag) return;
-        if (e.cancelable) e.preventDefault();
-        const dy = getY(e) - startY;
-        totalMove = Math.abs(dy);
-        translateY = clamp(startTY + dy);
-        applyY(translateY, false);
-    };
-    const onEnd = () => {
-        if (!isDrag) return;
-        isDrag = false; trackEl.classList.remove('dragging');
-        if (totalMove < 10) {
-            const tapped = trackEl.querySelector('.drum-item.active');
-            if (tapped) { tapped.classList.add('tapped'); setTimeout(() => tapped.classList.remove('tapped'), 240); }
-            setTimeout(() => onConfirmCb(currentIdx), 90);
-            return;
-        }
-        currentIdx = idxOf(translateY);
-        translateY = baseY - currentIdx * itemH;
-        applyY(translateY, true);
-        onChangeCb(currentIdx);
-    };
-
-    outerEl.addEventListener('mousedown', onStart);
-    outerEl.addEventListener('touchstart', onStart, {passive:true});
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('touchmove', onMove, {passive:false});
-    document.addEventListener('mouseup', onEnd);
-    document.addEventListener('touchend', onEnd);
-    applyY(translateY, false);
-
-    return () => {
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('touchmove', onMove);
-        document.removeEventListener('mouseup', onEnd);
-        document.removeEventListener('touchend', onEnd);
-    };
-}
-
-// show() + rAF żeby element był widoczny i zmierzony przed buildDrum
-function buildDrumCol() {
-    if (colPickerCleanup) { colPickerCleanup(); colPickerCleanup = null; }
     show('s-col');
-    requestAnimationFrame(() => {
-        const items = Array.from({length: config.boardSize}, (_, i) => LETTERS[i]);
-        updateColBar(selectedCol);
-        colPickerCleanup = buildDrum(
-            document.getElementById('drum-col-outer'),
-            document.getElementById('drum-col-zone'),
-            document.getElementById('drum-col-track'),
-            items, selectedCol, false,
-            (idx) => { selectedCol = idx; updateColBar(idx); socket.emit('ships_solo_aim', { aimRow: null, aimCol: idx, phase: 'col' }); },
-            (idx) => {
-                selectedCol = idx; playConfirm();
-                document.getElementById('row-phase-title').textContent = `Kolumna ${LETTERS[idx]} → Rząd`;
-                document.getElementById('row-phase-badge').textContent = `1–${config.boardSize}`;
-                socket.emit('ships_solo_aim', { aimRow: null, aimCol: idx, phase: 'row' });
-                buildDrumRow();
-            }
-        );
-    });
 }
 
-function buildDrumRow() {
-    if (rowPickerCleanup) { rowPickerCleanup(); rowPickerCleanup = null; }
+function buildRowGrid() {
+    _shotPending = false;
+    const grid = document.getElementById('row-grid');
+    const n = config.boardSize;
+    document.getElementById('row-phase-title').textContent = `Kolumna ${LETTERS[selectedCol]} → Rząd`;
+    document.getElementById('row-phase-badge').textContent = `1–${n}`;
+    document.getElementById('tb-row-col').textContent = LETTERS[selectedCol];
+    document.getElementById('tb-row-num').textContent = '?';
+    grid.innerHTML = '';
+    for (let r = 0; r < n; r++) {
+        const btn = document.createElement('button');
+        const key = `${r}_${selectedCol}`;
+        const shot = shots[key];
+        if (shot) {
+            btn.className = 'grid-btn ' + (shot.hit ? 'shot-hit' : 'shot-miss');
+            btn.textContent = shot.hit ? `${r+1} 💥` : `${r+1} ✕`;
+        } else {
+            btn.className = 'grid-btn fire';
+            btn.textContent = String(r + 1);
+            btn.onclick = () => {
+                if (_shotPending) return;
+                _shotPending = true;
+                selectedRow = r;
+                document.getElementById('tb-row-num').textContent = r + 1;
+                socket.emit('ships_solo_aim', { aimRow: r, aimCol: selectedCol, phase: 'row' });
+                grid.querySelectorAll('.grid-btn.fire').forEach(b => {
+                    b.style.pointerEvents = 'none';
+                    b.style.opacity = '.4';
+                });
+                btn.style.opacity = '1';
+                btn.style.borderColor = '#ef4444';
+                btn.style.background = 'rgba(239,68,68,.2)';
+                setTimeout(() => {
+                    playFire();
+                    socket.emit('ships_solo_shot', { row: r, col: selectedCol });
+                }, 1000);
+            };
+        }
+        grid.appendChild(btn);
+    }
     show('s-row');
-    requestAnimationFrame(() => {
-        const items = Array.from({length: config.boardSize}, (_, i) => String(i + 1));
-        updateRowBar(selectedCol, selectedRow);
-        rowPickerCleanup = buildDrum(
-            document.getElementById('drum-row-outer'),
-            document.getElementById('drum-row-zone'),
-            document.getElementById('drum-row-track'),
-            items, selectedRow, true,
-            (idx) => {
-                selectedRow = idx;
-                updateRowBar(selectedCol, idx);
-                socket.emit('ships_solo_aim', { aimRow: idx, aimCol: selectedCol, phase: shots[`${idx}_${selectedCol}`] ? 'col_blocked' : 'row' });
-            },
-            (idx) => {
-                selectedRow = idx;
-                if (shots[`${idx}_${selectedCol}`]) return;
-                playFire();
-                socket.emit('ships_solo_shot', { row: idx, col: selectedCol });
-            }
-        );
-    });
 }
 
 // ── Wynik ──────────────────────────────────────────────────
@@ -577,10 +442,43 @@ socket.on('ships_solo_shot_result', (d) => {
     if (d.gameEnded) {
         document.getElementById('btn-next').style.display = 'none';
         document.getElementById('r-coord').textContent += ' · 🎉 Wszystkie zatopione!';
-        audioEl.pause(); musicPlaying = false;
+        musicPlaying = false;
     }
     show('s-result');
 });
+
+function renderAdminShipLegend() {
+    const el = document.getElementById('admin-ship-legend');
+    if (!el || !config || !config.ships || !config.ships.length) { if(el) el.style.display='none'; return; }
+    const ships = [...config.ships].sort((a, b) => b.size - a.size);
+
+    let sunkCount = 0;
+    let html = '';
+    for (const ship of ships) {
+        let cells = '';
+        let allHit = true;
+        for (let i = 0; i < ship.size; i++) {
+            const r = ship.vertical ? ship.row + i : ship.row;
+            const c = ship.vertical ? ship.col : ship.col + i;
+            const hit = !!(shots[`${r}_${c}`] && shots[`${r}_${c}`].hit);
+            if (!hit) allHit = false;
+            cells += `<span style="display:inline-block;width:11px;height:11px;border-radius:2px;flex-shrink:0;border:1px solid ${hit?'rgba(74,222,128,.6)':'rgba(14,165,233,.45)'};background:${hit?'#15803d':'rgba(14,165,233,.14)'};transition:background .3s;"></span>`;
+        }
+        if (allHit) sunkCount++;
+        html += `<div style="display:flex;gap:2px;align-items:center;opacity:${allHit?'.35':'1'};transition:opacity .3s;">${cells}</div>`;
+    }
+
+    // Size summary text
+    const sizeCounts = {};
+    ships.forEach(s => { sizeCounts[s.size] = (sizeCounts[s.size] || 0) + 1; });
+    const sizeStr = Object.keys(sizeCounts).sort((a,b)=>b-a).map(sz=>`${sizeCounts[sz]}×${sz}▬`).join('  ');
+    const statusStr = sunkCount > 0
+        ? `<span style="color:#ef4444;font-weight:700">${sunkCount}</span>/<span style="color:#94a3b8">${ships.length}</span> zatopionych`
+        : `<span style="color:#7dd3fc">${ships.length} statków</span>`;
+
+    el.innerHTML = `<div style="width:100%;text-align:center;font-size:.65rem;color:#475569;font-weight:700;letter-spacing:.07em;text-transform:uppercase;margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,.06);">⚓ Flota: ${statusStr}</div><div style="width:100%;text-align:center;font-size:.58rem;color:#334155;margin-bottom:4px;">${sizeStr}</div>${html}`;
+    el.style.display = 'flex';
+}
 
 function renderMiniBoard(lastR, lastC) {
     if (!config) return;
@@ -611,10 +509,14 @@ function renderMiniBoard(lastR, lastC) {
     }
     html += '</table>';
     document.getElementById('mini-board-wrap').innerHTML = html;
+    renderAdminShipLegend();
 }
 
 // ── Socket ─────────────────────────────────────────────────
-socket.on('connect', () => socket.emit('ships_solo_get_state'));
+socket.on('connect', () => {
+    socket.emit('ships_solo_get_state');
+    emitVolume();
+});
 socket.on('ships_solo_state', (g) => { if (g && gameRunning) shots = g.shots || {}; });
 
 loadConfig();

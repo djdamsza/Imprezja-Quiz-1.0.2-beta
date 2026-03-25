@@ -31,7 +31,7 @@ Jeden instalator może zawierać **Imprezja Quiz** oraz **NJR Konwerter**. Pytho
 |------------|-----------|--------|
 | **macOS** | `npm run build:mac` | DMG (domyślnie architektura bieżącej maszyny) |
 | **macOS** | `npm run build:mac:arm64` | DMG (Apple Silicon) |
-| **macOS** | `npm run build:mac:x64` | DMG (Intel) |
+| **macOS** | `npm run build:mac:x64` | DMG (Intel) – **wymaga uruchomienia na Macu z Apple Silicon** (cross-compile) |
 | **macOS** | `npm run build:win` | Instalator Windows (nsis) – cross-compile na Macu |
 | **macOS** (wszystkie) | `npm run pac` | Czyści `dist/`, potem arm64 + x64 + win |
 | **Windows** | `npm run build:win` | Instalator Windows (nsis) |
@@ -41,10 +41,16 @@ Jeden instalator może zawierać **Imprezja Quiz** oraz **NJR Konwerter**. Pytho
 Jeśli instalator nowej wersji się wywala lub nie nadpisuje poprzedniej, przyczyną bywa **stara wersja w systemie**. W release notes / na stronie pobierania warto polecać: **przed instalacją nowej wersji zamknąć aplikację i odinstalować poprzednią** (Panel sterowania → Programy i funkcje → Imprezja Quiz → Odinstaluj), potem uruchomić nowy instalator. Zostało to uwzględnione w FAQ („Instalator się wywala / nie instaluje nowej wersji”).
 
 ### Uwagi
-- **Skrypt `kill-port`** (lsof) jest tylko w `electron` / `electron:dev` – **nie** jest używany przy `build`, więc build na Windows nie zależy od lsof.
+- **Skrypt `kill-port`** (`node scripts/kill-port.js`) – cross-platform, działa na Windows i Mac. Używany w `electron` / `electron:dev`.
+- **Build Mac x64**: skrypt `prepare-cloudflared-for-mac-x64.js` podmienia binarkę cloudflared na darwin-amd64. **Musi być uruchomiony na Macu z Apple Silicon** – na Intel Macu nie da się zbudować (skrypt pomija się gdy arch !== arm64).
 - **clean.js** – czysty Node (fs/path), działa na Windows i Mac.
 - Build Mac (DMG) ma sens tylko na macOS; build Windows można robić na Macu (cross) lub na Windows.
 - Katalog `dist/` jest wynikiem; w `package.json` → `build.files` wykluczone są m.in. `docs`, `*.md`, `scripts`, `*.sh`, `*.bat` – do paczki nie trafiają.
+
+### Aktualizacje (electron-updater)
+- Przy publikacji osobnych buildów Mac (arm64 + x64) electron-updater automatycznie wybiera właściwą architekturę. Upewnij się, że `latest-mac.yml` zawiera oba assety.
+- **singleArchFiles** (`**/node_modules/@img/**`) – electron-builder pakuje tylko binarki sharp dla bieżącej architektury, co zmniejsza rozmiar DMG.
+- **Launcher** (`build:launcher`): domyślnie `node18-win-x64`. Dla Windows ARM64: `--targets node18-win-x64,node18-win-arm64 --output dist/ImprezjaQuiz-Launcher` (tworzy dwa pliki .exe).
 
 ### Konflikty
 - Brak – konfiguracja jest spójna. Na Windows nie uruchamiaj `pac` w celu zbudowania wersji Mac (electron-builder nie zbuduje poprawnie DMG na Windows).

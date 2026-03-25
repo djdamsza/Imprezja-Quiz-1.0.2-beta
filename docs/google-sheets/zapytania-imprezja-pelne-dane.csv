@@ -1,0 +1,34 @@
+﻿zapisano_at,workflow_run,emailSubject,emailBody,emailFrom,mailDate,wp_form_name,wp_form_phone,wp_form_message,wp_form_client_email,is_event_inquiry,event_inquiry_confidence,needs_human_review,event_date_start,event_date_end,date_confidence,venue_or_city,location_confidence,client_name,event_kind,raw_quote,date_ok,location_ok,human,dj_notify_email,mail_from_notify,client_to_email,calStart,calEnd,check_date_ymd,calendar_query_until_exclusive,calendar_check_note,demo_termin_wolny,google_calendar_available,google_calendar_warning,event_kind_used,mail_from,reply_to,offer_pdf_url,subject_wolny,subject_zajety,html_wolny,html_zajety,resend_to,data_termin_iso,data_termin_pl,data_termin_zakres_do,typ_imprezy,klient_imie,email,telefon,miejscowosc,pewnosc_daty,pewnosc_lokalizacji,zapytanie_o_impreze,reczna_obsluga,lokalizacja_ok,kalendarz_wolny,notatka_kalendarz,temat_maila,nadawca_naglowek,tresc_skrocona,wyslana_akcja,temat_wyslanej,data_wyslania,ask_clarification_source,followup_candidate,followup_eligible_at,followup_sent,followup_sent_at,followup_offer_variant,subject_followup_3d,html_followup_3d
+2026-03-18T14:30:00+01:00,12345,Zapytanie wesele 15 sierpnia,"Dzień dobry,
+
+szukamy DJ-a i wodzireja na wesele 15 sierpnia 2026 w Krakowie (okolice Ronda Mogilskiego).
+Prosimy o wstępną ofertę i potwierdzenie wolnego terminu.
+
+Pozdrawiamy,
+Kasia i Piotr",kasia@gmail.com,2026-03-18T13:00:00+01:00,Kasia i Piotr,+48 500 111 222,"Dzień dobry,
+
+szukamy DJ-a i wodzireja na wesele 15 sierpnia 2026 w Krakowie (okolice Ronda Mogilskiego).
+Prosimy o wstępną ofertę i potwierdzenie wolnego terminu.
+
+Pozdrawiamy,
+Kasia i Piotr",kasia@example.com,TRUE,high,FALSE,2026-08-15T00:00:00+02:00,,high,Kraków,high,Kasia i Piotr,wedding,wesele 15 sierpnia 2026 Kraków,TRUE,TRUE,FALSE,biuro@imprezja.pl,Biuro Imprezja <biuro@imprezja.pl>,kasia@example.com,2026-08-15T00:00:00.000+02:00,2026-08-16T00:00:00.000+02:00,2026-08-15,2026-08-16,,TRUE,TRUE,,wedding,Biuro Imprezja <biuro@imprezja.pl>,biuro@imprezja.pl,https://imprezja.pl/wp-content/uploads/2026/01/Oferta-wesele-Imprezja-2027.pdf,Wasz termin jest wolny – działamy? 🙂 (15.08.2026),Termin zajęty – mam dla Was opcje (15.08.2026),"<div style=""font-family:Segoe UI,Arial,sans-serif""><p>Cześć Kasia i Piotr,</p><p>Super wiadomość: w <strong>15.08.2026</strong> jestem wolny.</p><p><a href=""https://imprezja.pl/oferta.pdf"">Oferta PDF</a></p></div>","<div style=""font-family:Segoe UI,Arial,sans-serif""><p>Cześć Kasia i Piotr,</p><p>Niestety <strong>15.08.2026</strong> jest zajęty — mam jednak inne terminy.</p></div>",kasia@example.com,2026-08-15,15.08.2026,,wedding,Kasia i Piotr,kasia@example.com,+48 500 111 222,Kraków,high,high,TRUE,FALSE,TRUE,TRUE,,Zapytanie wesele 15 sierpnia,kasia@gmail.com,"Dzień dobry,  szukamy DJ-a i wodzireja na wesele 15 sierpnia 2026 w Krakowie (okolice Ronda Mogilskiego). Prosimy o wstępną ofertę i potwierdzenie wolnego terminu.  Pozdrawiamy, Kasia i Piotr…",,,,,,,,,,,
+2026-03-18T15:00:00+01:00,12346,Urodziny firmowe / integracja lipiec,"Dzień dobry,
+
+Chcielibyśmy zorganizować imprezę integracyjną dla firmy gdzieś w lipcu 2026.
+Konkretnego dnia jeszcze nie mamy — prosimy o widełki i ofertę.
+
+Pozdrawiam,
+Jan Kowalski
+Firma XYZ",jan@firma.pl,2026-03-18T14:15:00+01:00,Jan Kowalski,+48 601 000 000,"Dzień dobry,
+
+Chcielibyśmy zorganizować imprezę integracyjną dla firmy gdzieś w lipcu 2026.
+Konkretnego dnia jeszcze nie mamy — prosimy o widełki i ofertę.
+
+Pozdrawiam,
+Jan Kowalski
+Firma XYZ",jan@firma.pl,TRUE,medium,FALSE,,,low,,low,Jan Kowalski,other,lipiec 2026 integracja firma,FALSE,FALSE,FALSE,biuro@imprezja.pl,Biuro Imprezja <biuro@imprezja.pl>,jan@firma.pl,,,,,brak_event_date_start,TRUE,,,other,Biuro Imprezja <biuro@imprezja.pl>,biuro@imprezja.pl,https://imprezja.pl/wp-content/uploads/2026/01/Oferta-impreza-2027-Damian-Nowaczyk.pdf,Twój termin jest wolny – działamy? 🙂,Termin zajęty – mam dla Ciebie opcje,"<div><p>Cześć,</p><p>Dzięki za kontakt — w wybranym terminie lipca jestem wolny.</p></div>","<div><p>Cześć,</p><p>W tym dniu mam już imprezę — mogę zaproponować inny termin.</p></div>",jan@firma.pl,,,,other,Jan Kowalski,jan@firma.pl,+48 601 000 000,,low,low,TRUE,FALSE,FALSE,TRUE,brak_event_date_start,Urodziny firmowe / integracja lipiec,jan@firma.pl,"Dzień dobry,  Chcielibyśmy zorganizować imprezę integracyjną dla firmy gdzieś w lipcu 2026. Konkretnego dnia jeszcze nie mamy — prosimy o widełki i ofertę.  Pozdrawiam, Jan Kowalski Firma XYZ…",,,,,,,,,,,
+2026-03-23T09:54:48.549Z,82,[Imprezja] Zapytanie z formularza kontaktowego,"Imię: Jan Kowalski
+E-mail: jan.kowalski.test@example.com
+Telefon:
+Treść: Dzień dobry, prosimy o wolny termin na wesele w sobotę 10 kwietnia 2027 w okolicach Warszawy. Prosimy o wstępną wycenę pakietu z wodzirejem. Pozdrawiamy, Ania i Marek",wordpress@imprezja.pl,2026-03-23T10:54:44.243+01:00,"Jan Kowalski
+E-mail: jan.kowalski.test@example.com",,"Dzień dobry, prosimy o wolny termin na wesele w sobotę 10 kwietnia 2027 w okolicach Warszawy. Prosimy o wstępną wycenę pakietu z wodzirejem. Pozdrawiamy, Ania i Marek",jan.kowalski.test@example.com,TRUE,high,FALSE,2027-04-10T00:00:00+02:00,,high,okolice Warszawy,medium,Ania i Marek,wedding,wesele w sobotę 10 kwietnia 2027 okolice Warszawy,TRUE,TRUE,FALSE,biuro@imprezja.pl,Biuro Imprezja <biuro@imprezja.pl>,jan.kowalski.test@example.com,2027-04-10T00:00:00.000+02:00,2027-04-11T00:00:00.000+02:00,2027-04-10,2027-04-11,,TRUE,TRUE,,wedding,Biuro Imprezja <biuro@imprezja.pl>,biuro@imprezja.pl,https://imprezja.pl/wp-content/uploads/2026/01/Oferta-wesele-Imprezja-2027.pdf,Wasz termin jest wolny – działamy? 🙂 (10.04.2027),Termin zajęty – mam dla Was opcje (10.04.2027),"<div><p>Cześć Ania i Marek,</p><p>W <strong>10.04.2027</strong> jestem wolny — szczegóły w ofercie.</p></div>","<div><p>Cześć Ania i Marek,</p><p><strong>10.04.2027</strong> jest już zajęty.</p></div>",jan.kowalski.test@example.com,2027-04-10,10.04.2027,,wedding,Ania i Marek,jan.kowalski.test@example.com,,okolice Warszawy,high,medium,TRUE,FALSE,TRUE,TRUE,,[Imprezja] Zapytanie z formularza kontaktowego,wordpress@imprezja.pl,"Imię: Jan Kowalski E-mail: jan.kowalski.test@example.com Telefon: Treść: Dzień dobry, prosimy o wolny termin na wesele w sobotę 10 kwietnia 2027 w okolicach Warszawy. Prosimy o wstępną wycenę pakietu z wodzirejem. Pozdrawiamy, Ania i Marek…",,,,,,,,,,,

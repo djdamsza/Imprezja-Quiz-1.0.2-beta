@@ -45,11 +45,9 @@ Stripe Shop wtedy jawnie oferuje: card, BLIK, Klarna.
 
 ## 4. Produkty i ceny
 
-**Products** → sprawdź, czy masz 4 ceny z **Lookup keys**:
-- `imprezja-1m`
-- `imprezja-3m`
-- `imprezja-12m`
-- `imprezja-lifetime`
+**Products** → sprawdź, czy masz ceny z **Lookup keys**:
+- `imprezja-1m`, `imprezja-3m` (subskrypcja)
+- `imprezja-1m-onetime`, `imprezja-3m-onetime`, `imprezja-12m-onetime`, `imprezja-lifetime` (jednorazowe)
 
 Bez lookup keys strona cennika nie znajdzie cen.
 

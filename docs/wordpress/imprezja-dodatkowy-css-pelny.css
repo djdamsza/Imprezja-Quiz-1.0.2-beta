@@ -1,0 +1,848 @@
+/* ===== IMPREZJA.PL – DODATKOWY CSS (pełna wersja) =====
+   Wklej do: Wygląd → Dostosuj → Dodatkowy CSS
+   Motyw ciemny + style komponentów. Mapy usunięte.
+*/
+
+/* ==================== MOTYW CIEMNY ==================== */
+
+/* --- TŁO GŁÓWNE --- */
+body,
+.site,
+#page {
+  background-color: #0a0a0a !important;
+  color: #f5f0e8 !important;
+}
+
+/* --- TYPOGRAFIA --- */
+body,
+.entry-content,
+.site-main,
+.wp-block-post-content,
+h1, h2, h3, h4, h5, h6 {
+  color: #f5f0e8 !important;
+}
+
+p, li, span {
+  color: #e8e4dc !important;
+}
+
+strong, b {
+  color: #f5f0e8 !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: #f5f0e8 !important;
+}
+
+small, .wp-block-post-excerpt, .entry-meta, .posted-on, .byline {
+  color: #a8a399 !important;
+}
+
+/* --- TEKST NA ŻÓŁTYM TLE – czarne litery --- */
+.rekomendacje-cta h3,
+.rekomendacje-cta p,
+.rekomendacje-cta .rekomendacje-trust-item,
+.rekomendacje-cta strong,
+.rekomendacje-cta b {
+  color: #1a1208 !important;
+}
+/* Inne bloki z żółtym tłem (np. Kadence, motyw) – tekst czarny */
+[style*="background-color:#fcb424"] h1,
+[style*="background-color:#fcb424"] h2,
+[style*="background-color:#fcb424"] h3,
+[style*="background-color:#fcb424"] h4,
+[style*="background-color:#fcb424"] p,
+[style*="background-color:#fcb424"] span,
+[style*="background-color:#fcb424"] strong,
+[style*="background-color:#fcb424"] b,
+[style*="background-color: #fcb424"] h1,
+[style*="background-color: #fcb424"] h2,
+[style*="background-color: #fcb424"] h3,
+[style*="background-color: #fcb424"] h4,
+[style*="background-color: #fcb424"] p,
+[style*="background-color: #fcb424"] span,
+[style*="background-color: #fcb424"] strong,
+[style*="background-color: #fcb424"] b {
+  color: #1a1208 !important;
+}
+
+/* --- LINKI --- */
+a {
+  color: #fcb424 !important;
+}
+
+a:hover {
+  color: #ffc94d !important;
+}
+
+/* --- BLOKI – tło i cienie --- */
+.wp-block-group,
+.wp-block-cover,
+.wp-block-columns > .wp-block-column,
+.entry-content > .wp-block-group,
+.entry-content > .wp-block-cover,
+.entry-content > .wp-block-columns {
+  background-color: #161616 !important;
+  border: 1px solid #2a2a2a !important;
+  border-radius: 14px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+.wp-block-group.has-background,
+.wp-block-cover.has-background {
+  background-color: #1a1a1a !important;
+  border-color: #333 !important;
+}
+
+/* --- ZDJĘCIA – cienie i ramka --- */
+.wp-block-image img,
+figure img,
+.entry-content img,
+.wp-block-post-featured-image img {
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 2px 12px rgba(0, 0, 0, 0.3) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.wp-block-image.is-style-rounded img,
+.wp-block-post-featured-image img {
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Obrazki – wymiary + lazy (LiteSpeed / WP) – unikaj „niewidocznych” lub nieładowanych */
+.entry-content img,
+.wp-block-image img,
+figure img,
+.wp-block-post-featured-image img {
+  max-width: 100% !important;
+  height: auto !important;
+}
+img.lazyloaded,
+img.litespeed-loaded,
+img[data-lazyloaded="1"] {
+  opacity: 1 !important;
+}
+
+/* --- PRZYCISKI --- */
+.wp-block-button__link,
+button,
+input[type="submit"] {
+  background-color: #fcb424 !important;
+  color: #1a1208 !important;
+  border: none !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
+}
+
+.wp-block-button__link:hover,
+button:hover,
+input[type="submit"]:hover {
+  background-color: #ffc94d !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* --- POLA FORMULARZA --- */
+input[type="text"],
+input[type="email"],
+input[type="tel"],
+input[type="url"],
+textarea,
+select {
+  background-color: #2a2a2a !important;
+  border: 1px solid #3a3a3a !important;
+  color: #f5f0e8 !important;
+  border-radius: 10px;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #6b6b6b !important;
+}
+
+/* --- CYTATY --- */
+.wp-block-quote,
+blockquote {
+  background-color: #161616 !important;
+  border-left: 4px solid #fcb424 !important;
+  color: #e8e4dc !important;
+  border-radius: 0 12px 12px 0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* --- LISTY --- */
+.wp-block-list li::marker {
+  color: #fcb424;
+}
+
+/* --- NAGŁÓWEK / FOOTER --- */
+.site-header,
+.header-wrap,
+#masthead {
+  background-color: #0a0a0a !important;
+  border-bottom: 1px solid #2a2a2a !important;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Menu górne – aktywny element (żółte tło) – czarna czcionka */
+/* Blocksy: #header-menu-1, .ct-menu-link, nav[data-id="menu"] */
+#header-menu-1 .current-menu-item .ct-menu-link,
+#header-menu-1 .current_page_item .ct-menu-link,
+#header-menu-1 .current-menu-ancestor .ct-menu-link,
+#header-menu-1 .current-menu-item a,
+#header-menu-1 .current_page_item a,
+#header .current-menu-item .ct-menu-link,
+#header .current_page_item .ct-menu-link,
+.ct-header .current-menu-item .ct-menu-link,
+.ct-header .current_page_item .ct-menu-link,
+nav[data-id="menu"] .current-menu-item .ct-menu-link,
+nav[data-id="menu"] .current_page_item .ct-menu-link,
+.menu-container .current-menu-item .ct-menu-link,
+.menu-container .current_page_item .ct-menu-link,
+.current-menu-item a,
+.current-menu-item > a,
+.current_page_item a,
+.current_page_item > a,
+nav .current-menu-item a,
+nav .current_page_item a,
+[data-id="header"] .current-menu-item a,
+[data-id="header"] .current_page_item a,
+.ct-menu .current-menu-item > a,
+.ct-menu .current_page_item > a {
+  color: #1a1208 !important;
+}
+/* Gdy motyw nadaje żółte tło przez inline style lub zmienne */
+[style*="background-color:#fcb424"] .ct-menu-link,
+[style*="background-color: #fcb424"] .ct-menu-link,
+[style*="background:#fcb424"] .ct-menu-link,
+.menu-item.active .ct-menu-link {
+  color: #1a1208 !important;
+}
+
+/*
+ * Podmenu desktop – WĄSKI zakres (tylko #header-menu-1, tylko ≥1000px).
+ * Szerokie selektory (.sub-menu bez #header, [data-row="middle"] .sub-menu,
+ * .ct-dropdown bez media) mogły kolidować z panelem mobilnym / Blocksy.
+ * Menu/obrazki „nie działają” – często LiteSpeed (Delay JS / zbitki CSS–JS). Purge All nie zawsze
+ * czyści zoptymalizowane pliki – wtedy pomoże przebudowa (Toolbox → purge CSS/JS) lub wył./wł. wtyczki.
+ * Patrz: docs/wordpress/LITESPEED_MENU_OBRAZKI.md
+ */
+@media (min-width: 1000px) {
+  #header-menu-1 ul.sub-menu,
+  #header-menu-1 .sub-menu {
+    background-color: #fcb424 !important;
+    border: 1px solid rgba(26, 18, 8, 0.25) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35) !important;
+    padding: 0.35em 0 !important;
+    min-width: 12em;
+  }
+
+  #header-menu-1 .sub-menu .menu-item {
+    background-color: transparent !important;
+  }
+
+  #header-menu-1 .sub-menu a,
+  #header-menu-1 .sub-menu .ct-menu-link {
+    color: #1a1208 !important;
+    background-color: transparent !important;
+  }
+
+  #header-menu-1 .sub-menu a:hover,
+  #header-menu-1 .sub-menu a:focus,
+  #header-menu-1 .sub-menu .ct-menu-link:hover {
+    color: #000000 !important;
+    background-color: rgba(255, 255, 255, 0.22) !important;
+  }
+
+  #header-menu-1 .sub-menu .current-menu-item > a,
+  #header-menu-1 .sub-menu .current_page_item > a {
+    color: #1a1208 !important;
+    font-weight: 700 !important;
+  }
+
+  /* Blocksy: rozwijany panel (bezpośredni .ct-dropdown pod li – nie panel mobilny) */
+  header.ct-header .ct-menu-item-dropdown > .ct-dropdown,
+  #header .ct-menu-item-dropdown > .ct-dropdown,
+  #masthead .ct-menu-item-dropdown > .ct-dropdown,
+  #header-menu-1 .ct-menu-item-dropdown > .ct-dropdown {
+    background-color: #fcb424 !important;
+    border-radius: 10px !important;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35) !important;
+  }
+
+  header.ct-header .ct-menu-item-dropdown > .ct-dropdown a,
+  header.ct-header .ct-menu-item-dropdown > .ct-dropdown .ct-menu-link,
+  #header .ct-menu-item-dropdown > .ct-dropdown a,
+  #header .ct-menu-item-dropdown > .ct-dropdown .ct-menu-link,
+  #masthead .ct-menu-item-dropdown > .ct-dropdown a,
+  #masthead .ct-menu-item-dropdown > .ct-dropdown .ct-menu-link,
+  #header-menu-1 .ct-menu-item-dropdown > .ct-dropdown a,
+  #header-menu-1 .ct-menu-item-dropdown > .ct-dropdown .ct-menu-link {
+    color: #1a1208 !important;
+  }
+
+  header.ct-header .ct-menu-item-dropdown > .ct-dropdown a:hover,
+  header.ct-header .ct-menu-item-dropdown > .ct-dropdown .ct-menu-link:hover,
+  #header .ct-menu-item-dropdown > .ct-dropdown a:hover,
+  #header .ct-menu-item-dropdown > .ct-dropdown .ct-menu-link:hover,
+  #masthead .ct-menu-item-dropdown > .ct-dropdown a:hover,
+  #masthead .ct-menu-item-dropdown > .ct-dropdown .ct-menu-link:hover,
+  #header-menu-1 .ct-menu-item-dropdown > .ct-dropdown a:hover,
+  #header-menu-1 .ct-menu-item-dropdown > .ct-dropdown .ct-menu-link:hover {
+    color: #000000 !important;
+    background-color: rgba(255, 255, 255, 0.22) !important;
+  }
+
+  /*
+   * Nagłówek: overflow visible + z-index – podmenu nie może być obcięte;
+   * bez tego klik w „Imprezja” tylko przewija do #kotwicy zamiast pokazać listę.
+   */
+  header.ct-header,
+  #masthead.site-header,
+  .site-header {
+    overflow: visible !important;
+  }
+  header.ct-header [data-row],
+  header.ct-header .ct-header-row,
+  .ct-header .ct-container,
+  #masthead .ct-container {
+    overflow: visible !important;
+  }
+  header.ct-header .ct-menu-item-dropdown > .ct-dropdown,
+  #header .ct-menu-item-dropdown > .ct-dropdown,
+  #masthead .ct-menu-item-dropdown > .ct-dropdown,
+  #header-menu-1 .ct-menu-item-dropdown > .ct-dropdown,
+  #header-menu-1 ul.sub-menu,
+  #header-menu-1 .sub-menu {
+    z-index: 100060 !important;
+  }
+  /* Klawiatura / focus – czasem potrzebne gdy brak :hover (np. tryb redukcji ruchu) */
+  header.ct-header .ct-menu-item-dropdown:focus-within > .ct-dropdown,
+  #header .ct-menu-item-dropdown:focus-within > .ct-dropdown {
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+  }
+}
+
+/*
+ * Jeśli pozycja menu „Imprezja” ma URL z #kotwicą na tej samej stronie, pierwszy klik
+ * i tak przewinie stronę – w WP: Ustawienia menu → ten element jako „Niestandardowy odnośnik”
+ * z adresem „#” lub pusty (Blocksy: tylko rozwijane). To nie naprawi CSS-em samego href.
+ */
+
+/* Menu mobilne – zaznaczony element złoty (ciemne tło) */
+@media (max-width: 999px) {
+  .ct-panel .current-menu-item .ct-menu-link,
+  .ct-panel .current_page_item .ct-menu-link,
+  .ct-panel .current-menu-item a,
+  .ct-panel .current_page_item a,
+  [data-id="mobile-menu"] .current-menu-item .ct-menu-link,
+  [data-id="mobile-menu"] .current_page_item .ct-menu-link,
+  [data-id="mobile_menu"] .current-menu-item .ct-menu-link,
+  [data-id="mobile_menu"] .current_page_item .ct-menu-link,
+  .ct-mobile-menu .current-menu-item .ct-menu-link,
+  .ct-mobile-menu .current_page_item .ct-menu-link,
+  .ct-offcanvas .current-menu-item .ct-menu-link,
+  .ct-offcanvas .current_page_item .ct-menu-link,
+  .ct-drawer .current-menu-item .ct-menu-link,
+  .ct-drawer .current_page_item .ct-menu-link {
+    color: #fcb424 !important;
+  }
+
+  /* Panel mobilny / offcanvas – nie obcinaj treści; przywróć klikalność po globalnych stylach */
+  .ct-panel,
+  .ct-panel-inner,
+  .ct-drawer,
+  .ct-offcanvas,
+  #offcanvas,
+  [data-behaviour="modal"] .ct-panel {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch;
+    pointer-events: auto !important;
+  }
+  .ct-header-trigger,
+  .ct-toggle,
+  .mobile-toggle,
+  button.ct-toggle,
+  a.ct-menu-link {
+    pointer-events: auto !important;
+  }
+}
+
+.site-footer,
+#footer,
+.ct-footer,
+#colophon,
+.footer-wrap {
+  background-color: #0a0a0a !important;
+  border-top: 1px solid #2a2a2a !important;
+  color: #a8a399 !important;
+}
+
+/* Copyright – szary tekst, czarne tło, minimalna wysokość */
+/* Blocksy: .ct-footer [data-row="bottom"] [data-column="copyright"] */
+.ct-footer [data-column="copyright"],
+.ct-footer [data-row="bottom"],
+[data-footer*="type-1"] [data-column="copyright"],
+.site-info,
+.site-footer .site-info,
+[data-id="copyright"],
+.copyright,
+.site-footer [class*="copyright"],
+.site-footer .site-info-inner {
+  background-color: #0a0a0a !important;
+  color: #6b6b6b !important;
+  padding: 2px 16px !important;
+  min-height: auto !important;
+  line-height: 1.3 !important;
+  margin: 0 !important;
+  border: none !important;
+}
+.ct-footer [data-row="bottom"] > div {
+  padding-top: 2px !important;
+  padding-bottom: 2px !important;
+}
+.ct-footer [data-column="copyright"] *,
+.ct-footer [data-row="bottom"] * {
+  color: #6b6b6b !important;
+}
+
+/* Menu dolne – ikony social media 2x większe, minimalne marginesy */
+/* Blocksy: .ct-footer [data-row="middle"] [data-id="socials"] */
+.ct-footer [data-row="middle"] [data-id="socials"] a,
+.ct-footer [data-row="middle"] .ct-socials a,
+.ct-footer .ct-socials a,
+.site-footer .ct-socials a,
+.site-footer [class*="social"] a,
+.site-footer .social-icons a,
+.site-footer [data-id="socials"] a {
+  width: 2em !important;
+  height: 2em !important;
+  min-width: 2em !important;
+  min-height: 2em !important;
+  padding: 0 !important;
+}
+.ct-footer [data-row="middle"] [data-id="socials"] a svg,
+.ct-footer [data-row="middle"] .ct-socials svg,
+.ct-footer .ct-socials a svg,
+.site-footer .ct-socials a svg,
+.site-footer [class*="social"] svg,
+.site-footer [data-id="socials"] svg {
+  width: 2em !important;
+  height: 2em !important;
+}
+.ct-footer [data-row="middle"] [data-id="socials"],
+.ct-footer [data-row="middle"] .ct-socials,
+.ct-footer .ct-socials,
+.site-footer .ct-socials,
+.site-footer [class*="social"],
+.site-footer [data-id="socials"] {
+  margin-top: 2px !important;
+  margin-bottom: 2px !important;
+  padding-top: 2px !important;
+  padding-bottom: 2px !important;
+}
+
+/* Stopka – zmniejszona wysokość (middle row) */
+.ct-footer [data-row="middle"],
+.ct-footer [data-row="middle"] > div {
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+}
+.ct-footer [data-row="middle"] .ct-container {
+  --container-spacing: 10px !important;
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+}
+
+/* Ikony – kolor żółty (UAGB, Blocksy, ogólnie) */
+.uagb-icon-wrapper svg,
+.uagb-svg-wrapper svg,
+.uagb-svg-wrapper,
+.ct-footer [data-row="middle"] svg,
+.ct-footer .ct-socials svg,
+.site-footer svg[class*="icon"],
+.ct-socials svg {
+  fill: #fcb424 !important;
+  color: #fcb424 !important;
+}
+.uagb-icon-wrapper a,
+.uagb-svg-wrapper a {
+  color: #fcb424 !important;
+}
+
+/* --- KARTY (Kadence, Spectra) --- */
+.wp-block-kadence-rowlayout,
+.wp-block-uagb-column,
+.kb-advanced-column {
+  background-color: #161616 !important;
+  border: 1px solid #2a2a2a !important;
+  border-radius: 14px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* --- REKOMENDACJE (Trustindex) --- */
+.rekomendacje-wrap,
+.rekomendacje-section {
+  background-color: #161616 !important;
+  border: 1px solid #2a2a2a !important;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* ==================== TABELE OGÓLNE (motyw ciemny) ==================== */
+table,
+.entry-content table,
+article table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5em 0;
+  background-color: #161616 !important;
+  color: #f5f0e8 !important;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4) !important;
+}
+table th,
+table td,
+.entry-content table th,
+.entry-content table td {
+  padding: 12px 16px;
+  border: 1px solid #333 !important;
+  border-bottom-color: #2a2a2a !important;
+  color: #f5f0e8 !important;
+}
+table thead th {
+  background-color: #1f1f1f !important;
+  color: #f5f0e8 !important;
+  font-weight: 600;
+}
+table tbody th {
+  background-color: #1a1a1a !important;
+  color: #e8e4dc !important;
+}
+table tbody td {
+  background-color: #161616 !important;
+  color: #e8e4dc !important;
+}
+table tbody tr:nth-child(even) td {
+  background-color: #1a1a1a !important;
+}
+
+/* ==================== TABELA PORÓWNAWCZA ==================== */
+.tabela-porownawcza-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 2em 0;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4) !important;
+}
+
+.tabela-porownawcza-wrapper table {
+  width: 100%;
+  min-width: 700px;
+  border-collapse: collapse;
+}
+
+.tabela-porownawcza-wrapper th,
+.tabela-porownawcza-wrapper td {
+  border: 1px solid #333 !important;
+  padding: 15px 20px;
+  line-height: 1.6;
+}
+
+.tabela-porownawcza-wrapper p {
+  margin: 0;
+}
+
+.tabela-porownawcza-wrapper thead th {
+  background-color: #fcb424 !important;
+  color: #1a1208 !important;
+  font-weight: 600;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.tabela-porownawcza-wrapper tbody th {
+  background-color: #1f1f1f !important;
+  color: #e8e4dc !important;
+  font-weight: bold;
+  text-align: left;
+  vertical-align: top;
+}
+
+.tabela-porownawcza-wrapper tbody td {
+  background-color: #161616 !important;
+  color: #e8e4dc !important;
+  vertical-align: top;
+}
+
+/* ==================== FAQ / ACCORDION (Kadence Blocks) ==================== */
+.kt-accordion-panel-inner,
+[class*="kt-accordion"] .kt-accordion-panel-inner {
+  background-color: #161616 !important;
+  background: #161616 !important;
+  color: #f5f0e8 !important;
+  border-color: #2a2a2a !important;
+}
+.kt-accordion-panel-inner p,
+.kt-accordion-panel-inner span,
+.kt-accordion-panel-inner li,
+.kt-accordion-panel-inner strong,
+.kt-accordion-panel-inner b {
+  color: #f5f0e8 !important;
+}
+.kt-accordion-pane,
+.kt-accordion-panel-active {
+  border-color: #2a2a2a !important;
+}
+
+/* ==================== SCHEMA FAQ ==================== */
+.schema-faq .schema-faq-question {
+  font-size: 19px;
+}
+.schema-faq strong,
+.schema-faq b,
+.wp-block-uagb-faq strong,
+.wp-block-uagb-faq b,
+.uagb-faq-block strong,
+.uagb-faq-block b {
+  color: #f5f0e8 !important;
+}
+
+/* ==================== FORMULARZE ==================== */
+/*
+ * NIGDY globalnie `form { display:flex }` – psuje panel mobilny Blocksy, wyszukiwarkę w nagłówku,
+ * widgety w stopce. Tylko formularze w treści wpisu / strony.
+ */
+.site-main .entry-content form,
+.site-main article .entry-content form,
+.wp-block-post-content form,
+main .entry-content > form {
+  display: flex;
+  flex-direction: column;
+  align-items: center !important;
+}
+
+.site-main .entry-content form input,
+.site-main .entry-content form textarea,
+.site-main article .entry-content form input,
+.site-main article .entry-content form textarea,
+.wp-block-post-content form input,
+.wp-block-post-content form textarea {
+  width: 100%;
+}
+
+/* Przywrócenie domyślnego układu formularzy poza treścią (menu mobilne, header, stopka, widgety) */
+.ct-panel form,
+.ct-drawer form,
+.ct-offcanvas-content form,
+.ct-header form,
+.ct-footer form,
+.site-header form,
+.widget-area form,
+.widget_search form,
+form.search-form,
+#searchform,
+.wp-block-search form {
+  display: block !important;
+  flex-direction: initial !important;
+  align-items: initial !important;
+}
+
+/* ==================== reCAPTCHA ==================== */
+.kadence-blocks-form-field.google-recaptcha-checkout-wrap,
+#kb-container-g-recaptcha {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  text-align: center !important;
+  clear: both !important;
+}
+
+span.kadence-blocks-g-recaptcha-v2.g-recaptcha,
+div.g-recaptcha,
+div.g-recaptcha > div {
+  display: flex !important;
+  margin: 15px auto !important;
+  width: auto !important;
+}
+
+/* ==================== EMBED (YouTube, Vimeo itp.) ==================== */
+.wp-block-embed,
+figure.wp-block-embed {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  aspect-ratio: 16 / 9 !important;
+  min-height: 400px !important;
+  display: block !important;
+  overflow: hidden !important;
+}
+
+.wp-block-embed__wrapper {
+  width: 100% !important;
+  aspect-ratio: 16 / 9 !important;
+  min-height: 400px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  position: relative !important;
+  overflow: hidden !important;
+  display: block !important;
+}
+
+.wp-block-embed__wrapper iframe {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  border: none !important;
+}
+
+/* ==================== KADENCE – GALERIA „Certyfikaty” (fluid carousel) ==================== */
+/*
+ * Kadence (inline `kadence_blocks_css`) ustawia dla tego bloku height: 198px na .kb-gal-image-radius / img —
+ * wysokie dyplomy są obcinane. ID instancji: 4546_2622a2-ab (strona główna). Po sklonowaniu bloku w edytorze
+ * zaktualizuj klasy .kb-gallery-wrap-id-* / .kb-gallery-id-* w selektorach.
+ */
+.kb-gallery-wrap-id-4546_2622a2-ab .kb-gallery-type-fluidcarousel .kt-blocks-carousel figure .kb-gal-image-radius,
+.kb-gallery-wrap-id-4546_2622a2-ab .kb-gallery-type-fluidcarousel .kt-blocks-carousel figure .kb-gal-image-radius img,
+.kb-gallery-id-4546_2622a2-ab.kb-gallery-type-fluidcarousel .kt-blocks-carousel figure .kb-gal-image-radius,
+.kb-gallery-id-4546_2622a2-ab.kb-gallery-type-fluidcarousel .kt-blocks-carousel figure .kb-gal-image-radius img {
+  height: auto !important;
+  max-height: min(70vh, 520px) !important;
+  width: auto !important;
+  max-width: 100% !important;
+  object-fit: contain !important;
+}
+
+.kb-gallery-wrap-id-4546_2622a2-ab .kb-gallery-type-fluidcarousel .kb-gallery-image-contain,
+.kb-gallery-id-4546_2622a2-ab.kb-gallery-type-fluidcarousel .kb-gallery-image-contain {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.kb-gallery-wrap-id-4546_2622a2-ab .kb-gallery-type-fluidcarousel .kb-gal-image-radius,
+.kb-gallery-id-4546_2622a2-ab.kb-gallery-type-fluidcarousel .kb-gal-image-radius {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.kb-gallery-wrap-id-4546_2622a2-ab .kb-gallery-type-fluidcarousel .kadence-blocks-gallery-item-inner,
+.kb-gallery-id-4546_2622a2-ab.kb-gallery-type-fluidcarousel .kadence-blocks-gallery-item-inner {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+}
+
+/*
+ * Splide/Kadence wstrzykuje inline max-width (~549px) na .kb-slide-item — przy wąskim oknie dwa slajdy
+ * się nie mieszczą. Delikatny limit (bez flex-shrink:1 — to zwężało slajdy do „samej nawigacji”).
+ */
+.kb-gallery-wrap-id-4546_2622a2-ab .kb-gallery-type-fluidcarousel .splide__slide.kb-slide-item,
+.kb-gallery-id-4546_2622a2-ab.kb-gallery-type-fluidcarousel .splide__slide.kb-slide-item {
+  display: flex !important;
+  align-items: center !important;
+  max-width: min(540px, calc(50vw - 24px)) !important;
+  min-width: min(260px, 42vw) !important;
+  flex-shrink: 0 !important;
+  flex-basis: auto !important;
+  box-sizing: border-box !important;
+}
+
+.kb-gallery-wrap-id-4546_2622a2-ab .kb-gallery-type-fluidcarousel .splide__viewport,
+.kb-gallery-id-4546_2622a2-ab.kb-gallery-type-fluidcarousel .splide__viewport {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  min-height: min(200px, 35vh) !important;
+}
+
+@media (max-width: 600px) {
+  .kb-gallery-wrap-id-4546_2622a2-ab .kb-gallery-type-fluidcarousel .splide__slide.kb-slide-item,
+  .kb-gallery-id-4546_2622a2-ab.kb-gallery-type-fluidcarousel .splide__slide.kb-slide-item {
+    max-width: min(94vw, 480px) !important;
+    min-width: min(220px, 88vw) !important;
+  }
+  .kb-gallery-wrap-id-4546_2622a2-ab .kb-gallery-type-fluidcarousel .kt-blocks-carousel figure .kb-gal-image-radius img,
+  .kb-gallery-id-4546_2622a2-ab.kb-gallery-type-fluidcarousel .kt-blocks-carousel figure .kb-gal-image-radius img {
+    max-height: min(55vh, 380px) !important;
+  }
+}
+
+/* ==================== CENNIK IMPREZJA QUIZ ==================== */
+#imprezja-cennik-stripe { -webkit-overflow-scrolling: touch; }
+#imprezja-cennik-stripe .imprezja-cennik-grid > * { min-width: 0; }
+#imprezja-cennik-stripe .imprezja-cennik-grid > div {
+  background-color: #161616 !important;
+  border: 1px solid #2a2a2a !important;
+  color: #f5f0e8 !important;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4) !important;
+}
+@media (min-width: 901px) {
+  #imprezja-cennik-stripe .imprezja-cennik-grid { display: grid !important; grid-template-columns: repeat(4, 1fr) !important; }
+}
+@media (max-width: 900px) and (min-width: 601px) {
+  #imprezja-cennik-stripe .imprezja-cennik-grid { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 16px !important; }
+}
+@media (max-width: 600px) {
+  #imprezja-cennik-stripe {
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 12px 8px 24px !important;
+  }
+  #imprezja-cennik-stripe .imprezja-cennik-grid {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    gap: 16px !important;
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+    -webkit-overflow-scrolling: touch !important;
+    scroll-snap-type: x mandatory !important;
+    padding: 8px 4px 16px !important;
+    margin: 0 -8px !important;
+  }
+  #imprezja-cennik-stripe .imprezja-cennik-grid > div {
+    flex: 0 0 78% !important;
+    min-width: 260px !important;
+    max-width: 320px !important;
+    scroll-snap-align: start !important;
+    scroll-snap-stop: always !important;
+    padding: 22px 18px !important;
+  }
+  #imprezja-cennik-stripe .imprezja-cennik-grid h3 { font-size: 1.15rem !important; }
+  #imprezja-cennik-stripe .imprezja-cennik-grid p { font-size: 0.95rem !important; }
+  #imprezja-cennik-stripe .imprezja-cennik-grid button { padding: 14px 18px !important; font-size: 1rem !important; }
+}
+#imprezja-cennik-stripe button:hover { opacity: 0.9; }
+#imprezja-cennik-stripe button:disabled { opacity: 0.6; cursor: not-allowed; }
+#imprezja-cennik-stripe button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+
+/* ==================== SCROLLBAR ==================== */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #3a3a3a;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4a4a4a;
+}

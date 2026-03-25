@@ -1,0 +1,21 @@
+{
+  "name": "Prezentacja 1",
+  "slides": [
+    {
+      "type": "text",
+      "text": "Witamy na imprezie!\n\nImprezja Quiz",
+      "size": "large",
+      "animation": "fade",
+      "shadow": true
+    },
+    {
+      "type": "text",
+      "text": "Menu wieczoru\n\n• Kolacja\n• Tort\n• Zabawa",
+      "size": "medium",
+      "animation": "slide",
+      "shadow": true
+    }
+  ],
+  "transition": "fade",
+  "loop": true
+}

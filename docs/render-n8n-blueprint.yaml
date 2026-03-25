@@ -1,0 +1,66 @@
+# Blueprint Render: n8n + Postgres (free), zgodny z ideą
+# https://github.com/render-examples/n8n
+#
+# Nie ustawiaj tu Docker Command / startCommand — obraz n8nio/n8n ma ENTRYPOINT,
+# który uruchamia `n8n`; własne `sh -c` psuje start (często exit 127).
+#
+# Po deployu dodaj ręcznie WEBHOOK_URL (Environment), np. https://twoj-serwis.onrender.com/
+
+databases:
+  - name: n8n-db
+    databaseName: n8n
+    user: n8n
+    plan: free
+
+services:
+  - type: web
+    name: n8n
+    runtime: image
+    plan: free
+    region: frankfurt # zgodnie z regionem bazy
+    image:
+      url: docker.io/n8nio/n8n:latest
+    envVars:
+      - key: PORT
+        value: "5678"
+      - key: N8N_PORT
+        value: "5678"
+      - key: DB_TYPE
+        value: postgresdb
+      - key: DB_POSTGRESDB_HOST
+        fromDatabase:
+          name: n8n-db
+          property: host
+      - key: DB_POSTGRESDB_PORT
+        value: "5432"
+      - key: DB_POSTGRESDB_DATABASE
+        fromDatabase:
+          name: n8n-db
+          property: database
+      - key: DB_POSTGRESDB_USER
+        fromDatabase:
+          name: n8n-db
+          property: user
+      - key: DB_POSTGRESDB_PASSWORD
+        fromDatabase:
+          name: n8n-db
+          property: password
+      # Render Postgres wymaga SSL — bez tego: "SSL/TLS required" / init DB fail
+      - key: DB_POSTGRESDB_SSL_ENABLED
+        value: "true"
+      - key: DB_POSTGRESDB_SSL_REJECT_UNAUTHORIZED
+        value: "false"
+      - key: DB_POSTGRESDB_CONNECTION_TIMEOUT
+        value: "90000"
+      - key: N8N_PROTOCOL
+        value: https
+      - key: GENERIC_TIMEZONE
+        value: Europe/Warsaw
+      - key: TZ
+        value: Europe/Warsaw
+      - key: N8N_ENCRYPTION_KEY
+        generateValue: true
+      - key: N8N_HOST
+        sync: false
+      - key: WEBHOOK_URL
+        sync: false

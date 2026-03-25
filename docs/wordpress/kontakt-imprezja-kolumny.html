@@ -1,0 +1,139 @@
+<!--
+  KONTAKT – wersja z blokiem KOLUMNY (formularz jako osobny blok)
+  
+  W WordPress: Dodaj blok KOLUMNY (2 kolumny). 
+  Lewa kolumna = CZĘŚĆ A
+  Prawa kolumna = CZĘŚĆ B1 + blok Kadence Form + CZĘŚĆ B2
+  
+  Formularz Kadence – bez nadpisań, ustawienia z edytora mają pierwszeństwo.
+-->
+
+<!-- ========== CZĘŚĆ A – wklej w LEWĄ kolumnę ========== -->
+<style>
+  /* Wymuszenie układu 2 kolumn obok siebie – nadpisuje flex-wrap: wrap z motywu */
+  body .wp-block-columns.kontakt-imprezja-cols {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    width: 100% !important;
+    gap: 24px;
+  }
+  body .wp-block-columns.kontakt-imprezja-cols > .wp-block-column {
+    flex: 0 0 auto !important;
+    min-width: 0 !important;
+  }
+  body .wp-block-columns.kontakt-imprezja-cols > .wp-block-column:first-child {
+    flex-basis: 39% !important;
+    display: flex;
+    flex-direction: column;
+  }
+  body .wp-block-columns.kontakt-imprezja-cols > .wp-block-column:last-child {
+    flex-basis: 59% !important;
+    display: flex;
+    flex-direction: column;
+  }
+  body .wp-block-columns.kontakt-imprezja-cols > .wp-block-column:first-child .kontakt-imprezja {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  .kontakt-imprezja-right { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  @media (max-width: 768px) {
+    body .wp-block-columns.kontakt-imprezja-cols {
+      flex-direction: column !important;
+      flex-wrap: wrap !important;
+    }
+    body .wp-block-columns.kontakt-imprezja-cols > .wp-block-column {
+      flex-basis: 100% !important;
+    }
+  }
+  .kontakt-imprezja { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0d0d0d; color: #f5f0e8; padding: 56px 32px 64px; margin: 0; box-sizing: border-box; }
+  .kontakt-imprezja * { box-sizing: border-box; }
+  .wp-block-column:has(.kontakt-imprezja-left) { background: #0d0d0d; }
+  .kontakt-imprezja-left { display: flex; flex-direction: column; flex: 1; min-width: 0; gap: 24px; padding: 36px 32px 40px; }
+  .kontakt-imprezja-photo-wrap { width: 100%; aspect-ratio: 4/5; max-height: 380px; border-radius: 30px; overflow: hidden; border: 1px solid rgba(252,180,36,0.2); box-shadow: 0 8px 32px rgba(0,0,0,0.4); flex-shrink: 0; }
+  .kontakt-imprezja-photo { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; vertical-align: middle; }
+  .kontakt-imprezja-info { display: flex; flex-direction: column; gap: 16px; margin-top: auto; flex-shrink: 0; padding-bottom: 16px; }
+  .kontakt-imprezja-title { font-family: Georgia, serif; font-size: 28px; font-weight: 700; color: #f5f0e8; margin: 0 0 4px; }
+  .kontakt-imprezja-item { padding-left: 14px; border-left: 3px solid #fcb424; }
+  .kontakt-imprezja-item-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: #c4b8a3; margin-bottom: 4px; }
+  .kontakt-imprezja-item-value { font-size: 16px; font-weight: 600; color: #f5f0e8; line-height: 1.5; }
+  .kontakt-imprezja-item-value a { color: #fcb424; text-decoration: none; }
+  .kontakt-imprezja-item-value a:hover { color: #ffc94d; }
+  .kontakt-imprezja-right { background: #161616; border: 1px solid #2a2a2a; border-radius: 14px; padding: 36px 32px 40px; box-shadow: 0 4px 24px rgba(0,0,0,0.3); }
+  .kontakt-imprezja-form-title { font-family: Georgia, serif; font-size: 24px; font-weight: 700; color: #f5f0e8; margin: 0 0 24px; }
+  /* Formularz Kadence – style prawej kolumny */
+  .kontakt-imprezja-right .kb-form { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 18px; align-items: start; }
+  .kontakt-imprezja-right .kadence-blocks-form-field label { color: #c4b8a3 !important; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; display: block; }
+  .kontakt-imprezja-right .kb-form .kadence-blocks-form-field { margin-bottom: 0; width: 100%; grid-column: 1 / -1; }
+  .kontakt-imprezja-right .kb-form .kadence-blocks-form-field.kb-form-field-2,
+  .kontakt-imprezja-right .kb-form .kadence-blocks-form-field.kb-form-field-3 { grid-column: span 1; }
+  @media (max-width: 600px) {
+    .kontakt-imprezja-right .kb-form .kadence-blocks-form-field.kb-form-field-2,
+    .kontakt-imprezja-right .kb-form .kadence-blocks-form-field.kb-form-field-3 { grid-column: 1 / -1; }
+  }
+  .kontakt-imprezja-right .kb-form input[type="text"],
+  .kontakt-imprezja-right .kb-form input[type="email"],
+  .kontakt-imprezja-right .kb-form input[type="tel"],
+  .kontakt-imprezja-right .kb-form select,
+  .kontakt-imprezja-right .kb-form textarea {
+    width: 100% !important; max-width: 100% !important;
+    background: #2a2a2a !important; border: 1px solid #3a3a3a !important;
+    color: #f5f0e8 !important; border-radius: 10px;
+    padding: 12px 16px; font-size: 15px;
+  }
+  .kontakt-imprezja-right .kb-form select { appearance: auto; cursor: pointer; }
+  .kontakt-imprezja-right .kb-form select option { background: #1a1a1a; color: #f5f0e8; }
+  .kontakt-imprezja-right .kb-form textarea { min-height: 64px; height: 64px; resize: vertical; }
+  .kontakt-imprezja-right .kb-forms-submit {
+    position: relative;
+    background: #fcb424 !important; color: transparent !important;
+    border: none !important; border-radius: 10px;
+    padding: 14px 28px; font-weight: 600; font-size: 0;
+    box-shadow: none !important;
+  }
+  .kontakt-imprezja-right .kb-forms-submit:hover { background: #ffc94d !important; color: transparent !important; }
+  .kontakt-imprezja-right .kb-forms-submit::after {
+    content: "Wyślij";
+    position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 15px; font-weight: 600; color: #1a1208;
+    white-space: nowrap;
+  }
+  .kontakt-imprezja-right .google-recaptcha-checkout-wrap,
+  .kontakt-imprezja-right #kb-container-g-recaptcha { margin: 16px 0; }
+  .kontakt-imprezja-right .g-recaptcha { transform: scale(0.95); transform-origin: left center; }
+  @media (max-width: 768px) { .kontakt-imprezja { padding: 40px 16px 48px !important; } .kontakt-imprezja-left { padding: 28px 20px 32px; } .kontakt-imprezja-photo-wrap { aspect-ratio: 16/10; max-height: 280px; } .kontakt-imprezja-right { padding: 28px 20px 32px; } }
+</style>
+
+<div class="kontakt-imprezja" id="form">
+<div class="kontakt-imprezja-left">
+  <div class="kontakt-imprezja-photo-wrap">
+    <img src="https://imprezja.pl/wp-content/uploads/2022/09/BG0A8612.webp" alt="Damian Nowaczyk – DJ i wodzirej" class="kontakt-imprezja-photo" loading="lazy" />
+  </div>
+  <div class="kontakt-imprezja-info">
+    <h2 class="kontakt-imprezja-title">Damian Nowaczyk</h2>
+    <div class="kontakt-imprezja-item">
+      <div class="kontakt-imprezja-item-label">Telefon</div>
+      <div class="kontakt-imprezja-item-value"><a href="tel:+48503836965">+48 503 836 965</a></div>
+    </div>
+    <div class="kontakt-imprezja-item">
+      <div class="kontakt-imprezja-item-label">E-mail</div>
+      <div class="kontakt-imprezja-item-value"><a href="mailto:nowaczykdamian@gmail.com">nowaczykdamian@gmail.com</a></div>
+    </div>
+    <div class="kontakt-imprezja-item">
+      <div class="kontakt-imprezja-item-label">Adres</div>
+      <div class="kontakt-imprezja-item-value">Przygodzice, ul. Wrzosowa 19</div>
+    </div>
+  </div>
+</div>
+<!-- KONIEC CZĘŚCI A -->
+
+<!-- ========== CZĘŚĆ B1 – wklej na POCZĄTEK prawej kolumny ========== -->
+<div class="kontakt-imprezja-right">
+  <div class="kontakt-imprezja-form-area">
+<!-- TU DODAJ BLOK KADENCE FORM -->
+<!-- ========== CZĘŚĆ B2 – wklej PO bloku Kadence Form ========== -->
+  </div>
+</div>
+</div>

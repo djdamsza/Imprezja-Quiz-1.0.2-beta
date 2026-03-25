@@ -4,72 +4,79 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edytor pytań Familiady</title>
-    <link rel="icon" href="data:,">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico"><link rel="icon" type="image/png" sizes="32x32" href="/img/icon-32.png"><link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+    <link rel="stylesheet" href="/css/admin-editor-shared.css">
     <style>
-        :root {
-            --bg-dark: radial-gradient(circle at center, #1a1a2e, #000);
-            --glass-bg: rgba(255, 255, 255, 0.08);
-            --glass-border: rgba(255, 255, 255, 0.15);
-            --accent-gold: #ffcc00;
-            --accent-orange: #e67e22;
-            --text-white: #ffffff;
-            --text-muted: rgba(255, 255, 255, 0.75);
-        }
-        body { font-family: 'Courier New', Courier, Consolas, monospace; background: var(--bg-dark); padding: 20px; margin: 0; color: var(--text-white); min-height: 100vh; }
-        .container { max-width: 900px; margin: 0 auto; background: var(--glass-bg); padding: 30px; border-radius: 15px; border: 1px solid var(--glass-border); backdrop-filter: blur(10px); }
-        h1 { text-align: center; color: var(--accent-gold); margin-bottom: 30px; font-weight: 700; }
-        .question-card { background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 10px; padding: 20px; margin-bottom: 25px; border-left: 5px solid var(--accent-gold); }
+        body { font-family: var(--imp-font, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif); background: var(--imp-bg-gradient, radial-gradient(circle at center, #1a1a2e, #000)); padding: 20px; margin: 0; color: var(--imp-text, #fff); min-height: 100vh; }
+        .container { max-width: 900px; margin: 0 auto; background: var(--imp-glass, rgba(255,255,255,0.08)); padding: 30px; border-radius: var(--imp-radius-lg, 12px); border: 1px solid var(--imp-border, rgba(255,255,255,0.15)); backdrop-filter: blur(10px); }
+        h1 { text-align: center; color: var(--imp-accent); margin-bottom: 30px; font-weight: 700; }
+        .question-card { background: rgba(0,0,0,0.3); border: 1px solid var(--imp-border, rgba(255,255,255,0.15)); border-radius: 10px; padding: 20px; margin-bottom: 25px; border-left: 5px solid var(--imp-accent, #f1c40f); }
         .question-card:hover { box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
-        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px; }
-        .q-number { font-weight: 700; color: var(--accent-gold); }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--imp-border); padding-bottom: 10px; }
+        .q-number { font-weight: 700; color: var(--imp-accent); }
         .form-group { margin-bottom: 15px; }
-        label { font-weight: 600; display: block; margin-bottom: 6px; font-size: 0.9em; color: var(--text-muted); }
-        input[type="text"], input[type="number"] { width: 100%; padding: 10px; border: 1px solid var(--glass-border); border-radius: 6px; font-size: 14px; box-sizing: border-box; background: rgba(0,0,0,0.3); color: var(--text-white); }
+        label { font-weight: 600; display: block; margin-bottom: 6px; font-size: 0.9em; color: var(--imp-text-muted, rgba(255,255,255,0.75)); }
+        input[type="text"], input[type="number"] { width: 100%; padding: 10px; border: 1px solid var(--imp-border, rgba(255,255,255,0.15)); border-radius: var(--imp-radius, 8px); font-size: 0.95rem; box-sizing: border-box; background: rgba(0,0,0,0.3); color: var(--imp-text, #fff); font-family: var(--imp-font, inherit); }
         .answer-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
         .answer-row input[type="text"] { flex: 1; }
         .answer-row input[type="number"] { width: 70px; }
         .btn { padding: 10px 20px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; font-size: 14px; font-family: inherit; }
         .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 14px rgba(0,0,0,0.25); }
         .btn:active { transform: translateY(0); }
-        .btn-primary { background: linear-gradient(135deg, var(--accent-gold), var(--accent-orange)); color: #000; }
-        .btn-primary:hover { box-shadow: 0 6px 18px rgba(255, 204, 0, 0.25); }
+        .btn-primary { background: linear-gradient(135deg, var(--imp-accent), var(--imp-accent-orange)); color: #000; }
+        .btn-primary:hover { box-shadow: 0 6px 18px rgba(241, 196, 15, 0.25); }
         .btn-success { background: #2ecc71; color: #000; }
         .btn-success:hover { box-shadow: 0 6px 18px rgba(46, 204, 113, 0.3); }
         .btn-danger { background: #e74c3c; color: white; }
         .btn-danger:hover { box-shadow: 0 6px 18px rgba(231, 76, 60, 0.3); }
-        .btn-secondary { background: var(--glass-bg); color: var(--text-white); border: 1px solid var(--glass-border); }
-        .btn-secondary:hover { border-color: var(--accent-gold); background: rgba(255, 204, 0, 0.1); }
+        .btn-secondary { background: var(--imp-glass); color: var(--imp-text); border: 1px solid var(--imp-border); }
+        .btn-secondary:hover { border-color: var(--imp-accent); background: var(--imp-accent-dim); }
         .btn-sm { padding: 6px 12px; font-size: 12px; }
         .btn-move { padding: 8px 10px; min-width: 36px; min-height: 36px; }
         .btn-move svg { width: 18px; height: 18px; display: block; }
-        .btn-move:hover { background: rgba(255, 204, 0, 0.25); border-color: var(--accent-gold); box-shadow: 0 2px 10px rgba(255, 204, 0, 0.2); }
+        .btn-move:hover { background: var(--imp-accent-dim); border-color: var(--imp-accent); }
         .panel-row { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 15px; }
-        .control-panel { background: rgba(0,0,0,0.2); padding: 20px; border-radius: 12px; border: 1px solid var(--glass-border); margin-bottom: 25px; }
+        .control-panel { background: rgba(0,0,0,0.2); padding: 20px; border-radius: 12px; border: 1px solid var(--imp-border, rgba(255,255,255,0.15)); margin-bottom: 25px; }
         .form-group { margin-bottom: 10px; }
-        select { width: 100%; padding: 10px; border: 1px solid var(--glass-border); border-radius: 6px; font-size: 14px; box-sizing: border-box; background: rgba(0,0,0,0.3); color: var(--text-white); }
+        select { width: 100%; padding: 10px; border: 1px solid var(--imp-border, rgba(255,255,255,0.15)); border-radius: var(--imp-radius, 8px); font-size: 0.95rem; box-sizing: border-box; background: rgba(0,0,0,0.3); color: var(--imp-text, #fff); font-family: var(--imp-font, inherit); }
         .modal-overlay { display: flex; }
         .status { padding: 10px; border-radius: 6px; margin-bottom: 15px; }
         .status.success { background: rgba(46, 204, 113, 0.2); border: 1px solid #2ecc71; }
         .status.error { background: rgba(231, 76, 60, 0.2); border: 1px solid #e74c3c; }
-        .status.loading { background: rgba(241, 196, 15, 0.2); border: 1px solid var(--accent-gold); }
+        .status.loading { background: var(--imp-accent-dim); border: 1px solid var(--imp-accent); }
         .validation-error { border-color: #e74c3c !important; box-shadow: 0 0 0 2px rgba(231,76,60,0.3); }
-        .btn-auto-points { padding: 6px 12px; font-size: 12px; background: rgba(255,204,0,0.2); color: var(--accent-gold); border: 1px solid var(--accent-gold); }
-        .btn-auto-points:hover { background: rgba(255,204,0,0.35); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(255, 204, 0, 0.2); }
-        .btn-star { padding: 8px 14px; font-size: 12px; background: rgba(255, 204, 0, 0.15); border: 1px solid var(--accent-gold); border-radius: 6px; cursor: pointer; color: var(--accent-gold); transition: all 0.2s ease; white-space: nowrap; }
-        .btn-star:hover { background: rgba(255, 204, 0, 0.3); color: var(--accent-gold); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(255, 204, 0, 0.25); }
-        .btn-star.in-golden { background: rgba(255, 204, 0, 0.25); color: var(--accent-gold); }
-        .drop-zone { border: 2px dashed var(--glass-border); border-radius: 12px; padding: 25px; text-align: center; background: rgba(0,0,0,0.2); margin-bottom: 25px; transition: all 0.2s ease; cursor: pointer; }
-        .drop-zone:hover, .drop-zone.dragover { border-color: var(--accent-gold); background: rgba(255,204,0,0.08); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(255, 204, 0, 0.12); }
-        .drop-zone p { margin: 0; color: var(--text-muted); font-size: 0.95em; }
+        .btn-auto-points { padding: 6px 12px; font-size: 12px; background: var(--imp-accent-dim); color: var(--imp-accent); border: 1px solid var(--imp-accent); }
+        .btn-auto-points:hover { background: rgba(241,196,15,0.35); }
+        .btn-star { padding: 8px 14px; font-size: 12px; background: var(--imp-accent-dim); border: 1px solid var(--imp-accent); border-radius: var(--imp-radius); cursor: pointer; color: var(--imp-accent); transition: all 0.2s; white-space: nowrap; }
+        .btn-star:hover { background: rgba(241,196,15,0.3); }
+        .btn-star.in-golden { background: rgba(241,196,15,0.25); color: var(--imp-accent); }
+        .universal-bank-panel { margin-top: 25px; border-left: 5px solid #3498db; }
+        .universal-bank-toggle { cursor: pointer; padding: 12px 16px; background: rgba(52, 152, 219, 0.15); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; user-select: none; }
+        .universal-bank-toggle:hover { background: rgba(52, 152, 219, 0.25); }
+        .universal-bank-toggle .chevron { transition: transform 0.2s; }
+        .universal-bank-panel.collapsed .chevron { transform: rotate(-90deg); }
+        .universal-bank-content { max-height: 400px; overflow-y: auto; padding: 15px 0; }
+        .universal-bank-panel.collapsed .universal-bank-content { display: none; }
+        .universal-bank-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; margin-bottom: 8px; background: rgba(0,0,0,0.2); border-radius: 8px; border: 1px solid var(--imp-border); }
+        .universal-bank-item:hover { border-color: var(--imp-info); }
+        .universal-bank-text { flex: 1; font-size: 0.9em; line-height: 1.4; color: var(--imp-text); min-width: 0; }
+        .universal-bank-text .q { color: var(--imp-accent); }
+        .universal-bank-text .a { color: var(--imp-text-muted); font-size: 0.92em; }
+        .universal-bank-actions { display: flex; gap: 6px; flex-shrink: 0; }
+        .universal-bank-pagination { display: flex; align-items: center; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--imp-border); }
+        .universal-bank-pagination button { padding: 6px 12px; font-size: 12px; }
+        .drop-zone { border: 2px dashed var(--imp-border); border-radius: 12px; padding: 25px; text-align: center; background: rgba(0,0,0,0.2); margin-bottom: 25px; transition: all 0.2s ease; cursor: pointer; }
+        .drop-zone:hover, .drop-zone.dragover { border-color: var(--imp-accent); background: var(--imp-accent-dim); }
+        .drop-zone p { margin: 0; color: var(--imp-text-muted); font-size: 0.95em; }
         .drop-zone .drop-icon { font-size: 2em; margin-bottom: 8px; opacity: 0.8; }
-        a.back-link { display: inline-block; margin-bottom: 20px; color: var(--accent-gold); text-decoration: none; transition: all 0.2s ease; }
+        a.back-link { display: inline-block; margin-bottom: 20px; color: var(--imp-accent); text-decoration: none; transition: all 0.2s; }
         a.back-link:hover { text-decoration: underline; transform: translateX(4px); }
     </style>
 </head>
-<body>
+<body class="imp-admin-editor">
 
 <div class="container">
-    <a href="/familiada/screen.html" class="back-link">← Powrót do Familiady</a>
+    <a href="/start.html" class="back-link">← Cofnij</a>
     <h1>✏️ Edytor pytań Familiady</h1>
 
     <div id="status" class="status" style="display:none;"></div>
@@ -77,7 +84,7 @@
     <div class="control-panel">
         <div class="panel-row">
             <div class="form-group" style="flex: 2;">
-                <label>📂 Pliki na serwerze:</label>
+                <label>📂 Pliki zapisane na dysku (folder aplikacji):</label>
                 <div style="display: flex; gap: 10px;">
                     <select id="server-files-list">
                         <option value="">-- Wybierz plik --</option>
@@ -110,13 +117,25 @@
         </div>
     </div>
 
-    <h3 style="margin: 25px 0 12px 0; color: var(--accent-gold); border-bottom: 2px solid var(--glass-border); padding-bottom: 8px;">📋 Lista główna (pytania z pliku, np. Astronomia)</h3>
-    <p id="main-list-desc" style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 12px;">Wybierz plik powyżej i wczytaj. Przy każdym pytaniu: <strong>⭐ DODAJ PYTANIE DO ZŁOTEJ LISTY</strong> – zapisuje je na złotej liście (na dole).</p>
+    <h3 style="margin: 25px 0 12px 0; color: var(--imp-accent); border-bottom: 2px solid var(--imp-border); padding-bottom: 8px;">📋 Lista główna (pytania z pliku, np. Astronomia)</h3>
+    <p id="main-list-desc" style="font-size: 0.9em; color: var(--imp-text-muted); margin-bottom: 12px;">Wybierz plik powyżej i wczytaj. Przy każdym pytaniu: <strong>⭐ DODAJ PYTANIE DO ZŁOTEJ LISTY</strong> – zapisuje je na złotej liście (na dole).</p>
     <div id="questions-container"></div>
 
-    <div id="golden-list-panel" class="control-panel" style="margin-top: 30px; border-left: 5px solid var(--accent-gold); display: none;">
-        <h3 style="margin: 0 0 15px 0; color: var(--accent-gold);">⭐ Złota lista (max 10)</h3>
-        <p style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 15px;">Edytowalna jak każda inna lista. Wyświetla się w panelu admina na dole strony i można z niej korzystać w każdej rozgrywce.</p>
+    <div id="universal-bank-panel" class="control-panel universal-bank-panel collapsed">
+        <div class="universal-bank-toggle" onclick="toggleUniversalBank()">
+            <span>📚 Bank pytań uniwersalnych</span>
+            <span class="chevron">▼</span>
+        </div>
+        <div class="universal-bank-content">
+            <p style="font-size: 0.9em; color: var(--imp-text-muted); margin-bottom: 12px;">Kliknij <strong>Dodaj</strong>, aby przenieść pytanie do listy głównej (z automatycznym rozkładem punktów). <strong>Usuń</strong> – usuwa z banku.</p>
+            <div id="universal-bank-list"></div>
+            <div id="universal-bank-pagination" class="universal-bank-pagination" style="display: none;"></div>
+        </div>
+    </div>
+
+    <div id="golden-list-panel" class="control-panel" style="margin-top: 30px; border-left: 5px solid var(--imp-accent); display: none;">
+        <h3 style="margin: 0 0 15px 0; color: var(--imp-accent);">⭐ Złota lista (max 10)</h3>
+        <p style="font-size: 0.9em; color: var(--imp-text-muted); margin-bottom: 15px;">Edytowalna jak każda inna lista. Wyświetla się w panelu admina na dole strony i można z niej korzystać w każdej rozgrywce.</p>
         <div id="golden-questions-container"></div>
         <div class="panel-row" style="margin-top: 15px;">
             <button class="btn btn-primary btn-sm" onclick="addGoldenQuestion()" style="margin-right:10px;">➕ Dodaj pytanie</button>
@@ -124,16 +143,16 @@
         </div>
     </div>
 
-    <div class="panel-row" style="margin-top: 25px; padding-top: 20px; border-top: 2px solid var(--glass-border);">
+    <div class="panel-row" style="margin-top: 25px; padding-top: 20px; border-top: 2px solid var(--imp-border);">
         <button class="btn btn-primary" onclick="addQuestion()">➕ DODAJ PYTANIE</button>
         <button class="btn btn-success" onclick="saveToServer()">💾 Zapisz</button>
     </div>
 </div>
 
 <div id="validationModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1001; justify-content: center; align-items: center;" class="modal-overlay">
-    <div class="modal" style="background: rgba(26,26,46,0.98); padding: 25px; border-radius: 12px; border: 1px solid var(--glass-border); max-width: 500px;">
+    <div class="modal" style="background: rgba(26,26,46,0.98); padding: 25px; border-radius: 12px; border: 1px solid var(--imp-border); max-width: 500px;">
         <h3 style="margin-top:0; color: #e74c3c;">⚠️ Błędy przed zapisem</h3>
-        <p style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 12px;">Popraw poniższe błędy:</p>
+        <p style="font-size: 0.9em; color: var(--imp-text-muted); margin-bottom: 12px;">Popraw poniższe błędy:</p>
         <ul id="validation-errors-list" style="margin: 0 0 15px 0; padding-left: 20px; color: #ff9999; font-size: 0.9em; line-height: 1.6;"></ul>
         <div style="display: flex; justify-content: flex-end;">
             <button class="btn btn-secondary" onclick="closeValidationModal()">Zamknij</button>
@@ -142,10 +161,10 @@
 </div>
 
 <div id="pasteModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center;" class="modal-overlay">
-    <div class="modal" style="background: rgba(26,26,46,0.98); padding: 25px; border-radius: 12px; border: 1px solid var(--glass-border); max-width: 600px;">
-        <h3 style="margin-top:0; color: var(--accent-gold);">Wklej JSON, XML lub tekst</h3>
-        <p style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 10px;">Wklej treść: JSON, XML lub tekst. Obsługiwane formaty:<br>• Pytanie 1: ... / Odpowiedź - 40<br>• Pytanie? + lista odpowiedzi (każda w nowej linii)</p>
-        <textarea id="pasteArea" style="width:100%; height:250px; font-family:monospace; padding:10px; border:1px solid var(--glass-border); border-radius:6px; background:rgba(0,0,0,0.3); color:var(--text-white); resize:vertical;"></textarea>
+    <div class="modal" style="background: rgba(26,26,46,0.98); padding: 25px; border-radius: 12px; border: 1px solid var(--imp-border); max-width: 600px;">
+        <h3 style="margin-top:0; color: var(--imp-accent);">Wklej JSON, XML lub tekst</h3>
+        <p style="font-size: 0.9em; color: var(--imp-text-muted); margin-bottom: 10px;">Wklej treść: JSON, XML lub tekst. Obsługiwane formaty:<br>• Pytanie 1: ... / Odpowiedź - 40<br>• Pytanie? + lista odpowiedzi (każda w nowej linii)</p>
+        <textarea id="pasteArea" style="width:100%; height:250px; font-family:monospace; padding:10px; border:1px solid var(--imp-border); border-radius:6px; background:rgba(0,0,0,0.3); color:var(--imp-text); resize:vertical;"></textarea>
         <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px;">
             <button class="btn btn-secondary" onclick="document.getElementById('pasteModal').style.display='none'">Anuluj</button>
             <button class="btn btn-success" onclick="loadFromPaste()">Załaduj</button>
@@ -165,6 +184,10 @@
     function escapeHtmlAttr(s) {
         if (s == null || s === undefined) return '';
         return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+    function escapeHtml(s) {
+        if (s == null || s === undefined) return '';
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
     let goldenList = [];
@@ -878,6 +901,132 @@
             }
         });
     })();
+
+    const UNIVERSAL_BANK_KEY = 'familiada-universal-removed';
+    const UNIVERSAL_BANK_PER_PAGE = 25;
+    let universalBankData = [];
+    let universalBankPage = 0;
+    let universalBankRemoved = new Set();
+
+    function getUniversalBankRemoved() {
+        try {
+            const s = localStorage.getItem(UNIVERSAL_BANK_KEY);
+            return s ? new Set(JSON.parse(s)) : new Set();
+        } catch (_) { return new Set(); }
+    }
+    function saveUniversalBankRemoved() {
+        try {
+            localStorage.setItem(UNIVERSAL_BANK_KEY, JSON.stringify([...universalBankRemoved]));
+        } catch (_) {}
+    }
+
+    function toggleUniversalBank() {
+        const panel = document.getElementById('universal-bank-panel');
+        panel.classList.toggle('collapsed');
+        if (!panel.classList.contains('collapsed') && universalBankData.length === 0) {
+            loadUniversalBank();
+        }
+    }
+
+    async function loadUniversalBank() {
+        if (universalBankData.length > 0) {
+            renderUniversalBank();
+            return;
+        }
+        try {
+            const res = await fetch('/familiada/universal-bank.json');
+            const data = await res.json();
+            const arr = Array.isArray(data) ? data : [];
+            universalBankData = arr.map((q, i) => ({ ...q, _id: i }));
+            universalBankRemoved = getUniversalBankRemoved();
+            renderUniversalBank();
+        } catch (err) {
+            document.getElementById('universal-bank-list').innerHTML = '<p class="status error">Błąd ładowania banku: ' + (err.message || '') + '</p>';
+        }
+    }
+
+    function getUniversalBankFiltered() {
+        return universalBankData.filter(q => !universalBankRemoved.has(String(q._id)));
+    }
+
+    function renderUniversalBank() {
+        const filtered = getUniversalBankFiltered();
+        const totalPages = Math.max(1, Math.ceil(filtered.length / UNIVERSAL_BANK_PER_PAGE));
+        universalBankPage = Math.min(universalBankPage, totalPages - 1);
+        const start = universalBankPage * UNIVERSAL_BANK_PER_PAGE;
+        const pageItems = filtered.slice(start, start + UNIVERSAL_BANK_PER_PAGE);
+
+        const listEl = document.getElementById('universal-bank-list');
+        const paginationEl = document.getElementById('universal-bank-pagination');
+
+        if (filtered.length === 0) {
+            listEl.innerHTML = '<p style="color: var(--imp-text-muted);">Bank pusty (wszystkie pytania usunięte) lub błąd ładowania.</p>';
+            paginationEl.style.display = 'none';
+            return;
+        }
+
+        listEl.innerHTML = pageItems.map((q, i) => {
+            const globalIdx = start + i;
+            const ansArr = Array.isArray(q.answers) ? q.answers : [];
+            const ansStr = ansArr.join(', ');
+            const shortQ = (q.question || '').substring(0, 80) + ((q.question || '').length > 80 ? '…' : '');
+            const shortA = ansStr.substring(0, 120) + (ansStr.length > 120 ? '…' : '');
+            return `
+                <div class="universal-bank-item" data-id="${q._id}" data-global-idx="${globalIdx}">
+                    <div class="universal-bank-text">
+                        <span class="q">${escapeHtml(shortQ)}</span>
+                        <span class="a"> – ${escapeHtml(shortA)}</span>
+                    </div>
+                    <div class="universal-bank-actions">
+                        <button class="btn btn-success btn-sm" onclick="addFromUniversalBank(parseInt(this.closest('.universal-bank-item').dataset.globalIdx,10))" title="Dodaj do listy głównej">Dodaj</button>
+                        <button class="btn btn-danger btn-sm" onclick="removeFromUniversalBank(parseInt(this.closest('.universal-bank-item').dataset.id,10))" title="Usuń z banku">Usuń</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        paginationEl.style.display = totalPages > 1 ? 'flex' : 'none';
+        paginationEl.innerHTML = `
+            <button class="btn btn-secondary btn-sm" onclick="universalBankPrevPage()" ${universalBankPage <= 0 ? 'disabled' : ''}>← Poprzednia</button>
+            <span style="color: var(--imp-text-muted); font-size: 0.9em;">Strona ${universalBankPage + 1} / ${totalPages} (${filtered.length} pytań)</span>
+            <button class="btn btn-secondary btn-sm" onclick="universalBankNextPage()" ${universalBankPage >= totalPages - 1 ? 'disabled' : ''}>Następna →</button>
+        `;
+    }
+
+    function universalBankPrevPage() {
+        if (universalBankPage > 0) {
+            universalBankPage--;
+            renderUniversalBank();
+        }
+    }
+    function universalBankNextPage() {
+        const filtered = getUniversalBankFiltered();
+        const totalPages = Math.ceil(filtered.length / UNIVERSAL_BANK_PER_PAGE);
+        if (universalBankPage < totalPages - 1) {
+            universalBankPage++;
+            renderUniversalBank();
+        }
+    }
+
+    function addFromUniversalBank(globalIdx) {
+        const filtered = getUniversalBankFiltered();
+        const q = filtered[globalIdx];
+        if (!q) return;
+        const ansArr = Array.isArray(q.answers) ? q.answers : [];
+        const answers = ansArr.map((a, i) => {
+            const pts = getAutoPoints(ansArr.length);
+            return { text: typeof a === 'string' ? a : (a.text || a), points: pts[i] ?? 40 };
+        });
+        addQuestion({ question: q.question || '', answers: answers.length ? answers : [{ text: '', points: 40 }] });
+        showStatus('Dodano pytanie do listy głównej', 'success');
+    }
+
+    function removeFromUniversalBank(id) {
+        universalBankRemoved.add(String(id));
+        saveUniversalBankRemoved();
+        renderUniversalBank();
+        showStatus('Usunięto z banku uniwersalnego', 'success');
+    }
 
     document.addEventListener('DOMContentLoaded', async () => {
         await refreshFilesList();

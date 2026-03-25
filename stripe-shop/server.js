@@ -250,6 +250,58 @@ app.use((req, res, next) => {
     next();
 });
 
+/** GET /checkout?plan=... MUSI być przed express.static – inaczej public/checkout.html może być serwowany zamiast przekierowania do Stripe */
+app.get('/checkout', async (req, res) => {
+    const plan = String(req.query.plan || '').trim();
+    if (!plan) return res.status(400).send('Brak parametru: plan');
+    if (!process.env.STRIPE_SECRET_KEY) return res.status(500).send('Stripe nie skonfigurowany');
+
+    res.setHeader('Cache-Control', 'no-store, no-cache');
+
+    try {
+        const prices = await stripe.prices.list({ lookup_keys: [plan], expand: ['data.product'] });
+        if (!prices.data.length) return res.status(404).send(`Plan "${plan}" nie istnieje w Stripe`);
+
+        const price = prices.data[0];
+        const isSubscription = price.recurring !== null;
+
+        const referer = req.headers.referer || '';
+        const cancelUrl = referer || 'https://nowajakoscrozrywki.pl/produkt/imprezja-quiz/';
+        const successUrl = process.env.WP_SUCCESS_URL || 'https://nowajakoscrozrywki.pl/sukces/?session_id={CHECKOUT_SESSION_ID}';
+
+        const sessionConfig = {
+            line_items: [{ price: price.id, quantity: 1 }],
+            mode: isSubscription ? 'subscription' : 'payment',
+            success_url: successUrl,
+            cancel_url: cancelUrl,
+            locale: 'pl',
+            metadata: { product: 'imprezja-quiz', lookup_key: plan },
+            billing_address_collection: 'auto',
+        };
+
+        if (isSubscription) {
+            sessionConfig.subscription_data = { metadata: { product: 'imprezja-quiz', lookup_key: plan } };
+            sessionConfig.payment_method_types = ['card', 'revolut_pay'];
+        } else {
+            sessionConfig.customer_creation = 'always';
+            sessionConfig.tax_id_collection = { enabled: true };
+            sessionConfig.payment_method_types = ['card', 'blik', 'revolut_pay'];
+            sessionConfig.invoice_creation = {
+                enabled: true,
+                invoice_data: { metadata: { product: 'imprezja-quiz', lookup_key: plan } }
+            };
+        }
+        sessionConfig.allow_promotion_codes = true;
+
+        const session = await stripe.checkout.sessions.create(sessionConfig);
+        console.log('✅ Checkout GET redirect:', plan, '->', session.url.substring(0, 60) + '...');
+        res.redirect(303, session.url);
+    } catch (err) {
+        console.error('Checkout GET error:', err);
+        res.status(500).send(`Błąd tworzenia sesji płatności: ${err.message}`);
+    }
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
@@ -328,65 +380,6 @@ app.post('/create-checkout-session', async (req, res) => {
     }
 });
 
-/**
- * Checkout via GET redirect – dla stron bez JavaScript (np. WordPress Custom HTML)
- * Użycie: /checkout?plan=imprezja-1m
- * Tworzy sesję Stripe i natychmiast przekierowuje użytkownika.
- */
-app.get('/checkout', async (req, res) => {
-    const plan = String(req.query.plan || '').trim();
-    if (!plan) return res.status(400).send('Brak parametru: plan');
-    if (!process.env.STRIPE_SECRET_KEY) return res.status(500).send('Stripe nie skonfigurowany');
-
-    res.setHeader('Cache-Control', 'no-store, no-cache');
-
-    try {
-        const prices = await stripe.prices.list({ lookup_keys: [plan], expand: ['data.product'] });
-        if (!prices.data.length) return res.status(404).send(`Plan "${plan}" nie istnieje w Stripe`);
-
-        const price = prices.data[0];
-        const isSubscription = price.recurring !== null;
-
-        const referer = req.headers.referer || '';
-        const cancelUrl = referer || 'https://nowajakoscrozrywki.pl/produkt/imprezja-quiz/';
-        const successUrl = process.env.WP_SUCCESS_URL || 'https://nowajakoscrozrywki.pl/sukces/?session_id={CHECKOUT_SESSION_ID}';
-
-        const sessionConfig = {
-            line_items: [{ price: price.id, quantity: 1 }],
-            mode: isSubscription ? 'subscription' : 'payment',
-            success_url: successUrl,
-            cancel_url: cancelUrl,
-            locale: 'pl',
-            metadata: { product: 'imprezja-quiz', lookup_key: plan },
-            billing_address_collection: 'auto',
-        };
-
-        if (isSubscription) {
-            sessionConfig.subscription_data = { metadata: { product: 'imprezja-quiz', lookup_key: plan } };
-            sessionConfig.payment_method_types = ['card', 'revolut_pay'];
-        } else {
-            // Poniższe parametry tylko dla trybu payment
-            sessionConfig.customer_creation = 'always';
-            sessionConfig.tax_id_collection = { enabled: true };
-            sessionConfig.payment_method_types = ['card', 'blik', 'revolut_pay'];
-            // Generuj fakturę dla płatności jednorazowych (z NIP klienta)
-            sessionConfig.invoice_creation = {
-                enabled: true,
-                invoice_data: { metadata: { product: 'imprezja-quiz', lookup_key: plan } }
-            };
-        }
-        // Pole "Masz kod rabatowy?" na stronie Stripe Checkout
-        sessionConfig.allow_promotion_codes = true;
-
-        const session = await stripe.checkout.sessions.create(sessionConfig);
-        console.log('✅ Checkout GET redirect:', plan, '->', session.url.substring(0, 60) + '...');
-        res.redirect(303, session.url);
-    } catch (err) {
-        console.error('Checkout GET error:', err);
-        res.status(500).send(`Błąd tworzenia sesji płatności: ${err.message}`);
-    }
-});
-
 /** Customer Portal – zarządzanie subskrypcją (anulowanie, zmiana karty) */
 app.post('/create-portal-session', async (req, res) => {
     const { customer_id, return_url } = req.body;
@@ -420,8 +413,10 @@ app.post('/api/license/deliver', async (req, res) => {
     }
 
     const machineId = String(machine_id).trim();
-    if (machineId.length < 8) {
-        return res.status(400).json({ error: 'Machine ID musi mieć co najmniej 8 znaków' });
+    if (!/^[a-fA-F0-9]{16}$/.test(machineId)) {
+        return res.status(400).json({
+            error: 'Nieprawidłowy Machine ID. W Imprezji Quiz otwórz Licencję i skopiuj ID komputera — dokładnie 16 znaków (tylko 0-9 i a-f), bez spacji.'
+        });
     }
 
     if (!process.env.STRIPE_SECRET_KEY) {

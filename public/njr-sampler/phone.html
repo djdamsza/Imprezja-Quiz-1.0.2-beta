@@ -4,10 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>NJR Sampler – Panel</title>
-    <link rel="icon" href="data:,">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico"><link rel="icon" type="image/png" sizes="32x32" href="/img/icon-32.png"><link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
     <script src="/socket.io/socket.io.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        .tile, .tile * { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+        .tile .emoji.img { pointer-events: none; draggable: false; }
         html {
             width: 100%;
             height: 100%;
@@ -28,7 +30,6 @@
             min-height: 100dvh;
             color: #fff;
             padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-            padding-top: calc(52px + env(safe-area-inset-top));
             display: flex;
             flex-direction: column;
             width: 100%;
@@ -40,11 +41,7 @@
             height: 100%;
         }
         .volume-bar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 100;
+            flex-shrink: 0;
             padding: 12px 16px;
             padding-top: max(12px, env(safe-area-inset-top));
             background: #0d0d14;
@@ -74,19 +71,25 @@
             padding: 12px 8px;
             background: rgba(0,0,0,0.2);
             border-bottom: 1px solid rgba(255,255,255,0.1);
+            flex-shrink: 0;
         }
         .bank-arrow {
-            width: 48px;
-            height: 48px;
+            width: 52px;
+            height: 52px;
+            min-width: 52px;
+            min-height: 52px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.8rem;
-            color: #9b59b6;
+            font-size: 2rem;
+            font-weight: 800;
+            color: #f1c40f;
             cursor: pointer;
             -webkit-tap-highlight-color: transparent;
-            border: none;
-            background: transparent;
+            border: 2px solid #f1c40f;
+            border-radius: 10px;
+            background: rgba(241,196,15,0.25);
+            box-shadow: 0 0 10px rgba(241,196,15,0.3);
         }
         .bank-arrow:active { opacity: 0.7; }
         .bank-arrow.hidden { visibility: hidden; pointer-events: none; }
@@ -101,11 +104,13 @@
         .tiles-container {
             display: grid;
             grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-            gap: 12px;
-            padding: 16px;
+            gap: 10px;
+            padding: 12px 16px;
+            padding-bottom: max(16px, env(safe-area-inset-bottom));
             flex: 1;
             min-height: 0;
-            overflow: auto;
+            overflow-y: auto;
+            overflow-x: hidden;
             -webkit-overflow-scrolling: touch;
             touch-action: pan-y;
             max-width: 100%;
@@ -113,14 +118,17 @@
         }
         .tile.tile-last-odd {
             grid-column: 1 / -1;
-            width: 50%;
+            width: 46.75%;
+            max-width: 46.75%;
             margin: 0 auto;
             justify-self: center;
         }
         .tile {
             aspect-ratio: 1;
-            width: 100%;
+            width: 93.5%;
             min-width: 0;
+            max-width: 93.5%;
+            justify-self: center;
             border-radius: 16px;
             display: flex;
             flex-direction: column;
@@ -134,14 +142,16 @@
         .tile:active { transform: scale(0.96); }
         .tile.playing { box-shadow: 0 0 0 4px #f1c40f, 0 0 20px rgba(241,196,15,0.5); }
         .tile.bg-playing { box-shadow: 0 0 0 4px #9b59b6, 0 0 20px rgba(155,89,182,0.5); }
-        .tile { position: relative; }
+        .tile { position: relative; -webkit-touch-callout: none; touch-action: pan-y; }
         .tile .tile-bg-note { position: absolute; top: 6px; right: 6px; font-size: 1.1rem; opacity: 0.95; }
+        .tile .tile-play-icon { position: absolute; top: 6px; left: 6px; font-size: 1.1rem; opacity: 0.95; }
         .tile .emoji { font-size: 2.5rem; margin-bottom: 4px; }
         .tile .emoji.img { width: 48px; height: 48px; object-fit: contain; }
-        .tile .label { font-size: 0.85rem; font-weight: 600; text-align: center; padding: 0 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; min-width: 0; color: inherit; }
+        .tile .label { font-size: 1.16rem; font-weight: 600; text-align: center; padding: 0 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; min-width: 0; color: inherit; }
         .tile.tile-light-bg .label,
         .tile.tile-light-bg .emoji,
-        .tile.tile-light-bg .tile-bg-note { color: #000 !important; }
+        .tile.tile-light-bg .tile-bg-note,
+        .tile.tile-light-bg .tile-play-icon { color: #000 !important; }
         .tile.tile-light-bg .emoji.img { opacity: 0; }
         .wait-screen {
             display: flex;
@@ -162,6 +172,39 @@
             z-index: 1000; box-shadow: 0 2px 12px rgba(0,0,0,0.4);
         }
         .fullscreen-btn:hover, .fullscreen-btn:active { background: rgba(155, 89, 182, 1); }
+        /* Imprezator bank – lista piosenek */
+        .tiles-container.imprezator-mode {
+            display: flex !important;
+            flex-direction: column;
+            gap: 8px;
+            padding: 12px 14px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-y;
+        }
+        .imprezator-track {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            background: rgba(255,255,255,0.07);
+            border-radius: 12px;
+            border: 2px solid rgba(255,255,255,0.1);
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            touch-action: pan-y;
+            transition: background 0.1s;
+            min-height: 56px;
+        }
+        .imprezator-track:active { background: rgba(255,255,255,0.18); }
+        .imprezator-track.playing {
+            border-color: #f1c40f;
+            background: rgba(241,196,15,0.15);
+            box-shadow: 0 0 12px rgba(241,196,15,0.35);
+        }
+        .imprezator-track-icon { font-size: 1.3rem; flex-shrink: 0; width: 28px; text-align: center; }
+        .imprezator-track-label { flex: 1; font-size: 1.22rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     </style>
 </head>
 <body>
@@ -189,7 +232,11 @@
         let active = false;
         let playingTileId = null;
         let playingBackgroundTileId = null;
-        let touchStartX = 0, touchStartY = 0;
+        let playingImprezatorTrackId = null;
+        /** Rozróżnienie tap vs scroll (nie odtwarzaj przy przewijaniu listy). */
+        const TILE_TAP_MAX_MOVE_PX = 22;
+        let tileTouchPan = null;
+        let tileIgnoreClicksUntil = 0;
 
         function ensureBanks() {
             if (!config.banks || !config.banks.length) {
@@ -198,9 +245,36 @@
             }
         }
 
-        socket.emit('njr_sampler_join_phone');
+        function rejoin() {
+            socket.emit('njr_sampler_join_phone');
+        }
+        /** Telefony (wolniejsze WebSocket / iframe PWA) czasem dostawały niepełny stan z socketu — pełna konfiguracja jak po ręcznym odświeżeniu z GET. */
+        function fetchStateViaREST() {
+            const url = '/api/njr-sampler/config?_=' + Date.now();
+            fetch(url, { cache: 'no-store' }).then(r => r.json()).then(d => {
+                if (d && (d.config || d.active !== undefined)) {
+                    active = !!d.active;
+                    if (d.config) config = d.config;
+                    ensureBanks();
+                    currentBankIndex = Math.min(currentBankIndex, (config.banks || []).length - 1);
+                    if (currentBankIndex < 0) currentBankIndex = 0;
+                    render();
+                }
+            }).catch(() => {});
+        }
+        let _restSyncTimer = null;
+        function scheduleRestConfigSync() {
+            clearTimeout(_restSyncTimer);
+            _restSyncTimer = setTimeout(() => { _restSyncTimer = null; fetchStateViaREST(); }, 220);
+        }
+        socket.on('connect', () => {
+            rejoin();
+            fetchStateViaREST();
+        });
         let autoStartDone = false;
+        let stateSeq = 0;
         socket.on('njr_sampler_state', (s) => {
+            stateSeq++;
             active = s.active;
             if (s.config) config = s.config;
             ensureBanks();
@@ -211,6 +285,7 @@
                 fetch('/api/njr-sampler/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(() => {});
             }
             render();
+            if (s.active) scheduleRestConfigSync();
         });
         socket.on('njr_sampler_volume_sync', (v) => {
             const vol = Math.max(0, Math.min(1, v));
@@ -223,23 +298,73 @@
             socket.emit('njr_sampler_volume', v);
         });
 
+        let playingBankIndex = null;
+        let playingBackgroundBankIndex = null;
         socket.on('njr_sampler_playing', (payload) => {
             const p = typeof payload === 'object' ? payload : { tileId: payload, isBackground: false };
             if (p.isBackground) {
                 playingBackgroundTileId = p.tileId;
+                playingBackgroundBankIndex = p.bankIndex != null ? p.bankIndex : null;
             } else {
                 playingTileId = p.tileId;
+                playingBankIndex = p.bankIndex != null ? p.bankIndex : null;
             }
             render();
         });
         socket.on('njr_sampler_stopped', () => { playingTileId = null; render(); });
+        socket.on('njr_sampler_imprezator_playing', (trackId) => {
+            playingImprezatorTrackId = trackId || null;
+            render();
+        });
+
+        function renderBankSwitcher(bankName) {
+            const switcher = document.getElementById('bank-switcher');
+            const bankNameEl = document.getElementById('bank-name');
+            if (!switcher) return;
+            bankNameEl.textContent = bankName;
+            switcher.style.display = 'flex';
+            const leftBtn = document.getElementById('bank-arrow-left');
+            const rightBtn = document.getElementById('bank-arrow-right');
+            const many = config.banks && config.banks.length > 1;
+            if (leftBtn) leftBtn.classList.toggle('hidden', !many);
+            if (rightBtn) rightBtn.classList.toggle('hidden', !many);
+        }
 
         function render() {
             const wait = document.getElementById('wait-screen');
             const tiles = document.getElementById('tiles');
-            const bankNameEl = document.getElementById('bank-name');
             const hasBanks = config.banks && config.banks.length > 0;
             const bank = hasBanks ? config.banks[currentBankIndex] : null;
+
+            // bank Imprezatora – lista piosenek
+            if (active && bank && bank.type === 'imprezator') {
+                const trackList = bank.tracks || [];
+                if (trackList.length === 0) {
+                    wait.style.display = 'flex';
+                    tiles.style.display = 'none';
+                    wait.querySelector('p').textContent = 'Brak utworów w Imprezatorze. Dodaj piosenki w panelu Imprezatora.';
+                    renderBankSwitcher(bank.name || '🎵 Imprezator');
+                    document.getElementById('bank-switcher').style.display = 'flex';
+                    return;
+                }
+                wait.style.display = 'none';
+                tiles.className = 'tiles-container imprezator-mode';
+                tiles.style.display = '';
+                renderBankSwitcher(bank.name || '🎵 Imprezator');
+                tiles.innerHTML = trackList.map(t => {
+                    const raw = t.displayName || (t.audio || '').replace(/^.*[/\\]/, '').replace(/\.[^.]+$/, '') || 'Utwór';
+                    const label = raw.replace(/</g, '&lt;');
+                    const isPlaying = playingImprezatorTrackId === t.id;
+                    const icon = isPlaying ? '⏸' : '▶';
+                    return `<div class="imprezator-track${isPlaying ? ' playing' : ''}" data-imprezator-id="${(t.id || '').replace(/"/g, '&quot;')}" role="button" tabindex="0">
+                        <span class="imprezator-track-icon">${icon}</span>
+                        <span class="imprezator-track-label">${label}</span>
+                    </div>`;
+                }).join('');
+                return;
+            }
+
+            // normalny bank – kafelki
             const trackList = bank ? (bank.tiles || []) : [];
             if (!active || !hasBanks || trackList.length === 0) {
                 wait.style.display = 'flex';
@@ -249,18 +374,9 @@
                 return;
             }
             wait.style.display = 'none';
+            tiles.className = 'tiles-container';
             tiles.style.display = 'grid';
-            tiles.style.gridTemplateColumns = 'repeat(2, 1fr)';
-            const switcher = document.getElementById('bank-switcher');
-            if (switcher) {
-                const name = bank ? (bank.name || 'Bank ' + (currentBankIndex + 1)) : '—';
-                bankNameEl.textContent = name;
-                switcher.style.display = 'flex';
-                const leftBtn = document.getElementById('bank-arrow-left');
-                const rightBtn = document.getElementById('bank-arrow-right');
-                if (leftBtn) leftBtn.classList.toggle('hidden', config.banks.length <= 1);
-                if (rightBtn) rightBtn.classList.toggle('hidden', config.banks.length <= 1);
-            }
+            renderBankSwitcher(bank.name || 'Bank ' + (currentBankIndex + 1));
             const cnt = trackList.length;
             const lastOdd = cnt % 2 === 1;
             const isLightBg = (c) => {
@@ -274,16 +390,18 @@
                 return false;
             };
             tiles.innerHTML = trackList.map((t, i) => {
-                const isPlaying = playingTileId === t.id || playingBackgroundTileId === t.id;
-                const isBg = playingBackgroundTileId === t.id;
+                const isPlaying = (playingTileId === t.id && playingBankIndex === currentBankIndex) || (playingBackgroundTileId === t.id && playingBackgroundBankIndex === currentBankIndex);
+                const isBg = playingBackgroundTileId === t.id && playingBackgroundBankIndex === currentBankIndex;
+                const icon = isPlaying ? '⏸' : '▶';
                 const emoji = t.image && (t.image.startsWith('/') || t.image.startsWith('http')) ? '' : (t.image || '');
                 const img = t.image && (t.image.startsWith('/') || t.image.startsWith('http')) ? t.image : '';
                 const spanClass = lastOdd && i === cnt - 1 ? ' tile-last-odd' : '';
                 const lightClass = isLightBg(t.color) ? ' tile-light-bg' : '';
                 return `
-                    <div class="tile${spanClass}${lightClass} ${isPlaying ? 'playing' : ''} ${isBg ? 'bg-playing' : ''}" data-id="${t.id}" style="background:${t.color || '#0000ff'}" onclick="toggleTile('${t.id}')" data-bank="${currentBankIndex}">
+                    <div class="tile${spanClass}${lightClass} ${isPlaying ? 'playing' : ''} ${isBg ? 'bg-playing' : ''}" data-id="${t.id}" data-bank="${currentBankIndex}" style="background:${t.color || '#0000ff'}" role="button" tabindex="0">
+                        <span class="tile-play-icon">${icon}</span>
                         ${t.isBackground ? '<span class="tile-bg-note" title="Tło muzyczne">🎵</span>' : ''}
-                        ${img ? `<img class="emoji img" src="${img}" alt="">` : (emoji ? `<span class="emoji">${emoji}</span>` : '')}
+                        ${img ? `<img class="emoji img" src="${img}" alt="" draggable="false" loading="lazy">` : (emoji ? `<span class="emoji">${emoji}</span>` : '')}
                         <span class="label">${(t.label || '').replace(/</g,'&lt;') || '—'}</span>
                     </div>
                 `;
@@ -300,22 +418,94 @@
 
         document.getElementById('bank-arrow-left')?.addEventListener('click', () => goToBank(-1));
         document.getElementById('bank-arrow-right')?.addEventListener('click', () => goToBank(1));
-        document.getElementById('tiles').addEventListener('touchstart', (e) => {
-            touchStartX = e.touches[0].clientX;
-            touchStartY = e.touches[0].clientY;
-        }, { passive: true });
-        document.getElementById('tiles').addEventListener('touchend', (e) => {
-            if (!e.changedTouches || !e.changedTouches[0]) return;
-            const dx = e.changedTouches[0].clientX - touchStartX;
-            const dy = e.changedTouches[0].clientY - touchStartY;
-            if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) {
-                goToBank(dx > 0 ? -1 : 1);
-            }
-        }, { passive: true });
 
+        function handleTileTap(e) {
+            e.stopPropagation();
+            if (!active) return;
+            const tile = e.target.closest('.tile[data-id]');
+            const imprezator = e.target.closest('.imprezator-track[data-imprezator-id]');
+            if (tile) {
+                const id = tile.dataset.id;
+                const bank = parseInt(tile.dataset.bank, 10);
+                if (id != null) socket.emit('njr_sampler_toggle', { bankIndex: isNaN(bank) ? 0 : bank, tileId: id });
+            } else if (imprezator) {
+                const id = imprezator.dataset.imprezatorId;
+                if (id) socket.emit('njr_sampler_imprezator_toggle', id);
+            }
+        }
+        const tilesEl = document.getElementById('tiles');
+        tilesEl.addEventListener('touchstart', (e) => {
+            if (e.touches.length !== 1) { tileTouchPan = null; return; }
+            const t = e.touches[0];
+            tileTouchPan = { x0: t.clientX, y0: t.clientY, moved: false };
+        }, { passive: true });
+        tilesEl.addEventListener('touchmove', (e) => {
+            if (!tileTouchPan || e.touches.length !== 1) return;
+            const t = e.touches[0];
+            const dx = t.clientX - tileTouchPan.x0;
+            const dy = t.clientY - tileTouchPan.y0;
+            if (Math.hypot(dx, dy) > TILE_TAP_MAX_MOVE_PX) tileTouchPan.moved = true;
+        }, { passive: true });
+        tilesEl.addEventListener('touchcancel', () => { tileTouchPan = null; }, { passive: true });
+        tilesEl.addEventListener('touchend', (e) => {
+            if (!tileTouchPan || e.changedTouches.length !== 1) {
+                tileTouchPan = null;
+                return;
+            }
+            const t = e.changedTouches[0];
+            const dx = t.clientX - tileTouchPan.x0;
+            const dy = t.clientY - tileTouchPan.y0;
+            const moved = tileTouchPan.moved || Math.hypot(dx, dy) > TILE_TAP_MAX_MOVE_PX;
+            tileTouchPan = null;
+            if (moved) {
+                tileIgnoreClicksUntil = Date.now() + 450;
+                return;
+            }
+            e.preventDefault();
+            handleTileTap(e);
+        }, { passive: false });
+        tilesEl.addEventListener('click', (e) => {
+            if (Date.now() < tileIgnoreClicksUntil) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+            handleTileTap(e);
+        });
+        document.getElementById('tiles').addEventListener('contextmenu', (e) => {
+            if (e.target.closest('.tile') || e.target.closest('.imprezator-track')) e.preventDefault();
+        });
+
+        window.addEventListener('message', (e) => {
+            if (e.data && e.data.type === 'njr_sampler_set_bank' && typeof e.data.index === 'number') {
+                ensureBanks();
+                const n = (config.banks || []).filter(b => b.id !== '__imprezator__').length;
+                if (n > 0) {
+                    currentBankIndex = Math.max(0, Math.min(e.data.index, n - 1));
+                    render();
+                }
+            }
+        });
+        socket.on('njr_sampler_set_bank', (data) => {
+            ensureBanks();
+            const n = (config.banks || []).filter(b => b.id !== '__imprezator__').length;
+            if (n > 0 && typeof data.index === 'number') {
+                currentBankIndex = Math.max(0, Math.min(data.index, n - 1));
+                render();
+            }
+        });
+        socket.on('njr_sampler_bank_delta', (data) => {
+            const d = data && (data.delta === 1 || data.delta === -1) ? data.delta : 0;
+            if (d) goToBank(d);
+        });
         function toggleTile(id) {
             if (!active) return;
             socket.emit('njr_sampler_toggle', { bankIndex: currentBankIndex, tileId: id });
+        }
+
+        function toggleImprezatorTrack(id) {
+            if (!active) return;
+            socket.emit('njr_sampler_imprezator_toggle', id);
         }
 
         function lockOrientationPortrait() {
@@ -361,10 +551,19 @@
                 } catch (e) {}
             }
             document.addEventListener('visibilitychange', () => {
-                if (document.visibilityState === 'visible') requestWakeLock();
+                if (document.visibilityState === 'visible') {
+                    requestWakeLock();
+                    if (socket.connected) {
+                        rejoin();
+                        fetchStateViaREST();
+                    } else fetchStateViaREST();
+                }
             });
             requestWakeLock();
         }
+        setInterval(() => {
+            if (document.visibilityState === 'visible' && !socket.connected) fetchStateViaREST();
+        }, 5000);
     </script>
 </body>
 </html>

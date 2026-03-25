@@ -1,0 +1,8 @@
+{
+  "name": "LOGO Bouncer",
+  "slides": [
+    { "type": "logo-bouncer", "src": "/img/logo_imprezja.png" }
+  ],
+  "transition": "fade",
+  "loop": true
+}

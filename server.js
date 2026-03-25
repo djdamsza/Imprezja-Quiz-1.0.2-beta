@@ -43,7 +43,11 @@ try {
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server);
+const io = socketIo(server, {
+    cors: { origin: '*', methods: ['GET', 'POST'] },
+    transports: ['websocket', 'polling'],
+    maxHttpBufferSize: 2e6 // 2 MB – ramki kamery (JPEG) mogą być duże
+});
 
 const PORT = 3000;
 const PORT_HTTPS = 3443;
@@ -63,9 +67,17 @@ function loadHttpsCerts() {
             console.log('✅ Certyfikaty HTTPS załadowane z', certsDir);
             return;
         }
-        const { execSync } = require('child_process');
         if (!fs.existsSync(certsDir)) fs.mkdirSync(certsDir, { recursive: true });
-        execSync(`openssl req -x509 -newkey rsa:2048 -nodes -sha256 -subj '/CN=localhost' -keyout "${keyPath}" -out "${certPath}" -days 365`, { stdio: 'pipe' });
+        if (process.platform !== 'win32') {
+            const { execSync } = require('child_process');
+            execSync(`openssl req -x509 -newkey rsa:2048 -nodes -sha256 -subj '/CN=localhost' -keyout "${keyPath}" -out "${certPath}" -days 365`, { stdio: 'pipe' });
+        } else {
+            const selfsigned = require('selfsigned');
+            const attrs = [{ name: 'commonName', value: 'localhost' }];
+            const pems = selfsigned.generate(attrs, { algorithm: 'sha256', days: 365, keySize: 2048 });
+            fs.writeFileSync(keyPath, pems.private);
+            fs.writeFileSync(certPath, pems.cert);
+        }
         httpsOptions = { key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) };
         console.log('✅ Wygenerowano certyfikaty HTTPS w', certsDir);
     } catch (err) {
@@ -140,6 +152,7 @@ function getDefaultDataDir() {
     return path.join(home, '.config', 'Imprezja Quiz');
 }
 const dataDir = process.env.IMPREZJA_DATA_DIR || getDefaultDataDir();
+const VOLUMES_FILE = path.join(dataDir, 'imprezja-volumes.json');
 const quizzesDir = path.join(dataDir, 'quizzes');
 const uploadsDir = path.join(dataDir, 'uploads');
 const vdjRecordingsBank = process.platform === 'darwin'
@@ -270,6 +283,75 @@ let adminHasBeenOpened = false;
 // Pokój Socket.IO dla admina – priorytet przy broadcast (aktualizacje od razu, bez throttle)
 const ADMIN_ROOM = 'admin_room';
 
+// Screen controller – stan ekranu głównego (sterowany z Admin PWA)
+let screenControllerMode = 'welcome';
+let welcomeScreenData = { imageUrl: '', text: '', logoVisible: true, textPosition: 'center', fontSize: 'medium', textColor: '#ffffff' };
+let musicModeGraphicUrl = '';
+
+// Prezentacja – stan odtwarzania
+let prezentacjaConfig = null;      // { name, slides, transition, loop }
+let prezentacjaIndex = 0;
+let prezentacjaPlaying = false;
+let prezentacjaLoop = true;
+const PREZENTACJE_LAST_FILE = path.join(path.dirname(quizzesDir), 'prezentacje-last.json');
+
+// Model miksera: Master (globalny mnożnik) + kanały (per-tryb). Wyjście = kanał × master.
+// Kanały zapamiętywane – ostatnie ustawienie przywracane przy starcie trybu.
+let masterVolume = 1;
+let quizVolume = 1;
+let familiadaVolume = 1;
+let statkiVolume = 1;
+let prezentacjaVolume = 1;
+// njrSamplerVolume, whitneyVolume, spiewajDalejVolume, bitwaWokalnaVolume, imprezatorVolume – poniżej
+
+function loadVolumes() {
+    try {
+        if (fs.existsSync(VOLUMES_FILE)) {
+            const raw = fs.readFileSync(VOLUMES_FILE, 'utf8');
+            const v = JSON.parse(raw);
+            if (typeof v.master === 'number') masterVolume = Math.max(0, Math.min(1, v.master));
+            if (typeof v.quiz === 'number') quizVolume = Math.max(0, Math.min(1, v.quiz));
+            if (typeof v.familiada === 'number') familiadaVolume = Math.max(0, Math.min(1, v.familiada));
+            if (typeof v.statki === 'number') statkiVolume = Math.max(0, Math.min(1, v.statki));
+            if (typeof v.prezentacja === 'number') prezentacjaVolume = Math.max(0, Math.min(1, v.prezentacja));
+            if (typeof v.sampler === 'number') njrSamplerVolume = Math.max(0, Math.min(1, v.sampler));
+            if (typeof v.whitney === 'number') whitneyVolume = Math.max(0, Math.min(1, v.whitney));
+            if (typeof v.spiewaj === 'number') spiewajDalejVolume = Math.max(0, Math.min(1, v.spiewaj));
+            if (typeof v.bitwa === 'number') bitwaWokalnaVolume = Math.max(0, Math.min(1, v.bitwa));
+            if (typeof v.imprezator === 'number') imprezatorVolume = Math.max(0, Math.min(1, v.imprezator));
+            console.log('   🔊 Głośności załadowane z', VOLUMES_FILE);
+        }
+    } catch (e) { console.warn('⚠️ loadVolumes:', e.message); }
+}
+function saveVolumes() {
+    try {
+        const dir = path.dirname(VOLUMES_FILE);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(VOLUMES_FILE, JSON.stringify({
+            master: masterVolume, quiz: quizVolume, familiada: familiadaVolume, statki: statkiVolume,
+            prezentacja: prezentacjaVolume, sampler: njrSamplerVolume, whitney: whitneyVolume,
+            spiewaj: spiewajDalejVolume, bitwa: bitwaWokalnaVolume, imprezator: imprezatorVolume
+        }, null, 2), 'utf8');
+    } catch (e) { console.warn('⚠️ saveVolumes:', e.message); }
+}
+function broadcastEffectiveVolumes() {
+    io.emit('quiz_volume', { volume: quizVolume });
+    io.to('familiada').emit('familiada_volume', familiadaVolume);
+    io.emit('ships_solo_volume', { volume: statkiVolume });
+    io.emit('prezentacja_volume', { volume: prezentacjaVolume });
+    const eff = (ch) => Math.min(1, ch * masterVolume);
+    io.to('njr_sampler_screen').emit('njr_sampler_volume', eff(njrSamplerVolume));
+    io.to('njr_sampler_phone').emit('njr_sampler_volume_sync', njrSamplerVolume);
+    io.to('whitney_screen').emit('whitney_volume', eff(whitneyVolume));
+    io.to('whitney_phone').emit('whitney_volume_sync', whitneyVolume);
+    io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_volume', eff(spiewajDalejVolume));
+    io.to('spiewaj_dalej_phone').emit('spiewaj_dalej_volume_sync', spiewajDalejVolume);
+    io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_volume', eff(bitwaWokalnaVolume));
+    io.to('bitwa_wokalna_phone').emit('bitwa_wokalna_volume_sync', bitwaWokalnaVolume);
+    io.to('imprezator_screen').emit('imprezator_volume', eff(imprezatorVolume));
+    io.to('imprezator_phone').emit('imprezator_volume_sync', imprezatorVolume);
+}
+
 // Tryb gry: null | 'quiz' | 'familiada' – gdy 'familiada', wstrzymujemy broadcast do telefonów
 let gameMode = null;
 // Stan Familiady
@@ -279,8 +361,11 @@ let familiadaTeam2Score = 0;
 let familiadaTeam1Name = 'Niebiescy';
 let familiadaTeam2Name = 'Czerwoni';
 let familiadaRoundAwardedTo = null;
+let familiadaShowStartScreenOnConnect = false;
 let familiadaButtonUsedThisRound = false;
 let familiadaQuestionActive = false;
+let familiadaCurrentQuestionIndex = null;
+let familiadaCurrentGoldenIndex = null;
 const FAMILIADA_DATA_FILE = 'familiada-data.json';
 const familiadaDataPath = path.join(path.dirname(quizzesDir), FAMILIADA_DATA_FILE);
 const familiadaDir = path.join(path.dirname(quizzesDir), 'familiada');
@@ -356,10 +441,13 @@ const BITWA_WOKALNA_LAST_FILE = path.join(path.dirname(quizzesDir), 'bitwa-wokal
 const IMPREZATOR_CONFIGS_DIR = path.join(path.dirname(quizzesDir), 'imprezator-configs');
 const IMPREZATOR_LAST_FILE = path.join(path.dirname(quizzesDir), 'imprezator-last.json');
 const IMPREZATOR_SETTINGS_FILE = path.join(path.dirname(quizzesDir), 'imprezator-settings.json');
+const PREZENTACJE_CONFIGS_DIR = path.join(path.dirname(quizzesDir), 'prezentacje');
 let njrSamplerConfig = { tileCount: 8, tiles: [] };
 let njrSamplerActive = false;
 let njrSamplerPlayingTile = null; // one-shot (oklaski itd.)
+let njrSamplerPlayingBankIndex = null; // bank aktualnie granego kafelka foreground
 let njrSamplerPlayingBackgroundTile = null; // tło muzyczne – gra do wyłączenia lub końca
+let njrSamplerPlayingBackgroundBankIndex = null; // bank aktualnie granego kafelka background
 let njrSamplerPlayingImprezatorTrack = null; // imprezator track odtwarzany przez sampler
 let njrSamplerVolume = 1; // 0–1, master z telefonu
 let imprezatorCurrentlyPlaying = false;    // standalone imprezator odtwarza utwór
@@ -369,6 +457,105 @@ let audioMonitorLast = null;               // ostatnio odtwarzane: { type, ...da
 let wyborczySession = null;
 let wyborczyVoters = new Set();    // socket.id voterów (vote.html)
 let wyborczyVotedThis = new Set(); // socket.id którzy zagłosowali w tej rundzie
+
+// === HOT OR NOT CHAMPION ===
+let hncPhotos = [];
+let hncBracket = [];      // [{photoA, photoB, winner, votesA, votesB}, ...][]
+let hncQuestionText = '';
+let hncCurrentRound = 0;
+let hncCurrentMatch = 0;
+let hncPhase = 'setup';   // 'setup'|'ready'|'voting'|'tiebreak'|'match_result'|'champion'
+let hncVoters = new Set();
+let hncVotedThis = new Set();
+let hncVotesA = new Set();
+let hncVotesB = new Set();
+let hncTimerInt = null;
+let hncVoteGraceTimer = null;
+let hncTimeLeft = 0;
+let hncMatchTime = 15;
+
+function hncRoundName(roundIndex, totalRounds) {
+    const fromEnd = totalRounds - 1 - roundIndex;
+    if (fromEnd === 0) return 'FINAŁ';
+    if (fromEnd === 1) return 'PÓŁFINAŁ';
+    if (fromEnd === 2) return 'ĆWIERĆFINAŁ';
+    if (fromEnd === 3) return 'ELIMINACJE';
+    return `1/${Math.pow(2, fromEnd)} FINAŁU`;
+}
+
+function hncBuildBracket(photos) {
+    const shuffled = [...photos].sort(() => Math.random() - 0.5);
+    const round0 = [];
+    for (let i = 0; i < shuffled.length; i += 2) {
+        round0.push({ photoA: shuffled[i], photoB: shuffled[i+1], winner: null, votesA: 0, votesB: 0 });
+    }
+    hncBracket = [round0];
+    let count = shuffled.length / 2;
+    while (count > 1) {
+        count = Math.ceil(count / 2);
+        hncBracket.push(Array.from({length: count}, () => ({ photoA: null, photoB: null, winner: null, votesA: 0, votesB: 0 })));
+    }
+}
+
+function hncSerializeBracket() {
+    const slim = (p) => p ? { id: p.id, url: p.url, desc: p.desc } : null;
+    return hncBracket.map(round => round.map(m => ({
+        photoA: slim(m.photoA), photoB: slim(m.photoB), winner: slim(m.winner),
+        votesA: m.votesA, votesB: m.votesB
+    })));
+}
+
+function hncGetState() {
+    const total = hncBracket.length;
+    const m = hncBracket[hncCurrentRound]?.[hncCurrentMatch];
+    const completedRoundName = (hncPhase === 'round_complete' && hncCurrentRound > 0)
+        ? hncRoundName(hncCurrentRound - 1, total) : null;
+    return {
+        phase: hncPhase,
+        currentRound: hncCurrentRound,
+        currentMatch: hncCurrentMatch,
+        totalRounds: total,
+        matchName: total > 0 ? hncRoundName(hncCurrentRound, total) : '',
+        completedRoundName,
+        matchesInRound: hncBracket[hncCurrentRound]?.length || 0,
+        match: m ? {
+            photoA: m.photoA, photoB: m.photoB, winner: m.winner,
+            votesA: hncVotesA.size, votesB: hncVotesB.size
+        } : null,
+        bracket: hncSerializeBracket(),
+        timeLeft: hncTimeLeft,
+        voterCount: hncVoters.size,
+        votedCount: hncVotedThis.size,
+        questionText: hncQuestionText
+    };
+}
+
+function hncBroadcast() { io.emit('hnc_state', hncGetState()); }
+
+function hncStopTimer() {
+    if (hncTimerInt) { clearInterval(hncTimerInt); hncTimerInt = null; }
+    if (hncVoteGraceTimer) { clearTimeout(hncVoteGraceTimer); hncVoteGraceTimer = null; }
+}
+
+function hncEndVoting() {
+    hncStopTimer();
+    const m = hncBracket[hncCurrentRound]?.[hncCurrentMatch];
+    if (!m) return;
+    m.votesA = hncVotesA.size;
+    m.votesB = hncVotesB.size;
+    if (m.votesA === m.votesB) {
+        hncPhase = 'tiebreak';
+    } else {
+        m.winner = m.votesA > m.votesB ? m.photoA : m.photoB;
+        hncPhase = 'match_result';
+    }
+    // Preload next match photos on all clients while result is shown
+    const nextM = hncBracket[hncCurrentRound]?.[hncCurrentMatch + 1];
+    if (nextM?.photoA && nextM?.photoB) {
+        io.emit('hnc_preload', [nextM.photoA.url, nextM.photoB.url]);
+    }
+    hncBroadcast();
+}
 
 function calcAvg(arr) {
     if (!arr || arr.length === 0) return 0;
@@ -436,6 +623,13 @@ function stopWyborczyPhotoTimer() {
     wyborczyPhotoTimeLeft = 0;
 }
 
+/** Sesja Wyborczego na serwerze + sygnał do TV, by zatrzymać muzykę tła gdy pytanie nie jest już aktywne. */
+function stopWyborczyQuestionOnServer() {
+    stopWyborczyPhotoTimer();
+    wyborczySession = null;
+    io.emit('wyborczy_question_media_stop');
+}
+
 function getWyborczyTies(ranking) {
     if (!ranking || ranking.length < 2) return [];
     const podiumPlaces = ranking.filter(r => r.place <= 3);
@@ -460,7 +654,7 @@ function emitAudioMonitorState() {
 function buildNjrSamplerStateForPhone() {
     const cfg = JSON.parse(JSON.stringify(njrSamplerConfig));
     if (!cfg.banks || !cfg.banks.length) {
-        cfg.banks = [{ id: 'b1', name: 'Bank 1', tiles: cfg.tiles || [] }];
+        cfg.banks = [{ id: 'b1', name: 'Kafelki', tiles: cfg.tiles || [] }];
     }
     cfg.banks = cfg.banks.filter(b => b.id !== '__imprezator__');
     const tracks = [];
@@ -499,15 +693,17 @@ function loadNjrSamplerConfig() {
             const raw = fs.readFileSync(cfgPath, 'utf8');
             const data = JSON.parse(raw);
             const tileCount = data.tileCount || 8;
+            const baseName = (toLoad && typeof toLoad === 'string' ? toLoad.replace(/\.json$/i, '') : '').replace(/_/g, ' ') || 'Kafelki';
             if (data.banks && Array.isArray(data.banks) && data.banks.length > 0) {
                 njrSamplerConfig = { tileCount, banks: data.banks };
+                njrSamplerConfig.banks.forEach((b, i) => {
+                    if (!b.name || /^Bank\s*\d+$/i.test(b.name)) b.name = njrSamplerConfig.banks.length > 1 ? baseName + ' ' + (i + 1) : baseName;
+                });
             } else {
                 const tiles = data.tiles || [];
-                const n = tiles.length;
-                const pad = n < tileCount ? tileCount - n : 0;
                 const slice = tiles.slice(0, tileCount);
                 for (let i = slice.length; i < tileCount; i++) slice.push({ id: 't' + i, color: '#3498db', label: '', image: '', audio: '', volume: 100, isBackground: false });
-                njrSamplerConfig = { tileCount, banks: [{ id: 'b1', name: 'Bank 1', tiles: slice }] };
+                njrSamplerConfig = { tileCount, banks: [{ id: 'b1', name: baseName, tiles: slice }] };
             }
             njrSamplerConfig.banks.forEach(b => {
                 if (!b.tiles) b.tiles = [];
@@ -525,7 +721,7 @@ function loadNjrSamplerConfig() {
         } else {
             const tiles = [];
             for (let i = 0; i < 8; i++) tiles.push({ id: 't' + i, color: '#3498db', label: '', image: '', audio: '', volume: 100, isBackground: false, loop: false, fadeOut: false });
-            njrSamplerConfig = { tileCount: 8, banks: [{ id: 'b1', name: 'Bank 1', tiles }] };
+            njrSamplerConfig = { tileCount: 8, banks: [{ id: 'b1', name: 'Kafelki', tiles }] };
         }
     } catch (err) {
         console.warn('⚠️ NJR Sampler: błąd ładowania config:', err.message);
@@ -562,22 +758,27 @@ function loadNjrSamplerConfigByName(name) {
     try {
         const data = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
         const tileCount = data.tileCount || 8;
-        let tiles = [];
+        const normalizeTiles = (tiles) => {
+            const t = (tiles || []).slice(0, tileCount);
+            for (let i = t.length; i < tileCount; i++) {
+                t.push({ id: 't' + i, color: '#3498db', label: '', image: '', audio: '', volume: 100, isBackground: false });
+            }
+            t.forEach(tile => {
+                if (tile.volume == null) tile.volume = 100;
+                if (tile.isBackground == null) tile.isBackground = false;
+                if (tile.loop == null) tile.loop = false;
+                if (tile.fadeOut == null) tile.fadeOut = false;
+            });
+            return t.slice(0, tileCount);
+        };
         if (data.banks && Array.isArray(data.banks) && data.banks.length > 0) {
-            tiles = (data.banks[0].tiles || []).slice(0, tileCount);
-        } else if (Array.isArray(data.tiles)) {
-            tiles = data.tiles.slice(0, tileCount);
+            return { tileCount, banks: data.banks.map((b, idx) => ({
+                id: 'b' + (idx + 1),
+                name: (!b.name || /^Bank\s*\d+$/i.test(b.name)) ? (data.banks.length > 1 ? name + ' ' + (idx + 1) : name) : b.name,
+                tiles: normalizeTiles(b.tiles)
+            })) };
         }
-        for (let i = tiles.length; i < tileCount; i++) {
-            tiles.push({ id: 't' + i, color: '#3498db', label: '', image: '', audio: '', volume: 100, isBackground: false });
-        }
-        tiles = tiles.slice(0, tileCount);
-        tiles.forEach(t => {
-            if (t.volume == null) t.volume = 100;
-            if (t.isBackground == null) t.isBackground = false;
-            if (t.loop == null) t.loop = false;
-            if (t.fadeOut == null) t.fadeOut = false;
-        });
+        const tiles = normalizeTiles(Array.isArray(data.tiles) ? data.tiles : []);
         return { tileCount, tiles };
     } catch (_) { return null; }
 }
@@ -588,8 +789,17 @@ function buildNjrSamplerConfigFromBankAssignments(bankAssignments) {
     for (let i = 0; i < bankAssignments.length; i++) {
         const name = String(bankAssignments[i] || 'domyslna').trim() || 'domyslna';
         const cfg = loadNjrSamplerConfigByName(name);
-        const tiles = cfg ? cfg.tiles : [];
-        banks.push({ id: 'b' + (i + 1), name, tiles });
+        if (cfg && cfg.banks && cfg.banks.length > 0) {
+            cfg.banks.forEach((b, j) => {
+                banks.push({ id: 'b' + (banks.length + 1), name: b.name, tiles: b.tiles || [] });
+            });
+        } else if (cfg && cfg.tiles) {
+            banks.push({ id: 'b' + (i + 1), name, tiles: cfg.tiles });
+        } else {
+            const tiles = [];
+            for (let k = 0; k < tc; k++) tiles.push({ id: 't' + k, color: '#3498db', label: '', image: '', audio: '', volume: 100, isBackground: false });
+            banks.push({ id: 'b' + (i + 1), name, tiles });
+        }
     }
     return { tileCount: tc, banks };
 }
@@ -615,19 +825,19 @@ function loadWhitneyConfig() {
             const tiles = data.tiles || [];
             const slice = tiles.slice(0, 8);
             for (let i = slice.length; i < 8; i++) slice.push({ id: 't' + i, color: '#3498db', label: '', image: '', audio: '', volume: 100, isBackground: false });
-            whitneyConfig = { tileCount: 8, tiles: slice };
+            whitneyConfig = { tileCount: 8, tiles: slice, screenGraphic: data.screenGraphic || '' };
         } else if (fs.existsSync(WHITNEY_DEFAULT_PATH)) {
             const raw = fs.readFileSync(WHITNEY_DEFAULT_PATH, 'utf8');
             const data = JSON.parse(raw);
             const tiles = (data.tiles || []).slice(0, 8);
             for (let i = tiles.length; i < 8; i++) tiles.push({ id: 't' + i, color: '#3498db', label: '', image: '', audio: '', volume: 100, isBackground: false });
-            whitneyConfig = { tileCount: 8, tiles };
+            whitneyConfig = { tileCount: 8, tiles, screenGraphic: data.screenGraphic || '' };
             fs.writeFileSync(WHITNEY_CONFIG_FILE, JSON.stringify(whitneyConfig, null, 2), 'utf8');
             console.log('   📋 Whitney: utworzono config z Whitney.json');
         } else {
             const tiles = [];
             for (let i = 0; i < 8; i++) tiles.push({ id: 't' + i, color: '#3498db', label: '', image: '', audio: '', volume: 100, isBackground: false });
-            whitneyConfig = { tileCount: 8, tiles };
+            whitneyConfig = { tileCount: 8, tiles, screenGraphic: '' };
         }
         whitneyConfig.tiles.forEach(t => {
             if (t.volume == null) t.volume = 100;
@@ -644,6 +854,7 @@ function loadWhitneyConfig() {
 if (!fs.existsSync(quizzesDir)) fs.mkdirSync(quizzesDir, { recursive: true });
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 if (!fs.existsSync(familiadaDir)) fs.mkdirSync(familiadaDir, { recursive: true });
+if (!fs.existsSync(PREZENTACJE_CONFIGS_DIR)) fs.mkdirSync(PREZENTACJE_CONFIGS_DIR, { recursive: true });
 // Wersja aplikacji (z package.json) – przy nowej wersji nadpisujemy configi Śpiewaj Dalej/NJR/Bitwa z builda, żeby build miał te same banki co dev. Aby wymusić odświeżenie bez zmiany wersji, usuń plik .configs-synced-version w katalogu danych.
 let appVersionForSync = '';
 try {
@@ -701,11 +912,24 @@ if (dataDir) {
             for (const name of appFiles) {
                 const src = path.join(appSpiewajDalej, name);
                 const dest = path.join(SPIEWAJ_DALEJ_CONFIGS_DIR, name);
-                if (!fs.existsSync(dest)) {
-                    fs.copyFileSync(src, dest);
-                    console.log('   📋 Skopiowano listę Śpiewaj Dalej (nowy plik):', name);
+                const missing = !fs.existsSync(dest);
+                const refillEmpty = shouldSyncConfigsFromApp && spiewajConfigFileIsEffectivelyEmpty(dest);
+                if (missing || refillEmpty) {
+                    try {
+                        fs.copyFileSync(src, dest);
+                        console.log(missing ? '   📋 Skopiowano listę Śpiewaj Dalej (nowy plik):' : '   📋 Uzupełniono pustą konfigurację Śpiewaj Dalej z builda:', name);
+                    } catch (e) {
+                        console.warn('   ⚠️ Śpiewaj Dalej – nie skopiowano', name, e.message);
+                    }
                 }
             }
+        }
+        const appSpiewajLast = path.join(appPathForCopy, 'public', 'spiewaj-dalej-last.json');
+        if (fs.existsSync(appSpiewajLast) && !fs.existsSync(SPIEWAJ_DALEJ_LAST_FILE)) {
+            try {
+                fs.copyFileSync(appSpiewajLast, SPIEWAJ_DALEJ_LAST_FILE);
+                console.log('   📋 Skopiowano domyślny wybór banku Śpiewaj Dalej');
+            } catch (_) {}
         }
         const appNjrSampler = path.join(appPathForCopy, 'public', 'njr-sampler-configs');
         if (fs.existsSync(appNjrSampler)) {
@@ -746,6 +970,19 @@ if (dataDir) {
                 }
             }
         }
+        const appPrezentacje = path.join(appPathForCopy, 'public', 'prezentacje');
+        if (fs.existsSync(appPrezentacje)) {
+            if (!fs.existsSync(PREZENTACJE_CONFIGS_DIR)) fs.mkdirSync(PREZENTACJE_CONFIGS_DIR, { recursive: true });
+            const appFiles = fs.readdirSync(appPrezentacje).filter(f => f.toLowerCase().endsWith('.json'));
+            for (const name of appFiles) {
+                const src = path.join(appPrezentacje, name);
+                const dest = path.join(PREZENTACJE_CONFIGS_DIR, name);
+                if (!fs.existsSync(dest)) {
+                    fs.copyFileSync(src, dest);
+                    console.log('   📋 Skopiowano prezentację (nowy plik):', name);
+                }
+            }
+        }
         // Domyślna konfiguracja banków samplerów – tylko jeśli plik jeszcze nie istnieje w danych
         const appDefaultBankAssignment = path.join(appPathForCopy, 'public', 'njr-sampler-bank-assignment.json');
         if (fs.existsSync(appDefaultBankAssignment) && !fs.existsSync(NJR_SAMPLER_BANK_ASSIGNMENT_FILE)) {
@@ -770,15 +1007,19 @@ if (dataDir) {
                 path.join(appPathForCopy, 'public', 'imprezator-configs')
             ];
             const collected = new Set();
-            function extractAudioPaths(obj) {
+            function addUploadRef(str) {
+                if (typeof str !== 'string' || (!str.startsWith('/uploads/') && !str.startsWith('uploads/'))) return;
+                const name = path.basename(str.replace(/^\/+/, ''));
+                if (name) collected.add(name);
+            }
+            function extractUploadPaths(obj) {
                 if (!obj) return;
-                if (Array.isArray(obj)) { obj.forEach(extractAudioPaths); return; }
+                if (Array.isArray(obj)) { obj.forEach(extractUploadPaths); return; }
                 if (typeof obj === 'object') {
-                    if (typeof obj.audio === 'string' && (obj.audio.startsWith('/uploads/') || obj.audio.startsWith('uploads/'))) {
-                        const name = path.basename(obj.audio.replace(/^\/+/, ''));
-                        if (name) collected.add(name);
-                    }
-                    Object.values(obj).forEach(extractAudioPaths);
+                    if (typeof obj.audio === 'string') addUploadRef(obj.audio);
+                    if (typeof obj.screenGraphic === 'string') addUploadRef(obj.screenGraphic);
+                    if (typeof obj.image === 'string') addUploadRef(obj.image);
+                    Object.values(obj).forEach(extractUploadPaths);
                 }
             }
             for (const dir of configDirs) {
@@ -788,7 +1029,7 @@ if (dataDir) {
                     try {
                         const raw = fs.readFileSync(path.join(dir, name), 'utf8');
                         const data = JSON.parse(raw);
-                        extractAudioPaths(data);
+                        extractUploadPaths(data);
                     } catch (_) {}
                 }
             }
@@ -798,7 +1039,7 @@ if (dataDir) {
                 if (fs.existsSync(src) && !fs.existsSync(dest)) {
                     try {
                         fs.copyFileSync(src, dest);
-                        console.log('   📋 Skopiowano plik audio do banków (nowy):', fileName);
+                        console.log('   📋 Skopiowano plik do banków (nowy):', fileName);
                     } catch (e) { console.warn('   ⚠️ Nie skopiowano', fileName, e.message); }
                 }
             }
@@ -811,6 +1052,153 @@ loadWhitneyConfig();
 
 // Middleware
 app.use(express.json());
+
+// === HELPERS: referencje plików w quizach (używane przez REST i socket) ===
+function _extractFilePath(url) {
+    if (!url) return null;
+    const match = url.match(/\/uploads\/([^\/]+)$/);
+    if (match) return match[1];
+    if (!url.includes('/') && !url.includes('http')) return url;
+    return null;
+}
+function _getThumbnailPath(filePath) {
+    if (!filePath) return null;
+    return filePath.replace(/\.[^.]+$/, '-thumb.webp');
+}
+function getAllFilesReferencedByQuizzes(excludeFilename) {
+    const used = new Set();
+
+    // --- Quizy ---
+    let quizFiles = [];
+    try { quizFiles = fs.readdirSync(quizzesDir).filter(f => f.toLowerCase().endsWith('.json')); } catch (_) {}
+    for (const qf of quizFiles) {
+        if (excludeFilename && qf === excludeFilename) continue;
+        try {
+            const data = JSON.parse(fs.readFileSync(path.join(quizzesDir, qf), 'utf8'));
+            const questions = Array.isArray(data) ? data : (data.questions || []);
+            questions.forEach(q => {
+                for (const field of ['media', 'image', 'imageSmall', 'audio', 'imageA', 'imageB', 'imageSmallA', 'imageSmallB', 'bgMusic']) {
+                    const fp = _extractFilePath(q[field]);
+                    if (fp) { used.add(fp); const t = _getThumbnailPath(fp); if (t) used.add(t); }
+                }
+                if (Array.isArray(q.photos)) {
+                    q.photos.forEach(p => {
+                        const fp = _extractFilePath(p.url);
+                        if (fp) { used.add(fp); const t = _getThumbnailPath(fp); if (t) used.add(t); }
+                    });
+                }
+            });
+            if (data.options && data.options.bgMusic) {
+                const fp = _extractFilePath(data.options.bgMusic); if (fp) used.add(fp);
+            }
+        } catch (_) {}
+    }
+
+    // --- Inne konfiguracje (sampler, śpiewaj dalej, bitwa wokalna) ---
+    const extraDirs = [
+        path.join(dataDir, 'njr-sampler-configs'),
+        path.join(dataDir, 'spiewaj-dalej-configs'),
+        path.join(dataDir, 'bitwa-wokalna-configs'),
+    ];
+    function addFromStr(str) {
+        // Wyciągnij wszystkie ścieżki /uploads/... z JSON stringa
+        const matches = str.matchAll(/\/uploads\/([^"'\s,\]\\]+)/g);
+        for (const m of matches) { used.add(m[1]); }
+        // Pliki bez ścieżki (np. w samplerkonfigach przechowywane jako czysta nazwa)
+        const bare = str.matchAll(/"file"\s*:\s*"([^"]+\.(mp3|wav|ogg|vdjsample|flac|aac|m4a|webp|jpg|jpeg|png|gif))"/gi);
+        for (const m of bare) { used.add(m[1]); }
+    }
+    for (const dir of extraDirs) {
+        if (!fs.existsSync(dir)) continue;
+        try {
+            for (const cf of fs.readdirSync(dir).filter(f => f.toLowerCase().endsWith('.json'))) {
+                try { addFromStr(fs.readFileSync(path.join(dir, cf), 'utf8')); } catch (_) {}
+            }
+        } catch (_) {}
+    }
+
+    used.delete(null); used.delete(undefined); used.delete('');
+    return used;
+}
+
+// DELETE /api/upload/:filename — usuwa plik z uploads jeśli nie jest referencjonowany przez żaden quiz
+app.delete('/api/upload/:filename', (req, res) => {
+    try {
+        const filename = req.params.filename;
+        if (!filename || filename.includes('..') || filename.includes('/')) {
+            return res.status(400).json({ error: 'Nieprawidłowa nazwa pliku' });
+        }
+        const filePath = path.join(uploadsDir, filename);
+        if (!fs.existsSync(filePath)) {
+            return res.json({ deleted: false, reason: 'not_found' });
+        }
+        const usedFiles = getAllFilesReferencedByQuizzes();
+        if (usedFiles.has(filename)) {
+            return res.json({ deleted: false, reason: 'in_use', usedBy: 'quiz' });
+        }
+        fs.unlinkSync(filePath);
+        removeFileFromIndex(filename);
+        devSyncDelete(`public/uploads/${filename}`);
+        // Usuń też thumbnail jeśli istnieje i nie jest używany
+        const thumbName = _getThumbnailPath(filename);
+        if (thumbName && !usedFiles.has(thumbName)) {
+            const thumbPath = path.join(uploadsDir, thumbName);
+            if (fs.existsSync(thumbPath)) {
+                fs.unlinkSync(thumbPath);
+                removeFileFromIndex(thumbName);
+                devSyncDelete(`public/uploads/${thumbName}`);
+            }
+        }
+        console.log(`🗑️ Usunięto plik z uploads: ${filename}`);
+        res.json({ deleted: true, filename, thumbDeleted: !!(thumbName && !usedFiles.has(thumbName)) });
+    } catch (err) {
+        console.error('❌ Błąd usuwania pliku:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// GET /api/uploads/orphans — zwraca listę plików niereferensjowanych przez żaden quiz
+app.get('/api/uploads/orphans', (req, res) => {
+    try {
+        const usedFiles = getAllFilesReferencedByQuizzes();
+        const allFiles = fs.readdirSync(uploadsDir).filter(f => {
+            if (f.startsWith('.')) return false;
+            return fs.statSync(path.join(uploadsDir, f)).isFile();
+        });
+        const orphans = allFiles.filter(f => !usedFiles.has(f));
+        const totalSize = orphans.reduce((sum, f) => {
+            try { return sum + fs.statSync(path.join(uploadsDir, f)).size; } catch (_) { return sum; }
+        }, 0);
+        res.json({ orphans, count: orphans.length, totalSize });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// DELETE /api/uploads/orphans — usuwa wszystkie osierocone pliki
+app.delete('/api/uploads/orphans', (req, res) => {
+    try {
+        const usedFiles = getAllFilesReferencedByQuizzes();
+        const allFiles = fs.readdirSync(uploadsDir).filter(f => {
+            if (f.startsWith('.')) return false;
+            return fs.statSync(path.join(uploadsDir, f)).isFile();
+        });
+        const orphans = allFiles.filter(f => !usedFiles.has(f));
+        let deleted = [], errors = [];
+        for (const f of orphans) {
+            try {
+                fs.unlinkSync(path.join(uploadsDir, f));
+                removeFileFromIndex(f);
+                devSyncDelete(`public/uploads/${f}`);
+                deleted.push(f);
+            } catch (e) { errors.push(f); }
+        }
+        console.log(`🗑️ Usunięto ${deleted.length} osieroconych plików`);
+        res.json({ deleted: deleted.length, errors: errors.length, files: deleted });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
 // === UPLOADS LIST (dla Dodatku Wyborczego i innych) ===
 app.get('/api/uploads-list', (req, res) => {
@@ -853,7 +1241,27 @@ app.post('/api/license/activate', (req, res) => {
 });
 
 app.get('/api/license/machine-id', (req, res) => {
-    res.json({ machineId: license.getMachineId() });
+    const machineIds = license.getMachineIdAlternatives();
+    res.json({
+        machineId: machineIds[0],
+        machineIds,
+    });
+});
+
+app.get('/api/admin-pwa-qr', async (req, res) => {
+    try {
+        const data = await generateAdminPWAQR();
+        if (data) res.json(data);
+        else res.status(500).json({ error: 'Nie udało się wygenerować QR' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/admin-status', (req, res) => {
+    const room = io.sockets.adapter.rooms.get(ADMIN_ROOM);
+    const connected = room ? room.size > 0 : false;
+    res.json({ connected });
 });
 
 // === API NJR SAMPLER ===
@@ -892,7 +1300,7 @@ app.get('/api/njr-sampler/config', (req, res) => {
                     const tiles = data.tiles || [];
                     const slice = tiles.slice(0, tileCount);
                     for (let i = slice.length; i < tileCount; i++) slice.push({ id: 't' + i, color: '#3498db', label: '', image: '', audio: '', volume: 100, isBackground: false });
-                    njrSamplerConfig = { tileCount, banks: [{ id: 'b1', name: 'Bank 1', tiles: slice }] };
+                    njrSamplerConfig = { tileCount, banks: [{ id: 'b1', name: 'Kafelki', tiles: slice }] };
                 }
                 fs.writeFileSync(NJR_SAMPLER_LAST_FILE, JSON.stringify({ name: safeConfigName(name) }), 'utf8');
             } catch (err) {
@@ -909,7 +1317,7 @@ app.post('/api/njr-sampler/config', (req, res) => {
     if (config.banks && Array.isArray(config.banks) && config.banks.length > 0) {
         njrSamplerConfig = config;
     } else if (Array.isArray(config.tiles)) {
-        njrSamplerConfig = { tileCount: config.tileCount, banks: [{ id: 'b1', name: 'Bank 1', tiles: config.tiles }] };
+        njrSamplerConfig = { tileCount: config.tileCount, banks: [{ id: 'b1', name: 'Kafelki', tiles: config.tiles }] };
     } else return res.status(400).json({ error: 'Nieprawidłowa konfiguracja' });
     saveNjrSamplerConfig(name);
     res.json({ success: true });
@@ -932,7 +1340,7 @@ app.patch('/api/njr-sampler/config', (req, res) => {
             const hasBanks = bodyConfig && bodyConfig.banks && Array.isArray(bodyConfig.banks) && bodyConfig.banks.length > 0;
             const hasTiles = bodyConfig && Array.isArray(bodyConfig.tiles);
             const cfgToSave = (bodyConfig && typeof bodyConfig.tileCount === 'number' && (hasBanks || hasTiles))
-                ? (hasBanks ? bodyConfig : { tileCount: bodyConfig.tileCount, banks: [{ id: 'b1', name: 'Bank 1', tiles: bodyConfig.tiles }] })
+                ? (hasBanks ? bodyConfig : { tileCount: bodyConfig.tileCount, banks: [{ id: 'b1', name: 'Kafelki', tiles: bodyConfig.tiles }] })
                 : njrSamplerConfig;
             const cfgData = JSON.stringify(cfgToSave, null, 2);
             fs.writeFileSync(newPath, cfgData, 'utf8');
@@ -1048,7 +1456,9 @@ app.post('/api/njr-sampler/start', (req, res) => {
     }
     njrSamplerActive = true;
     njrSamplerPlayingTile = null;
+    njrSamplerPlayingBankIndex = null;
     njrSamplerPlayingBackgroundTile = null;
+    njrSamplerPlayingBackgroundBankIndex = null;
     njrSamplerPlayingImprezatorTrack = null;
     io.to('njr_sampler_screen').emit('njr_sampler_state', { active: true, config: njrSamplerConfig });
     io.to('njr_sampler_phone').emit('njr_sampler_state', { active: true, config: buildNjrSamplerStateForPhone() });
@@ -1057,7 +1467,9 @@ app.post('/api/njr-sampler/start', (req, res) => {
 app.post('/api/njr-sampler/stop', (req, res) => {
     njrSamplerActive = false;
     njrSamplerPlayingTile = null;
+    njrSamplerPlayingBankIndex = null;
     njrSamplerPlayingBackgroundTile = null;
+    njrSamplerPlayingBackgroundBankIndex = null;
     io.to('njr_sampler_screen').emit('njr_sampler_state', { active: false });
     io.to('njr_sampler_phone').emit('njr_sampler_state', { active: false });
     io.to('njr_sampler_screen').emit('njr_sampler_stop');
@@ -1131,7 +1543,7 @@ app.post('/api/whitney/config', (req, res) => {
         const tiles = (data.config && data.config.tiles) || [];
         const slice = tiles.slice(0, 8);
         for (let i = slice.length; i < 8; i++) slice.push({ id: 't' + i, color: '#3498db', label: '', image: '', audio: '', volume: 100, isBackground: false });
-        whitneyConfig = { tileCount: 8, tiles: slice };
+        whitneyConfig = { tileCount: 8, tiles: slice, screenGraphic: (whitneyConfig && whitneyConfig.screenGraphic) || (data.config && data.config.screenGraphic) || '' };
         const whitneyData = JSON.stringify(whitneyConfig, null, 2);
         fs.writeFileSync(WHITNEY_CONFIG_FILE, whitneyData, 'utf8');
         devSyncWriteData('public/njr-sampler-configs/Whitney.json', whitneyData);
@@ -1161,6 +1573,23 @@ app.post('/api/whitney/stop', (req, res) => {
     io.to('whitney_phone').emit('whitney_state', { active: false });
     io.to('whitney_screen').emit('whitney_stop');
     res.json({ success: true });
+});
+app.get('/api/whitney/screen-graphic', (req, res) => {
+    const url = (whitneyConfig && whitneyConfig.screenGraphic) || '';
+    res.json({ screenGraphic: url });
+});
+app.patch('/api/whitney/screen-graphic', (req, res) => {
+    const url = (req.body && typeof req.body.screenGraphic === 'string') ? req.body.screenGraphic.trim() : '';
+    if (!whitneyConfig) whitneyConfig = { tileCount: 8, tiles: [] };
+    whitneyConfig.screenGraphic = url || '';
+    try {
+        const whitneyData = JSON.stringify(whitneyConfig, null, 2);
+        fs.writeFileSync(WHITNEY_CONFIG_FILE, whitneyData, 'utf8');
+        devSyncWriteData('public/njr-sampler-configs/Whitney.json', whitneyData);
+        res.json({ success: true, screenGraphic: url });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 app.get('/api/whitney/connection-info', (req, res) => {
     res.json({
@@ -1219,6 +1648,22 @@ let spiewajDalejActive = false;
 let spiewajDalejVolume = 1;
 let spiewajDalejUsedIds = new Set();
 
+/** Czy plik konfiguracji Śpiewaj Dalej nie zawiera żadnych utworów (pusty bank / uszkodzony JSON). */
+function spiewajConfigFileIsEffectivelyEmpty(filePath) {
+    try {
+        if (!fs.existsSync(filePath)) return true;
+        if (fs.statSync(filePath).size < 30) return true;
+        const d = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        if (d.banks && Array.isArray(d.banks)) {
+            const n = d.banks.reduce((acc, b) => acc + (Array.isArray(b.tracks) ? b.tracks.length : 0), 0);
+            return n === 0;
+        }
+        return !Array.isArray(d.tracks) || d.tracks.length === 0;
+    } catch (_) {
+        return true;
+    }
+}
+
 function getSpiewajDalejConfigPath(name) {
     return path.join(SPIEWAJ_DALEJ_CONFIGS_DIR, safeConfigName(name) + '.json');
 }
@@ -1252,7 +1697,7 @@ app.get('/api/spiewaj-dalej/config', (req, res) => {
         if (fs.existsSync(cfgPath)) {
             try {
                 const data = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
-                spiewajDalejConfig = data.banks ? data : { tracks: data.tracks || [] };
+                spiewajDalejConfig = data.banks ? data : { tracks: data.tracks || [], screenGraphic: data.screenGraphic };
                 fs.writeFileSync(SPIEWAJ_DALEJ_LAST_FILE, JSON.stringify({ name: safeConfigName(name) }), 'utf8');
             } catch (err) {
                 return res.status(500).json({ error: err.message });
@@ -1380,6 +1825,30 @@ app.patch('/api/spiewaj-dalej/config', (req, res) => {
     }
 });
 
+app.get('/api/spiewaj-dalej/screen-graphic', (req, res) => {
+    const url = (spiewajDalejConfig && spiewajDalejConfig.screenGraphic) || '';
+    res.json({ screenGraphic: url });
+});
+app.patch('/api/spiewaj-dalej/screen-graphic', (req, res) => {
+    const url = (req.body && typeof req.body.screenGraphic === 'string') ? req.body.screenGraphic.trim() : '';
+    if (!spiewajDalejConfig) spiewajDalejConfig = { tracks: [] };
+    spiewajDalejConfig.screenGraphic = url || undefined;
+    try {
+        let cfgName = 'domyslna';
+        if (fs.existsSync(SPIEWAJ_DALEJ_LAST_FILE)) {
+            const last = JSON.parse(fs.readFileSync(SPIEWAJ_DALEJ_LAST_FILE, 'utf8'));
+            if (last && last.name) cfgName = last.name;
+        }
+        const cfgPath = getSpiewajDalejConfigPath(cfgName);
+        if (fs.existsSync(cfgPath)) {
+            fs.writeFileSync(cfgPath, JSON.stringify(spiewajDalejConfig, null, 2), 'utf8');
+            devSyncWriteData(`public/spiewaj-dalej-configs/${safeConfigName(cfgName)}.json`, JSON.stringify(spiewajDalejConfig, null, 2));
+        }
+        res.json({ success: true, screenGraphic: url });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 app.delete('/api/spiewaj-dalej/config', (req, res) => {
     const name = req.query.name;
     if (!name) return res.status(400).json({ error: 'Brak nazwy' });
@@ -1454,7 +1923,7 @@ app.get('/api/bitwa-wokalna/config', (req, res) => {
         if (fs.existsSync(cfgPath)) {
             try {
                 const data = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
-                bitwaWokalnaConfig = data.banks ? data : { tracks: data.tracks || [] };
+                bitwaWokalnaConfig = data.banks ? data : { tracks: data.tracks || [], screenGraphic: data.screenGraphic };
                 fs.writeFileSync(BITWA_WOKALNA_LAST_FILE, JSON.stringify({ name: safeConfigName(name) }), 'utf8');
             } catch (err) {
                 return res.status(500).json({ error: err.message });
@@ -1465,7 +1934,7 @@ app.get('/api/bitwa-wokalna/config', (req, res) => {
             if (fs.existsSync(fallbackPath)) {
                 try {
                     const data = JSON.parse(fs.readFileSync(fallbackPath, 'utf8'));
-                    bitwaWokalnaConfig = data.banks ? data : { tracks: data.tracks || [] };
+                    bitwaWokalnaConfig = data.banks ? data : { tracks: data.tracks || [], screenGraphic: data.screenGraphic };
                 } catch (_) {}
             }
         }
@@ -1491,6 +1960,30 @@ app.post('/api/bitwa-wokalna/config', (req, res) => {
     }
 });
 
+app.get('/api/bitwa-wokalna/screen-graphic', (req, res) => {
+    const url = (bitwaWokalnaConfig && bitwaWokalnaConfig.screenGraphic) || '';
+    res.json({ screenGraphic: url });
+});
+app.patch('/api/bitwa-wokalna/screen-graphic', (req, res) => {
+    const url = (req.body && typeof req.body.screenGraphic === 'string') ? req.body.screenGraphic.trim() : '';
+    if (!bitwaWokalnaConfig) bitwaWokalnaConfig = { tracks: [] };
+    bitwaWokalnaConfig.screenGraphic = url || undefined;
+    try {
+        let cfgName = 'domyslna';
+        if (fs.existsSync(BITWA_WOKALNA_LAST_FILE)) {
+            const last = JSON.parse(fs.readFileSync(BITWA_WOKALNA_LAST_FILE, 'utf8'));
+            if (last && last.name) cfgName = last.name;
+        }
+        const cfgPath = getBitwaWokalnaConfigPath(cfgName);
+        if (fs.existsSync(cfgPath)) {
+            fs.writeFileSync(cfgPath, JSON.stringify(bitwaWokalnaConfig, null, 2), 'utf8');
+            devSyncWriteData(`public/bitwa-wokalna-configs/${safeConfigName(cfgName)}.json`, JSON.stringify(bitwaWokalnaConfig, null, 2));
+        }
+        res.json({ success: true, screenGraphic: url });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 app.get('/api/bitwa-wokalna/audio-files', (req, res) => {
     try {
         const q = (req.query.q || '').toLowerCase().trim();
@@ -1664,11 +2157,19 @@ app.get('/api/imprezator/config', (req, res) => {
     res.json({ config: imprezatorConfig, active: imprezatorActive });
 });
 
-app.post('/api/imprezator/config', (req, res) => {
+app.post('/api/imprezator/config', async (req, res) => {
     const { config, name } = req.body || {};
     const hasTracks = config && Array.isArray(config.tracks);
     const hasBanks = config && Array.isArray(config.banks) && config.banks.length > 0;
     if (config && (hasTracks || hasBanks)) {
+        const tracks = hasBanks
+            ? (config.banks || []).flatMap(b => b.tracks || [])
+            : (config.tracks || []);
+        for (const t of tracks) {
+            if (t.audio && (t.audio.startsWith('http://') || t.audio.startsWith('https://')) && typeof t.normalizedGain !== 'number') {
+                t.normalizedGain = await analyzeLoudnessForUrl(t.audio);
+            }
+        }
         imprezatorConfig = config;
         const cfgName = name ? safeConfigName(name) : 'domyslna';
         if (!fs.existsSync(IMPREZATOR_CONFIGS_DIR)) fs.mkdirSync(IMPREZATOR_CONFIGS_DIR, { recursive: true });
@@ -1819,6 +2320,143 @@ app.get('/api/imprezator/audio-files', (req, res) => {
         }
         files.sort((a, b) => (a.name || a.path).localeCompare(b.name || b.path));
         res.json({ files: files.slice(0, 300) });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// === PREZENTACJE ===
+function getPrezentacjaPath(name) {
+    const safe = safeConfigName(name).replace(/\.json$/i, '');
+    return path.join(PREZENTACJE_CONFIGS_DIR, safe + '.json');
+}
+function getPrezentacjaMediaDir(name) {
+    const safe = safeConfigName(name).replace(/\.json$/i, '');
+    return path.join(uploadsDir, 'prezentacje', safe);
+}
+app.get('/api/prezentacje/list', (req, res) => {
+    try {
+        if (!fs.existsSync(PREZENTACJE_CONFIGS_DIR)) return res.json({ list: [] });
+        const list = fs.readdirSync(PREZENTACJE_CONFIGS_DIR)
+            .filter(f => f.endsWith('.json'))
+            .map(f => f.replace(/\.json$/, ''));
+        res.json({ list: list.sort() });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+app.get('/api/prezentacje/config', (req, res) => {
+    const name = req.query.name;
+    if (!name) return res.status(400).json({ error: 'Brak nazwy' });
+    const fp = getPrezentacjaPath(name);
+    if (!fs.existsSync(fp)) return res.status(404).json({ error: 'Nie znaleziono' });
+    try {
+        const data = JSON.parse(fs.readFileSync(fp, 'utf8'));
+        res.json(data);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+async function downloadToPrezentacjaMedia(url, name, hint) {
+    if (!url || !url.startsWith('http://') && !url.startsWith('https://')) return url;
+    try {
+        const mediaDir = getPrezentacjaMediaDir(name);
+        if (!fs.existsSync(mediaDir)) fs.mkdirSync(mediaDir, { recursive: true });
+        const ext = path.extname(new URL(url).pathname) || (hint === 'video' ? '.mp4' : '.jpg');
+        const filename = Date.now() + '-' + crypto.randomBytes(4).toString('hex') + ext;
+        const dest = path.join(mediaDir, filename);
+        await new Promise((resolve, reject) => {
+            const protocol = url.startsWith('https') ? https : require('http');
+            protocol.get(url, { timeout: 30000 }, (response) => {
+                if (response.statusCode !== 200) return reject(new Error('HTTP ' + response.statusCode));
+                const chunks = [];
+                response.on('data', c => chunks.push(c));
+                response.on('end', () => {
+                    fs.writeFileSync(dest, Buffer.concat(chunks));
+                    resolve();
+                });
+                response.on('error', reject);
+            }).on('error', reject);
+        });
+        const safe = safeConfigName(name).replace(/\.json$/i, '');
+        return '/uploads/prezentacje/' + safe + '/' + filename;
+    } catch (e) {
+        console.warn('Nie udało się pobrać zewnętrznego pliku:', url, e.message);
+        return url;
+    }
+}
+
+app.post('/api/prezentacje/save', async (req, res) => {
+    const { name, config } = req.body || {};
+    if (!name || !config) return res.status(400).json({ error: 'Brak name lub config' });
+    try {
+        if (!fs.existsSync(PREZENTACJE_CONFIGS_DIR)) fs.mkdirSync(PREZENTACJE_CONFIGS_DIR, { recursive: true });
+        const slides = config.slides || [];
+        for (const s of slides) {
+            if (s.src && (s.src.startsWith('http://') || s.src.startsWith('https://'))) {
+                s.src = await downloadToPrezentacjaMedia(s.src, name, s.type || 'image');
+            }
+        }
+        if (config.backgroundMusic && (config.backgroundMusic.startsWith('http://') || config.backgroundMusic.startsWith('https://'))) {
+            config.backgroundMusic = await downloadToPrezentacjaMedia(config.backgroundMusic, name, 'audio');
+        }
+        const fp = getPrezentacjaPath(name);
+        fs.writeFileSync(fp, JSON.stringify(config, null, 2), 'utf8');
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+app.delete('/api/prezentacje/config', (req, res) => {
+    const name = req.query.name;
+    if (!name) return res.status(400).json({ error: 'Brak nazwy' });
+    const fp = getPrezentacjaPath(name);
+    if (fs.existsSync(fp)) {
+        try { fs.unlinkSync(fp); } catch (_) {}
+    }
+    const mediaDir = getPrezentacjaMediaDir(name);
+    if (fs.existsSync(mediaDir) && fs.statSync(mediaDir).isDirectory()) {
+        try {
+            fs.readdirSync(mediaDir).forEach(f => {
+                fs.unlinkSync(path.join(mediaDir, f));
+            });
+            fs.rmdirSync(mediaDir);
+            console.log('🗑️ Usunięto folder mediów prezentacji:', name);
+        } catch (e) { console.warn('Nie udało się usunąć folderu mediów:', e.message); }
+    }
+    res.json({ success: true });
+});
+
+const uploadPrez = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
+app.post('/api/prezentacje/upload', uploadPrez.single('file'), async (req, res) => {
+    const name = (req.body && req.body.name) || '';
+    if (!name) return res.status(400).json({ error: 'Brak nazwy prezentacji' });
+    if (!req.file || !req.file.buffer) return res.status(400).json({ error: 'Brak pliku' });
+    try {
+        const mediaDir = getPrezentacjaMediaDir(name);
+        if (!fs.existsSync(mediaDir)) fs.mkdirSync(mediaDir, { recursive: true });
+        const ext = path.extname(req.file.originalname) || '.bin';
+        const safeName = (req.file.originalname || 'file').replace(/[^a-zA-Z0-9.\-_]/g, '_');
+        const filename = Date.now() + '-' + safeName;
+        const dest = path.join(mediaDir, filename);
+        fs.writeFileSync(dest, req.file.buffer);
+        const safe = safeConfigName(name).replace(/\.json$/i, '');
+        const relPath = '/uploads/prezentacje/' + safe + '/' + filename;
+        res.json({ filepath: relPath });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+app.get('/api/prezentacje/uploads', (req, res) => {
+    try {
+        if (!fs.existsSync(uploadsDir)) return res.json({ files: [] });
+        const imgExt = ['.jpg','.jpeg','.png','.webp','.gif'];
+        const vidExt = ['.mp4','.webm','.ogg'];
+        const all = fs.readdirSync(uploadsDir).filter(f => {
+            const ext = path.extname(f).toLowerCase();
+            return (imgExt.includes(ext) || vidExt.includes(ext)) && !f.includes('-thumb');
+        });
+        res.json({ files: all.map(n => ({ name: n, type: vidExt.includes(path.extname(n).toLowerCase()) ? 'video' : 'image' })) });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -2073,7 +2711,9 @@ app.post('/api/familiada/save', (req, res) => {
         if (filename) {
             const filePath = path.join(familiadaDir, filename);
             if (!fs.existsSync(familiadaDir)) fs.mkdirSync(familiadaDir, { recursive: true });
-            fs.writeFileSync(filePath, JSON.stringify(valid, null, 2), 'utf8');
+            const jsonData = JSON.stringify(valid, null, 2);
+            fs.writeFileSync(filePath, jsonData, 'utf8');
+            devSyncWriteData(`public/familiada/${filename}`, jsonData);
         }
         const dir = path.dirname(familiadaDataPath);
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -2454,6 +3094,7 @@ app.get('/api/audio/stream', (req, res) => {
 app.use('/uploads', express.static(uploadsDir));
 app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
 app.use('/fonts/pixelify-sans', express.static(path.join(__dirname, 'node_modules', '@fontsource', 'pixelify-sans')));
+app.use('/reveal', express.static(path.join(__dirname, 'node_modules', 'reveal.js', 'dist')));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Obsługa favicon.ico (aby uniknąć błędów 404)
@@ -2645,7 +3286,7 @@ app.get('/api/wifi-scan', (req, res) => {
     let cmd, args, platform = process.platform;
     let source = null; // 'system_profiler' | 'airport' | null
     if (platform === 'darwin') {
-        // macOS Sonoma 14.4+: airport -s nie zwraca już skanów. Używamy system_profiler.
+        // macOS Sonoma 14.4+: airport -s przestarzały (nie zwraca skanów). Używamy system_profiler.
         cmd = 'system_profiler';
         args = ['SPAirPortDataType'];
         source = 'system_profiler';
@@ -2657,7 +3298,9 @@ app.get('/api/wifi-scan', (req, res) => {
         args = ['-t', '-e', 'no', '-f', 'SSID,BSSID,CHAN,RATE,SIGNAL', 'dev', 'wifi', 'list'];
     }
 
-    const proc = spawn(cmd, args, { encoding: 'utf8', timeout: 15000 });
+    const spawnOpts = { encoding: 'utf8', timeout: 15000 };
+    if (platform === 'win32') spawnOpts.shell = true;
+    const proc = spawn(cmd, args, spawnOpts);
     let stdout = '';
     let stderr = '';
     proc.stdout?.on('data', (d) => { stdout += d; });
@@ -2787,76 +3430,61 @@ function escapeHtml(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-// Cache dla hash plików (hash -> nazwa pliku)
-const fileHashCache = new Map();
+// Indeks hash oryginalnych plików → nazwa zapisanego pliku
+// Klucz: MD5 ORYGINALNEGO bufora (przed optymalizacją), wartość: nazwa pliku na dysku
+const HASH_INDEX_FILE = () => path.join(uploadsDir, '.hash-index.json');
+let fileHashIndex = {};
 
-// Funkcja do obliczania hash pliku
+function loadHashIndex() {
+    try {
+        const p = HASH_INDEX_FILE();
+        if (fs.existsSync(p)) {
+            fileHashIndex = JSON.parse(fs.readFileSync(p, 'utf8'));
+        }
+    } catch (_) { fileHashIndex = {}; }
+}
+
+function saveHashIndex() {
+    try { fs.writeFileSync(HASH_INDEX_FILE(), JSON.stringify(fileHashIndex), 'utf8'); } catch (_) {}
+}
+
 function calculateFileHash(buffer) {
     return crypto.createHash('md5').update(buffer).digest('hex');
 }
 
-// Funkcja do sprawdzania czy plik o danym hash już istnieje
-function findExistingFile(hash, originalName) {
-    // Sprawdź cache najpierw
-    if (fileHashCache.has(hash)) {
-        const cachedFile = fileHashCache.get(hash);
-        const cachedPath = path.join(uploadsDir, cachedFile);
-        if (fs.existsSync(cachedPath)) {
-            return cachedFile;
-        } else {
-            // Plik został usunięty - usuń z cache
-            fileHashCache.delete(hash);
-        }
-    }
-    
-    // Jeśli nie ma w cache, sprawdź wszystkie pliki
-    const files = fs.readdirSync(uploadsDir);
-    
-    for (const file of files) {
-        const filePath = path.join(uploadsDir, file);
-        try {
-            // Sprawdź czy to plik (nie katalog)
-            const stats = fs.statSync(filePath);
-            if (!stats.isFile()) continue;
-            
-            const fileBuffer = fs.readFileSync(filePath);
-            const fileHash = calculateFileHash(fileBuffer);
-            
-            // Dodaj do cache
-            fileHashCache.set(fileHash, file);
-            
-            if (fileHash === hash) {
-                return file; // Zwróć nazwę istniejącego pliku
-            }
-        } catch (err) {
-            // Ignoruj błędy (np. brak uprawnień)
-            continue;
-        }
+// Sprawdza czy plik o danym hash (oryginał przed optymalizacją) już istnieje
+function findExistingFile(hash) {
+    const saved = fileHashIndex[hash];
+    if (saved) {
+        if (fs.existsSync(path.join(uploadsDir, saved))) return saved;
+        // Plik usunięty - wyczyść indeks
+        delete fileHashIndex[hash];
+        saveHashIndex();
     }
     return null;
 }
 
-// Funkcja do odświeżenia cache (można wywołać okresowo)
-function refreshFileHashCache() {
-    fileHashCache.clear();
-    const files = fs.readdirSync(uploadsDir);
-    let processed = 0;
-    
-    for (const file of files) {
-        const filePath = path.join(uploadsDir, file);
-        try {
-            const stats = fs.statSync(filePath);
-            if (!stats.isFile()) continue;
-            
-            const fileBuffer = fs.readFileSync(filePath);
-            const fileHash = calculateFileHash(fileBuffer);
-            fileHashCache.set(fileHash, file);
-            processed++;
-        } catch (err) {
-            continue;
-        }
+// Rejestruje nowy plik w indeksie (originalHash = MD5 bufora przed opt.)
+function registerFileInIndex(originalHash, savedFilename) {
+    fileHashIndex[originalHash] = savedFilename;
+    saveHashIndex();
+}
+
+// Usuwa plik z indeksu po skasowaniu
+function removeFileFromIndex(savedFilename) {
+    let changed = false;
+    for (const [hash, name] of Object.entries(fileHashIndex)) {
+        if (name === savedFilename) { delete fileHashIndex[hash]; changed = true; }
     }
-    console.log(`📦 Odświeżono cache hash plików: ${processed} plików`);
+    if (changed) saveHashIndex();
+}
+
+// Wczytaj indeks przy starcie
+loadHashIndex();
+
+// Funkcja zachowana dla kompatybilności wstecznej
+function refreshFileHashCache() {
+    console.log('📦 Hash-index gotowy:', Object.keys(fileHashIndex).length, 'wpisów');
 }
 
 // Cache odświeżany asynchronicznie po starcie – nie blokuje 
@@ -2908,15 +3536,18 @@ async function optimizeImageForScreen(imageBuffer, maxWidth = 1920, quality = 85
             const image = sharp(imageBuffer);
             const metadata = await image.metadata();
             
+            // rotate() bez argumentów – stosuje orientację EXIF (np. zdjęcia z telefonu)
+            let pipeline = image.rotate();
+            
             // Jeśli obrazek jest mniejszy niż maxWidth, tylko kompresuj (bez zmniejszania)
             if (metadata.width <= maxWidth) {
-                return await image
+                return await pipeline
                     .webp({ quality, effort: 6 })
                     .toBuffer();
             }
             
             // Zmniejsz do maxWidth (zachowując proporcje) i kompresuj do WebP
-            return await image
+            return await pipeline
                 .resize(maxWidth, null, {
                     withoutEnlargement: true,
                     fit: 'inside'
@@ -2965,11 +3596,11 @@ app.post('/upload', upload.fields([{ name: 'file' }, { name: 'thumbnail' }]), as
         if (req.files['file'] && req.files['file'][0]) {
             const file = req.files['file'][0];
             const fileHash = calculateFileHash(file.buffer);
-            const existingFile = findExistingFile(fileHash, file.originalname);
+            const existingFile = findExistingFile(fileHash);
             
             if (existingFile) {
-                // Plik już istnieje - użyj istniejącego
-                console.log(`✅ Plik już istnieje, używam istniejącego: ${existingFile} (hash: ${fileHash.substring(0, 8)}...)`);
+                // Plik już istnieje - użyj istniejącego (deduplikacja)
+                console.log(`✅ Plik już istnieje (dedup), używam: ${existingFile}`);
                 response.filepath = `/uploads/${existingFile}`;
                 
                 // Sprawdź czy istnieje miniatura dla tego pliku
@@ -2977,7 +3608,6 @@ app.post('/upload', upload.fields([{ name: 'file' }, { name: 'thumbnail' }]), as
                 const thumbPath = path.join(uploadsDir, thumbName);
                 if (fs.existsSync(thumbPath)) {
                     response.thumbnailpath = `/uploads/${thumbName}`;
-                    console.log(`✅ Miniatura już istnieje: ${thumbName}`);
                 }
             } else {
                 // Nowy plik - optymalizuj jeśli to obrazek
@@ -2994,15 +3624,13 @@ app.post('/upload', upload.fields([{ name: 'file' }, { name: 'thumbnail' }]), as
                         const optimizedSize = finalBuffer.length;
                         const savings = ((1 - optimizedSize / originalSize) * 100).toFixed(1);
                         console.log(`✅ Obrazek zoptymalizowany: ${(originalSize / 1024 / 1024).toFixed(2)}MB → ${(optimizedSize / 1024 / 1024).toFixed(2)}MB (oszczędność: ${savings}%)`);
-                        // Zmień rozszerzenie na .webp
                         finalFilename = file.originalname.replace(/\.[^.]+$/, '.webp');
                     } catch (err) {
                         console.error('❌ Błąd optymalizacji obrazka, używam oryginału:', err);
-                        // W przypadku błędu użyj oryginału
                     }
                 }
                 
-                // Zapisz zoptymalizowany plik
+                // Zapisz plik
                 const timestamp = Date.now();
                 const sanitized = finalFilename.replace(/[^a-zA-Z0-9.\-_]/g, '_');
                 const filename = `${timestamp}-${sanitized}`;
@@ -3010,7 +3638,9 @@ app.post('/upload', upload.fields([{ name: 'file' }, { name: 'thumbnail' }]), as
                 
                 fs.writeFileSync(filePath, finalBuffer);
                 response.filepath = `/uploads/${filename}`;
-                console.log(`✅ Zapisano nowy plik: ${filename} (hash: ${fileHash.substring(0, 8)}...)`);
+                // Zarejestruj ORYGINALNY hash → nazwa zapisanego pliku
+                registerFileInIndex(fileHash, filename);
+                console.log(`✅ Zapisano nowy plik: ${filename}`);
                 devSyncWrite(`public/uploads/${filename}`, filePath);
             }
         }
@@ -3021,11 +3651,10 @@ app.post('/upload', upload.fields([{ name: 'file' }, { name: 'thumbnail' }]), as
             const thumbHash = calculateFileHash(thumb.buffer);
             
             // Sprawdź czy miniatura już istnieje
-            const existingThumb = findExistingFile(thumbHash, 'thumb.webp');
+            const existingThumb = findExistingFile(thumbHash);
             
             if (existingThumb) {
-                // Miniatura już istnieje
-                console.log(`✅ Miniatura już istnieje, używam istniejącej: ${existingThumb}`);
+                console.log(`✅ Miniatura już istnieje (dedup): ${existingThumb}`);
                 response.thumbnailpath = `/uploads/${existingThumb}`;
             } else {
                 // Zapisz nową miniaturę
@@ -3042,7 +3671,8 @@ app.post('/upload', upload.fields([{ name: 'file' }, { name: 'thumbnail' }]), as
                 const thumbPath = path.join(uploadsDir, thumbFilename);
                 fs.writeFileSync(thumbPath, thumb.buffer);
                 response.thumbnailpath = `/uploads/${thumbFilename}`;
-                console.log(`✅ Zapisano nową miniaturę: ${thumbFilename} (hash: ${thumbHash.substring(0, 8)}...)`);
+                registerFileInIndex(thumbHash, thumbFilename);
+                console.log(`✅ Zapisano nową miniaturę: ${thumbFilename}`);
                 devSyncWrite(`public/uploads/${thumbFilename}`, thumbPath);
             }
         }
@@ -3052,7 +3682,7 @@ app.post('/upload', upload.fields([{ name: 'file' }, { name: 'thumbnail' }]), as
             if (req.file) {
                 const file = req.file;
                 const fileHash = calculateFileHash(file.buffer);
-                const existingFile = findExistingFile(fileHash, file.originalname);
+                const existingFile = findExistingFile(fileHash);
                 
                 if (existingFile) {
                     return res.json({ filepath: `/uploads/${existingFile}` });
@@ -3079,6 +3709,7 @@ app.post('/upload', upload.fields([{ name: 'file' }, { name: 'thumbnail' }]), as
                     const filename = `${timestamp}-${sanitized}`;
                     const filePath = path.join(uploadsDir, filename);
                     fs.writeFileSync(filePath, finalBuffer);
+                    registerFileInIndex(fileHash, filename);
                     return res.json({ filepath: `/uploads/${filename}` });
                 }
             }
@@ -3159,6 +3790,57 @@ app.post('/import-url', async (req, res) => {
         console.error('❌ Błąd podczas pobierania pliku z URL:', err);
         res.status(500).json({ error: err.message });
     });
+});
+
+// --- ANALIZA GŁOŚNOŚCI (dla linkowanych URL – ffmpeg volumedetect) ---
+async function analyzeLoudnessForUrl(url) {
+    if (!url || typeof url !== 'string' || (!url.startsWith('http://') && !url.startsWith('https://'))) return 1;
+    let tmpPath = null;
+    try {
+        const chunks = [];
+        const protocol = url.startsWith('https') ? https : http;
+        const buf = await new Promise((resolve, reject) => {
+            protocol.get(url, { timeout: 15000 }, (r) => {
+                if (r.statusCode !== 200) { reject(new Error('HTTP ' + r.statusCode)); return; }
+                r.on('data', c => chunks.push(c));
+                r.on('end', () => resolve(Buffer.concat(chunks)));
+                r.on('error', reject);
+            }).on('error', reject);
+        });
+        const ext = (url.match(/\.(mp3|wav|m4a|ogg|aac|flac)(\?|$)/i) || ['', 'mp3'])[1] || 'mp3';
+        tmpPath = path.join(os.tmpdir(), `imprezja-loudness-${Date.now()}.${ext}`);
+        fs.writeFileSync(tmpPath, buf);
+        const proc = spawn('ffmpeg', ['-i', tmpPath, '-af', 'volumedetect', '-f', 'null', '-'], { stdio: ['ignore', 'pipe', 'pipe'] });
+        let stderr = '';
+        proc.stderr.on('data', d => { stderr += d.toString(); });
+        await new Promise((resolve, reject) => {
+            proc.on('close', (code) => resolve(code));
+            proc.on('error', (e) => reject(e));
+        });
+        const m = stderr.match(/max_volume:\s*([-\d.]+)\s*dB/);
+        let gain = 1;
+        if (m) {
+            const maxDb = parseFloat(m[1]);
+            const targetDb = -3;
+            gain = Math.pow(10, (targetDb - maxDb) / 20);
+            gain = Math.max(0.3, Math.min(2.5, gain));
+        }
+        return gain;
+    } catch (err) {
+        console.warn('⚠️ analyze-loudness:', err.message);
+        return 1;
+    } finally {
+        if (tmpPath && fs.existsSync(tmpPath)) try { fs.unlinkSync(tmpPath); } catch (_) {}
+    }
+}
+
+app.post('/api/audio/analyze-loudness', async (req, res) => {
+    const { url } = req.body || {};
+    if (!url || typeof url !== 'string' || (!url.startsWith('http://') && !url.startsWith('https://'))) {
+        return res.status(400).json({ error: 'Brak lub nieprawidłowy URL', gain: 1 });
+    }
+    const gain = await analyzeLoudnessForUrl(url);
+    res.json({ gain });
 });
 
 // --- EKSPORT / IMPORT PAKIETU (quiz + powiązane pliki) ---
@@ -3552,6 +4234,24 @@ async function generateAdminQR() {
     }
 }
 
+// === QR DO PANELU ADMIN PWA – ten sam host, ścieżka /admin-pwa.html (instalacja lub połączenie) ===
+async function generateAdminPWAQR() {
+    try {
+        const proto = httpsServer ? 'https' : 'http';
+        const port = httpsServer ? PORT_HTTPS : PORT;
+        const adminHost = httpsServer ? IP : getAdminHost();
+        const adminPwaUrl = `${proto}://${adminHost}:${port}/admin-pwa.html`;
+        console.log('📱 Generuję QR admin PWA:', adminPwaUrl);
+        const qrCode = await QRCode.toDataURL(adminPwaUrl, {
+            width: 300, margin: 2, color: { dark: '#000000', light: '#FFFFFF' }
+        });
+        return { qrCode: qrCode, url: adminPwaUrl };
+    } catch (err) {
+        console.error('❌ Błąd generowania QR admin PWA:', err);
+        return null;
+    }
+}
+
 // === QR DO GRY W SIECI LOKALNEJ (zawsze http://IP:PORT/vote.html) ===
 async function generateLocalGameQR() {
     try {
@@ -3923,7 +4623,8 @@ function getStateForBroadcast() {
             ws.photoDuration = q.time || 15;
             ws.tiedIndices = getWyborczyTies(ws.ranking);
             return ws;
-        })() : null
+        })() : null,
+        hncState: (q && q.type === 'HNC') ? hncGetState() : null
     };
 }
 
@@ -3943,7 +4644,8 @@ const BROADCAST_DEBOUNCE_MS = parseInt(process.env.IMPREZJA_BROADCAST_DEBOUNCE_M
 function getPhoneState(fullState) {
     const s = { ...fullState };
     // Telefony nie wyświetlają listy nicków wszystkich graczy — to widok admina
-    delete s.playerNicks;
+    // Wyjątek: gdy showPlayersWithQR, screen.html (TV) potrzebuje playerNicks do latających nicków
+    if (!s.showPlayersWithQR) delete s.playerNicks;
     // playerStats zostaje – Screen.html (TV) też go potrzebuje do tabeli trafień
     return s;
 }
@@ -4034,8 +4736,10 @@ function resetOrphanedGameState() {
     const isGameActive = gameState.type === 'GAME' || gameState.type === 'GAME_STATS';
     const hasQuestions = gameState.questions && gameState.questions.length > 0;
     const noPlayers = players.size === 0;
-    if (isGameActive && hasQuestions && noPlayers) {
+    const hasPendingReconnects = pendingDisconnects.size > 0;
+    if (isGameActive && hasQuestions && noPlayers && !hasPendingReconnects) {
         console.log('🔄 Wykryto osierocony stan gry (pytania bez graczy) – reset do ekranu startowego');
+        if (gameState.activeQuestion && gameState.activeQuestion.type === 'WYBORCZY') stopWyborczyQuestionOnServer();
         gameState.type = 'IDLE';
         gameState.activeQuestionIndex = -1;
         gameState.activeQuestion = null;
@@ -4060,11 +4764,218 @@ function resetOrphanedGameState() {
 
 io.on('connection', (socket) => {
     resetOrphanedGameState();
+    socket.emit('master_volume', { volume: masterVolume });
+    socket.emit('quiz_volume', { volume: quizVolume });
+    socket.emit('ships_solo_volume', { volume: statkiVolume });
+
+    // === SCREEN CONTROLLER (ekran główny sterowany z Admin PWA) ===
+    socket.on('screen_join', () => {
+        socket.join('screen_controller');
+        socket.emit('screen_state', {
+            mode: screenControllerMode,
+            welcome: welcomeScreenData
+        });
+        if (musicModeGraphicUrl) socket.emit('music_mode_screen', { graphicUrl: musicModeGraphicUrl });
+    });
+    socket.on('admin_join', () => {
+        socket.join(ADMIN_ROOM);
+        adminHasBeenOpened = true;
+        socket.emit('screen_state', {
+            mode: screenControllerMode,
+            welcome: welcomeScreenData
+        });
+        if (musicModeGraphicUrl) socket.emit('music_mode_screen', { graphicUrl: musicModeGraphicUrl });
+    });
+    const MUSIC_MODES_WITH_GRAPHIC = ['sampler', 'spiewaj', 'bitwa', 'whitney', 'imprezator'];
+    socket.on('screen_switch', (data) => {
+        const mode = (data && data.mode) || 'welcome';
+        const allowed = ['welcome', 'quiz', 'familiada', 'statki', 'prezentacja', 'camera', 'stream', 'sampler', 'spiewaj', 'bitwa', 'whitney', 'imprezator'];
+        if (allowed.includes(mode)) {
+            screenControllerMode = mode;
+            if (!MUSIC_MODES_WITH_GRAPHIC.includes(mode)) {
+                musicModeGraphicUrl = '';
+                io.emit('music_mode_screen', { graphicUrl: '' });
+            }
+            if (mode === 'quiz') {
+                gameState.showZarazZaczynamy = false;
+                gameState.showPlayersWithQR = true;
+            }
+            if (mode === 'familiada') {
+                familiadaShowStartScreenOnConnect = true;
+                io.to('familiada').emit('familiada_show_start_screen');
+            }
+            io.emit('screen_switch', { mode });
+            if (mode === 'quiz') broadcastStateImmediate();
+        }
+    });
+    socket.on('welcome_update', (data) => {
+        if (data && typeof data === 'object') {
+            if (typeof data.imageUrl === 'string') welcomeScreenData.imageUrl = data.imageUrl;
+            if (typeof data.text === 'string') welcomeScreenData.text = data.text;
+            if (typeof data.logoVisible === 'boolean') welcomeScreenData.logoVisible = data.logoVisible;
+            if (data.textPosition === 'top' || data.textPosition === 'center' || data.textPosition === 'bottom') welcomeScreenData.textPosition = data.textPosition;
+            if (data.fontSize === 'small' || data.fontSize === 'medium' || data.fontSize === 'large') welcomeScreenData.fontSize = data.fontSize;
+            if (typeof data.textColor === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(data.textColor)) welcomeScreenData.textColor = data.textColor;
+            io.emit('welcome_update', { ...welcomeScreenData });
+        }
+    });
+    socket.on('camera_frame', (data) => {
+        if (!data || data.image == null) return;
+        // Wysyłamy tylko do ekranu TV – nie do admina/telefonów (oszczędność pasma)
+        io.to('screen_controller').emit('camera_frame', { image: data.image });
+    });
+    socket.on('music_mode_screen', (data) => {
+        if (data && typeof data === 'object') {
+            musicModeGraphicUrl = data.graphicUrl || '';
+            io.emit('music_mode_screen', { graphicUrl: musicModeGraphicUrl });
+        }
+    });
+
+    // === PREZENTACJA ===
+    socket.on('prezentacja_join', () => {
+        socket.emit('prezentacja_volume', { volume: prezentacjaVolume });
+        socket.emit('prezentacja_state', {
+            config: prezentacjaConfig,
+            index: prezentacjaIndex,
+            playing: prezentacjaPlaying,
+            loop: prezentacjaLoop,
+            liveOverlay: { type: liveOverlayType, countdownMinutes: liveOverlayCountdownMinutes, text: liveOverlayText, textPosition: liveOverlayTextPosition }
+        });
+    });
+    socket.on('prezentacja_load', (data) => {
+        const name = (data && data.name) || '';
+        if (!name) return;
+        const fp = getPrezentacjaPath(name);
+        if (!fs.existsSync(fp)) return;
+        try {
+            prezentacjaConfig = JSON.parse(fs.readFileSync(fp, 'utf8'));
+            prezentacjaIndex = 0;
+            prezentacjaPlaying = false;
+            if (PREZENTACJE_LAST_FILE) fs.writeFileSync(PREZENTACJE_LAST_FILE, JSON.stringify({ name }), 'utf8');
+            io.emit('prezentacja_loaded', { config: prezentacjaConfig, index: 0 });
+        } catch (_) {}
+    });
+    socket.on('prezentacja_next', () => {
+        if (!prezentacjaConfig || !prezentacjaConfig.slides || prezentacjaConfig.slides.length === 0) return;
+        const slide = prezentacjaConfig.slides[prezentacjaIndex];
+        const preset = String(slide && slide.preset || '').toLowerCase();
+        const isWinamp = slide && slide.type === 'visualization' && (preset === 'winamp' || preset === 'tunnel');
+        const isWebvs = slide && slide.type === 'visualization' && preset === 'webvs';
+        const isMilkdrop = slide && slide.type === 'visualization' && preset === 'milkdrop';
+        if (isWinamp || isWebvs || isMilkdrop) {
+            io.emit('prezentacja_winamp_mode', { delta: 1 });
+            return;
+        }
+        prezentacjaIndex = (prezentacjaIndex + 1) % prezentacjaConfig.slides.length;
+        if (!prezentacjaLoop && prezentacjaIndex === 0) prezentacjaPlaying = false;
+        io.emit('prezentacja_slide', { index: prezentacjaIndex, playing: prezentacjaPlaying });
+    });
+    socket.on('prezentacja_prev', () => {
+        if (!prezentacjaConfig || !prezentacjaConfig.slides || prezentacjaConfig.slides.length === 0) return;
+        const slide = prezentacjaConfig.slides[prezentacjaIndex];
+        const preset = String(slide && slide.preset || '').toLowerCase();
+        const isWinamp = slide && slide.type === 'visualization' && (preset === 'winamp' || preset === 'tunnel');
+        const isWebvs = slide && slide.type === 'visualization' && preset === 'webvs';
+        const isMilkdrop = slide && slide.type === 'visualization' && preset === 'milkdrop';
+        if (isWinamp || isWebvs || isMilkdrop) {
+            io.emit('prezentacja_winamp_mode', { delta: -1 });
+            return;
+        }
+        prezentacjaIndex = prezentacjaIndex <= 0 ? prezentacjaConfig.slides.length - 1 : prezentacjaIndex - 1;
+        io.emit('prezentacja_slide', { index: prezentacjaIndex, playing: prezentacjaPlaying });
+    });
+    socket.on('prezentacja_go', (data) => {
+        const idx = parseInt(data && data.index, 10);
+        if (isNaN(idx) || !prezentacjaConfig || !prezentacjaConfig.slides) return;
+        if (idx >= 0 && idx < prezentacjaConfig.slides.length) {
+            prezentacjaIndex = idx;
+            io.emit('prezentacja_slide', { index: prezentacjaIndex, playing: prezentacjaPlaying });
+        }
+    });
+    socket.on('prezentacja_play', () => {
+        prezentacjaPlaying = true;
+        io.emit('prezentacja_playing', { playing: true });
+    });
+    socket.on('prezentacja_pause', () => {
+        prezentacjaPlaying = false;
+        io.emit('prezentacja_playing', { playing: false });
+    });
+    socket.on('prezentacja_loop', (data) => {
+        prezentacjaLoop = !!(data && data.loop);
+        io.emit('prezentacja_loop', { loop: prezentacjaLoop });
+    });
+
+    let liveOverlayType = 'none';
+    let liveOverlayCountdownMinutes = 3;
+    let liveOverlayText = '';
+    let liveOverlayTextPosition = 'center';
+    socket.on('prezentacja_overlay', (data) => {
+        const t = (data && data.type) || 'none';
+        if (t === 'none') {
+            liveOverlayType = 'none';
+        } else {
+            liveOverlayType = t;
+            if (t === 'countdown') {
+                const m = parseFloat(String(data.countdownMinutes || 3).replace(',', '.'));
+                liveOverlayCountdownMinutes = !isNaN(m) && m >= 1 ? Math.min(120, m) : 3;
+            } else if (t === 'text') {
+                liveOverlayText = String(data.text || '').slice(0, 200);
+                liveOverlayTextPosition = ['top', 'center', 'bottom'].includes(data.textPosition) ? data.textPosition : 'center';
+            }
+        }
+        io.emit('prezentacja_overlay', {
+            type: liveOverlayType,
+            countdownMinutes: liveOverlayCountdownMinutes,
+            text: liveOverlayText,
+            textPosition: liveOverlayTextPosition
+        });
+    });
+
+    // === MIK SER – Master (globalny mnożnik) + kanały (per-tryb). Wyjście = kanał × master ===
+    socket.on('master_volume', (data) => {
+        const v = parseFloat(data && data.volume);
+        if (!isNaN(v) && v >= 0 && v <= 1) {
+            masterVolume = v;
+            saveVolumes();
+            io.emit('master_volume', { volume: masterVolume });
+            broadcastEffectiveVolumes();
+        }
+    });
+    socket.on('master_volume_request', () => {
+        socket.emit('master_volume', { volume: masterVolume });
+    });
+    socket.on('volumes_request', () => {
+        socket.emit('volumes_all', {
+            master: masterVolume, quiz: quizVolume, familiada: familiadaVolume, statki: statkiVolume,
+            prezentacja: prezentacjaVolume, sampler: njrSamplerVolume, whitney: whitneyVolume,
+            spiewaj: spiewajDalejVolume, bitwa: bitwaWokalnaVolume, imprezator: imprezatorVolume
+        });
+    });
+    socket.on('channel_volume', (data) => {
+        const ch = data && data.channel;
+        const v = parseFloat(data && data.volume);
+        if (isNaN(v) || v < 0 || v > 1) return;
+        const set = (name, setter) => { setter(v); saveVolumes(); broadcastEffectiveVolumes(); };
+        if (ch === 'quiz') set('quiz', x => { quizVolume = x; });
+        else if (ch === 'familiada') set('familiada', x => { familiadaVolume = x; });
+        else if (ch === 'statki') set('statki', x => { statkiVolume = x; });
+        else if (ch === 'prezentacja') set('prezentacja', x => { prezentacjaVolume = x; });
+        else if (ch === 'sampler') set('sampler', x => { njrSamplerVolume = x; });
+        else if (ch === 'whitney') set('whitney', x => { whitneyVolume = x; });
+        else if (ch === 'spiewaj') set('spiewaj', x => { spiewajDalejVolume = x; });
+        else if (ch === 'bitwa') set('bitwa', x => { bitwaWokalnaVolume = x; });
+        else if (ch === 'imprezator') set('imprezator', x => { imprezatorVolume = x; });
+    });
 
     // === FAMILIADA ===
     socket.on('register_familiada', (data) => {
         socket.familiadaRole = (data && data.role) || null;
         socket.join('familiada');
+        socket.emit('familiada_volume', familiadaVolume);
+        if (socket.familiadaRole === 'screen' && familiadaShowStartScreenOnConnect) {
+            familiadaShowStartScreenOnConnect = false;
+            socket.emit('familiada_show_start_screen');
+        }
         if (socket.familiadaRole === 'admin') {
             socket.emit('init_admin', familiadaQuestions);
             socket.emit('familiada_golden_list', familiadaGoldenQuestions);
@@ -4119,18 +5030,28 @@ io.on('connection', (socket) => {
     socket.on('njr_sampler_join_screen', () => {
         socket.join('njr_sampler_screen');
         socket.emit('njr_sampler_state', { active: njrSamplerActive, config: njrSamplerConfig });
-        socket.emit('njr_sampler_volume', njrSamplerVolume);
+        socket.emit('njr_sampler_volume', Math.min(1, njrSamplerVolume * masterVolume));
     });
     socket.on('njr_sampler_join_phone', () => {
         socket.join('njr_sampler_phone');
-        socket.emit('njr_sampler_state', { active: njrSamplerActive, config: buildNjrSamplerStateForPhone() });
+        const phoneConfig = buildNjrSamplerStateForPhone();
+        socket.emit('njr_sampler_state', { active: njrSamplerActive, config: phoneConfig });
         socket.emit('njr_sampler_volume_sync', njrSamplerVolume); // telefon ustawia suwak
+    });
+    socket.on('njr_sampler_set_bank', (index) => {
+        if (!njrSamplerActive) return;
+        io.to('njr_sampler_phone').emit('njr_sampler_set_bank', { index: Math.max(0, Math.floor(index)) });
+    });
+    socket.on('njr_sampler_bank_delta', (delta) => {
+        if (!njrSamplerActive) return;
+        io.to('njr_sampler_phone').emit('njr_sampler_bank_delta', { delta: delta === 1 || delta === -1 ? delta : 0 });
     });
     socket.on('njr_sampler_toggle', (payload) => {
         if (!njrSamplerActive) return;
-        const bankIndex = (typeof payload === 'object' && payload != null && typeof payload.bankIndex === 'number') ? payload.bankIndex : 0;
-        const tileId = (typeof payload === 'object' && payload != null && payload.tileId != null) ? payload.tileId : payload;
         const banks = njrSamplerConfig.banks || [{ tiles: njrSamplerConfig.tiles || [] }];
+        let bankIndex = (typeof payload === 'object' && payload != null && typeof payload.bankIndex === 'number') ? payload.bankIndex : 0;
+        bankIndex = Math.max(0, Math.min(bankIndex, banks.length - 1));
+        const tileId = (typeof payload === 'object' && payload != null && payload.tileId != null) ? payload.tileId : payload;
         const bank = banks[bankIndex];
         const tiles = bank ? (bank.tiles || []) : [];
         const tile = tiles.find(t => t.id === tileId);
@@ -4140,50 +5061,76 @@ io.on('connection', (socket) => {
         if (/\.(vdjsample|ogg)$/i.test(audioUrl)) audioUrl = '/api/audio/stream?path=' + encodeURIComponent(audioUrl);
         const isBg = !!tile.isBackground;
         const loop = !!tile.loop;
+        const normalizedGain = typeof tile.normalizedGain === 'number' ? tile.normalizedGain : undefined;
+        const playPayload = (u, v, lp, isBg) => ({ url: u, volume: v, loop: lp, isBackground: isBg, ...(normalizedGain != null && { normalizedGain }) });
+        const thenPlayPayload = (u, v, lp) => ({ url: u, volume: v, loop: lp, ...(normalizedGain != null && { normalizedGain }) });
 
         if (isBg) {
-            if (njrSamplerPlayingBackgroundTile === tileId) {
+            if (njrSamplerPlayingBackgroundTile === tileId && njrSamplerPlayingBackgroundBankIndex === bankIndex) {
                 njrSamplerPlayingBackgroundTile = null;
-                io.to('njr_sampler_screen').emit('njr_sampler_stop_background', { fadeOut: !!tile.fadeOut });
-                io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: null, isBackground: true });
+                njrSamplerPlayingBackgroundBankIndex = null;
+                io.to('njr_sampler_screen').emit('njr_sampler_stop_background', { fadeOut: true });
+                io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: null, bankIndex: null, isBackground: true });
             } else {
+                const prevBgId = njrSamplerPlayingBackgroundTile;
+                const prevBgBank = njrSamplerPlayingBackgroundBankIndex != null ? banks[njrSamplerPlayingBackgroundBankIndex] : null;
+                const prevBgTile = prevBgId && prevBgBank ? (prevBgBank.tiles || []).find(t => t.id === prevBgId) : null;
+                njrSamplerPlayingBackgroundTile = tileId;
+                njrSamplerPlayingBackgroundBankIndex = bankIndex;
                 if (njrSamplerPlayingImprezatorTrack) {
                     njrSamplerPlayingImprezatorTrack = null;
                     io.to('njr_sampler_screen').emit('njr_sampler_imprezator_stop');
                     io.to('njr_sampler_phone').emit('njr_sampler_imprezator_playing', null);
                 }
-                njrSamplerPlayingBackgroundTile = tileId;
+                if (prevBgId && prevBgTile && !!prevBgTile.fadeOut) {
+                    io.to('njr_sampler_screen').emit('njr_sampler_stop_background', { fadeOut: true, thenPlay: thenPlayPayload(audioUrl, vol, loop) });
+                } else {
+                    if (prevBgId) io.to('njr_sampler_screen').emit('njr_sampler_stop_background', { fadeOut: false });
+                    io.to('njr_sampler_screen').emit('njr_sampler_play', playPayload(audioUrl, vol, loop, true));
+                }
                 audioMonitorLast = { type: 'sampler_tile', tileId, bankIndex, isBg: true };
-                io.to('njr_sampler_screen').emit('njr_sampler_play', { url: audioUrl, volume: vol, isBackground: true, loop });
-                io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId, isBackground: true });
+                io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId, bankIndex, isBackground: true });
             }
         } else {
-            if (njrSamplerPlayingTile === tileId) {
+            if (njrSamplerPlayingTile === tileId && njrSamplerPlayingBankIndex === bankIndex) {
                 njrSamplerPlayingTile = null;
-                io.to('njr_sampler_screen').emit('njr_sampler_stop', { fadeOut: !!tile.fadeOut });
-                io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: null, isBackground: false });
+                njrSamplerPlayingBankIndex = null;
+                io.to('njr_sampler_screen').emit('njr_sampler_stop', { fadeOut: true });
+                io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: null, bankIndex: null, isBackground: false });
             } else {
+                const prevTileId = njrSamplerPlayingTile;
+                const prevBank = njrSamplerPlayingBankIndex != null ? banks[njrSamplerPlayingBankIndex] : null;
+                const prevTile = prevTileId && prevBank ? (prevBank.tiles || []).find(t => t.id === prevTileId) : null;
+                njrSamplerPlayingTile = tileId;
+                njrSamplerPlayingBankIndex = bankIndex;
                 if (njrSamplerPlayingImprezatorTrack) {
                     njrSamplerPlayingImprezatorTrack = null;
                     io.to('njr_sampler_screen').emit('njr_sampler_imprezator_stop');
                     io.to('njr_sampler_phone').emit('njr_sampler_imprezator_playing', null);
                 }
-                njrSamplerPlayingTile = tileId;
+                if (prevTileId && prevTile && !!prevTile.fadeOut) {
+                    io.to('njr_sampler_screen').emit('njr_sampler_stop', { fadeOut: true, thenPlay: thenPlayPayload(audioUrl, vol, loop) });
+                } else {
+                    if (prevTileId) io.to('njr_sampler_screen').emit('njr_sampler_stop', { fadeOut: false });
+                    io.to('njr_sampler_screen').emit('njr_sampler_play', playPayload(audioUrl, vol, loop, false));
+                }
                 audioMonitorLast = { type: 'sampler_tile', tileId, bankIndex, isBg: false };
-                io.to('njr_sampler_screen').emit('njr_sampler_play', { url: audioUrl, volume: vol, isBackground: false, loop });
-                io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId, isBackground: false });
+                io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId, bankIndex, isBackground: false });
             }
         }
         emitAudioMonitorState();
     });
     socket.on('njr_sampler_background_ended', () => {
         njrSamplerPlayingBackgroundTile = null;
-        io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: null, isBackground: true });
+        njrSamplerPlayingBackgroundBankIndex = null;
+        io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: null, bankIndex: null, isBackground: true });
         emitAudioMonitorState();
     });
     socket.on('njr_sampler_volume', (vol) => {
         njrSamplerVolume = Math.max(0, Math.min(1, vol));
-        io.to('njr_sampler_screen').emit('njr_sampler_volume', njrSamplerVolume);
+        saveVolumes();
+        io.to('njr_sampler_screen').emit('njr_sampler_volume', Math.min(1, njrSamplerVolume * masterVolume));
+        io.to('njr_sampler_phone').emit('njr_sampler_volume_sync', njrSamplerVolume);
     });
 
     socket.on('njr_sampler_imprezator_toggle', (trackId) => {
@@ -4206,8 +5153,9 @@ io.on('connection', (socket) => {
         } else {
             if (njrSamplerPlayingTile) {
                 njrSamplerPlayingTile = null;
+                njrSamplerPlayingBankIndex = null;
                 io.to('njr_sampler_screen').emit('njr_sampler_stop');
-                io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: null, isBackground: false });
+                io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: null, bankIndex: null, isBackground: false });
             }
             njrSamplerPlayingImprezatorTrack = trackId;
             audioMonitorLast = { type: 'sampler_imprezator', trackId };
@@ -4238,13 +5186,15 @@ io.on('connection', (socket) => {
     socket.on('audio_monitor_stop', () => {
         if (njrSamplerPlayingTile) {
             njrSamplerPlayingTile = null;
+            njrSamplerPlayingBankIndex = null;
             io.to('njr_sampler_screen').emit('njr_sampler_stop');
-            io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: null, isBackground: false });
+            io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: null, bankIndex: null, isBackground: false });
         }
         if (njrSamplerPlayingBackgroundTile) {
             njrSamplerPlayingBackgroundTile = null;
+            njrSamplerPlayingBackgroundBankIndex = null;
             io.to('njr_sampler_screen').emit('njr_sampler_stop_background', { fadeOut: false });
-            io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: null, isBackground: true });
+            io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: null, bankIndex: null, isBackground: true });
         }
         if (njrSamplerPlayingImprezatorTrack) {
             njrSamplerPlayingImprezatorTrack = null;
@@ -4271,12 +5221,14 @@ io.on('connection', (socket) => {
             if (/\.(vdjsample|ogg)$/i.test(audioUrl)) audioUrl = '/api/audio/stream?path=' + encodeURIComponent(audioUrl);
             if (last.isBg) {
                 njrSamplerPlayingBackgroundTile = last.tileId;
+                njrSamplerPlayingBackgroundBankIndex = last.bankIndex;
                 io.to('njr_sampler_screen').emit('njr_sampler_play', { url: audioUrl, volume: vol, isBackground: true, loop: !!tile.loop });
-                io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: last.tileId, isBackground: true });
+                io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: last.tileId, bankIndex: last.bankIndex, isBackground: true });
             } else {
                 njrSamplerPlayingTile = last.tileId;
+                njrSamplerPlayingBankIndex = last.bankIndex;
                 io.to('njr_sampler_screen').emit('njr_sampler_play', { url: audioUrl, volume: vol, isBackground: false, loop: !!tile.loop });
-                io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: last.tileId, isBackground: false });
+                io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: last.tileId, bankIndex: last.bankIndex, isBackground: false });
             }
         } else if (last.type === 'sampler_imprezator') {
             let track = null;
@@ -4299,9 +5251,12 @@ io.on('connection', (socket) => {
             }
             if (!track || !track.audio) return;
             imprezatorCurrentlyPlaying = true;
-            const audioUrl = '/api/imprezator/stream?path=' + encodeURIComponent(track.audio);
+            const audioUrl = (track.audio.startsWith('http://') || track.audio.startsWith('https://'))
+                ? track.audio
+                : '/api/imprezator/stream?path=' + encodeURIComponent(track.audio);
             const displayName = track.displayName || track.audio.replace(/^.*[/\\]/, '').replace(/\.[^.]+$/, '') || 'Utwór';
-            io.to('imprezator_screen').emit('imprezator_play', { url: audioUrl, volume: imprezatorVolume, trackId: last.trackId, displayName });
+            const ng = typeof track.normalizedGain === 'number' ? track.normalizedGain : undefined;
+            io.to('imprezator_screen').emit('imprezator_play', { url: audioUrl, volume: Math.min(1, imprezatorVolume * masterVolume), trackId: last.trackId, displayName, ...(ng != null && { normalizedGain: ng }) });
         }
         emitAudioMonitorState();
     });
@@ -4310,7 +5265,7 @@ io.on('connection', (socket) => {
     socket.on('whitney_join_screen', () => {
         socket.join('whitney_screen');
         socket.emit('whitney_state', { active: whitneyActive, config: whitneyConfig });
-        socket.emit('whitney_volume', whitneyVolume);
+        socket.emit('whitney_volume', Math.min(1, whitneyVolume * masterVolume));
     });
     socket.on('whitney_join_phone', () => {
         socket.join('whitney_phone');
@@ -4328,25 +5283,42 @@ io.on('connection', (socket) => {
         const vol = Math.max(0, Math.min(100, tile.volume ?? 100)) / 100;
         const isBg = !!tile.isBackground;
         const loop = !!tile.loop;
+        const ng = typeof tile.normalizedGain === 'number' ? tile.normalizedGain : undefined;
+        const playPayload = (u, v, lp) => ({ url: u, volume: v, loop: lp, isBackground: isBg, ...(ng != null && { normalizedGain: ng }) });
+        const thenPlayPayload = (u, v, lp) => ({ url: u, volume: v, loop: lp, ...(ng != null && { normalizedGain: ng }) });
 
         if (isBg) {
             if (whitneyPlayingBackgroundTile === tileId) {
                 whitneyPlayingBackgroundTile = null;
-                io.to('whitney_screen').emit('whitney_stop_background', { fadeOut: !!tile.fadeOut });
+                io.to('whitney_screen').emit('whitney_stop_background', { fadeOut: true });
                 io.to('whitney_phone').emit('whitney_playing', { tileId: null, isBackground: true });
             } else {
+                const prevBgId = whitneyPlayingBackgroundTile;
+                const prevBgTile = prevBgId ? tiles.find(t => t.id === prevBgId) : null;
                 whitneyPlayingBackgroundTile = tileId;
-                io.to('whitney_screen').emit('whitney_play', { url: audioUrl, volume: vol, isBackground: true, loop });
+                if (prevBgId && prevBgTile && !!prevBgTile.fadeOut) {
+                    io.to('whitney_screen').emit('whitney_stop_background', { fadeOut: true, thenPlay: thenPlayPayload(audioUrl, vol, loop) });
+                } else {
+                    if (prevBgId) io.to('whitney_screen').emit('whitney_stop_background', { fadeOut: false });
+                    io.to('whitney_screen').emit('whitney_play', playPayload(audioUrl, vol, loop));
+                }
                 io.to('whitney_phone').emit('whitney_playing', { tileId, isBackground: true });
             }
         } else {
             if (whitneyPlayingTile === tileId) {
                 whitneyPlayingTile = null;
-                io.to('whitney_screen').emit('whitney_stop', { fadeOut: !!tile.fadeOut });
+                io.to('whitney_screen').emit('whitney_stop', { fadeOut: true });
                 io.to('whitney_phone').emit('whitney_playing', { tileId: null, isBackground: false });
             } else {
+                const prevTileId = whitneyPlayingTile;
+                const prevTile = prevTileId ? tiles.find(t => t.id === prevTileId) : null;
                 whitneyPlayingTile = tileId;
-                io.to('whitney_screen').emit('whitney_play', { url: audioUrl, volume: vol, isBackground: false, loop });
+                if (prevTileId && prevTile && !!prevTile.fadeOut) {
+                    io.to('whitney_screen').emit('whitney_stop', { fadeOut: true, thenPlay: thenPlayPayload(audioUrl, vol, loop) });
+                } else {
+                    if (prevTileId) io.to('whitney_screen').emit('whitney_stop', { fadeOut: false });
+                    io.to('whitney_screen').emit('whitney_play', playPayload(audioUrl, vol, loop));
+                }
                 io.to('whitney_phone').emit('whitney_playing', { tileId, isBackground: false });
             }
         }
@@ -4357,14 +5329,15 @@ io.on('connection', (socket) => {
     });
     socket.on('whitney_volume', (vol) => {
         whitneyVolume = Math.max(0, Math.min(1, vol));
-        io.to('whitney_screen').emit('whitney_volume', whitneyVolume);
+        saveVolumes();
+        io.to('whitney_screen').emit('whitney_volume', Math.min(1, whitneyVolume * masterVolume));
     });
 
     // Śpiewaj Dalej – ekran (komputer) i telefon
     socket.on('spiewaj_dalej_join_screen', () => {
         socket.join('spiewaj_dalej_screen');
         socket.emit('spiewaj_dalej_state', { active: spiewajDalejActive, config: spiewajDalejConfig });
-        socket.emit('spiewaj_dalej_volume', spiewajDalejVolume);
+        socket.emit('spiewaj_dalej_volume', Math.min(1, spiewajDalejVolume * masterVolume));
     });
     socket.on('spiewaj_dalej_join_phone', () => {
         socket.join('spiewaj_dalej_phone');
@@ -4388,7 +5361,8 @@ io.on('connection', (socket) => {
             audioUrl = '/api/audio/stream?path=' + encodeURIComponent(audioUrl);
         }
         spiewajDalejUsedIds.add(trackId);
-        io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_play', { url: audioUrl, volume: spiewajDalejVolume, trackId });
+        const ng = typeof track.normalizedGain === 'number' ? track.normalizedGain : undefined;
+        io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_play', { url: audioUrl, volume: spiewajDalejVolume, trackId, ...(ng != null && { normalizedGain: ng }) });
         io.to('spiewaj_dalej_phone').emit('spiewaj_dalej_used', { trackId });
     });
     socket.on('spiewaj_dalej_stop', (trackId) => {
@@ -4402,14 +5376,15 @@ io.on('connection', (socket) => {
     });
     socket.on('spiewaj_dalej_volume', (vol) => {
         spiewajDalejVolume = Math.max(0, Math.min(1, vol));
-        io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_volume', spiewajDalejVolume);
+        saveVolumes();
+        io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_volume', Math.min(1, spiewajDalejVolume * masterVolume));
     });
 
     // Bitwa wokalna – ekran (komputer) i telefon
     socket.on('bitwa_wokalna_join_screen', () => {
         socket.join('bitwa_wokalna_screen');
         socket.emit('bitwa_wokalna_state', { active: bitwaWokalnaActive, config: bitwaWokalnaConfig });
-        socket.emit('bitwa_wokalna_volume', bitwaWokalnaVolume);
+        socket.emit('bitwa_wokalna_volume', Math.min(1, bitwaWokalnaVolume * masterVolume));
     });
     socket.on('bitwa_wokalna_join_phone', () => {
         socket.join('bitwa_wokalna_phone');
@@ -4433,7 +5408,8 @@ io.on('connection', (socket) => {
             audioUrl = '/api/audio/stream?path=' + encodeURIComponent(audioUrl);
         }
         bitwaWokalnaUsedIds.add(trackId);
-        io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_play', { url: audioUrl, volume: bitwaWokalnaVolume, trackId });
+        const ng = typeof track.normalizedGain === 'number' ? track.normalizedGain : undefined;
+        io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_play', { url: audioUrl, volume: bitwaWokalnaVolume, trackId, ...(ng != null && { normalizedGain: ng }) });
         io.to('bitwa_wokalna_phone').emit('bitwa_wokalna_used', { trackId });
     });
     socket.on('bitwa_wokalna_stop', (trackId) => {
@@ -4447,14 +5423,15 @@ io.on('connection', (socket) => {
     });
     socket.on('bitwa_wokalna_volume', (vol) => {
         bitwaWokalnaVolume = Math.max(0, Math.min(1, vol));
-        io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_volume', bitwaWokalnaVolume);
+        saveVolumes();
+        io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_volume', Math.min(1, bitwaWokalnaVolume * masterVolume));
     });
 
     // Imprezator – muzyka do tańca
     socket.on('imprezator_join_screen', () => {
         socket.join('imprezator_screen');
         socket.emit('imprezator_state', { active: imprezatorActive, config: imprezatorConfig });
-        socket.emit('imprezator_volume', imprezatorVolume);
+        socket.emit('imprezator_volume', Math.min(1, imprezatorVolume * masterVolume));
     });
     socket.on('imprezator_join_phone', () => {
         socket.join('imprezator_phone');
@@ -4473,11 +5450,14 @@ io.on('connection', (socket) => {
             track = (imprezatorConfig.tracks || []).find(t => t.id === trackId);
         }
         if (!track || !track.audio) return;
-        const audioUrl = '/api/imprezator/stream?path=' + encodeURIComponent(track.audio);
+        const audioUrl = (track.audio.startsWith('http://') || track.audio.startsWith('https://'))
+            ? track.audio
+            : '/api/imprezator/stream?path=' + encodeURIComponent(track.audio);
         const displayName = track.displayName || track.audio.replace(/^.*[/\\]/, '').replace(/\.[^.]+$/, '') || 'Utwór';
+        const ng = typeof track.normalizedGain === 'number' ? track.normalizedGain : undefined;
         imprezatorCurrentlyPlaying = true;
         audioMonitorLast = { type: 'imprezator', trackId };
-        io.to('imprezator_screen').emit('imprezator_play', { url: audioUrl, volume: imprezatorVolume, trackId, displayName });
+        io.to('imprezator_screen').emit('imprezator_play', { url: audioUrl, volume: Math.min(1, imprezatorVolume * masterVolume), trackId, displayName, ...(ng != null && { normalizedGain: ng }) });
         emitAudioMonitorState();
     });
     socket.on('imprezator_stop', (trackId) => {
@@ -4492,12 +5472,15 @@ io.on('connection', (socket) => {
     });
     socket.on('imprezator_volume', (vol) => {
         imprezatorVolume = Math.max(0, Math.min(1, vol));
-        io.to('imprezator_screen').emit('imprezator_volume', imprezatorVolume);
+        saveVolumes();
+        io.to('imprezator_screen').emit('imprezator_volume', Math.min(1, imprezatorVolume * masterVolume));
     });
 
     socket.on('select_question', (index) => {
         if (socket.familiadaRole !== 'admin') return;
         if (familiadaQuestions[index]) {
+            familiadaCurrentQuestionIndex = index;
+            familiadaCurrentGoldenIndex = null;
             familiadaRoundAwardedTo = null;
             familiadaQuestionActive = true;
             familiadaButtonUsedThisRound = false;
@@ -4507,10 +5490,25 @@ io.on('connection', (socket) => {
     socket.on('select_golden_question', (index) => {
         if (socket.familiadaRole !== 'admin') return;
         if (familiadaGoldenQuestions[index]) {
+            familiadaCurrentGoldenIndex = index;
+            familiadaCurrentQuestionIndex = null;
             familiadaRoundAwardedTo = null;
             familiadaQuestionActive = true;
             familiadaButtonUsedThisRound = false;
             io.to('familiada').emit('board_update', { type: 'NEW_ROUND', data: familiadaGoldenQuestions[index], team1: familiadaTeam1Name, team2: familiadaTeam2Name });
+        }
+    });
+    socket.on('familiada_reset_buttons', () => {
+        if (socket.familiadaRole !== 'admin') return;
+        familiadaButtonUsedThisRound = false;
+        const data = familiadaCurrentGoldenIndex !== null && familiadaGoldenQuestions[familiadaCurrentGoldenIndex]
+            ? familiadaGoldenQuestions[familiadaCurrentGoldenIndex]
+            : (familiadaCurrentQuestionIndex !== null && familiadaQuestions[familiadaCurrentQuestionIndex]
+                ? familiadaQuestions[familiadaCurrentQuestionIndex]
+                : null);
+        if (data) {
+            familiadaQuestionActive = true;
+            io.to('familiada').emit('board_update', { type: 'NEW_ROUND', data, team1: familiadaTeam1Name, team2: familiadaTeam2Name });
         }
     });
     socket.on('familiada_button_press', (data) => {
@@ -4563,13 +5561,22 @@ io.on('connection', (socket) => {
         if (socket.familiadaRole !== 'admin') return;
         io.to('familiada').emit('play_sound_event', soundName);
     });
+    socket.on('stop_sound', (soundName) => {
+        if (socket.familiadaRole !== 'admin') return;
+        io.to('familiada').emit('stop_sound_event', soundName);
+    });
     socket.on('familiada_volume', (vol) => {
         if (socket.familiadaRole !== 'admin') return;
         const v = Math.max(0, Math.min(1, parseFloat(vol) || 0));
+        familiadaVolume = v;
+        saveVolumes();
         io.to('familiada').emit('familiada_volume', v);
     });
     socket.on('familiada_stop_all', () => {
         if (socket.familiadaRole !== 'admin') return;
+        io.to('familiada').emit('familiada_stop_all');
+    });
+    socket.on('familiada_stop_music', () => {
         io.to('familiada').emit('familiada_stop_all');
     });
     socket.on('familiada_intro_state', (playing) => {
@@ -4578,7 +5585,28 @@ io.on('connection', (socket) => {
     socket.on('show_final', () => {
         if (socket.familiadaRole !== 'admin') return;
         familiadaQuestionActive = false;
+        familiadaCurrentQuestionIndex = null;
+        familiadaCurrentGoldenIndex = null;
         io.to('familiada').emit('board_update', { type: 'SHOW_FINAL', scores: { t1: familiadaTeam1Score, t2: familiadaTeam2Score, team1: familiadaTeam1Name, team2: familiadaTeam2Name } });
+    });
+    socket.on('familiada_end_game', () => {
+        if (socket.familiadaRole !== 'admin') return;
+        familiadaTeam1Score = 0;
+        familiadaTeam2Score = 0;
+        familiadaRoundAwardedTo = null;
+        familiadaQuestionActive = false;
+        familiadaButtonUsedThisRound = false;
+        familiadaCurrentQuestionIndex = null;
+        familiadaCurrentGoldenIndex = null;
+        io.to('familiada').emit('familiada_stop_all');
+        io.to('familiada').emit('update_scores', { t1: 0, t2: 0, roundAwarded: false, team1: familiadaTeam1Name, team2: familiadaTeam2Name });
+        io.to('familiada').emit('board_update', { type: 'FULL_RESET', team1: familiadaTeam1Name, team2: familiadaTeam2Name });
+        io.to('familiada').emit('familiada_show_idle_title');
+        io.to('familiada').emit('familiada_end_game');
+        io.sockets.sockets.forEach((s) => {
+            if (s.familiadaRole === 'buttons') s.disconnect(true);
+        });
+        console.log('⛔ Familiada: zakończono grę – przyciski rozłączone, dźwięk wyłączony');
     });
     socket.on('reset_game', () => {
         if (socket.familiadaRole !== 'admin') return;
@@ -4587,6 +5615,8 @@ io.on('connection', (socket) => {
         familiadaRoundAwardedTo = null;
         familiadaQuestionActive = false;
         familiadaButtonUsedThisRound = false;
+        familiadaCurrentQuestionIndex = null;
+        familiadaCurrentGoldenIndex = null;
         io.to('familiada').emit('update_scores', { t1: 0, t2: 0, roundAwarded: false, team1: familiadaTeam1Name, team2: familiadaTeam2Name });
         io.to('familiada').emit('board_update', { type: 'FULL_RESET', team1: familiadaTeam1Name, team2: familiadaTeam2Name });
     });
@@ -4596,8 +5626,11 @@ io.on('connection', (socket) => {
         familiadaRoundAwardedTo = null;
         familiadaQuestionActive = false;
         familiadaButtonUsedThisRound = false;
+        familiadaCurrentQuestionIndex = null;
+        familiadaCurrentGoldenIndex = null;
         io.to('familiada').emit('update_scores', { t1: 0, t2: 0, roundAwarded: false, team1: familiadaTeam1Name, team2: familiadaTeam2Name });
         io.to('familiada').emit('board_update', { type: 'FULL_RESET', team1: familiadaTeam1Name, team2: familiadaTeam2Name });
+        io.to('familiada').emit('familiada_show_idle_title');
     });
     socket.on('familiada_get_files', () => {
         socket.emit('familiada_files_list', getFamiliadaFiles());
@@ -4644,6 +5677,12 @@ io.on('connection', (socket) => {
         // Zawsze zwracaj QR admina (np. po „Zakończ” na ekranie startowym – pokaż QR nawet gdy admin już połączony)
         generateAdminQR().then((data) => {
             if (data) socket.emit('qr_admin', data);
+        });
+    });
+
+    socket.on('request_qr_admin_pwa', () => {
+        generateAdminPWAQR().then((data) => {
+            if (data) socket.emit('qr_admin_pwa', data);
         });
     });
 
@@ -4720,8 +5759,8 @@ io.on('connection', (socket) => {
             // 3. normalny node_modules (dev)
             const cfExeName = isWin ? 'cloudflared.exe' : 'cloudflared';
             let cfBin = null;
-            // 1) extraResources: obok app.asar w katalogu resources
-            const resourcesDir2 = path.dirname(__dirname);
+            // 1) extraResources: obok app.asar w katalogu resources (process.resourcesPath w Electron)
+            const resourcesDir2 = (typeof process !== 'undefined' && process.resourcesPath) || path.dirname(__dirname);
             const cfExtra = path.join(resourcesDir2, cfExeName);
             if (fs.existsSync(cfExtra)) cfBin = cfExtra;
             // 2) asarUnpack
@@ -4915,7 +5954,10 @@ io.on('connection', (socket) => {
     socket.emit('users_count', players.size);
 
     socket.on('request_state', () => {
-        socket.emit('update_state', getStateForBroadcast());
+        const full = getStateForBroadcast();
+        // Admin gets full state; phones get slim state (without playerNicks unless showPlayersWithQR)
+        const isAdmin = socket.rooms && socket.rooms.has(ADMIN_ROOM);
+        socket.emit('update_state', isAdmin ? full : getPhoneState(full));
         socket.emit('users_count', players.size);
     });
 
@@ -4925,10 +5967,16 @@ io.on('connection', (socket) => {
         socket.join(ADMIN_ROOM); // Priorytet – admin dostaje update_state od razu, bez throttle
         const fromComputer = data && data.isComputer === true;
         if (!fromComputer) adminHasBeenOpened = true;
+        // Auto-cleanup: stale "resting" HNC phases (match_result/round_complete/champion) with no active game
+        const _isInconsistent = (hncPhase==='match_result'||hncPhase==='round_complete'||hncPhase==='champion') && !(gameState.activeQuestion && gameState.activeQuestion.type === 'HNC');
+        if (_isInconsistent) {
+            hncStopTimer();
+            hncPhase = 'setup';
+            hncVoters.clear(); hncVotedThis.clear(); hncVotesA.clear(); hncVotesB.clear();
+        }
         const files = getQuizFiles();
         socket.emit('files_list', files);
         if (fromComputer) socket.emit('admin_from_computer_confirmed');
-        // Ekran (Screen) musi dostać stan od razu, żeby ukryć QR admina – inaczej na Windows QR znika dopiero po innym zdarzeniu (np. Ekran startowy)
         broadcastStateImmediate();
     });
 
@@ -4957,6 +6005,7 @@ io.on('connection', (socket) => {
         gameState.quizTitle = filename.replace('.json', '').toUpperCase();
         gameState.type = 'INTRO';
         gameState.activeQuestionIndex = -1;
+        if (gameState.activeQuestion && gameState.activeQuestion.type === 'WYBORCZY') stopWyborczyQuestionOnServer();
         gameState.activeQuestion = null;
         gameState.showStats = false;
         gameState.showCorrect = false;
@@ -5008,6 +6057,9 @@ io.on('connection', (socket) => {
         gameState.playoff = null;
         
         const question = gameState.questions[index];
+        if (gameState.activeQuestion && gameState.activeQuestion.type === 'WYBORCZY' && question.type !== 'WYBORCZY') {
+            stopWyborczyQuestionOnServer();
+        }
         if (!question.id) question.id = `q_${Date.now()}_${index}`;
         
         gameState.type = 'GAME';
@@ -5052,41 +6104,37 @@ io.on('connection', (socket) => {
             gameState.letterGame = null;
             const bgMusic = question.bgMusic || '/uploads/sfx/tlowyborcze.mp3';
             io.emit('wyborczy_bg_music', { url: bgMusic });
+        } else if (question.type === 'HNC') {
+            // Auto-setup HNC tournament from quiz question
+            hncStopTimer();
+            hncPhotos = (question.photos || []).map((p, i) => ({ id: `hnc_${i}_${Date.now()}`, url: p.url, desc: p.desc || '' }));
+            hncMatchTime = Math.max(5, parseInt(question.time) || 15);
+            hncQuestionText = question.question || '';
+            hncBuildBracket(hncPhotos);
+            hncCurrentRound = 0;
+            hncCurrentMatch = 0;
+            hncPhase = 'ready';
+            hncVoters.clear(); hncVotedThis.clear(); hncVotesA.clear(); hncVotesB.clear();
+            // Pre-register all currently connected quiz players as voters
+            players.forEach((p, sid) => { if (p.nick) hncVoters.add(sid); });
+            // Preload first match photos on all clients
+            const firstM = hncBracket[0]?.[0];
+            if (firstM?.photoA && firstM?.photoB) {
+                io.emit('hnc_preload', [firstM.photoA.url, firstM.photoB.url]);
+            }
+            gameState.timeLeft = 0;
+            gameState.duration = 0;
+            gameState.questionStartTime = null;
+            gameState.shipsGame = null;
+            gameState.letterGame = null;
         } else {
             // Dla innych typów pytań - normalna logika
             gameState.timeLeft = question.time || 30;
             gameState.duration = question.time || 30;
             gameState.questionStartTime = Date.now();
 
-            // Inicjalizuj stan gry SHIPS_SOLO (admin+screen, bez telefonów)
-            if (question.type === 'SHIPS_SOLO') {
-                const boardSize = question.boardSize || 8;
-                const validShips = (question.ships || []).filter(s => {
-                    if (!s || typeof s.size !== 'number' || s.size < 2 || s.size > 5) return false;
-                    const vertical = !!s.vertical;
-                    for (let i = 0; i < s.size; i++) {
-                        const r = s.row + (vertical ? i : 0);
-                        const c = s.col + (vertical ? 0 : i);
-                        if (r < 0 || r >= boardSize || c < 0 || c >= boardSize) return false;
-                    }
-                    return true;
-                });
-                gameState.shipsSoloGame = {
-                    questionId: question.id,
-                    boardSize,
-                    ships: validShips,
-                    rewards: question.rewards || {},
-                    shots: {},
-                    aimRow: null, aimCol: null,
-                    phase: 'row', // 'row' | 'col'
-                    lastShot: null, // { row, col, hit, reward }
-                    gameEnded: false
-                };
-                gameState.shipsGame = null;
-                gameState.letterGame = null;
-                console.log(`⚓ [SHIPS_SOLO] Inicjalizacja pytania ${question.id}, plansza ${boardSize}x${boardSize}`);
             // Inicjalizuj stan gry w statki jeśli to pytanie typu SHIPS
-            } else if (question.type === 'SHIPS') {
+            if (question.type === 'SHIPS') {
                 const boardSize = question.boardSize || 8;
                 const validShips = (question.ships || []).filter(s => {
                     if (!s || typeof s.size !== 'number' || s.size < 2 || s.size > 5) return false;
@@ -5117,15 +6165,17 @@ io.on('connection', (socket) => {
             
             // Ustaw timer dla automatycznego pokazania statystyk po upływie czasu
             // Tylko jeśli pytanie ma ustawiony czas i czas nie jest wyłączony
-            // NIE ustawiaj timera dla pytań typu SHIPS (gra w statki nie ma automatycznego końca czasu)
+            // NIE ustawiaj timera dla SHIPS (ręczna kontrola) ani HNC (turniej sterowany ręcznie, może trwać wiele minut)
             const questionTime = question.time || 30;
-            if (questionTime > 0 && !gameState.quizOptions.disableTimePoints && question.type !== 'SHIPS' && question.type !== 'SHIPS_SOLO') {
+            if (questionTime > 0 && !gameState.quizOptions.disableTimePoints && question.type !== 'SHIPS' && question.type !== 'HNC') {
                 questionTimer = setTimeout(() => {
                     console.log(`⏰ Czas pytania minął - automatyczne pokazanie statystyk`);
                     endQuestionAndShowStats();
                 }, questionTime * 1000);
-            } else if (question.type === 'SHIPS' || question.type === 'SHIPS_SOLO') {
-                console.log(`⚓ Pytanie typu ${question.type} - timer wyłączony, gra kończy się ręcznie`);
+            } else if (question.type === 'SHIPS') {
+                console.log(`⚓ Pytanie typu SHIPS - timer wyłączony, gra kończy się ręcznie`);
+            } else if (question.type === 'HNC') {
+                console.log(`🏆 Pytanie typu HNC - timer wyłączony, turniej sterowany ręcznie`);
             }
         }
         
@@ -5445,6 +6495,8 @@ io.on('connection', (socket) => {
             questionTimer = null;
         }
         
+        if (gameState.activeQuestion && gameState.activeQuestion.type === 'WYBORCZY') stopWyborczyQuestionOnServer();
+        
         // Resetuj stan gry
         gameState.type = 'IDLE';
         gameState.activeQuestionIndex = -1;
@@ -5504,6 +6556,12 @@ io.on('connection', (socket) => {
         players.clear();
         pendingDisconnects.clear();
         disconnectedPlayersWithScore.clear();
+
+        // Pełny reset HNC (żeby telefony z poprzedniej gry nie trafiały do hncVoters nowej gry)
+        hncStopTimer();
+        hncPhase = 'setup';
+        hncPhotos = []; hncBracket = []; hncCurrentRound = 0; hncCurrentMatch = 0;
+        hncVoters.clear(); hncVotedThis.clear(); hncVotesA.clear(); hncVotesB.clear();
         
         // Wyślij event pełnego resetu gry do wszystkich graczy (aby wyczyścili nick i drużynę)
         io.emit('game_reset');
@@ -5529,13 +6587,43 @@ io.on('connection', (socket) => {
         const player = players.get(socket.id);
         const isAdmin = player ? (player.isAdmin === true) : true;
         if (!isAdmin) return;
-        console.log('⛔ END GAME - wyłączanie serwera...');
-        io.emit('server_shutting_down');
-        io.sockets.sockets.forEach((s) => s.disconnect(true));
-        server.close(() => {
-            console.log('Serwer zakończony.');
-            process.exit(0);
-        });
+        // Wyłącza tylko muzykę, tunel i rozłącza telefony – serwer pozostaje włączony
+        (async () => {
+            console.log('⛔ KONIEC GRY – muzyka, tunel, rozłączenie telefonów');
+            io.emit('admin_stop_music');
+            if (tunnelProcess) {
+                if (typeof tunnelProcess.stop === 'function') {
+                    try { tunnelProcess.stop(); } catch (_) {}
+                } else if (typeof tunnelProcess.close === 'function') {
+                    try { tunnelProcess.close(); } catch (_) {}
+                } else {
+                    try { tunnelProcess.kill('SIGTERM'); } catch (_) {}
+                }
+                tunnelProcess = null;
+            }
+            currentPinggyUrl = null;
+            io.emit('qr_code', null);
+            socket.emit('tunnel_stopped');
+            if (gameState.showQROnPhones) {
+                const wifiQR = currentWiFiSSID ? await generateWiFiQR(currentWiFiSSID) : null;
+                const localGameQR = showLocalGameQR ? await generateLocalGameQR() : null;
+                io.emit('qr_codes_on_phones', { wifiQR, wifiSSID: currentWiFiSSID, localGameQR, tunnelQR: null, gameQR: localGameQR || null });
+            }
+            const voteSocketIds = Array.from(players.keys());
+            voteSocketIds.forEach((sid) => {
+                const s = io.sockets.sockets.get(sid);
+                if (s) s.disconnect(true);
+            });
+            players.clear();
+            pendingDisconnects.clear();
+            disconnectedPlayersWithScore.clear();
+            gameState.type = 'IDLE';
+            gameState.showZarazZaczynamy = false;
+            gameState.showPlayersWithQR = false;
+            broadcastStateImmediate();
+            updateUsersCount();
+            console.log('✅ Koniec gry – telefony rozłączone');
+        })();
     });
 
     socket.on('admin_intro', () => {
@@ -5549,14 +6637,21 @@ io.on('connection', (socket) => {
         broadcastState();
     });
 
-    socket.on('admin_toggle_show_players_with_qr', () => {
+    socket.on('admin_toggle_show_players_with_qr', async () => {
         gameState.showPlayersWithQR = !gameState.showPlayersWithQR;
         console.log('👥 QR + nicki na ekranie:', gameState.showPlayersWithQR ? 'WŁĄCZONE' : 'WYŁĄCZONE');
+        if (gameState.showPlayersWithQR) {
+            const wifiQR = currentWiFiSSID ? await generateWiFiQR(currentWiFiSSID) : null;
+            const localGameQR = showLocalGameQR ? await generateLocalGameQR() : null;
+            const tunnelQR = currentPinggyUrl ? await generateGameQR() : null;
+            socket.emit('qr_codes_on_phones', { wifiQR, wifiSSID: currentWiFiSSID, localGameQR, tunnelQR, gameQR: tunnelQR || localGameQR });
+        }
         broadcastStateImmediate();
     });
 
     socket.on('admin_toggle_zaraz', () => {
         gameState.showZarazZaczynamy = !gameState.showZarazZaczynamy;
+        if (gameState.showZarazZaczynamy) gameState.showPlayersWithQR = false;
         console.log('🎬 Ekran ZARAZ ZACZYNAMY:', gameState.showZarazZaczynamy ? 'WŁĄCZONY' : 'WYŁĄCZONY');
         broadcastStateImmediate();
     });
@@ -5567,9 +6662,50 @@ io.on('connection', (socket) => {
     socket.on('admin_stop_music', () => {
         io.emit('admin_stop_music');
     });
+
+    // Koniec gry: wyłącz muzykę, zatrzymaj tunel, rozłącz telefony vote
+    socket.on('admin_end_game_session', async () => {
+        console.log('⛔ KONIEC GRY – muzyka, tunel, rozłączenie telefonów');
+        io.emit('admin_stop_music');
+        if (tunnelProcess) {
+            if (typeof tunnelProcess.stop === 'function') {
+                try { tunnelProcess.stop(); } catch (_) {}
+            } else if (typeof tunnelProcess.close === 'function') {
+                try { tunnelProcess.close(); } catch (_) {}
+            } else {
+                try { tunnelProcess.kill('SIGTERM'); } catch (_) {}
+            }
+            tunnelProcess = null;
+        }
+        currentPinggyUrl = null;
+        io.emit('qr_code', null);
+        socket.emit('tunnel_stopped');
+        if (gameState.showQROnPhones) {
+            const wifiQR = currentWiFiSSID ? await generateWiFiQR(currentWiFiSSID) : null;
+            const localGameQR = showLocalGameQR ? await generateLocalGameQR() : null;
+            io.emit('qr_codes_on_phones', { wifiQR, wifiSSID: currentWiFiSSID, localGameQR, tunnelQR: null, gameQR: localGameQR || null });
+        }
+        const voteSocketIds = Array.from(players.keys());
+        voteSocketIds.forEach((sid) => {
+            const s = io.sockets.sockets.get(sid);
+            if (s) s.disconnect(true);
+        });
+        players.clear();
+        pendingDisconnects.clear();
+        disconnectedPlayersWithScore.clear();
+        gameState.type = 'IDLE';
+        gameState.showZarazZaczynamy = false;
+        gameState.showPlayersWithQR = false;
+        broadcastStateImmediate();
+        updateUsersCount();
+        console.log('✅ Koniec gry – telefony rozłączone');
+    });
     socket.on('admin_set_master_volume', (vol) => {
-        const v = Math.max(0, Math.min(100, parseInt(vol, 10)));
-        io.emit('admin_master_volume', v);
+        const v = Math.max(0, Math.min(100, parseInt(vol, 10))) / 100;
+        masterVolume = v;
+        saveVolumes();
+        io.emit('master_volume', { volume: masterVolume });
+        io.emit('admin_master_volume', Math.round(v * 100)); // kompatybilność z admin.html
     });
 
     // === TEAM BATTLE MODE ===
@@ -5605,7 +6741,7 @@ io.on('connection', (socket) => {
     
     // Gracz prosi o kody QR (po dołączeniu, gdy opcja włączona)
     socket.on('request_qr_codes_on_phones', async () => {
-        if (!gameState.showQROnPhones) return;
+        if (!gameState.showQROnPhones && !gameState.showPlayersWithQR) return;
         const wifiQR = currentWiFiSSID ? await generateWiFiQR(currentWiFiSSID) : null;
         const localGameQR = showLocalGameQR ? await generateLocalGameQR() : null;
         const tunnelQR = currentPinggyUrl ? await generateGameQR() : null;
@@ -5704,90 +6840,81 @@ io.on('connection', (socket) => {
         return filePath.replace(/\.[^.]+$/, '-thumb.webp');
     }
 
+    // Zbiera wszystkie pliki używane przez INNE quizy (z wyjątkiem excludeFilename)
+    function getFilesUsedByOtherQuizzes(excludeFilename) {
+        const used = new Set();
+        let quizFiles = [];
+        try { quizFiles = fs.readdirSync(quizzesDir).filter(f => f.toLowerCase().endsWith('.json')); } catch (_) {}
+        for (const qf of quizFiles) {
+            if (qf === excludeFilename) continue;
+            try {
+                const raw = fs.readFileSync(path.join(quizzesDir, qf), 'utf8');
+                const data = JSON.parse(raw);
+                const questions = Array.isArray(data) ? data : (data.questions || []);
+                questions.forEach(q => {
+                    for (const field of ['media', 'image', 'imageSmall', 'audio', 'imageA', 'imageB', 'imageSmallA', 'imageSmallB', 'bgMusic']) {
+                        const fp = extractFilePath(q[field]);
+                        if (fp) { used.add(fp); used.add(getThumbnailPath(fp)); }
+                    }
+                    // WYBORCZY photos
+                    if (Array.isArray(q.photos)) {
+                        q.photos.forEach(p => { const fp = extractFilePath(p.url); if (fp) { used.add(fp); used.add(getThumbnailPath(fp)); } });
+                    }
+                });
+                // top-level bgMusic (options)
+                if (data.options && data.options.bgMusic) { const fp = extractFilePath(data.options.bgMusic); if (fp) used.add(fp); }
+            } catch (_) {}
+        }
+        used.delete(null); used.delete(undefined);
+        return used;
+    }
+
+    // Wyciąga wszystkie pliki mediów z quizu
+    function getFilesFromQuiz(filePath) {
+        const files = new Set();
+        try {
+            const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+            const questions = Array.isArray(data) ? data : (data.questions || []);
+            questions.forEach(q => {
+                for (const field of ['media', 'image', 'imageSmall', 'audio', 'imageA', 'imageB', 'imageSmallA', 'imageSmallB', 'bgMusic']) {
+                    const fp = extractFilePath(q[field]);
+                    if (fp) { files.add(fp); const t = getThumbnailPath(fp); if (t && fs.existsSync(path.join(uploadsDir, t))) files.add(t); }
+                }
+                if (Array.isArray(q.photos)) {
+                    q.photos.forEach(p => { const fp = extractFilePath(p.url); if (fp) { files.add(fp); const t = getThumbnailPath(fp); if (t && fs.existsSync(path.join(uploadsDir, t))) files.add(t); } });
+                }
+            });
+            if (data.options && data.options.bgMusic) { const fp = extractFilePath(data.options.bgMusic); if (fp) files.add(fp); }
+        } catch (_) {}
+        return files;
+    }
+
     // Pobierz listę powiązanych plików dla quizu
     socket.on('editor_get_related_files', (filename) => {
         try {
             const filePath = path.join(quizzesDir, filename);
             if (!fs.existsSync(filePath)) {
-                socket.emit('editor_related_files', { files: [] });
+                socket.emit('editor_related_files', { files: [], safeFiles: [], sharedFiles: [] });
                 return;
             }
 
-            const rawData = fs.readFileSync(filePath, 'utf8');
-            const data = JSON.parse(rawData);
-            const questions = Array.isArray(data) ? data : (data.questions || []);
-            
-            const relatedFiles = new Set();
-            
-            questions.forEach(q => {
-                // Media (obrazy/audio)
-                if (q.media) {
-                    const mediaPath = extractFilePath(q.media);
-                    if (mediaPath) relatedFiles.add(mediaPath);
-                    // Sprawdź miniaturę
-                    const thumbPath = getThumbnailPath(mediaPath);
-                    if (thumbPath && fs.existsSync(path.join(uploadsDir, thumbPath))) {
-                        relatedFiles.add(thumbPath);
-                    }
-                }
-                
-                // imageSmall (miniatury)
-                if (q.imageSmall) {
-                    const smallPath = extractFilePath(q.imageSmall);
-                    if (smallPath) relatedFiles.add(smallPath);
-                }
-                
-                // image (kompatybilność wsteczna)
-                if (q.image) {
-                    const imagePath = extractFilePath(q.image);
-                    if (imagePath) relatedFiles.add(imagePath);
-                    const thumbPath = getThumbnailPath(imagePath);
-                    if (thumbPath && fs.existsSync(path.join(uploadsDir, thumbPath))) {
-                        relatedFiles.add(thumbPath);
-                    }
-                }
-                
-                // audio
-                if (q.audio) {
-                    const audioPath = extractFilePath(q.audio);
-                    if (audioPath) relatedFiles.add(audioPath);
-                }
-                
-                // HOT_OR_NOT - dwa obrazki
-                if (q.type === 'HOT_OR_NOT') {
-                    if (q.imageA) {
-                        const imageAPath = extractFilePath(q.imageA);
-                        if (imageAPath) relatedFiles.add(imageAPath);
-                        const thumbAPath = getThumbnailPath(imageAPath);
-                        if (thumbAPath && fs.existsSync(path.join(uploadsDir, thumbAPath))) {
-                            relatedFiles.add(thumbAPath);
-                        }
-                    }
-                    if (q.imageB) {
-                        const imageBPath = extractFilePath(q.imageB);
-                        if (imageBPath) relatedFiles.add(imageBPath);
-                        const thumbBPath = getThumbnailPath(imageBPath);
-                        if (thumbBPath && fs.existsSync(path.join(uploadsDir, thumbBPath))) {
-                            relatedFiles.add(thumbBPath);
-                        }
-                    }
-                    if (q.imageSmallA) {
-                        const smallAPath = extractFilePath(q.imageSmallA);
-                        if (smallAPath) relatedFiles.add(smallAPath);
-                    }
-                    if (q.imageSmallB) {
-                        const smallBPath = extractFilePath(q.imageSmallB);
-                        if (smallBPath) relatedFiles.add(smallBPath);
-                    }
-                }
+            // Użyj nowej funkcji pomocniczej
+            const allFiles = getFilesFromQuiz(filePath);
+            const usedElsewhere = getFilesUsedByOtherQuizzes(filename);
+            const safeFiles = Array.from(allFiles).filter(f => !usedElsewhere.has(f));
+            const sharedFiles = Array.from(allFiles).filter(f => usedElsewhere.has(f));
+
+            socket.emit('editor_related_files', {
+                files: Array.from(allFiles),  // dla kompatybilności
+                safeFiles,
+                sharedFiles
             });
-            
-            socket.emit('editor_related_files', { files: Array.from(relatedFiles) });
         } catch (err) {
             console.error('❌ Błąd pobierania powiązanych plików:', err);
-            socket.emit('editor_related_files', { files: [] });
+            socket.emit('editor_related_files', { files: [], safeFiles: [], sharedFiles: [] });
         }
     });
+
 
     // Usuń quiz i opcjonalnie powiązane pliki
     socket.on('editor_delete_file', (data) => {
@@ -5811,68 +6938,26 @@ io.on('connection', (socket) => {
             }
 
             let deletedFiles = [];
+            let skippedFiles = [];
             let errors = [];
 
-            // Jeśli usuwamy powiązane pliki, najpierw pobierz ich listę
+            // Jeśli usuwamy powiązane pliki, sprawdź które są bezpieczne do usunięcia
             if (deleteRelated) {
-                const rawData = fs.readFileSync(filePath, 'utf8');
-                const quizData = JSON.parse(rawData);
-                const questions = Array.isArray(quizData) ? quizData : (quizData.questions || []);
-                
-                const filesToDelete = new Set();
-                
-                questions.forEach(q => {
-                    // Media
-                    if (q.media) {
-                        const mediaPath = extractFilePath(q.media);
-                        if (mediaPath) filesToDelete.add(mediaPath);
-                        const thumbPath = getThumbnailPath(mediaPath);
-                        if (thumbPath) filesToDelete.add(thumbPath);
+                const allQuizFiles = getFilesFromQuiz(filePath);
+                const usedElsewhere = getFilesUsedByOtherQuizzes(filename);
+
+                allQuizFiles.forEach(fileName => {
+                    if (usedElsewhere.has(fileName)) {
+                        // Plik używany przez inne quizy – CHRONIONY, nie usuwamy
+                        skippedFiles.push(fileName);
+                        console.log(`🛡️ Pominięto (używany przez inny quiz): ${fileName}`);
+                        return;
                     }
-                    if (q.imageSmall) {
-                        const smallPath = extractFilePath(q.imageSmall);
-                        if (smallPath) filesToDelete.add(smallPath);
-                    }
-                    if (q.image) {
-                        const imagePath = extractFilePath(q.image);
-                        if (imagePath) filesToDelete.add(imagePath);
-                        const thumbPath = getThumbnailPath(imagePath);
-                        if (thumbPath) filesToDelete.add(thumbPath);
-                    }
-                    if (q.audio) {
-                        const audioPath = extractFilePath(q.audio);
-                        if (audioPath) filesToDelete.add(audioPath);
-                    }
-                    if (q.type === 'HOT_OR_NOT') {
-                        if (q.imageA) {
-                            const imageAPath = extractFilePath(q.imageA);
-                            if (imageAPath) filesToDelete.add(imageAPath);
-                            const thumbAPath = getThumbnailPath(imageAPath);
-                            if (thumbAPath) filesToDelete.add(thumbAPath);
-                        }
-                        if (q.imageB) {
-                            const imageBPath = extractFilePath(q.imageB);
-                            if (imageBPath) filesToDelete.add(imageBPath);
-                            const thumbBPath = getThumbnailPath(imageBPath);
-                            if (thumbBPath) filesToDelete.add(thumbBPath);
-                        }
-                        if (q.imageSmallA) {
-                            const smallAPath = extractFilePath(q.imageSmallA);
-                            if (smallAPath) filesToDelete.add(smallAPath);
-                        }
-                        if (q.imageSmallB) {
-                            const smallBPath = extractFilePath(q.imageSmallB);
-                            if (smallBPath) filesToDelete.add(smallBPath);
-                        }
-                    }
-                });
-                
-                // Usuń powiązane pliki
-                filesToDelete.forEach(fileName => {
                     const fullPath = path.join(uploadsDir, fileName);
                     if (fs.existsSync(fullPath)) {
                         try {
                             fs.unlinkSync(fullPath);
+                            removeFileFromIndex(fileName);
                             deletedFiles.push(fileName);
                             console.log(`✅ Usunięto powiązany plik: ${fileName}`);
                             devSyncDelete(`public/uploads/${fileName}`);
@@ -5884,7 +6969,7 @@ io.on('connection', (socket) => {
                 });
             }
 
-            // Usuń plik JSON
+            // Usuń plik JSON quizu
             try {
                 fs.unlinkSync(filePath);
                 deletedFiles.push(filename);
@@ -5901,7 +6986,10 @@ io.on('connection', (socket) => {
 
             let message = `Usunięto: ${filename}`;
             if (deleteRelated && deletedFiles.length > 1) {
-                message += ` oraz ${deletedFiles.length - 1} powiązanych plików`;
+                message += ` oraz ${deletedFiles.length - 1} plik(ów) multimedialnych`;
+            }
+            if (skippedFiles.length > 0) {
+                message += `. Zachowano ${skippedFiles.length} plik(ów) używanych przez inne quizy`;
             }
             if (errors.length > 0) {
                 message += `. Błędy: ${errors.join(', ')}`;
@@ -5909,7 +6997,8 @@ io.on('connection', (socket) => {
 
             socket.emit('editor_delete_status', { 
                 success: errors.length === 0, 
-                message: message 
+                message,
+                skippedFiles
             });
         } catch (err) {
             console.error('❌ Błąd usuwania quizu:', err);
@@ -5949,7 +7038,13 @@ io.on('connection', (socket) => {
             existingPlayer.socketId = socket.id;
             players.set(socket.id, existingPlayer);
             console.log(`🔄 Przywrócono gracza ${nick} po reconnect (wynik: ${existingPlayer.score}, drużyna: ${existingPlayer.team})`);
+            // Przywróć gracza do hncVoters tylko jeśli mecz aktywny (nie match_result — tam hnc_start_match rebuilds)
+            if (hncPhase === 'voting' || hncPhase === 'ready' || hncPhase === 'tiebreak') {
+                hncVoters.add(socket.id);
+            }
             updateUsersCount();
+            // Odśwież listę nicków na screen.html gdy widok QR jest aktywny
+            if (gameState.showPlayersWithQR) io.emit('update_state', getStateForBroadcast());
             
             // Jeśli tryb drużynowy jest aktywny i gracz nie ma drużyny, wyślij ekran wyboru drużyny
             if (gameState.teamBattleMode && !existingPlayer.team) {
@@ -5976,7 +7071,13 @@ io.on('connection', (socket) => {
             eliminated: false
         };
         players.set(socket.id, player);
+        // Dodaj do hncVoters tylko gdy mecz jest aktywny (nie match_result — tam hnc_start_match rebuilds)
+        if (hncPhase === 'voting' || hncPhase === 'ready' || hncPhase === 'tiebreak') {
+            hncVoters.add(socket.id);
+        }
         updateUsersCount();
+        // Odśwież listę nicków na screen.html gdy widok QR jest aktywny
+        if (gameState.showPlayersWithQR) io.emit('update_state', getStateForBroadcast());
         
         // Wyślij aktualny wynik gracza (0 dla nowego gracza)
         sendPlayerScore(socket, player);
@@ -6423,7 +7524,8 @@ io.on('connection', (socket) => {
             phase: 'col',
             lastShot: null,
             gameEnded: false,
-            soundtrack: soundtrack || ''
+            soundtrack: soundtrack || '',
+            soundtrackLoop: data.soundtrackLoop !== false
         };
         io.emit('ships_solo_state', gameState.shipsSoloGame);
         console.log(`⚓ [SHIPS_SOLO standalone] Gra zainicjowana, plansza ${boardSize}x${boardSize}, ${validShips.length} statków`);
@@ -6509,10 +7611,11 @@ io.on('connection', (socket) => {
         const shipSize = hit ? g.ships[hitShipIdx].size : null;
         if (hit) {
             if (g.rewardMode === 'buciki') {
-                // Buciki: nagroda = liczba masztów trafionego statku × flaszka
                 const sz = g.ships[hitShipIdx].size;
                 const pl = sz === 1 ? 'flaszka' : sz <= 4 ? 'flaszki' : 'flaszek';
                 reward = `${'🥃'.repeat(sz)} ${sz} ${pl}!`;
+            } else if (g.rewardMode === 'buciki_2') {
+                reward = '🥃 1 flaszka!';
             } else if (g.rewardMode === 'per_ship') {
                 // Nagroda tylko przy PIERWSZYM trafieniu danego statku
                 if (!g.shipsHitOrder.includes(hitShipIdx)) {
@@ -6556,9 +7659,14 @@ io.on('connection', (socket) => {
         broadcastState();
     });
 
-    /** Admin reguluje głośność soundtracku SHIPS_SOLO */
+    /** Admin reguluje głośność soundtracku SHIPS_SOLO – zapis w kanale statki */
     socket.on('ships_solo_volume', (data) => {
-        io.emit('ships_solo_volume', { volume: data.volume });
+        const v = parseFloat(data && data.volume);
+        if (!isNaN(v) && v >= 0 && v <= 1) {
+            statkiVolume = v;
+            saveVolumes();
+        }
+        io.emit('ships_solo_volume', { volume: statkiVolume });
     });
 
     /** Admin kończy grę solo */
@@ -6566,8 +7674,11 @@ io.on('connection', (socket) => {
         clearShipsSoloAimTimer();
         if (!gameState.shipsSoloGame) return;
         gameState.shipsSoloGame.gameEnded = true;
+        io.emit('ships_solo_stop_music');
         io.emit('ships_solo_shot_result', {
-            questionId, shots: gameState.shipsSoloGame.shots, gameEnded: true
+            questionId: gameState.shipsSoloGame.questionId || 'standalone',
+            shots: gameState.shipsSoloGame.shots,
+            gameEnded: true
         });
         broadcastState();
         console.log(`⚓ [SHIPS_SOLO] Gra zakończona przez admina`);
@@ -6599,7 +7710,6 @@ io.on('connection', (socket) => {
         // WAŻNE: Wyślij aktualizację wyników drużyn jeśli tryb drużynowy jest włączony
         if (gameState.teamBattleMode) {
             io.emit('update_team_scores', gameState.teams);
-            console.log('📤 Wysłano update_team_scores po ships_end_game');
         }
         
         broadcastState();
@@ -6769,6 +7879,18 @@ io.on('connection', (socket) => {
         wyborczySession.votes[idx].push(stars);
         wyborczySession.voterIds[idx].add(socket.id);
         wyborczyVotedThis.add(socket.id);
+
+        // Przyznaj 10 punktów za oddany głos (niezależnie od oceny)
+        const player = players.get(socket.id);
+        if (player) {
+            player.score += 10;
+            sendPlayerScore(socket, player);
+            if (gameState.teamBattleMode && player.team && gameState.teams[player.team]) {
+                gameState.teams[player.team].score += 10 * getTeamBalanceMultiplier(player.team);
+                io.emit('update_team_scores', gameState.teams);
+            }
+        }
+
         socket.emit('wyborczy_vote_ok', { photoIndex: idx });
         io.emit('wyborczy_vote_update', {
             photoIndex: idx,
@@ -6790,7 +7912,168 @@ io.on('connection', (socket) => {
     });
     // ===== /DODATEK WYBORCZY =====
 
+    // ===== HOT OR NOT CHAMPION =====
+    socket.on('hnc_join_phone', () => {
+        hncVoters.add(socket.id);
+        socket.emit('hnc_state', hncGetState());
+    });
+    socket.on('hnc_join_screen', () => { socket.emit('hnc_state', hncGetState()); });
+    socket.on('hnc_join_admin', () => { socket.emit('hnc_state', hncGetState()); });
+
+    socket.on('hnc_setup', (data) => {
+        hncPhotos = (data.photos || []).map((p, i) => ({ id: `hnc_${i}_${Date.now()}`, url: p.url, desc: p.desc || '' }));
+        hncMatchTime = Math.max(5, parseInt(data.time) || 15);
+        hncQuestionText = data.questionText || '';
+        hncBuildBracket(hncPhotos);
+        hncCurrentRound = 0;
+        hncCurrentMatch = 0;
+        hncPhase = 'ready';
+        hncVotedThis.clear(); hncVotesA.clear(); hncVotesB.clear();
+        hncStopTimer();
+        hncBroadcast();
+    });
+
+    socket.on('hnc_shuffle', () => {
+        // Only allowed at the very start of eliminacje (round 0, match 0, no winners yet)
+        if (hncPhase !== 'ready' || hncCurrentRound !== 0 || hncCurrentMatch !== 0) return;
+        if (hncBracket[0]?.some(m => m?.winner)) return;
+        // Fisher-Yates shuffle of hncPhotos, then rebuild bracket
+        for (let i = hncPhotos.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [hncPhotos[i], hncPhotos[j]] = [hncPhotos[j], hncPhotos[i]];
+        }
+        hncBuildBracket(hncPhotos);
+        hncCurrentRound = 0;
+        hncCurrentMatch = 0;
+        // Preload first match after shuffle
+        const firstM = hncBracket[0]?.[0];
+        if (firstM?.photoA && firstM?.photoB) {
+            io.emit('hnc_preload', [firstM.photoA.url, firstM.photoB.url]);
+        }
+        hncBroadcast();
+    });
+
+    socket.on('hnc_start_match', () => {
+        const m = hncBracket[hncCurrentRound]?.[hncCurrentMatch];
+        if (!m || !m.photoA || !m.photoB) return;
+        hncPhase = 'voting';
+        hncVotedThis.clear(); hncVotesA.clear(); hncVotesB.clear();
+        // Refresh voters: remove disconnected sockets, add current players
+        for (const id of [...hncVoters]) {
+            if (!io.sockets.sockets.has(id)) hncVoters.delete(id);
+        }
+        players.forEach((p, sid) => { if (p.nick) hncVoters.add(sid); });
+        hncBroadcast();
+        hncTimeLeft = hncMatchTime;
+        hncStopTimer();
+        hncTimerInt = setInterval(() => {
+            hncTimeLeft--;
+            hncBroadcast();
+            if (hncTimeLeft <= 0) hncEndVoting();
+        }, 1000);
+    });
+
+    socket.on('hnc_vote', (data) => {
+        if (hncPhase !== 'voting') return;
+        if (hncVotedThis.has(socket.id)) return;
+        // Auto-register voter — handles reconnect (new socket.id) and post-reset scenarios
+        hncVoters.add(socket.id);
+        hncVotedThis.add(socket.id);
+        if (data.side === 'A') hncVotesA.add(socket.id);
+        else hncVotesB.add(socket.id);
+        socket.emit('hnc_vote_ok', { side: data.side });
+        // 10 punktów za oddanie głosu (quiz context)
+        const player = players.get(socket.id);
+        if (player) {
+            player.score = (player.score || 0) + 10;
+            io.emit('update_team_scores', Array.from(players.values()).map(p => ({ nick: p.nick, score: p.score || 0, team: p.team })));
+        }
+        // Only connected voters count — disconnected phones don't block the match
+        const connectedVoters = [...hncVoters].filter(id => io.sockets.sockets.has(id));
+        if (connectedVoters.length > 0 && connectedVoters.every(id => hncVotedThis.has(id))) {
+            hncEndVoting();
+        } else {
+            hncBroadcast();
+            // After 8s grace period, end match if remaining non-voters haven't engaged
+            clearTimeout(hncVoteGraceTimer);
+            hncVoteGraceTimer = setTimeout(() => {
+                if (hncPhase !== 'voting') return;
+                const stillConn = [...hncVoters].filter(id => io.sockets.sockets.has(id));
+                const allNow = stillConn.length > 0 && stillConn.every(id => hncVotedThis.has(id));
+                if (allNow) hncEndVoting();
+            }, 8000);
+        }
+    });
+
+    socket.on('hnc_force_end', () => { if (hncPhase === 'voting') hncEndVoting(); });
+
+    socket.on('hnc_coin_flip', () => {
+        if (hncPhase !== 'tiebreak') return;
+        const m = hncBracket[hncCurrentRound]?.[hncCurrentMatch];
+        if (!m) return;
+        const side = Math.random() < 0.5 ? 'A' : 'B';
+        m.winner = side === 'A' ? m.photoA : m.photoB;
+        m.votesA = hncVotesA.size; m.votesB = hncVotesB.size;
+        io.emit('hnc_coin_result', { side, winner: m.winner });
+        hncPhase = 'match_result';
+        setTimeout(() => hncBroadcast(), 2500);
+    });
+
+    socket.on('hnc_advance', () => {
+        const m = hncBracket[hncCurrentRound]?.[hncCurrentMatch];
+        if (!m || !m.winner) return;
+        const nextRound = hncCurrentRound + 1;
+        if (nextRound < hncBracket.length) {
+            const nextIdx = Math.floor(hncCurrentMatch / 2);
+            const nextM = hncBracket[nextRound][nextIdx];
+            if (nextM) {
+                if (hncCurrentMatch % 2 === 0) nextM.photoA = m.winner;
+                else nextM.photoB = m.winner;
+            }
+        }
+        const matchCount = hncBracket[hncCurrentRound].length;
+        if (hncCurrentMatch + 1 < matchCount) {
+            hncCurrentMatch++;
+            hncPhase = 'ready';
+        } else if (nextRound < hncBracket.length) {
+            hncCurrentRound = nextRound;
+            hncCurrentMatch = 0;
+            hncPhase = 'round_complete';
+        } else {
+            hncPhase = 'champion';
+        }
+        hncBroadcast();
+    });
+
+    socket.on('hnc_next_round', () => {
+        if (hncPhase === 'round_complete') {
+            hncPhase = 'ready';
+            // Preload first match of new round
+            const firstM = hncBracket[hncCurrentRound]?.[0];
+            if (firstM?.photoA && firstM?.photoB) {
+                io.emit('hnc_preload', [firstM.photoA.url, firstM.photoB.url]);
+            }
+            hncBroadcast();
+        }
+    });
+
+    socket.on('hnc_reset', () => {
+        hncStopTimer();
+        hncPhotos = []; hncBracket = []; hncQuestionText = '';
+        hncCurrentRound = 0; hncCurrentMatch = 0;
+        hncPhase = 'setup';
+        hncVoters.clear(); hncVotedThis.clear(); hncVotesA.clear(); hncVotesB.clear();
+        hncTimeLeft = 0;
+        hncBroadcast();
+    });
+    // ===== /HOT OR NOT CHAMPION =====
+
     socket.on('disconnect', () => {
+        // HNC – usuń votera
+        if (hncVoters.has(socket.id)) {
+            hncVoters.delete(socket.id);
+            hncVotedThis.delete(socket.id);
+        }
         // Wyborczy – usuń votera i sprawdź czy wszyscy zagłosowali
         if (wyborczyVoters.has(socket.id)) {
             wyborczyVoters.delete(socket.id);
@@ -6852,9 +8135,11 @@ function onServerReady(urlPrefix) {
     }
     console.log('   ═══════════════════════════════════════════════════\n');
     // Otwieraj przeglądarkę tylko gdy uruchamiasz serwer ręcznie (node server.js) – nie w aplikacji Electron
-    if (process.platform === 'darwin' && !process.env.IMPREZJA_ELECTRON && !process.env.IMPREZJA_NO_BROWSER) {
+    if (!process.env.IMPREZJA_ELECTRON && !process.env.IMPREZJA_NO_BROWSER) {
         const { exec } = require('child_process');
-        exec(`open "${urlPrefix}/start.html"`, () => {});
+        const url = `${urlPrefix}/start.html`;
+        const cmd = process.platform === 'win32' ? `start "" "${url}"` : (process.platform === 'darwin' ? `open "${url}"` : `xdg-open "${url}"`);
+        exec(cmd, () => {});
     }
 }
 
@@ -6874,6 +8159,7 @@ function checkLicenseMiddleware(req, res, next) {
 // Sprawdź na czym faktycznie nasłuchuje serwer.
 // W trybie Electron (IMPREZJA_ELECTRON) eksportujemy startServer – serwer uruchamia proces główny w tym samym procesie (bez spawn), żeby na macOS nie pojawiał się dialog z hasłem.
 function doListen(readyCallback) {
+    loadVolumes();
     const serverInstance = server.listen(PORT, '0.0.0.0', () => {
         const address = serverInstance.address();
         console.log(`✅ Serwer HTTP uruchomiony na porcie ${PORT}`);

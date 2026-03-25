@@ -1,0 +1,14 @@
+{
+  "name": "Wizualizacja",
+  "slides": [
+    {
+      "type": "visualization",
+      "preset": "equalizer",
+      "vizOverlayClock": true,
+      "vizOverlayClockSec": true,
+      "vizOverlayCountdown": false
+    }
+  ],
+  "transition": "fade",
+  "loop": true
+}

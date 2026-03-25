@@ -2,10 +2,10 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico"><link rel="icon" type="image/png" sizes="32x32" href="/img/icon-32.png"><link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
     <title>Familiada – ekran TV</title>
     <link href="/fonts/pixelify-sans/400.css" rel="stylesheet">
     <link href="/fonts/pixelify-sans/700.css" rel="stylesheet">
-    <script src="/socket.io/socket.io.js"></script>
     <style>
         :root {
             --led-yellow: #ffe033;
@@ -19,11 +19,7 @@
             animation: bgGradientPulse 4s ease-in-out infinite; }
         @keyframes bgGradientPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 
-        #fs-btn { position: fixed; bottom: 20px; right: 20px; background: rgba(50, 50, 50, 0.5); color: #fff; border: 1px solid #777; padding: 10px 20px; border-radius: 5px; cursor: pointer; z-index: 9999; font-family: sans-serif; font-size: 12px; text-transform: uppercase; }
-        #fs-btn:hover { opacity: 1; background: #444; }
-        #back-btn { position: fixed; bottom: 20px; left: 20px; background: rgba(50, 50, 50, 0.5); color: #fff; border: 1px solid #777; padding: 10px 20px; border-radius: 5px; cursor: pointer; z-index: 9999; font-family: sans-serif; font-size: 12px; text-transform: uppercase; text-decoration: none; display: inline-block; }
-        #back-btn:hover { background: #444; }
-        .logo-footer { position: fixed; bottom: 58px; right: 20px; z-index: 50; height: 32px; width: auto; opacity: 0.75; pointer-events: none; }
+        .logo-footer { position: fixed; bottom: 20px; right: 20px; z-index: 50; height: 32px; width: auto; opacity: 0.75; pointer-events: none; }
         .logo-footer img { height: 100%; width: auto; object-fit: contain; }
 
         #top-section { min-height: 18vh; max-height: 28vh; height: auto; display: flex; z-index: 10; position: relative; }
@@ -172,8 +168,6 @@
 </head>
 <body>
     <div class="logo-footer" aria-hidden="true"><img src="/img/logo_imprezja_mini.png" alt="Imprezja Quiz"></div>
-    <button id="fs-btn" onclick="toggleFullScreen()">⛶ PEŁNY EKRAN</button>
-    <a id="back-btn" href="/start.html">← COFNIJ</a>
 
     <div id="familiada-title-overlay">
         <div class="pixel-title-wrap" id="pixel-title"></div>
@@ -185,28 +179,12 @@
 
     <div id="familiada-intro">
         <div class="intro-title">FAMILIADA – Panel pilota</div>
-        <div class="qr-row">
-            <div class="qr-admin-box">
-                <div class="qr-admin-label">Zeskanuj – pilot na telefonie</div>
-                <img id="qr-admin-familiada" src="" alt="QR Admin Familiada">
-                <div id="admin-url-display" style="margin-top:10px; font-size:0.85rem; word-break:break-all; color:#95a5a6;"></div>
-            </div>
-            <div class="qr-admin-box">
-                <div class="qr-admin-label qr-buttons-label">Zeskanuj – przyciski (niebieski/czerwony)</div>
-                <img id="qr-buttons-familiada" src="" alt="QR Przyciski">
-                <div id="buttons-url-display" style="margin-top:10px; font-size:0.85rem; word-break:break-all; color:#95a5a6;"></div>
-            </div>
-        </div>
         <div class="intro-btn-row">
-            <a href="/familiada/editor.html" target="_blank" class="intro-editor-btn">✏️ Edytor</a>
             <button type="button" class="intro-editor-btn intro-admin-btn" onclick="window.open('/familiada/admin.html','_blank')">Admin na komputerze</button>
             <button type="button" class="intro-editor-btn intro-start-btn" onclick="startGame()">▶️ Rozpocznij grę</button>
-            <button type="button" class="intro-editor-btn intro-back-btn" id="btn-familiada-zakoncz">Zakończ</button>
-            <a href="/start.html" class="intro-editor-btn intro-back-btn" style="text-decoration:none;">← Cofnij</a>
+            <a href="/start.html" class="intro-editor-btn intro-back-btn back-to-start" style="text-decoration:none;">← Cofnij</a>
         </div>
     </div>
-
-    <button type="button" id="btn-familiada-zakoncz-float" class="intro-editor-btn intro-back-btn" style="display:none; position:fixed; bottom:16px; right:16px; z-index:350;">Zakończ</button>
 
     <div id="split-overlay"></div>
     <div id="button-flash-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:400; pointer-events:none; transition:opacity 3s ease-out; align-items:center; justify-content:center;">
@@ -233,7 +211,14 @@
         </div>
     </div>
 
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/lib/audio-normalize.js"></script>
     <script>
+        const FAM_LOG = (...a) => { try { console.log('[IMPREZJA-FAMILIADA]', new Date().toISOString(), ...a); } catch (_) {} };
+        const FAM_ERR = (...a) => { try { console.error('[IMPREZJA-FAMILIADA-ERR]', new Date().toISOString(), ...a); } catch (_) {} };
+        window.onerror = function(msg, url, line, col, err) { FAM_ERR('onerror', msg, url, line, col, err && err.stack); return false; };
+        window.addEventListener('unhandledrejection', e => { FAM_ERR('unhandledrejection', e.reason); });
+
         const socket = io();
         let currentPot = 0;
         const MAX_ROWS = 10;
@@ -270,24 +255,27 @@
 
         let gameActive = false;
 
-        function endGameShowIntro() {
-            gameActive = false;
-            stopAllAudio();
-            if (typeof socket !== 'undefined') socket.emit('familiada_screen_reset');
+        /** Po zakończeniu gry (admin / TV): tylko napis FAMILIADA, bez muzyki i bez starego panelu z przyciskami. Widok na TV zmienia się z PWA admin. */
+        function showFamiliadaIdleTitle() {
             const intro = document.getElementById('familiada-intro');
-            if (intro) intro.classList.remove('hidden');
+            if (intro) intro.classList.add('hidden');
+            const jingleScores = document.getElementById('familiada-jingle-scores');
+            if (jingleScores) jingleScores.classList.remove('visible');
+            renderPixelTitle('pixel-title');
             const overlay = document.getElementById('familiada-title-overlay');
-            if (overlay) overlay.classList.remove('visible');
+            if (overlay) {
+                overlay.classList.remove('fade-out');
+                overlay.style.opacity = '1';
+                overlay.classList.add('visible');
+            }
             const final = document.getElementById('final-screen');
             if (final) final.style.display = 'none';
-            const fl = document.getElementById('btn-familiada-zakoncz-float');
-            if (fl) fl.style.display = 'none';
         }
+
         function startGame() {
+            if (typeof window.initAudioContext === 'function') window.initAudioContext();
             gameActive = true;
             document.getElementById('familiada-intro').classList.add('hidden');
-            const fl = document.getElementById('btn-familiada-zakoncz-float');
-            if (fl) fl.style.display = document.fullscreenElement ? 'none' : 'block';
             const jingleScores = document.getElementById('familiada-jingle-scores');
             if (jingleScores) jingleScores.classList.remove('visible');
             renderPixelTitle();
@@ -302,26 +290,15 @@
         }
 
         function initFamiliadaConnection() {
+            FAM_LOG('initFamiliadaConnection - emitting register_familiada');
             socket.emit('register_familiada', { role: 'screen' });
             socket.emit('familiada_set_mode');
             socket.emit('familiada_request_team_names');
-            socket.emit('familiada_request_qr_admin');
         }
         if (socket.connected) initFamiliadaConnection();
         else socket.once('connect', initFamiliadaConnection);
-        document.getElementById('btn-familiada-zakoncz')?.addEventListener('click', endGameShowIntro);
-        document.getElementById('btn-familiada-zakoncz-float')?.addEventListener('click', endGameShowIntro);
-        socket.on('familiada_qr_admin', (data) => {
-            const img = document.getElementById('qr-admin-familiada');
-            const urlEl = document.getElementById('admin-url-display');
-            if (img && data && data.qrCode) img.src = data.qrCode;
-            if (urlEl && data && data.url) urlEl.textContent = data.url;
-        });
-        socket.on('familiada_qr_buttons', (data) => {
-            const img = document.getElementById('qr-buttons-familiada');
-            const urlEl = document.getElementById('buttons-url-display');
-            if (img && data && data.qrCode) img.src = data.qrCode;
-            if (urlEl && data && data.url) urlEl.textContent = data.url;
+        socket.on('familiada_show_start_screen', () => {
+            if (!gameActive) startGame();
         });
         socket.on('familiada_button_flash', (data) => {
             const overlay = document.getElementById('button-flash-overlay');
@@ -345,25 +322,10 @@
             }, 5000);
         });
 
-        function toggleFullScreen() {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(() => {});
-                document.getElementById('fs-btn').style.display = 'none';
-            } else {
-                document.exitFullscreen();
-            }
-        }
         document.addEventListener('fullscreenchange', () => {
             const isFs = !!document.fullscreenElement;
-            const btn = document.getElementById('fs-btn');
-            if (btn) btn.style.display = isFs ? 'none' : '';
-            const backBtn = document.getElementById('back-btn');
-            if (backBtn) backBtn.style.display = isFs ? 'none' : '';
             const logoFooter = document.querySelector('.logo-footer');
             if (logoFooter) logoFooter.style.display = isFs ? 'none' : '';
-            // Zakończ-float: widoczny tylko poza fullscreen i tylko gdy gra aktywna
-            const fl = document.getElementById('btn-familiada-zakoncz-float');
-            if (fl) fl.style.display = (!isFs && gameActive) ? 'block' : 'none';
             if (isFs) requestWakeLock();
         });
 
@@ -379,14 +341,17 @@
         document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') requestWakeLock(); });
         if (document.visibilityState === 'visible') requestWakeLock();
 
-        // ── Głośność master ──────────────────────────────────────────────
+        // ── Głośność: kanał × master (model miksera) ─────────────────────────
         const INTRO_VOL_FACTOR = 0.9; // intro/outro grają o 10% ciszej
-        let masterVolume = parseFloat(localStorage.getItem('familiada_master_vol') || '0.8');
+        let familiadaChannelVolume = 1;
+        let masterVolume = 1;
 
         function applyVolumes() {
+            const eff = Math.min(1, familiadaChannelVolume * masterVolume);
             Object.entries(audioFiles).forEach(([name, a]) => {
                 const isBg = (name === 'intro' || name === 'outro');
-                a.volume = Math.min(1, masterVolume * (isBg ? INTRO_VOL_FACTOR : 1));
+                const gain = familiadaGainCache[name] ?? 1;
+                a.volume = Math.min(1, eff * (isBg ? INTRO_VOL_FACTOR : 1) * gain);
             });
         }
 
@@ -403,24 +368,50 @@
             jingle: new Audio('/familiada/sounds/jingle.mp3'),
             outro: new Audio('/familiada/sounds/outro.mp3')
         };
-        applyVolumes(); // ustaw głośność od razu po inicjalizacji
+        let familiadaGainCache = {};
+        const FAMILIADA_DEFAULT_GAINS = { intro: 0.85, correct: 1, bad: 0.9, win_round: 0.8, jingle: 0.45, outro: 0.85 };
+        (async function initFamiliadaGains() {
+            // decodeAudioData powoduje SIGSEGV (crash renderera) w Electron — używamy ręcznych wartości
+            if (navigator.userAgent.includes('Electron')) {
+                Object.keys(audioFiles).forEach(k => { familiadaGainCache[k] = FAMILIADA_DEFAULT_GAINS[k] || 1; });
+                applyVolumes();
+                return;
+            }
+            const paths = { intro: 'intro.mp3', correct: 'correct.mp3', bad: 'bad.mp3', win_round: 'win_round.mp3', jingle: 'jingle.mp3', outro: 'outro.mp3' };
+            for (const [name, path] of Object.entries(paths)) {
+                const url = '/familiada/sounds/' + path;
+                let rawGain = 1;
+                if (typeof window.AudioNormalize !== 'undefined') {
+                    rawGain = await window.AudioNormalize.getNormalizedGainForUrl(url);
+                }
+                familiadaGainCache[name] = Math.min(1, rawGain * (FAMILIADA_DEFAULT_GAINS[name] ?? 1));
+            }
+            applyVolumes();
+        })();
 
         function playSound(name) {
             if (!audioFiles[name]) return;
             const a = audioFiles[name];
             if (name === 'intro' || name === 'outro') {
-                if (!a.paused) {
-                    a.pause(); a.currentTime = 0;
-                    if (name === 'intro') socket.emit('familiada_intro_state', false);
-                } else {
+                const introPlaying = audioFiles.intro && !audioFiles.intro.paused;
+                const outroPlaying = audioFiles.outro && !audioFiles.outro.paused;
+                if (name === 'intro' && (introPlaying || outroPlaying)) {
+                    if (audioFiles.intro) { audioFiles.intro.pause(); audioFiles.intro.currentTime = 0; }
+                    if (audioFiles.outro) { audioFiles.outro.pause(); audioFiles.outro.currentTime = 0; }
+                    socket.emit('familiada_intro_state', false);
+                } else if (name === 'intro' && !introPlaying) {
                     a.currentTime = 0; a.play().catch(() => {});
-                    if (name === 'intro') {
-                        socket.emit('familiada_intro_state', true);
-                        a.onended = () => { socket.emit('familiada_intro_state', false); };
+                    socket.emit('familiada_intro_state', true);
+                    a.onended = () => { socket.emit('familiada_intro_state', false); };
+                } else if (name === 'outro') {
+                    if (!a.paused) {
+                        a.pause(); a.currentTime = 0;
+                    } else {
+                        a.currentTime = 0; a.play().catch(e => FAM_ERR('play outro fail', e));
                     }
                 }
             } else {
-                a.pause(); a.currentTime = 0; a.play().catch(() => {});
+                a.pause(); a.currentTime = 0; a.play().catch(e => FAM_ERR('playSound fail', name, e));
             }
             if (name === 'jingle') {
                 const overlay = document.getElementById('familiada-title-overlay');
@@ -454,13 +445,36 @@
                 }, 8000);
             }
         }
-        socket.on('play_sound_event', (name) => playSound(name));
+        socket.on('connect', () => FAM_LOG('socket connect'));
+        socket.on('disconnect', (r) => FAM_LOG('socket disconnect', r));
+        socket.on('connect_error', (e) => FAM_ERR('socket connect_error', e));
+        socket.on('play_sound_event', (name) => { FAM_LOG('play_sound_event', name); playSound(name); });
+        socket.on('stop_sound_event', (name) => {
+            if (name === 'intro' && audioFiles.intro) {
+                audioFiles.intro.pause();
+                audioFiles.intro.currentTime = 0;
+                if (audioFiles.outro) { audioFiles.outro.pause(); audioFiles.outro.currentTime = 0; }
+                socket.emit('familiada_intro_state', false);
+            }
+        });
         socket.on('familiada_volume', (v) => {
-            masterVolume = Math.max(0, Math.min(1, v));
-            localStorage.setItem('familiada_master_vol', masterVolume);
+            familiadaChannelVolume = Math.max(0, Math.min(1, v));
+            applyVolumes();
+        });
+        socket.on('master_volume', (d) => {
+            masterVolume = (d && d.volume != null) ? Math.max(0, Math.min(1, d.volume)) : 1;
             applyVolumes();
         });
         socket.on('familiada_stop_all', stopAllAudio);
+        socket.on('familiada_show_idle_title', () => {
+            gameActive = false;
+            stopAllAudio();
+            showFamiliadaIdleTitle();
+        });
+        socket.on('familiada_end_game', () => { gameActive = false; });
+        window.addEventListener('message', (e) => {
+            if (e.data && e.data.type === 'familiada_stop_music') stopAllAudio();
+        });
         socket.on('familiada_request_intro_state', () => {
             if (audioFiles && audioFiles.intro && !audioFiles.intro.paused) socket.emit('familiada_intro_state', true);
         });
@@ -619,6 +633,18 @@
         });
         window.addEventListener('resize', () => {
             if (currentAnswerCount > 0) applyAnswerScaling(currentAnswerCount);
+        });
+    </script>
+    <script>
+        document.querySelectorAll('.back-to-start, a[href="/start.html"]').forEach(function(el) {
+            el.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (window.self !== window.top) {
+                    window.parent.postMessage({ type: 'impreja-embed-minimize' }, '*');
+                } else {
+                    window.location.href = '/start.html';
+                }
+            });
         });
     </script>
 </body>

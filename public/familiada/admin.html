@@ -2,28 +2,31 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico"><link rel="icon" type="image/png" sizes="32x32" href="/img/icon-32.png"><link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Familiada – Pilot</title>
+    <link rel="stylesheet" href="/css/admin-editor-shared.css">
     <script src="/socket.io/socket.io.js"></script>
+    <script src="/lib/nosleep.min.js"></script>
     <script src="/familiada/suchary.js"></script>
     <style>
-        body { background: #000; color: #fff; font-family: sans-serif; padding: 4px; margin: 0; }
-        .section { background: #1a1a1a; padding: 8px 10px; margin-bottom: 10px; border-radius: 6px; border: 2px solid #444; }
-        h3 { margin: 0 0 8px 0; color: #ffd700; font-size: 14px; font-weight: bold; text-transform: uppercase; border-bottom: 2px solid #555; padding-bottom: 6px; }
+        body { background: var(--imp-bg-gradient); color: var(--imp-text); font-family: var(--imp-font); padding: 12px; margin: 0; }
+        .section { background: var(--imp-glass); padding: 14px 16px; margin-bottom: 12px; border-radius: var(--imp-radius-lg); border: 1px solid var(--imp-border); }
+        h3 { margin: 0 0 10px 0; color: var(--imp-accent); font-size: 0.9rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--imp-border); padding-bottom: 8px; }
 
         .audio-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-        .btn-audio { padding: 15px; font-weight: bold; font-size: 14px; border: none; border-radius: 6px; cursor: pointer; color: #000; }
+        .btn-audio { padding: 14px; font-weight: 600; font-size: 0.95rem; border: none; border-radius: var(--imp-radius); cursor: pointer; color: #000; font-family: var(--imp-font); transition: all 0.2s; }
 
-        .btn-reset { background: #c0392b; color: #fff; padding: 16px 24px; font-size: 18px; font-weight: bold; border: 2px solid #e74c3c; border-radius: 8px; cursor: pointer; width: 100%; margin-bottom: 15px; transition: background 0.2s, border-color 0.2s; }
-        .btn-reset:hover { background: #e74c3c; }
+        .btn-reset { background: var(--imp-danger); color: #fff; padding: 16px 24px; font-size: 1rem; font-weight: 700; border: 2px solid var(--imp-danger-hover); border-radius: var(--imp-radius-lg); cursor: pointer; width: 100%; margin-bottom: 15px; transition: all 0.2s; font-family: var(--imp-font); }
+        .btn-reset:hover { background: var(--imp-danger-hover); }
         .btn-reset.blink-yellow { animation: blinkYellow 0.4s ease-in-out 3; }
         @keyframes blinkYellow { 0%, 100% { background: #c0392b; border-color: #e74c3c; } 50% { background: #f1c40f; border-color: #f39c12; color: #000; } }
 
         .q-list { display: flex; flex-direction: column; gap: 6px; }
         .q-item { display: flex; flex-direction: column; gap: 0; }
-        .q-btn { background: #333; color: #fff; padding: 14px 16px; border-radius: 6px; font-size: 15px; font-weight: bold; border: 2px solid #555; cursor: pointer; text-align: left; }
-        .q-btn:hover { background: #444; border-color: #666; }
-        .q-btn.active { background: #0055aa; border-color: #00aaff; }
+        .q-btn { background: var(--imp-glass); color: var(--imp-text); padding: 14px 16px; border-radius: var(--imp-radius); font-size: 0.95rem; font-weight: 600; border: 2px solid var(--imp-border); cursor: pointer; text-align: left; font-family: var(--imp-font); transition: all 0.2s; }
+        .q-btn:hover { background: var(--imp-glass-hover); border-color: var(--imp-accent); }
+        .q-btn.active { background: rgba(241,196,15,0.2); border-color: var(--imp-accent); }
         .q-btn.asked { display: none; }
         .q-panel { display: none; margin-top: 6px; padding: 10px; background: #111; border-radius: 6px; border: 2px solid #444; border-top: 2px solid #00aaff; }
         .q-panel.visible { display: block; }
@@ -32,7 +35,7 @@
         .ans-item { background: #1a1a1a; padding: 12px 14px; border-radius: 6px; border: 2px solid #444; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
         .ans-item:hover { border-color: #555; }
         .ans-item.revealed { border-color: #0a0; background: #0a1a0a; cursor: default; }
-        .ans-item .ans-pts { color: #ffd700; font-weight: bold; }
+        .ans-item .ans-pts { color: var(--imp-accent); font-weight: bold; }
 
         .controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 8px 0; }
         .team-col { display: flex; flex-direction: column; gap: 4px; background: #111; padding: 6px; border-radius: 6px; }
@@ -48,26 +51,33 @@
         .btn-score.red { background: #cc0000; border: 2px solid #ff4444; }
         .btn-x-center { width: 100%; background: #333; padding: 8px; margin-top: 4px; font-size: 12px; }
 
-        .btn-next { width: 100%; padding: 14px; background: #27ae60; color: #fff; font-size: 15px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; margin-top: 12px; }
-        .btn-next:hover { background: #2ecc71; }
+        .btn-next { width: 100%; padding: 14px; background: var(--imp-success); color: #fff; font-size: 0.95rem; font-weight: 600; border: none; border-radius: var(--imp-radius-lg); cursor: pointer; margin-top: 12px; font-family: var(--imp-font); transition: all 0.2s; }
+        .btn-next:hover { background: var(--imp-success-hover); }
 
-        .btn-purple { background: #660099; padding: 20px; font-size: 18px; font-weight: bold; width: 100%; color: #fff; border: none; border-radius: 8px; margin-top: 20px; cursor: pointer; }
+        .btn-purple { background: linear-gradient(135deg, var(--imp-accent), var(--imp-accent-orange)); padding: 18px; font-size: 1rem; font-weight: 600; width: 100%; color: #000; border: none; border-radius: var(--imp-radius-lg); margin-top: 20px; cursor: pointer; font-family: var(--imp-font); transition: all 0.2s; }
         .team-names-row { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; }
-        .team-names-row input { padding: 10px 12px; border-radius: 6px; border: 2px solid #555; background: #222; color: #fff; font-size: 14px; }
-        .btn-apply-teams { padding: 10px; background: #27ae60; color: #fff; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; }
-        .btn-apply-teams:hover { background: #2ecc71; }
-        .btn-primary { padding: 10px 16px; background: #3498db; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
-        .btn-primary:hover { background: #2980b9; }
-        .btn-success { padding: 10px 16px; background: #27ae60; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; text-decoration: none; display: inline-flex; align-items: center; }
-        .btn-success:hover { background: #2ecc71; }
+        .team-names-row input { padding: 10px 12px; border-radius: var(--imp-radius); border: 1px solid var(--imp-border); background: rgba(0,0,0,0.3); color: var(--imp-text); font-size: 0.95rem; font-family: var(--imp-font); }
+        .btn-primary { padding: 10px 18px; background: var(--imp-info); color: #fff; border: none; border-radius: var(--imp-radius); cursor: pointer; font-weight: 600; font-family: var(--imp-font); transition: all 0.2s; }
+        .btn-primary:hover { background: var(--imp-info-hover); }
+        .btn-success, .btn-apply-teams { padding: 10px 18px; background: var(--imp-success); color: #fff; border: none; border-radius: var(--imp-radius); cursor: pointer; font-weight: 600; font-family: var(--imp-font); transition: all 0.2s; text-decoration: none; display: inline-flex; align-items: center; }
+        .btn-success:hover, .btn-apply-teams:hover { background: var(--imp-success-hover); }
         .team-names-block { margin-bottom: 18px; }
         @media (max-width: 480px) { .audio-panel { grid-template-columns: 1fr; } }
         #btn-fs-admin { position: fixed; bottom: 10px; right: 10px; z-index: 9999; background: rgba(50,50,50,0.8); color: #fff; border: 1px solid #777; padding: 10px 14px; border-radius: 6px; font-size: 12px; cursor: pointer; }
         #btn-fs-admin:hover { background: #444; }
     </style>
 </head>
-<body>
+<body class="imp-admin-editor">
     <button id="btn-fs-admin" type="button" onclick="toggleFullscreenAdmin()" title="Pełny ekran">⛶ Pełny ekran</button>
+
+    <div class="section" style="border-color: #27ae60; margin-bottom: 16px;">
+        <h3 style="margin-bottom: 8px;">📱 PRZYCISKI NA TELEFONIE</h3>
+        <p style="color:#888; font-size:12px; margin-bottom: 12px;">Zeskanuj – wczytaj przyciski niebieski/czerwony na telefonie.</p>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <img id="qr-buttons-admin" src="" alt="QR Przyciski" style="max-width: 180px; height: auto; display: none;">
+            <div id="buttons-url-admin" style="font-size: 0.8rem; word-break: break-all; color: #95a5a6; text-align: center;"></div>
+        </div>
+    </div>
 
     <div class="section">
         <button class="btn-reset" id="btn-reset">🔄 ZERUJ PUNKTY (0:0)</button>
@@ -91,16 +101,17 @@
         </div>
         <h3>🎛️ PANEL AUDIO</h3>
         <div class="audio-panel">
-            <button class="btn-audio" id="btn-intro" style="background: #ffaa00;" onclick="toggleIntro()">🎵 INTRO START/STOP</button>
+            <button class="btn-audio" id="btn-intro" style="background: #ffaa00;" onclick="toggleIntro()">▶️ INTRO PLAY</button>
             <button class="btn-audio" style="background: #00bcd4;" onclick="playJingle()">🔔 DŻINGIEL</button>
         </div>
+        <button class="btn-audio" style="background: #8e44ad; width: 100%; margin-top: 6px; padding: 12px;" onclick="resetFamiliadaButtons()" title="Jeśli ktoś przez przypadek nacisnął – pozwala jeszcze raz użyć przycisków dla danego pytania">🔄 RESET PRZYCISKÓW</button>
         <div style="background:#111;border-radius:8px;padding:10px 12px;margin-top:6px;">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-                <span style="font-size:13px;font-weight:bold;color:#ffd700;">🔊 Głośność master</span>
+                <span style="font-size:13px;font-weight:bold;color:var(--imp-accent);">🔊 Głośność master</span>
                 <span id="vol-val" style="font-size:14px;font-weight:900;color:#fff;min-width:38px;text-align:right;">80%</span>
             </div>
             <input type="range" id="vol-slider" min="0" max="100" value="80"
-                style="width:100%;accent-color:#ffd700;height:6px;cursor:pointer;">
+                style="width:100%;accent-color:var(--imp-accent);height:6px;cursor:pointer;">
             <div style="display:flex;justify-content:space-between;font-size:10px;color:#666;margin-top:3px;">
                 <span>Wyciszony</span>
                 <span style="color:#888;font-size:10px;">intro/outro -10%</span>
@@ -126,6 +137,8 @@
         <p style="color:#888; font-size:13px; margin-bottom:10px;">Zawsze załadowana – ulubione pytania (dodaj w edytorze przyciskiem „DODAJ DO ZŁOTEJ LISTY”). Wyświetlana na dole panelu. Można z niej korzystać w każdej rozgrywce, równolegle z listy głównej.</p>
         <div id="golden-questions-list" class="q-list"></div>
         <button class="btn-purple" onclick="socket.emit('show_final')" style="margin-top: 20px;">🏆 EKRAN KOŃCOWY (OUTRO)</button>
+        <button class="btn-reset" onclick="endFamiliadaGame()" style="margin-top: 12px;">⛔ ZAKOŃCZ GRĘ</button>
+        <p style="color:#888; font-size:11px; margin-top: 6px;">Rozłącza przyciski i wyłącza dźwięk Familiady.</p>
     </div>
 
     <!-- Popup NAJPIERW PRZEKAŻ PUNKTY -->
@@ -156,7 +169,14 @@
             socket.emit('register_familiada', { role: 'admin' });
             socket.emit('familiada_get_files');
             socket.emit('familiada_request_team_names');
+            socket.emit('familiada_request_qr_admin');
         }
+        socket.on('familiada_qr_buttons', (data) => {
+            const img = document.getElementById('qr-buttons-admin');
+            const urlEl = document.getElementById('buttons-url-admin');
+            if (img && data && data.qrCode) { img.src = data.qrCode; img.style.display = 'block'; }
+            if (urlEl && data && data.url) urlEl.textContent = data.url;
+        });
         if (socket.connected) registerAdmin();
         socket.on('connect', () => {
             registerAdmin();
@@ -184,19 +204,30 @@
         });
 
         let wakeLock = null;
+        let noSleep = null;
         async function requestWakeLock() {
-            if (!('wakeLock' in navigator) || document.visibilityState !== 'visible') return;
-            try {
-                if (wakeLock) { try { await wakeLock.release(); } catch (e) {} wakeLock = null; }
-                wakeLock = await navigator.wakeLock.request('screen');
-                wakeLock.addEventListener('release', () => { wakeLock = null; });
-            } catch (err) {
-                if (window.isSecureContext === false) console.warn('Wake Lock: wymaga HTTPS lub localhost');
+            if (window.isSecureContext && 'wakeLock' in navigator && document.visibilityState === 'visible') {
+                try {
+                    if (wakeLock) { try { await wakeLock.release(); } catch (e) {} wakeLock = null; }
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    wakeLock.addEventListener('release', () => { wakeLock = null; });
+                    if (noSleep) { noSleep.disable(); noSleep = null; }
+                    return;
+                } catch (err) {}
+            }
+            if (!noSleep && typeof NoSleep !== 'undefined') {
+                noSleep = new NoSleep();
+                noSleep.enable();
             }
         }
         document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') requestWakeLock(); });
-        document.addEventListener('click', () => requestWakeLock(), { once: true });
-        document.addEventListener('touchstart', () => requestWakeLock(), { once: true });
+        function enableKeepAwake() {
+            requestWakeLock();
+            document.removeEventListener('click', enableKeepAwake);
+            document.removeEventListener('touchstart', enableKeepAwake);
+        }
+        document.addEventListener('click', enableKeepAwake, { once: true });
+        document.addEventListener('touchstart', enableKeepAwake, { once: true });
 
         function populateFileList(files) {
             const sel = document.getElementById('familiada-files-list');
@@ -380,11 +411,37 @@
         }
         document.getElementById('btn-reset').onclick = doReset;
 
+        let introPlaying = false;
+        function updateIntroButton() {
+            const btn = document.getElementById('btn-intro');
+            if (!btn) return;
+            if (introPlaying) {
+                btn.textContent = '⏹ INTRO STOP';
+                btn.style.background = '#c0392b';
+            } else {
+                btn.textContent = '▶️ INTRO PLAY';
+                btn.style.background = '#ffaa00';
+            }
+        }
         function toggleIntro() {
-            socket.emit('play_sound', 'intro');
+            if (introPlaying) {
+                socket.emit('stop_sound', 'intro');
+            } else {
+                socket.emit('play_sound', 'intro');
+            }
+        }
+        socket.on('familiada_intro_state', (playing) => {
+            introPlaying = !!playing;
+            updateIntroButton();
+        });
+        function endFamiliadaGame() {
+            socket.emit('familiada_end_game');
         }
         function playJingle() {
             socket.emit('play_sound', 'jingle');
+        }
+        function resetFamiliadaButtons() {
+            socket.emit('familiada_reset_buttons');
         }
         function dajSuchara() {
             const avail = getAvailableSucharyIndices();

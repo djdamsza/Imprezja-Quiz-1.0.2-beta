@@ -14,13 +14,12 @@ Kolejność kroków, aby uruchomić stronę z płatnościami na nowajakoscrozryw
 ### 1.2 Produkt i ceny
 - [ ] **Products** → **Add product**
 - [ ] Nazwa: **Imprezja Quiz**
-- [ ] Dodaj **4 ceny** (każda w tym samym produkcie lub osobne produkty):
+- [ ] Dodaj **6 cen** (subskrypcja: 1m, 3m; jednorazowe: 1m-onetime, 3m-onetime, 12m-onetime, lifetime):
 
 | Plan | Lookup key | Typ | Cena | Interwał |
 |------|------------|-----|------|----------|
 | 1 miesiąc | `imprezja-1m` | Recurring | 30 PLN | Monthly |
 | 3 miesiące | `imprezja-3m` | Recurring | 80 PLN | Every 3 months |
-| 12 miesięcy | `imprezja-12m` | Recurring | 290 PLN | Yearly |
 | Dożywotnia | `imprezja-lifetime` | One-time | 500 PLN | — |
 
 - [ ] Dla każdej ceny: **Additional options** → **Lookup key** → wpisz dokładnie jak w tabeli

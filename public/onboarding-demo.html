@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo – instrukcja pierwszego uruchomienia</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: radial-gradient(ellipse at center, #1a1a2e 0%, #0d0d14 100%);
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        .demo-badge {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            padding: 8px 16px;
+            background: rgba(241,196,15,0.2);
+            border: 1px solid rgba(241,196,15,0.5);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: #f1c40f;
+            z-index: 10;
+        }
+        #onboarding-overlay {
+            position: relative;
+            width: 100%;
+            max-width: 560px;
+            background: rgba(0,0,0,0.92);
+            padding: 24px;
+            border-radius: 4px;
+        }
+        .onboarding-box {
+            max-width: 560px;
+            width: 100%;
+            background: linear-gradient(160deg, #1e2a4a 0%, #14213d 60%, #0d1728 100%);
+            border: 2px solid rgba(241,196,15,0.4);
+            border-radius: 20px;
+            box-shadow: 0 24px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06) inset;
+            overflow: hidden;
+        }
+        .onboarding-header {
+            padding: 24px 24px 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            text-align: center;
+        }
+        .onboarding-header h1 { font-size: 1.4rem; color: #f1c40f; margin: 0 0 4px 0; }
+        .onboarding-header p { font-size: 0.9rem; color: rgba(255,255,255,0.7); margin: 0; }
+        .onboarding-body { padding: 20px 24px; font-size: 0.95rem; line-height: 1.55; color: rgba(255,255,255,0.9); }
+        .onboarding-body h3 { font-size: 1rem; color: #f1c40f; margin: 16px 0 8px 0; }
+        .onboarding-body h3:first-child { margin-top: 0; }
+        .onboarding-body ul { margin: 0 0 12px 0; padding-left: 20px; }
+        .onboarding-body li { margin-bottom: 4px; }
+        .onboarding-body .tech-note {
+            margin-top: 16px; padding: 12px; background: rgba(0,0,0,0.3);
+            border-radius: 8px; font-size: 0.85rem; color: rgba(255,255,255,0.8);
+        }
+        .onboarding-footer {
+            padding: 16px 24px 24px;
+            text-align: center; border-top: 1px solid rgba(255,255,255,0.08);
+        }
+        .onboarding-btn {
+            padding: 14px 32px; font-size: 1rem; font-weight: 700;
+            background: linear-gradient(#f1c40f, #e67e22);
+            color: #0d0d14; border: none; border-radius: 10px;
+            cursor: pointer; transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .onboarding-btn:hover { transform: scale(1.02); box-shadow: 0 6px 20px rgba(241,196,15,0.35); }
+        .onboarding-btn:active { transform: scale(0.98); }
+        .demo-hint {
+            margin-top: 24px;
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.5);
+            text-align: center;
+        }
+        .demo-hint a { color: #3498db; }
+    </style>
+</head>
+<body>
+    <span class="demo-badge">📋 Demo podglądu</span>
+    <div id="onboarding-overlay">
+        <div class="onboarding-box">
+            <div class="onboarding-header">
+                <h1>Witaj w Imprezja Quiz</h1>
+                <p>Krótka instrukcja przed startem</p>
+            </div>
+            <div class="onboarding-body">
+                <h3>🖥️ Ekran główny (ten komputer)</h3>
+                <p>To jest <strong>ekran wyboru trybu</strong>. Wybierasz tu quiz, Familiadę, sampler itd. Przycisk <strong>Prezenter</strong> otwiera ekran prezentera.</p>
+                <h3>🖥️ Ekran prezentera</h3>
+                <p>To, co widzą goście na TV/projektorze. Sterujesz nim z panelu na telefonie. Na komputerze możesz go otworzyć przez „Prezenter” lub „Ekran główny” w menu ⚙️.</p>
+                <h3>📱 Admin PWA – panel na telefonie</h3>
+                <p>Kliknij <strong>„Panel na telefon”</strong> i zeskanuj QR. Panel otworzy się w przeglądarce – możesz go dodać do ekranu głównego (instalacja). <strong>Jedna synchronizacja</strong> – po zeskanowaniu działa od razu, bez dodatkowych kroków.</p>
+                <h3>✏️ Edytor</h3>
+                <p>Quizy, Familiadę i inne treści tworzysz w edytorze – dostęp przez menu ⚙️ lub bezpośrednio z trybu (np. Familiada → edytor pytań).</p>
+                <div class="tech-note">
+                    <strong>📋 Wymagania techniczne:</strong> Niektóre funkcje potrzebują uprawnień w przeglądarce:<br>
+                    • <strong>Kamera</strong> – stream na TV (tryb Kamera w panelu), skanowanie QR<br>
+                    • <strong>Mikrofon</strong> – rozpoznawanie głosu (jeśli używane), nagrywanie<br>
+                    • <strong>Wi‑Fi w tej samej sieci</strong> – telefon i komputer muszą być w jednej sieci lokalnej
+                </div>
+            </div>
+            <div class="onboarding-footer">
+                <button type="button" class="onboarding-btn" id="onboarding-ok">Zapoznałem się – przejdź dalej</button>
+            </div>
+        </div>
+    </div>
+    <p class="demo-hint">To jest demo. W aplikacji ta instrukcja pojawia się przy pierwszym uruchomieniu. <a href="/start.html">Przejdź do start.html</a></p>
+    <script>
+        document.getElementById('onboarding-ok').addEventListener('click', function() {
+            alert('W prawdziwej aplikacji tutaj zapisuje się „zapoznałem się” i overlay znika. Przejdź do start.html, aby zobaczyć pełny flow.');
+        });
+    </script>
+</body>
+</html>

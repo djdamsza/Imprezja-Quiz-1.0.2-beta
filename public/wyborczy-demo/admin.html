@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin – Dodatek Wyborczy</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/img/icon-32.png">
+<link rel="stylesheet" href="/css/admin-editor-shared.css">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--imp-bg);
+    color: var(--imp-text);
+    font-family: var(--imp-font);
+    min-height: 100vh;
+  }
+
+  /* LAYOUT */
+  .layout { display: grid; grid-template-columns: 340px 1fr; min-height: 100vh; }
+  .sidebar {
+    background: var(--imp-bg);
+    border-right: 1px solid var(--imp-border);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow-y: auto;
+  }
+  .main { padding: 24px; overflow-y: auto; }
+
+  /* SIDEBAR HEADER */
+  .sidebar-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--imp-accent);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-align: center;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #333;
+  }
+
+  /* STATUS BAR */
+  .status-bar {
+    background: rgba(255,255,255,.05);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 14px;
+  }
+  .status-bar .status-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .status-bar .label { color: #888; }
+  .status-bar .val { font-weight: 700; color: var(--imp-accent); }
+
+  /* BUTTONS */
+  .btn {
+    padding: 12px 16px;
+    border: none;
+    border-radius: 9px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity .15s, transform .1s;
+    width: 100%;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn:disabled { opacity: .35; cursor: not-allowed; }
+  .btn-gold { background: linear-gradient(135deg, #ffd700, #ff8c00); color: #222; }
+  .btn-gold.all-voted-ready { animation: allVotedPulse 1s ease-in-out infinite; }
+  @keyframes allVotedPulse {
+    0%,100% { box-shadow: 0 0 0 3px rgba(76,255,159,.4); }
+    50% { box-shadow: 0 0 0 8px rgba(76,255,159,.15), 0 0 20px rgba(76,255,159,.4); }
+  }
+  .btn-green { background: linear-gradient(135deg, #00c853, #009624); color: #fff; }
+  .btn-blue { background: linear-gradient(135deg, #1565c0, #0d47a1); color: #fff; }
+  .btn-danger { background: linear-gradient(135deg, #c62828, #7f0000); color: #fff; }
+  .btn-ghost { background: rgba(255,255,255,.07); color: #ccc; border: 1px solid #444; }
+  .btn-sm { padding: 8px 12px; font-size: 13px; width: auto; }
+
+  .divider { border: none; border-top: 1px solid #333; }
+
+  /* PHOTO LIST IN SIDEBAR */
+  .photo-list { display: flex; flex-direction: column; gap: 6px; }
+  .photo-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255,255,255,.04);
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 8px 10px;
+    cursor: grab;
+    transition: background .15s;
+    position: relative;
+  }
+  .photo-item.active { border-color: #ffd700; background: rgba(255,215,0,.08); }
+  .photo-item.voted { border-color: #4cff9f44; }
+  .photo-thumb {
+    width: 44px;
+    height: 44px;
+    object-fit: cover;
+    border-radius: 6px;
+    flex-shrink: 0;
+    background: #333;
+  }
+  .photo-info { flex: 1; min-width: 0; }
+  .photo-name {
+    font-size: 12px;
+    color: #aaa;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .photo-stat { font-size: 13px; color: #ffd700; font-weight: 700; margin-top: 2px; }
+  .photo-idx {
+    width: 22px;
+    height: 22px;
+    background: rgba(255,255,255,.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+    color: #888;
+  }
+  .photo-item.active .photo-idx { background: #ffd700; color: #222; }
+  .remove-btn {
+    background: none;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 2px 4px;
+    flex-shrink: 0;
+    transition: color .15s;
+  }
+  .remove-btn:hover { color: #ff5555; }
+
+  /* MAIN AREA */
+  .main h2 { font-size: 20px; font-weight: 800; color: #ffd700; margin-bottom: 16px; }
+
+  /* PHOTO PICKER */
+  .picker-section {
+    background: #1a1a2e;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .picker-section h3 { font-size: 16px; font-weight: 700; color: #ccc; margin-bottom: 12px; }
+  .tab-bar { display: flex; gap: 8px; margin-bottom: 16px; }
+  .tab-btn {
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: 1px solid #444;
+    background: rgba(255,255,255,.05);
+    color: #ccc;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .tab-btn.active { background: #ffd700; color: #222; border-color: #ffd700; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* UPLOADS GRID */
+  .uploads-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 8px;
+    max-height: 320px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  .upload-tile {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color .15s, transform .1s;
+  }
+  .upload-tile:hover { transform: scale(1.04); border-color: #ffd70088; }
+  .upload-tile.selected { border-color: #ffd700; box-shadow: 0 0 10px rgba(255,215,0,.5); }
+  .upload-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .upload-tile .check-mark {
+    position: absolute;
+    inset: 0;
+    background: rgba(255,215,0,.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    opacity: 0;
+    transition: opacity .15s;
+  }
+  .upload-tile.selected .check-mark { opacity: 1; }
+
+  /* URL INPUT */
+  .url-add-row { display: flex; gap: 8px; }
+  .url-add-row input {
+    flex: 1;
+    background: #0d0d1f;
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: #eee;
+    font-size: 14px;
+  }
+  .url-add-row input:focus { outline: none; border-color: #ffd700; }
+  .label-row { margin-top: 12px; display: flex; gap: 8px; align-items: center; }
+  .label-row label { font-size: 13px; color: #888; white-space: nowrap; }
+  .label-row input {
+    flex: 1;
+    background: #0d0d1f;
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: #eee;
+    font-size: 14px;
+  }
+  .label-row input:focus { outline: none; border-color: #ffd700; }
+
+  /* CURRENT PHOTO PREVIEW */
+  .current-preview {
+    background: #1a1a2e;
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    margin-bottom: 20px;
+  }
+  .current-preview img {
+    width: 180px;
+    height: 180px;
+    object-fit: contain;
+    border-radius: 8px;
+    background: #0d0d1f;
+    border: 1px solid #333;
+    flex-shrink: 0;
+  }
+  .current-info { flex: 1; }
+  .current-info h3 { font-size: 16px; font-weight: 700; color: #ffd700; margin-bottom: 8px; }
+  .current-stat { font-size: 20px; font-weight: 800; color: #fff; }
+  .current-stat span { font-size: 14px; color: #888; font-weight: 400; }
+  .vote-bar-wrap {
+    margin-top: 10px;
+    background: rgba(255,255,255,.07);
+    border-radius: 6px;
+    height: 10px;
+    overflow: hidden;
+  }
+  .vote-bar { height: 100%; background: linear-gradient(90deg, #ffd700, #ff8c00); border-radius: 6px; transition: width .4s ease; }
+
+  /* NAV BUTTONS */
+  .nav-row { display: flex; gap: 10px; }
+  .nav-row .btn { flex: 1; }
+
+  /* PODIUM REVEAL */
+  .podium-reveal {
+    background: #1a1a2e;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .podium-reveal h3 { font-size: 16px; font-weight: 700; color: #ffd700; margin-bottom: 12px; }
+  .podium-steps { display: flex; flex-direction: column; gap: 8px; }
+  .podium-step {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid #333;
+    background: rgba(255,255,255,.03);
+  }
+  .podium-step img { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; }
+  .podium-step .step-info { flex: 1; }
+  .podium-step .step-place { font-size: 15px; font-weight: 700; }
+  .podium-step .step-avg { font-size: 13px; color: #888; }
+  .step-revealed { opacity: .4; }
+  .step-revealed .step-place::after { content: ' ✓'; color: #4cff9f; }
+
+  /* SCREENS LINKS */
+  .links-section {
+    background: #1a1a2e;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+  }
+  .links-section h3 { font-size: 14px; font-weight: 700; color: #888; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
+  .link-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .link-row a { color: #ffd700; font-size: 13px; text-decoration: none; }
+  .link-row a:hover { text-decoration: underline; }
+  .link-badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 700; }
+  .badge-screen { background: #1565c0; color: #fff; }
+  .badge-vote { background: #00c853; color: #fff; }
+  .qr-img { width: 80px; height: 80px; border-radius: 6px; background: #fff; }
+</style>
+</head>
+<body class="imp-admin-editor">
+<div class="layout">
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="sidebar-title">👑 Wyborczy</div>
+
+  <!-- STATUS -->
+  <div class="status-bar">
+    <div class="status-row"><span class="label">Faza:</span><span class="val" id="st-phase">Oczekiwanie</span></div>
+    <div class="status-row"><span class="label">Zdjęcie:</span><span class="val" id="st-photo">—</span></div>
+    <div class="status-row"><span class="label">Głosy:</span><span class="val" id="st-votes">—</span></div>
+    <div class="status-row"><span class="label">Średnia:</span><span class="val" id="st-avg">—</span></div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- CONTROL BUTTONS -->
+  <div id="ctrl-setup">
+    <button class="btn btn-green" id="btn-start" onclick="startSession()">▶ Rozpocznij głosowanie</button>
+  </div>
+
+  <div id="ctrl-voting" style="display:none; display:flex; flex-direction:column; gap:8px;">
+    <div class="nav-row">
+      <button class="btn btn-ghost btn-sm" id="btn-prev" onclick="adminCmd('wyborczy_admin_prev')" disabled>◀ Poprzednie</button>
+      <button class="btn btn-gold" id="btn-next" onclick="adminCmd('wyborczy_admin_next')">Następne ▶</button>
+    </div>
+    <button class="btn btn-blue" onclick="adminCmd('wyborczy_admin_podium')">🏆 Pokaż Podium</button>
+    <button class="btn btn-ghost" onclick="adminCmd('wyborczy_admin_stats')">📊 Tabela wyników</button>
+    <button class="btn btn-danger" onclick="resetSession()">↺ Reset</button>
+  </div>
+
+  <hr class="divider">
+
+  <!-- PHOTO LIST -->
+  <div style="font-size:13px; color:#888; text-transform:uppercase; letter-spacing:1px;">Lista zdjęć</div>
+  <div class="photo-list" id="photo-list">
+    <div style="color:#555; font-size:13px; text-align:center; padding:10px">Brak zdjęć – dodaj poniżej</div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <h2>Panel Administratora – Dodatek Wyborczy</h2>
+
+  <!-- QUICK LINKS -->
+  <div class="links-section">
+    <h3>Adresy stron</h3>
+    <div class="link-row">
+      <span class="link-badge badge-screen">EKRAN</span>
+      <a href="/wyborczy-demo/screen.html" target="_blank" id="link-screen">/wyborczy-demo/screen.html</a>
+    </div>
+    <div class="link-row">
+      <span class="link-badge badge-vote">TELEFON</span>
+      <a href="/wyborczy-demo/vote.html" target="_blank" id="link-vote">/wyborczy-demo/vote.html</a>
+    </div>
+    <div style="margin-top:10px; display:flex; gap:12px;">
+      <div>
+        <div style="font-size:11px;color:#666;margin-bottom:4px">QR – głosowanie</div>
+        <canvas id="qr-vote" class="qr-img"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- CURRENT PHOTO PREVIEW -->
+  <div class="current-preview" id="current-preview" style="display:none">
+    <img id="cp-img" src="" alt="">
+    <div class="current-info">
+      <h3 id="cp-label">—</h3>
+      <div class="current-stat" id="cp-votes">0 <span>głosów</span></div>
+      <div class="current-stat" id="cp-avg">— <span>/ 10 średnia</span></div>
+      <div class="vote-bar-wrap"><div class="vote-bar" id="cp-bar" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <!-- PODIUM REVEAL (visible when phase=podium) -->
+  <div class="podium-reveal" id="podium-reveal" style="display:none">
+    <h3>🏆 Odkrywanie Podium (TOP 3)</h3>
+    <p style="color:#888;font-size:13px;margin-bottom:12px">Odkryj kolejno — z konfetti 🎊</p>
+    <div class="podium-steps" id="podium-steps"></div>
+    <button class="btn btn-gold" id="btn-podium-full" style="display:none;margin-top:14px" onclick="showFullPodium()">🏅 Pokaż pełne podium (słupki)</button>
+  </div>
+
+  <!-- WSZYSTKIE WYNIKI (visible when phase=podium) -->
+  <div class="podium-reveal" id="all-results-reveal" style="display:none">
+    <h3>📋 Wszystkie Wyniki</h3>
+    <p style="color:#888;font-size:13px;margin-bottom:12px">Od ostatniego do pierwszego — bez konfetti</p>
+    <div class="podium-steps" id="all-results-steps"></div>
+  </div>
+
+  <!-- PHOTO PICKER -->
+  <div class="picker-section" id="picker-section">
+    <h3>Dodaj zdjęcia do głosowania</h3>
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('uploads')">📁 Z uploadsów</button>
+      <button class="tab-btn" onclick="switchTab('url')">🔗 Własny URL</button>
+    </div>
+
+    <!-- UPLOADS TAB -->
+    <div class="tab-content active" id="tab-uploads">
+      <div style="display:flex; gap:8px; margin-bottom:10px; align-items:center;">
+        <input type="text" placeholder="Szukaj…" id="search-uploads" oninput="filterUploads()" style="flex:1;background:#0d0d1f;border:1px solid #444;border-radius:8px;padding:8px 12px;color:#eee;font-size:14px;">
+        <button class="btn btn-gold btn-sm" onclick="addSelectedUploads()">Dodaj zaznaczone</button>
+        <button class="btn btn-ghost btn-sm" onclick="selectRandomUploads()">🎲 Losuj 10</button>
+      </div>
+      <div class="uploads-grid" id="uploads-grid">
+        <div style="color:#555;font-size:13px;padding:10px">Ładowanie…</div>
+      </div>
+    </div>
+
+    <!-- URL TAB -->
+    <div class="tab-content" id="tab-url">
+      <div class="url-add-row">
+        <input type="text" id="url-input" placeholder="https://… lub /uploads/plik.jpg">
+        <button class="btn btn-gold btn-sm" onclick="addFromUrl()">Dodaj</button>
+      </div>
+      <div class="label-row">
+        <label>Opis (opcjonalnie):</label>
+        <input type="text" id="url-label-input" placeholder="np. Janina K.">
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+
+let photos = []; // { url, label }
+let sessionActive = false;
+let currentState = null;
+let uploadFiles = [];
+let selectedUploads = new Set();
+let revealedPlaces = new Set();
+
+// ── QR ──
+function generateQR() {
+  const url = location.origin + '/wyborczy-demo/vote.html';
+  document.getElementById('link-vote').href = url;
+  document.getElementById('link-screen').href = location.origin + '/wyborczy-demo/screen.html';
+  // Simple QR using API
+  const img = document.createElement('img');
+  img.src = `https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(url)}`;
+  img.style.cssText = 'width:80px;height:80px;border-radius:6px;';
+  const c = document.getElementById('qr-vote');
+  c.replaceWith(img);
+}
+generateQR();
+
+// ── LOAD UPLOADS ──
+async function loadUploads() {
+  try {
+    const r = await fetch('/api/uploads-list');
+    if (r.ok) {
+      const data = await r.json();
+      uploadFiles = (data.files || []).filter(f => !f.includes('thumb'));
+      renderUploadsGrid(uploadFiles);
+    }
+  } catch(e) {
+    document.getElementById('uploads-grid').innerHTML = '<div style="color:#666;font-size:13px">Błąd ładowania</div>';
+  }
+}
+loadUploads();
+
+function renderUploadsGrid(files) {
+  const grid = document.getElementById('uploads-grid');
+  if (!files.length) { grid.innerHTML = '<div style="color:#555;font-size:13px">Brak plików</div>'; return; }
+  grid.innerHTML = '';
+  files.forEach(f => {
+    const url = '/uploads/' + f;
+    const div = document.createElement('div');
+    div.className = 'upload-tile' + (selectedUploads.has(url) ? ' selected' : '');
+    div.innerHTML = `<img src="${url}" loading="lazy" alt=""><div class="check-mark">✓</div>`;
+    div.onclick = () => {
+      if (selectedUploads.has(url)) selectedUploads.delete(url);
+      else selectedUploads.add(url);
+      div.classList.toggle('selected');
+      div.querySelector('.check-mark').style.opacity = selectedUploads.has(url) ? '1' : '0';
+    };
+    grid.appendChild(div);
+  });
+}
+
+function filterUploads() {
+  const q = document.getElementById('search-uploads').value.toLowerCase();
+  const filtered = uploadFiles.filter(f => f.toLowerCase().includes(q));
+  renderUploadsGrid(filtered);
+}
+
+function selectRandomUploads() {
+  selectedUploads.clear();
+  const shuffled = [...uploadFiles].sort(() => Math.random() - .5).slice(0, 10);
+  shuffled.forEach(f => selectedUploads.add('/uploads/' + f));
+  renderUploadsGrid(uploadFiles.filter(f => {
+    const q = document.getElementById('search-uploads').value.toLowerCase();
+    return !q || f.toLowerCase().includes(q);
+  }));
+}
+
+function addSelectedUploads() {
+  if (!selectedUploads.size) { alert('Zaznacz najpierw zdjęcia'); return; }
+  selectedUploads.forEach(url => {
+    if (!photos.find(p => p.url === url)) {
+      photos.push({ url, label: '' });
+    }
+  });
+  selectedUploads.clear();
+  renderUploadsGrid(uploadFiles);
+  renderPhotoList();
+}
+
+// ── URL TAB ──
+function addFromUrl() {
+  const url = document.getElementById('url-input').value.trim();
+  if (!url) return;
+  const label = document.getElementById('url-label-input').value.trim();
+  if (!photos.find(p => p.url === url)) photos.push({ url, label });
+  document.getElementById('url-input').value = '';
+  document.getElementById('url-label-input').value = '';
+  renderPhotoList();
+}
+
+// ── TAB SWITCHING ──
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', ['uploads','url'][i] === name));
+  document.querySelectorAll('.tab-content').forEach((c, i) => c.classList.toggle('active', ['uploads','url'][i] === name));
+}
+
+// ── PHOTO LIST ──
+function renderPhotoList() {
+  const list = document.getElementById('photo-list');
+  if (!photos.length) {
+    list.innerHTML = '<div style="color:#555;font-size:13px;text-align:center;padding:10px">Brak zdjęć – dodaj poniżej</div>';
+    return;
+  }
+  list.innerHTML = '';
+  photos.forEach((p, i) => {
+    const isActive = currentState && currentState.currentIndex === i;
+    const voteData = currentState && currentState.voteSummary ? currentState.voteSummary[i] : null;
+    const div = document.createElement('div');
+    div.className = 'photo-item' + (isActive ? ' active' : '') + (voteData && voteData.count > 0 ? ' voted' : '');
+    div.innerHTML = `
+      <div class="photo-idx">${i + 1}</div>
+      <img class="photo-thumb" src="${p.url}" loading="lazy" alt="">
+      <div class="photo-info">
+        <input type="text" value="${p.label || ''}" placeholder="Opis (opcjonalnie)"
+          style="width:100%;background:transparent;border:none;border-bottom:1px solid #333;color:#eee;font-size:13px;padding:2px 0;outline:none;"
+          onchange="photos[${i}].label = this.value" onclick="event.stopPropagation()">
+        <div class="photo-stat">${voteData && voteData.count > 0 ? '★ ' + voteData.avg.toFixed(2) + ' (' + voteData.count + ' głosów)' : 'Brak głosów'}</div>
+      </div>
+      <button class="remove-btn" onclick="removePhoto(${i})">✕</button>
+    `;
+    list.appendChild(div);
+  });
+}
+
+function removePhoto(i) {
+  if (sessionActive) return;
+  photos.splice(i, 1);
+  renderPhotoList();
+}
+
+// ── SESSION ──
+function startSession() {
+  if (!photos.length) { alert('Dodaj co najmniej jedno zdjęcie!'); return; }
+  socket.emit('wyborczy_admin_start', { photos: photos.map(p => ({ url: p.url, label: p.label || '' })) });
+  sessionActive = true;
+  document.getElementById('ctrl-setup').style.display = 'none';
+  document.getElementById('ctrl-voting').style.display = 'flex';
+  document.getElementById('picker-section').style.display = 'none';
+  socket.emit('wyborczy_admin_next'); // show first photo
+}
+
+function resetSession() {
+  if (!confirm('Zresetować głosowanie? Wszystkie wyniki zostaną usunięte.')) return;
+  socket.emit('wyborczy_admin_reset');
+  sessionActive = false;
+  revealedPlaces.clear();
+  document.getElementById('ctrl-setup').style.display = 'block';
+  document.getElementById('ctrl-voting').style.display = 'none';
+  document.getElementById('picker-section').style.display = 'block';
+  document.getElementById('current-preview').style.display = 'none';
+  document.getElementById('podium-reveal').style.display = 'none';
+  document.getElementById('all-results-reveal').style.display = 'none';
+  document.getElementById('btn-podium-full').style.display = 'none';
+}
+
+function adminCmd(event) { socket.emit(event); }
+
+// ── PODIUM REVEAL ──
+function buildPodiumReveal(ranking) {
+  // ── Podium TOP 3 (z konfetti) ──
+  const section = document.getElementById('podium-reveal');
+  const steps = document.getElementById('podium-steps');
+  section.style.display = 'block';
+  steps.innerHTML = '';
+
+  const medals = { 1: '🥇 MIEJSCE 1', 2: '🥈 MIEJSCE 2', 3: '🥉 MIEJSCE 3' };
+  const colors = { 1: '#ffd700', 2: '#c0c0c0', 3: '#cd7f32' };
+
+  [3, 2, 1].forEach(place => {
+    const r = ranking.find(x => x.place === place);
+    if (!r) return;
+    const done = revealedPlaces.has(`p_${place}`);
+    const div = document.createElement('div');
+    div.className = 'podium-step' + (done ? ' step-revealed' : '');
+    div.dataset.key = `p_${place}`;
+    div.innerHTML = `
+      <img src="${r.url}" alt="">
+      <div class="step-info">
+        <div class="step-place" style="color:${colors[place]}">${medals[place]}</div>
+        <div class="step-avg">★ ${r.avg.toFixed(2)} / 10 — ${r.count} głosów${r.label ? ' — ' + r.label : ''}</div>
+      </div>
+      <button class="btn btn-gold btn-sm" ${done ? 'disabled' : ''} onclick="revealPlace(${place}, true)">🎊 Odkryj</button>
+    `;
+    steps.appendChild(div);
+  });
+
+  // ── Wszystkie Wyniki (od ostatniego, bez konfetti) ──
+  const allSection = document.getElementById('all-results-reveal');
+  const allSteps = document.getElementById('all-results-steps');
+  allSection.style.display = 'block';
+  allSteps.innerHTML = '';
+
+  // Sort from worst (highest place number) to best (1)
+  const allSorted = [...ranking].sort((a, b) => b.place - a.place);
+  allSorted.forEach(r => {
+    const { place, url, avg, count, label } = r;
+    const done = revealedPlaces.has(`a_${place}`);
+    const div = document.createElement('div');
+    div.className = 'podium-step' + (done ? ' step-revealed' : '');
+    div.dataset.key = `a_${place}`;
+    div.innerHTML = `
+      <img src="${url}" alt="">
+      <div class="step-info">
+        <div class="step-place" style="color:${colors[place] || '#aaa'}">
+          ${medals[place] || `MIEJSCE ${place}`}
+        </div>
+        <div class="step-avg">★ ${avg.toFixed(2)} / 10 — ${count} głosów${label ? ' — ' + label : ''}</div>
+      </div>
+      <button class="btn btn-blue btn-sm" ${done ? 'disabled' : ''} onclick="revealPlace(${place}, false, 'a')">Pokaż</button>
+    `;
+    allSteps.appendChild(div);
+  });
+}
+
+function revealPlace(place, confetti = true, prefix = 'p') {
+  const key = `${prefix}_${place}`;
+  socket.emit('wyborczy_podium_reveal', { place, confetti });
+  revealedPlaces.add(key);
+  const step = document.querySelector(`.podium-step[data-key="${key}"]`);
+  if (step) {
+    step.classList.add('step-revealed');
+    step.querySelector('button').disabled = true;
+  }
+  if (place === 1 && prefix === 'p') {
+    document.getElementById('btn-podium-full').style.display = 'flex';
+  }
+}
+
+function showFullPodium() {
+  socket.emit('wyborczy_podium_full');
+}
+
+// ── SOCKET EVENTS ──
+socket.on('wyborczy_state', (st) => {
+  currentState = st;
+  updateStatusBar(st);
+  renderPhotoList();
+
+  document.getElementById('btn-prev').disabled = st.currentIndex <= 0;
+
+  if (st.phase === 'voting' && st.photo) {
+    document.getElementById('current-preview').style.display = 'flex';
+    document.getElementById('cp-img').src = st.photo.url;
+    document.getElementById('cp-label').textContent = st.photo.label || 'Zdjęcie ' + (st.currentIndex + 1);
+    updateVotePreview(st.currentVotes, st.currentAvg);
+    document.getElementById('podium-reveal').style.display = 'none';
+    document.getElementById('all-results-reveal').style.display = 'none';
+    // Reset "all voted" highlight on Next
+    document.getElementById('btn-next').classList.remove('all-voted-ready');
+    document.getElementById('btn-next').textContent = 'Następne ▶';
+  }
+
+  if ((st.phase === 'podium' || st.phase === 'podium_full') && st.ranking && st.ranking.length) {
+    document.getElementById('current-preview').style.display = 'none';
+    buildPodiumReveal(st.ranking);
+  }
+});
+
+socket.on('wyborczy_vote_update', (data) => {
+  if (currentState && currentState.currentIndex === data.photoIndex) {
+    updateVotePreview(data.count, data.avg);
+  }
+});
+
+// Gdy wszyscy zagłosowali – podświetl "Następne"
+socket.on('wyborczy_all_voted', () => {
+  const btn = document.getElementById('btn-next');
+  btn.classList.add('all-voted-ready');
+  btn.textContent = '✅ Następne ▶';
+});
+
+function updateVotePreview(count, avg) {
+  document.getElementById('cp-votes').innerHTML = `${count} <span>głosów</span>`;
+  document.getElementById('cp-avg').innerHTML = avg > 0
+    ? `${avg.toFixed(2)} <span>/ 10 średnia</span>`
+    : `— <span>/ 10 średnia</span>`;
+  document.getElementById('cp-bar').style.width = (avg / 10 * 100) + '%';
+}
+
+function updateStatusBar(st) {
+  const phases = {
+    idle: 'Oczekiwanie', voting: '🗳 Głosowanie',
+    podium: '🏆 Podium', podium_full: '🏅 Pełne Podium', stats: '📊 Statystyki'
+  };
+  document.getElementById('st-phase').textContent = phases[st.phase] || st.phase;
+  document.getElementById('st-photo').textContent = st.phase === 'voting'
+    ? `${st.currentIndex + 1} / ${st.total}`
+    : st.total ? `— / ${st.total}` : '—';
+  document.getElementById('st-votes').textContent = st.phase === 'voting' ? st.currentVotes : '—';
+  document.getElementById('st-avg').textContent = st.phase === 'voting' && st.currentAvg > 0
+    ? `★ ${st.currentAvg.toFixed(2)}` : '—';
+}
+
+socket.emit('wyborczy_get_state');
+</script>
+</body>
+</html>

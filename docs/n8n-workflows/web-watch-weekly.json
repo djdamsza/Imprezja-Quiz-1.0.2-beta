@@ -1,0 +1,290 @@
+{
+  "name": "web-watch-weekly",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "11111111-aaaa-bbbb-cccc-000000000001",
+      "name": "Manual_Test",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1,
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "id": "22222222-aaaa-bbbb-cccc-000000000002",
+      "name": "Schedule_Weekly",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        480
+      ],
+      "notesInFlow": true,
+      "notes": "Po imporcie: ustaw dzień/godzinę w UI (np. poniedziałek 8:00). Strefa = serwer n8n."
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * SITES[].keywords: wyłącznie stringi (np. 'szach', 'turniej') — wzorzec RegExp jako tekst, flaga i w Code_ScanKeywords.\n * Nie używaj literałów /.../i — po zapisie workflow n8n gubi typ RegExp → re.test is not a function.\n * DODAWANIE STRON: dopisz obiekty do tablicy SITES.\n * FB (np. Ostrowskie TS): bez prostego GET — zob. docs/N8N_WEB_SCRAPE_PERPLEXITY_NOCODB.md\n */\nconst SITES = [\n  {\n    id: 'oszs_zawody',\n    name: 'OSZS — ZAWODY 2025/2026 (wykaz; /zawody ma tylko stary wpis)',\n    url: 'https://www.oszs.info/5146-2',\n    rssUrl: '',\n    keywords: [\n      'szach',\n      'turniej',\n      'zawod',\n      'zawody',\n      'szkoln',\n      'młodz',\n      'mlodz',\n      'dziec',\n      'junior',\n    ],\n    maxSnippetChars: 800,\n  },\n  {\n    id: 'wzszach_turnieje',\n    name: 'WZ Szach Poznań — strona główna (/turnieje = 404)',\n    url: 'https://wzszach.poznan.pl/',\n    rssUrl: '',\n    keywords: [\n      'ostr[oó]w',\n      'kalisz',\n      'szach',\n      'turniej',\n      'junior',\n      'młodz',\n      'mlodz',\n      'dziec',\n    ],\n    maxSnippetChars: 900,\n  },\n  {\n    id: 'chessarbiter_turnieje',\n    name: 'Chessarbiter — lista turniejów (.php; /turnieje to tylko redirect JS)',\n    url: 'https://www.chessarbiter.com/turnieje.php',\n    rssUrl: '',\n    keywords: [\n      'ostr[oó]w',\n      'kalisz',\n      'szach',\n      'dziec',\n      'młodz',\n      'junior',\n      'turniej',\n    ],\n    maxSnippetChars: 900,\n  },\n];\n\nreturn SITES.map((s) => ({ json: s }));"
+      },
+      "id": "33333333-aaaa-bbbb-cccc-000000000003",
+      "name": "Code_WebWatchConfig",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        380
+      ],
+      "notesInFlow": true,
+      "notes": "Edytuj **SITES** — kolejne strony = kolejne obiekty w tablicy."
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {
+          "timeout": 45000,
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true,
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "44444444-aaaa-bbbb-cccc-000000000004",
+      "name": "HTTP_FetchPage",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        760,
+        380
+      ],
+      "notesInFlow": true,
+      "notes": "GET HTML. **neverError** — przy 403/5xx i tak leci dalej (możesz sprawdzić w Code)."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "function stripTags(h) {\n  return String(h || '')\n    .replace(/<script[^>]*>[\\s\\S]*?<\\/script>/gi, ' ')\n    .replace(/<style[^>]*>[\\s\\S]*?<\\/style>/gi, ' ')\n    .replace(/<[^>]+>/g, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim();\n}\n\nfunction keywordToRegExp(kw) {\n  if (typeof kw !== 'string' || !kw.trim()) return null;\n  try {\n    return new RegExp(kw.trim(), 'i');\n  } catch (e) {\n    return null;\n  }\n}\n\nfunction warsawTodayYmd() {\n  try {\n    const fmt = new Intl.DateTimeFormat('en-CA', {\n      timeZone: 'Europe/Warsaw',\n      year: 'numeric',\n      month: '2-digit',\n      day: '2-digit',\n    });\n    const s = fmt.format(new Date());\n    if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return s;\n  } catch (e) {}\n  const d = new Date();\n  return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0') + '-' + String(d.getUTCDate()).padStart(2, '0');\n}\n\nfunction ymdCompare(a, b) {\n  if (!a || !b) return 0;\n  return a < b ? -1 : a > b ? 1 : 0;\n}\n\nfunction pad2(n) {\n  return String(n).padStart(2, '0');\n}\n\nfunction toYmd(year, month, day) {\n  return year + '-' + pad2(month) + '-' + pad2(day);\n}\n\nconst MONTH_GEN =\n  'stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|wrze(?:ś|s)nia|pa(?:ź|z)dziernika|listopada|grudnia';\nconst MONTH_MAP = {\n  stycznia: 1,\n  lutego: 2,\n  marca: 3,\n  kwietnia: 4,\n  maja: 5,\n  czerwca: 6,\n  lipca: 7,\n  sierpnia: 8,\n  września: 9,\n  wrzesnia: 9,\n  października: 10,\n  pazdziernika: 10,\n  listopada: 11,\n  grudnia: 12,\n};\n\nfunction normMonthKey(s) {\n  return String(s || '')\n    .toLowerCase()\n    .replace(/ą/g, 'a')\n    .replace(/ć/g, 'c')\n    .replace(/ę/g, 'e')\n    .replace(/ł/g, 'l')\n    .replace(/ń/g, 'n')\n    .replace(/ó/g, 'o')\n    .replace(/ś/g, 's')\n    .replace(/ź/g, 'z')\n    .replace(/ż/g, 'z');\n}\n\nconst MONTH_MAP_N = {};\nfor (const k of Object.keys(MONTH_MAP)) {\n  MONTH_MAP_N[normMonthKey(k)] = MONTH_MAP[k];\n}\n\n/** Mianownik w nagłówkach archiwum WP („luty 2026”) — MONTH_MAP ma głównie dopełniacz. */\nconst MONTH_NOMINATIVE = {\n  styczeń: 1,\n  styczen: 1,\n  luty: 2,\n  marzec: 3,\n  kwiecień: 4,\n  kwiecien: 4,\n  maj: 5,\n  czerwiec: 6,\n  lipiec: 7,\n  sierpień: 8,\n  sierpien: 8,\n  wrzesień: 9,\n  wrzesien: 9,\n  październik: 10,\n  pazdziernik: 10,\n  listopad: 11,\n  grudzień: 12,\n  grudzien: 12,\n};\n\nfunction extractDatesFromText(t) {\n  const found = new Set();\n  const s = String(t || '');\n  let m;\n\n  const reDMY = /\\b(\\d{1,2})[./-](\\d{1,2})[./-](20\\d{2})\\b/g;\n  while ((m = reDMY.exec(s)) !== null) {\n    const d = parseInt(m[1], 10);\n    const mo = parseInt(m[2], 10);\n    const y = parseInt(m[3], 10);\n    if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) found.add(toYmd(y, mo, d));\n  }\n\n  const reYMD = /\\b(20\\d{2})[./-](\\d{1,2})[./-](\\d{1,2})\\b/g;\n  while ((m = reYMD.exec(s)) !== null) {\n    const y = parseInt(m[1], 10);\n    const mo = parseInt(m[2], 10);\n    const d = parseInt(m[3], 10);\n    if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) found.add(toYmd(y, mo, d));\n  }\n\n  // DD.MM.RR / DD-MM-RR (rok 00–69 → 2000+, 70–99 → 1900+); nie zjada DD.MM.2025 dzięki (?!\\d).\n  const reDMY2 = /\\b(\\d{1,2})[./-](\\d{1,2})[./-](\\d{2})(?!\\d)\\b/g;\n  while ((m = reDMY2.exec(s)) !== null) {\n    const d = parseInt(m[1], 10);\n    const mo = parseInt(m[2], 10);\n    const y2 = parseInt(m[3], 10);\n    const y = y2 >= 70 ? 1900 + y2 : 2000 + y2;\n    if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31 && y >= 1990 && y <= 2099) found.add(toYmd(y, mo, d));\n  }\n\n  // WordPress: .../2026/02/ (archiwum miesiąca) → pierwszy dzień miesiąca (nie gdy jest dzień /2026/02/15/).\n  const rePathYm = /\\b(20\\d{2})\\/(\\d{1,2})\\/(?![0-9]{1,2}\\/)/g;\n  while ((m = rePathYm.exec(s)) !== null) {\n    const y = parseInt(m[1], 10);\n    const mo = parseInt(m[2], 10);\n    if (mo >= 1 && mo <= 12) found.add(toYmd(y, mo, 1));\n  }\n\n  const rePL = new RegExp('\\\\b(\\\\d{1,2})\\\\s+(' + MONTH_GEN + ')\\\\s+(20\\\\d{2})\\\\b', 'gi');\n  while ((m = rePL.exec(s)) !== null) {\n    const d = parseInt(m[1], 10);\n    const mo =\n      MONTH_MAP[m[2].toLowerCase()] ||\n      MONTH_MAP_N[normMonthKey(m[2])];\n    const y = parseInt(m[3], 10);\n    if (mo && d >= 1 && d <= 31) found.add(toYmd(y, mo, d));\n  }\n\n  const rePL_MY = new RegExp(\n    '\\\\b(' +\n      MONTH_GEN +\n      '|styczeń|styczen|luty|marzec|kwiecień|kwiecien|maj|czerwiec|lipiec|sierpień|sierpien|wrzesień|wrzesien|październik|pazdziernik|listopad|grudzień|grudzien' +\n      ')\\\\s+(20\\\\d{2})\\\\b',\n    'gi',\n  );\n  while ((m = rePL_MY.exec(s)) !== null) {\n    const key = m[1].toLowerCase();\n    const mo =\n      MONTH_MAP[key] ||\n      MONTH_MAP_N[normMonthKey(m[1])] ||\n      MONTH_NOMINATIVE[key] ||\n      MONTH_NOMINATIVE[normMonthKey(m[1])];\n    const y = parseInt(m[2], 10);\n    if (mo) found.add(toYmd(y, mo, 1));\n  }\n\n  return Array.from(found);\n}\n\nfunction normalizeUrl(href, baseUrl) {\n  try {\n    const u = new URL(String(href).trim(), baseUrl);\n    if (!/^https?:$/i.test(u.protocol)) return null;\n    u.hash = '';\n    return u.href;\n  } catch (e) {\n    return null;\n  }\n}\n\nfunction linkLooksLikeNavOnly(anchor, href) {\n  const a = (anchor || '').trim().toLowerCase();\n  const h = (href || '').toLowerCase();\n  if (!a) return true;\n  if (a.length <= 1) return true;\n  const junk =\n    /^(strona główna|strona glowna|home|menu|szukaj|kontakt|english|polski|pl|en|»|›|››|\\d{4})$/i;\n  if (junk.test(a)) return true;\n  const junk2 =\n    /^(archiwum|kategorie|druki|korespondencja|zarząd|zarzad|trofea|wyniki|bieżące|biezace)$/i;\n  if (junk2.test(a) && !/zawod|szach|turniej|mistrzostw|mp\\b/i.test(h + ' ' + a)) return true;\n  return false;\n}\n\nfunction anyKeywordMatches(blob, kws) {\n  for (let i = 0; i < kws.length; i++) {\n    const re = keywordToRegExp(kws[i]);\n    if (re && re.test(blob)) return true;\n  }\n  return false;\n}\n\n/**\n * true = digest: wszystkie linki z trafieniami słów kluczowych (bez filtra „tylko przyszłe daty”).\n * Env n8n: WEB_WATCH_IGNORE_EVENT_DATE=1|0|true|false — nadpisuje domyślną wartość.\n */\nconst WEB_WATCH_DEFAULT_SKIP_EVENT_DATE = true;\n\nfunction skipEventDateFilter() {\n  try {\n    const v = String($env.WEB_WATCH_IGNORE_EVENT_DATE || '')\n      .trim()\n      .toLowerCase();\n    if (v === '0' || v === 'false' || v === 'no') return false;\n    if (v === '1' || v === 'true' || v === 'yes') return true;\n  } catch (e) {}\n  return WEB_WATCH_DEFAULT_SKIP_EVENT_DATE;\n}\n\nfunction scanOneSite(site, raw) {\nlet html = '';\nif (typeof raw === 'string') html = raw;\nelse if (raw && typeof raw.data === 'string') html = raw.data;\nelse if (raw && typeof raw.body === 'string') html = raw.body;\nelse if (raw && typeof raw.text === 'string') html = raw.text;\nelse if (raw && typeof raw.content === 'string') html = raw.content;\nelse html = JSON.stringify(raw || {});\n\nlet baseHost = '';\ntry {\n  baseHost = new URL(site.url).hostname.replace(/^www\\./i, '');\n} catch (e) {}\n\nconst kws = site.keywords || [];\nconst linkRe = /<a\\s[^>]*href\\s*=\\s*[\"']([^\"']+)[\"'][^>]*>([\\s\\S]*?)<\\/a>/gi;\nconst candidates = [];\nlet lm;\nwhile ((lm = linkRe.exec(html)) !== null) {\n  const hrefRaw = lm[1];\n  if (/^\\s*#|javascript:|mailto:/i.test(hrefRaw)) continue;\n  const inner = lm[2];\n  const anchor = stripTags(inner).slice(0, 220);\n  const abs = normalizeUrl(hrefRaw, site.url);\n  if (!abs) continue;\n  let host = '';\n  try {\n    host = new URL(abs).hostname.replace(/^www\\./i, '');\n  } catch (e) {\n    continue;\n  }\n  if (baseHost && host !== baseHost && !host.endsWith('.' + baseHost)) continue;\n  if (linkLooksLikeNavOnly(anchor, abs)) continue;\n  const start = Math.max(0, lm.index - 900);\n  const windowHtml = html.slice(start, lm.index + 900);\n  const windowText = stripTags(windowHtml);\n  const blob = anchor + ' ' + abs + ' ' + windowText.slice(0, 800);\n  if (!anyKeywordMatches(blob, kws)) continue;\n  const dates = extractDatesFromText(blob);\n  candidates.push({\n    url: abs,\n    title: anchor || abs,\n    dates_found: dates,\n    context: windowText.replace(/\\s+/g, ' ').trim().slice(0, 300),\n  });\n}\n\n// Domyślnie (skipEventDateFilter false): tylko daty ZAWODÓW od dziś w przyszłość (Europe/Warsaw).\n// skipEventDateFilter true: wszystkie trafienia w linkach (dowolna data lub brak daty w kontekście).\nconst todayY = warsawTodayYmd();\nconst skipDates = skipEventDateFilter();\nconst futureRows = [];\nconst seenUrl = new Set();\nfor (const c of candidates) {\n  let picked;\n  if (skipDates) {\n    picked = [...c.dates_found].sort(ymdCompare);\n  } else {\n    picked = c.dates_found.filter((d) => ymdCompare(d, todayY) >= 0).sort(ymdCompare);\n  }\n  if (!skipDates && picked.length === 0) continue;\n  if (skipDates && picked.length === 0) {\n    picked = [''];\n  }\n  const nextD = picked[0];\n  const key = c.url.split('?')[0].replace(/\\/$/, '');\n  if (seenUrl.has(key)) continue;\n  seenUrl.add(key);\n  futureRows.push({\n    date_ymd: nextD && /^\\d{4}-\\d{2}-\\d{2}$/.test(nextD) ? nextD : '',\n    date_label:\n      nextD && /^\\d{4}-\\d{2}-\\d{2}$/.test(nextD)\n        ? nextD\n        : '(brak daty w kontekście linku)',\n    url: c.url,\n    title: (c.title || '').trim() || c.url,\n    excerpt: (c.context || '').trim(),\n  });\n}\n\nfutureRows.sort((a, b) => {\n  const ka = a.date_ymd && /^\\d{4}-\\d{2}-\\d{2}$/.test(a.date_ymd) ? a.date_ymd : '9999-12-31';\n  const kb = b.date_ymd && /^\\d{4}-\\d{2}-\\d{2}$/.test(b.date_ymd) ? b.date_ymd : '9999-12-31';\n  return ymdCompare(ka, kb);\n});\n\nconst text = stripTags(html);\nconst hits = [];\nfor (let i = 0; i < kws.length; i++) {\n  const re = keywordToRegExp(kws[i]);\n  if (!re || !re.test(text)) continue;\n  const m = text.match(re);\n  hits.push({ pattern: re.source, sample: m ? m[0] : '' });\n}\n\nconst include_in_digest = futureRows.length > 0;\n\n  return {\n      site_id: site.id,\n      site_name: site.name,\n      site_url: site.url,\n      fetched_ok: html.length > 80,\n      html_length: html.length,\n      keyword_hits: hits,\n      has_keyword_hit: hits.length > 0,\n      future_events: futureRows,\n      skip_event_date_filter: skipDates,\n      include_in_digest: include_in_digest,\n      digest_note: include_in_digest\n        ? skipDates\n          ? 'Tryb bez filtra daty — widać wszystkie linki z trafieniami słów kluczowych (test). WEB_WATCH_IGNORE_EVENT_DATE=0 przywraca tylko przyszłe terminy.'\n          : ''\n        : 'Pominięto: brak linku z datą ZAWODÓW od dziś w przyszłość (Europe/Warsaw) przy słowach kluczowych. Data publikacji strony nie ma znaczenia.',\n      text_snippet: text.slice(0, 400),\n      text_hash: (function quickHash(s) {\n        let h = 2166136261;\n        for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);\n        return ('0000000' + (h >>> 0).toString(16)).slice(-16);\n      })(text),\n  };\n}\n\nconst httpItems = $input.all();\nconst siteItems = $('Code_WebWatchConfig').all();\nconst out = [];\nconst n = Math.min(httpItems.length, siteItems.length);\nfor (let idx = 0; idx < n; idx++) {\n  out.push({ json: scanOneSite(siteItems[idx].json, httpItems[idx].json) });\n}\nreturn out;"
+      },
+      "id": "55555555-aaaa-bbbb-cccc-000000000005",
+      "name": "Code_ScanKeywords",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        380
+      ],
+      "notesInFlow": true,
+      "notes": "Run once for all items: jedna pętla po wszystkich itemach HTTP × konfiguracja stron (ta sama kolejność). Linki + daty zawodów."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "function quickHash(s) {\n  let h = 2166136261;\n  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);\n  return ('0000000000000000' + (h >>> 0).toString(16)).slice(-16) + '_' + s.length;\n}\nconst items = $input.all().map((x) => x.json).filter((x) => x.include_in_digest && (x.future_events || []).length > 0);\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.webWatchDedup) staticData.webWatchDedup = {};\n\nconst DIGEST_TO = 'nowaczykdamian@gmail.com';\nconst DIGEST_FROM = 'Biuro Imprezja <biuro@imprezja.pl>';\n\nconst totalEvents = items.reduce((acc, it) => acc + (it.future_events || []).length, 0);\n\nconst lines = [];\nconst skipDateHeader = items.length > 0 && items.some((x) => x.skip_event_date_filter);\nif (skipDateHeader) {\n  lines.push('web-watch — PODGLĄD (bez filtra daty): wszystkie trafienia w linkach');\n  lines.push('Kryterium czasu WYŁĄCZONE — widać przeszłe terminy i wpisy bez daty w kontekście. Produkcja: WEB_WATCH_IGNORE_EVENT_DATE=0 lub WEB_WATCH_DEFAULT_SKIP_EVENT_DATE=false w skanie.');\n} else {\n  lines.push('web-watch — nadchodzące turnieje / zawody');\n  lines.push('Kryterium: DATA ZAWODÓW (nie data ogłoszenia) od dziś w górę — jutro, za miesiąc, rok itd. Stara strona z przyszłym terminem jest OK.');\n}\nlines.push('Strefa „dziś”: Europe/Warsaw. Wygenerowano (UTC): ' + new Date().toISOString());\nlines.push('Stron z treścią: ' + items.length + ' | Wydarzeń: ' + totalEvents);\nlines.push('');\n\nfor (const it of items) {\n  lines.push('────────────────────────────────────────');\n  lines.push(it.site_name);\n  lines.push('Strona startowa: ' + it.site_url);\n  lines.push('');\n  for (const ev of it.future_events) {\n    lines.push('• ' + ev.date_label + ' — ' + ev.title);\n    lines.push('  Link: ' + ev.url);\n    if (ev.excerpt) lines.push('  Kontekst: ' + ev.excerpt);\n    lines.push('');\n  }\n}\n\nconst body = lines.join('\\n');\nconst digestHash = quickHash(body);\nconst prev = staticData.webWatchDedup.lastDigestHash;\nconst unchanged = prev === digestHash && items.length > 0;\nif (items.length > 0 && !unchanged) {\n  staticData.webWatchDedup.lastDigestHash = digestHash;\n  staticData.webWatchDedup.lastRunAt = new Date().toISOString();\n}\n\nconst digest_subject = skipDateHeader\n  ? '[web-watch] Podgląd (bez filtra daty): ' + totalEvents + ' pozycji (' + items.length + ' stron)'\n  : '[web-watch] Nadchodzące terminy: ' + totalEvents + ' wydarzeń (' + items.length + ' stron)';\n\nreturn [{\n  json: {\n    has_hits: items.length > 0,\n    skip_duplicate_week: unchanged,\n    digest_plain: body,\n    digest_subject: digest_subject,\n    digest_to: DIGEST_TO,\n    digest_from: DIGEST_FROM,\n    hit_count: items.length,\n    digest_event_count: totalEvents,\n  },\n}];"
+      },
+      "id": "66666666-aaaa-bbbb-cccc-000000000006",
+      "name": "Code_AggregateDigest",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1240,
+        380
+      ],
+      "notesInFlow": true,
+      "notes": "Tylko **include_in_digest** (przyszłe terminy). **DIGEST_TO** / **DIGEST_FROM**. Deduplikacja: hash tygodnia → **skip_duplicate_week**."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.has_hits && !$json.skip_duplicate_week }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "77777777-aaaa-bbbb-cccc-000000000007",
+      "name": "If_HasHits",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1480,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($env.RESEND_API_KEY || $env.RESENDAPIKEY || '') }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ from: $json.digest_from, to: $json.digest_to, subject: String($json.digest_subject || ('[web-watch] Nadchodzące terminy: ' + ($json.digest_event_count || 0) + ' wydarzeń (' + ($json.hit_count || 0) + ' stron)')), html: '<pre style=\"font-family:ui-monospace,monospace;font-size:13px;white-space:pre-wrap\">' + String($json.digest_plain || '').replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</pre>' }) }}",
+        "options": {}
+      },
+      "id": "88888888-aaaa-bbbb-cccc-000000000008",
+      "name": "HTTP_Resend_Digest",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1720,
+        280
+      ],
+      "notesInFlow": true,
+      "notes": "Authorization: RESEND_API_KEY lub RESENDAPIKEY w env (Render), albo Credential Header Auth (Bearer re_…). W node: Authentication = None. N8N_BLOCK_ENV_ACCESS_IN_NODE nie może blokować $env. Zob. IMPORT_AUTOMAIL_RESEND_ENV.md."
+    },
+    {
+      "parameters": {},
+      "id": "99999999-aaaa-bbbb-cccc-000000000009",
+      "name": "NoOp_NoMail",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1720,
+        480
+      ],
+      "notesInFlow": true,
+      "notes": "Brak trafień albo ten sam co tydzień hash — bez maila."
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual_Test": {
+      "main": [
+        [
+          {
+            "node": "Code_WebWatchConfig",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule_Weekly": {
+      "main": [
+        [
+          {
+            "node": "Code_WebWatchConfig",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code_WebWatchConfig": {
+      "main": [
+        [
+          {
+            "node": "HTTP_FetchPage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP_FetchPage": {
+      "main": [
+        [
+          {
+            "node": "Code_ScanKeywords",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code_ScanKeywords": {
+      "main": [
+        [
+          {
+            "node": "Code_AggregateDigest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code_AggregateDigest": {
+      "main": [
+        [
+          {
+            "node": "If_HasHits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If_HasHits": {
+      "main": [
+        [
+          {
+            "node": "HTTP_Resend_Digest",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "NoOp_NoMail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "id": "web-watch-weekly-template",
+  "tags": []
+}

@@ -2,6 +2,7 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico"><link rel="icon" type="image/png" sizes="32x32" href="/img/icon-32.png"><link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Imprezja Quiz – Licencja wymagana</title>
     <style>
@@ -62,6 +63,8 @@
             transition: opacity 0.2s;
         }
         button:hover { opacity: 0.9; }
+        .license-actions-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; justify-content: center; }
+        .license-actions-row button { width: auto !important; flex: 1; min-width: 160px; max-width: 100%; box-sizing: border-box; }
         .error { color: #e74c3c; font-size: 0.9rem; margin-top: 10px; display: none; }
         .success { color: #2ecc71; font-size: 0.95rem; margin-top: 12px; display: none; }
         .machine-id-box {
@@ -74,6 +77,8 @@
         }
         .machine-id-box .label { font-size: 0.95rem; color: rgba(255,255,255,0.9); margin-bottom: 8px; }
         .machine-id-box .machine-id { font-family: monospace; font-size: 1rem; color: #fff; word-break: break-all; letter-spacing: 0.5px; }
+        .machine-id-box .machine-ids-alt { font-family: monospace; font-size: 0.85rem; color: rgba(255,255,255,0.85); margin-top: 10px; line-height: 1.5; }
+        .machine-id-box .hint { font-size: 0.8rem; color: rgba(255,255,255,0.55); margin-top: 8px; }
         .back-btn {
             display: inline-flex; align-items: center; gap: 8px;
             margin-bottom: 20px; padding: 10px 20px; border-radius: 8px;
@@ -96,12 +101,21 @@
         <p class="info">Kup licencję na stronie wydawcy i wprowadź klucz poniżej:</p>
         <a href="https://nowajakoscrozrywki.pl/produkt/imprezja-quiz/" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 12px 20px; margin-bottom: 15px; font-size: 1rem; font-weight: 700; background: linear-gradient(#2ecc71, #27ae60); color: #fff; border-radius: 8px; text-decoration: none;">🛒 Kup licencję</a>
         <input type="text" id="key" placeholder="IMPREZJA-RSA-... lub IMPREZJA-XXXX-XXXX-XXXX-XXXX" autocomplete="off">
-        <button onclick="activate()">Aktywuj licencję</button>
+        <div class="license-actions-row">
+        <button type="button" onclick="pasteKeyFromClipboard()" style="padding:12px 18px;background:rgba(255,255,255,0.15);color:#fff;border:2px solid rgba(255,255,255,0.35);">📋 Wklej ze schowka</button>
+        <button type="button" onclick="activate()">Aktywuj licencję</button>
+        </div>
+        <p style="margin-top:10px;font-size:0.78rem;color:rgba(255,255,255,0.45);">Cmd+V (Mac) / Ctrl+V (Windows); w aplikacji Electron: <strong>Edycja → Wklej</strong>.</p>
         <div id="error" class="error"></div>
         <div id="success" class="success"></div>
         <div class="machine-id-box">
-            <div class="label">ID komputera (do zamówienia)</div>
+            <div class="label">ID komputera (do zamówienia klucza)</div>
             <span id="machine-id" class="machine-id">Ładowanie...</span>
+            <div id="machine-ids-alt-wrap" style="display:none;">
+                <div class="label" style="margin-top:14px;">Alternatywne ID (ten sam komputer)</div>
+                <div id="machine-ids-alt" class="machine-ids-alt"></div>
+                <p class="hint">Klucz RSA musi być wygenerowany dla <strong>dokładnie jednego</strong> z powyższych (16 znaków). Jeśli „nie pasuje”, podaj wydawcy <strong>wszystkie</strong> linie lub wygeneruj klucz ponownie dla drugiego ID.</p>
+            </div>
         </div>
         <p style="margin-top: 24px; font-size: 0.75rem; color: rgba(255,255,255,0.4);">© Damian Nowaczyk. Wszelkie prawa zastrzeżone.</p>
     </div>
@@ -115,6 +129,15 @@
                 const status = await statusRes.json();
                 const machine = await machineRes.json();
                 document.getElementById('machine-id').textContent = machine.machineId || '—';
+                const ids = machine.machineIds && machine.machineIds.length ? machine.machineIds : [machine.machineId].filter(Boolean);
+                const altWrap = document.getElementById('machine-ids-alt-wrap');
+                const altEl = document.getElementById('machine-ids-alt');
+                if (ids.length > 1) {
+                    altEl.textContent = ids.join('\n');
+                    altWrap.style.display = 'block';
+                } else {
+                    altWrap.style.display = 'none';
+                }
                 const reasonEl = document.getElementById('reason');
                 if (status.reason) {
                     reasonEl.textContent = status.reason;

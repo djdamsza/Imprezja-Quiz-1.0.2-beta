@@ -1,0 +1,304 @@
+<!--
+  Sekcja KONTAKT dla imprezja.pl – layout 2-kolumnowy (jak djmartin)
+  Lewa: zdjęcie + dane kontaktowe | Prawa: formularz
+  Bez mapy. Na mobile: dwa moduły jeden nad drugim.
+
+  WAŻNE: Formularz Kadence to osobny blok. Użyj bloku KOLUMNY:
+  1. Dodaj Kolumny (2 kolumny)
+  2. Lewa kolumna: wklej cały ten HTML
+  3. Prawa kolumna: dodaj blok Kadence Form
+  Wtedy formularz będzie obok. Albo użyj kontakt-imprezja-kolumny.html (split na części).
+-->
+<style>
+  .kontakt-imprezja {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0d0d0d;
+    color: #f5f0e8;
+    padding: 56px 32px 64px;
+    margin: 0;
+    box-sizing: border-box;
+  }
+  .kontakt-imprezja * {
+    box-sizing: border-box;
+  }
+  /* Fallback gdy brak wrappera Grupa – tło na bloku Kolumny */
+  .wp-block-columns:has(.kontakt-imprezja-left) {
+    background: #0d0d0d !important;
+    color: #f5f0e8;
+    padding: 56px 32px 64px !important;
+    margin: 0;
+    box-sizing: border-box;
+  }
+  .wp-block-columns:has(.kontakt-imprezja-left) * {
+    box-sizing: border-box;
+  }
+  .wp-block-column:has(.kontakt-imprezja-left) {
+    background: #0d0d0d;
+  }
+  .kontakt-imprezja-wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 48px;
+    align-items: stretch;
+  }
+  .kontakt-imprezja-left {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .kontakt-imprezja-photo-wrap {
+    width: 100%;
+    aspect-ratio: 4/5;
+    max-height: 380px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(252,180,36,0.2);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    flex-shrink: 0;
+  }
+  .kontakt-imprezja-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+    vertical-align: middle;
+  }
+  .kontakt-imprezja-info {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    flex-shrink: 0;
+  }
+  .kontakt-imprezja-title {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: #f5f0e8;
+    margin: 0 0 4px;
+  }
+  .kontakt-imprezja-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding-left: 0;
+    border-left: 3px solid #fcb424;
+    padding-left: 14px;
+  }
+  .kontakt-imprezja-item-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #c4b8a3;
+    margin-bottom: 4px;
+  }
+  .kontakt-imprezja-item-value {
+    font-size: 16px;
+    font-weight: 600;
+    color: #f5f0e8;
+    line-height: 1.5;
+  }
+  .kontakt-imprezja-item-value a {
+    color: #fcb424;
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  .kontakt-imprezja-item-value a:hover {
+    color: #ffc94d;
+  }
+  .kontakt-imprezja-right {
+    background: #161616;
+    border: 1px solid #2a2a2a;
+    border-radius: 14px;
+    padding: 36px 32px 40px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+  }
+  .kontakt-imprezja-form-area {
+    min-height: 80px;
+  }
+  .kontakt-imprezja-form-title {
+    font-family: Georgia, serif;
+    font-size: 24px;
+    font-weight: 700;
+    color: #f5f0e8;
+    margin: 0 0 24px;
+  }
+  .kontakt-imprezja-form-subtitle {
+    font-size: 14px;
+    color: #c4b8a3;
+    margin: 0 0 28px;
+    line-height: 1.5;
+  }
+  .kontakt-imprezja-form-area > * {
+    margin-bottom: 18px;
+  }
+  .kontakt-imprezja-form-area > *:last-child {
+    margin-bottom: 0;
+  }
+  .kontakt-imprezja-form-area .wp-block-kadence-form,
+  .kontakt-imprezja-form-area form {
+    display: block !important;
+  }
+  /* Telefon i Skąd o mnie wiecie – w jednej linii, po 50% z minimalną przerwą */
+  .kontakt-imprezja-form-area .kb-form-field-2,
+  .kontakt-imprezja-form-area .kb-form-field-3 {
+    display: inline-block !important;
+    width: calc(50% - 6px) !important;
+    vertical-align: top;
+  }
+  .kontakt-imprezja-form-area .kb-form-field-2 {
+    margin-right: 12px;
+  }
+  /* Etykiety pól – jaśniejszy kolor */
+  .kontakt-imprezja-right label,
+  .kontakt-imprezja-right .kb-forms-field-label,
+  .kontakt-imprezja-form-area label,
+  .kontakt-imprezja-form-area .kb-forms-field-label {
+    color: #d9cfc0 !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    margin-bottom: 6px !important;
+  }
+  /* Style formularza – także gdy jest obok (w tej samej kolumnie) */
+  .kontakt-imprezja-right input,
+  .kontakt-imprezja-right textarea,
+  .kontakt-imprezja-form-area input,
+  .kontakt-imprezja-form-area textarea {
+    background: #323232 !important;
+    border: 1px solid #404040 !important;
+    color: #f5f0e8 !important;
+    border-radius: 10px !important;
+    padding: 14px 18px !important;
+    font-size: 15px !important;
+    transition: border-color 0.2s, box-shadow 0.2s !important;
+  }
+  .kontakt-imprezja-right input::placeholder,
+  .kontakt-imprezja-right textarea::placeholder,
+  .kontakt-imprezja-form-area input::placeholder,
+  .kontakt-imprezja-form-area textarea::placeholder {
+    color: #9a8f7e !important;
+  }
+  .kontakt-imprezja-right input:focus,
+  .kontakt-imprezja-right textarea:focus,
+  .kontakt-imprezja-form-area input:focus,
+  .kontakt-imprezja-form-area textarea:focus {
+    outline: none !important;
+    border-color: #fcb424 !important;
+    box-shadow: 0 0 0 2px rgba(252,180,36,0.25) !important;
+  }
+  /* reCAPTCHA – ciemny wrapper dopasowany do motywu */
+  .kontakt-imprezja-right .g-recaptcha,
+  .kontakt-imprezja-right .kadence-blocks-g-recaptcha-v2,
+  .kontakt-imprezja-right .google-recaptcha-checkout-wrap,
+  .kontakt-imprezja-form-area .g-recaptcha,
+  .kontakt-imprezja-form-area .kadence-blocks-g-recaptcha-v2,
+  .kontakt-imprezja-form-area .google-recaptcha-checkout-wrap {
+    background: #1f1f1f !important;
+    padding: 14px !important;
+    border-radius: 10px !important;
+    border: 1px solid #404040 !important;
+  }
+  .kontakt-imprezja-right button[type="submit"],
+  .kontakt-imprezja-right .kb-forms-submit,
+  .kontakt-imprezja-form-area button[type="submit"],
+  .kontakt-imprezja-form-area .kb-forms-submit {
+    background: #fcb424 !important;
+    color: #1a1208 !important;
+    border: none !important;
+    padding: 16px 32px !important;
+    font-size: 0 !important;
+    font-weight: 600 !important;
+    border-radius: 10px !important;
+    cursor: pointer !important;
+    transition: background 0.2s, transform 0.15s !important;
+  }
+  .kontakt-imprezja-right button[type="submit"]::after,
+  .kontakt-imprezja-right .kb-forms-submit::after,
+  .kontakt-imprezja-form-area button[type="submit"]::after,
+  .kontakt-imprezja-form-area .kb-forms-submit::after {
+    content: "Wyślij";
+    font-size: 16px;
+  }
+  .kontakt-imprezja-right button[type="submit"]:hover,
+  .kontakt-imprezja-right .kb-forms-submit:hover,
+  .kontakt-imprezja-form-area button[type="submit"]:hover,
+  .kontakt-imprezja-form-area .kb-forms-submit:hover {
+    background: #ffc94d !important;
+    transform: translateY(-1px) !important;
+  }
+  @media (max-width: 600px) {
+    .kontakt-imprezja-form-area .kb-form-field-2,
+    .kontakt-imprezja-form-area .kb-form-field-3 {
+      display: block !important;
+      width: 100% !important;
+      margin-right: 0 !important;
+    }
+  }
+  @media (max-width: 768px) {
+    .kontakt-imprezja,
+    .wp-block-columns:has(.kontakt-imprezja-left) {
+      padding: 40px 16px 48px !important;
+    }
+    .kontakt-imprezja-wrap {
+      grid-template-columns: 1fr;
+      gap: 40px;
+    }
+    .kontakt-imprezja-photo-wrap {
+      aspect-ratio: 16/10;
+      max-height: 280px;
+    }
+    .kontakt-imprezja-right {
+      padding: 28px 20px 32px;
+    }
+  }
+</style>
+
+<div class="kontakt-imprezja" id="form">
+  <div class="kontakt-imprezja-wrap">
+    <div class="kontakt-imprezja-left">
+      <img
+        src="https://imprezja.pl/wp-content/uploads/2022/09/BG0A8612.webp"
+        alt="Damian Nowaczyk – DJ i wodzirej"
+        class="kontakt-imprezja-photo"
+        loading="lazy"
+      />
+      <div class="kontakt-imprezja-info">
+        <h2 class="kontakt-imprezja-title">Damian Nowaczyk</h2>
+        <div class="kontakt-imprezja-item">
+          <div>
+            <div class="kontakt-imprezja-item-label">Telefon</div>
+            <div class="kontakt-imprezja-item-value">
+              <a href="tel:+48503836965">+48 503 836 965</a>
+            </div>
+          </div>
+        </div>
+        <div class="kontakt-imprezja-item">
+          <div>
+            <div class="kontakt-imprezja-item-label">E-mail</div>
+            <div class="kontakt-imprezja-item-value">
+              <a href="mailto:nowaczykdamian@gmail.com">nowaczykdamian@gmail.com</a>
+            </div>
+          </div>
+        </div>
+        <div class="kontakt-imprezja-item">
+          <div>
+            <div class="kontakt-imprezja-item-label">Adres</div>
+            <div class="kontakt-imprezja-item-value">
+              Przygodzice, ul. Wrzosowa 19
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="kontakt-imprezja-right">
+      <h3 class="kontakt-imprezja-form-title">Zapytaj o termin i ofertę</h3>
+      <div class="kontakt-imprezja-form-area">
+        <!-- Tu wstaw blok Kadence Form (Imię, Email, Treść zapytania, reCAPTCHA, Submit) -->
+      </div>
+    </div>
+  </div>
+</div>

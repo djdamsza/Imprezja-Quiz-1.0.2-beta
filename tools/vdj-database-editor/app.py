@@ -69,20 +69,12 @@ import sys
 
 _static_dir = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent)) / 'static'
 app = Flask(__name__, static_folder=str(_static_dir))
-CORS(app)
+app.config['MAX_CONTENT_LENGTH'] = 4 * 1024 * 1024 * 1024  # 4 GB – bazy RB bywają 2 GB+
+
+_CORS_ORIGINS = [f'http://127.0.0.1:{p}' for p in range(5050, 5061)] + [f'http://localhost:{p}' for p in range(5050, 5061)]
+CORS(app, origins=_CORS_ORIGINS, supports_credentials=True)
 
 APP_VERSION = "1.0.0"  # Będzie z config przy integracji z GitHub
-
-# #region agent log
-def _debug_log(msg: str, data: dict, hypothesis_id: str = ""):
-    import json
-    import time
-    p = {"sessionId": "4f73f4", "location": "app.py", "message": msg, "data": data, "timestamp": int(time.time() * 1000)}
-    if hypothesis_id:
-        p["hypothesisId"] = hypothesis_id
-    with open("/Users/test/Documents/VoteBattle/.cursor/debug-4f73f4.log", "a") as f:
-        f.write(json.dumps(p) + "\n")
-# #endregion
 
 # Stan w pamięci – baza załadowana w sesji
 _db_path: Optional[Path] = None
@@ -116,6 +108,47 @@ def _ensure_loaded():
             '„VDJ: plik ZIP (backup)” lub „VDJ: folder” + Załaduj. '
             'Uwaga: po restarcie serwera baza jest czyszczona – załaduj ponownie.'
         )
+
+
+def _get_allowed_path_roots() -> set:
+    """Zwraca katalogi nadrzędne plików z bazy – tylko tam wolno usuwać/modyfikować pliki."""
+    roots = set()
+    from file_analyzer import is_streaming
+    for s in _songs:
+        p = (s.get('FilePath') or s.get('path') or '').strip()
+        if not p or is_streaming(p):
+            continue
+        try:
+            resolved = Path(p).expanduser().resolve()
+            if resolved.is_file():
+                roots.add(resolved.parent)
+            elif resolved.parent and resolved.parent != resolved:
+                roots.add(resolved.parent)
+        except Exception:
+            pass
+    return roots
+
+
+def _is_path_safe(path: Path, *, must_be_file: bool = False) -> bool:
+    """Czy ścieżka znajduje się w dozwolonym katalogu (nadrzędnym względem plików z bazy)."""
+    if not path:
+        return False
+    try:
+        resolved = path.expanduser().resolve()
+        if must_be_file and not resolved.is_file():
+            return False
+        roots = _get_allowed_path_roots()
+        if not roots:
+            return False
+        for root in roots:
+            try:
+                resolved.relative_to(root)
+                return True
+            except ValueError:
+                continue
+        return False
+    except Exception:
+        return False
 
 
 def _clear_undo_stack():
@@ -276,10 +309,6 @@ def _load_from_zip(zip_path_or_file) -> tuple[bytes, dict[str, str], dict[str, b
                     extra_files[fixed_name] = raw
             except Exception:
                 pass
-    # #region agent log
-    names = z.namelist()
-    _debug_log("ZIP loaded", {"namelist_count": len(names), "namelist_sample": names[:70], "extra_files_count": len(extra_files), "extra_files_keys": sorted(extra_files.keys()), "vdjfiles_count": len(vdjfiles), "vdjfiles_keys_sample": list(vdjfiles.keys())[:20]}, "B")
-    # #endregion
     return db_content, vdjfiles, extra_files
 
 
@@ -322,29 +351,6 @@ def api_load():
             _db_path = None
             _vdjfolders = vdjfiles
             _extra_files = extra
-            # #region agent log
-            from vdjfolder import normalize_path as _np
-            import xml.etree.ElementTree as _ET
-            valid_paths = {_np(s.get("FilePath") or "") for s in _songs if (s.get("FilePath") or "").strip()}
-            valid_paths.discard("")
-            orphan_refs = 0
-            total_vdj_song_refs = 0
-            for _rel, _cnt in _vdjfolders.items():
-                try:
-                    _root = _ET.fromstring(_cnt)
-                    if _root.tag != "VirtualFolder":
-                        continue
-                    for _s in _root.findall("song"):
-                        _p = (_s.get("path") or "").strip()
-                        if not _p:
-                            continue
-                        total_vdj_song_refs += 1
-                        if _np(_p) not in valid_paths:
-                            orphan_refs += 1
-                except _ET.ParseError:
-                    pass
-            _debug_log("After load from ZIP", {"songs_count": len(_songs), "vdjfolders_count": len(_vdjfolders), "extra_files_keys": sorted(_extra_files.keys()), "vdjfolder_song_refs_total": total_vdj_song_refs, "vdjfolder_orphan_refs": orphan_refs}, "A")
-            # #endregion
         else:
             _songs, _version = load_database(p)
             _db_path = p
@@ -723,9 +729,6 @@ def _do_download(filename=None):
     from flask import Response
     import zipfile
 
-    # #region agent log
-    _debug_log("Backup/download build", {"songs_count": len(_songs), "vdjfolders_count": len(_vdjfolders), "extra_files_count": len(_extra_files), "extra_files_keys": sorted(_extra_files.keys()), "has_filename": bool(filename)}, "A")
-    # #endregion
     if not _vdjfolders and not _extra_files and not filename:
         buf = BytesIO()
         save_database(buf, _songs, _version)
@@ -2632,6 +2635,7 @@ def api_playlist_create_from_tidal():
 def api_delete_files():
     """
     Usuwa pliki fizycznie z dysku. Tylko dla plików lokalnych (nie Tidal/streaming).
+    Ścieżka musi być w katalogu nadrzędnym plików z załadowanej bazy (ochrona path traversal).
     Body: { paths: ["/path/to/file.mp3", ...] }
     """
     global _songs
@@ -2646,6 +2650,9 @@ def api_delete_files():
             errors.append(f"Pomijam (streaming): {path[:60]}…")
             continue
         p = Path(path)
+        if not _is_path_safe(p):
+            errors.append(f"Ścieżka niedozwolona (poza katalogami bazy): {path[:50]}…")
+            continue
         if p.exists():
             try:
                 p.unlink()
@@ -2717,9 +2724,18 @@ def api_todo_save():
     if not directory:
         directory = str(Path(__file__).resolve().parent.parent)
     try:
-        dir_path = Path(directory)
+        dir_path = Path(directory).expanduser().resolve()
         if not dir_path.is_dir():
             return jsonify({'error': 'Podana ścieżka nie jest katalogiem', 'path': directory}), 400
+        home = Path.home()
+        app_parent = Path(__file__).resolve().parent.parent
+        try:
+            dir_path.relative_to(home)
+        except ValueError:
+            try:
+                dir_path.relative_to(app_parent)
+            except ValueError:
+                return jsonify({'error': 'Ścieżka musi być w katalogu domowym lub w katalogu projektu', 'path': directory}), 403
         cache_list, missing_list = _todo_collect()
         lines = [
             '# Rzeczy do zrobienia',
@@ -2981,9 +2997,6 @@ def api_remove_songs():
                 new_vdjfolders[rel_path] = content
         _vdjfolders.clear()
         _vdjfolders.update(new_vdjfolders)
-    # #region agent log
-    _debug_log("remove-songs", {"removed_from_db": removed, "paths_to_remove_count": len(paths_to_remove), "vdjfolders_refs_removed": vdjfolders_refs_removed, "songs_count_after": len(_songs)}, "E")
-    # #endregion
     return jsonify({"ok": True, "removed": removed, "count": len(_songs), "vdjfolders_refs_removed": vdjfolders_refs_removed})
 
 
@@ -5196,13 +5209,18 @@ def api_open_folder():
 def api_delete_orphan_file():
     """
     Usuwa plik po ścieżce (dla plików sierot).
+    Ścieżka musi być w katalogu nadrzędnym plików z bazy (ochrona path traversal).
     Body: { path: "..." }
     """
+    global _songs
+    _ensure_loaded()
     data = request.get_json() or {}
     path = (data.get('path') or '').strip()
     if not path:
         return jsonify({'error': 'Brak ścieżki'}), 400
     p = Path(path)
+    if not _is_path_safe(p, must_be_file=True):
+        return jsonify({'error': 'Ścieżka niedozwolona (poza katalogami bazy)'}), 403
     if not p.exists():
         return jsonify({'error': 'Plik nie istnieje'}), 404
     if not p.is_file():

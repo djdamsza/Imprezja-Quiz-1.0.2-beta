@@ -1,0 +1,8 @@
+{
+  "name": "Zegar",
+  "slides": [
+    { "type": "clock", "showSeconds": true }
+  ],
+  "transition": "fade",
+  "loop": true
+}

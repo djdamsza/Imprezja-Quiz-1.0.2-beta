@@ -1,5 +1,5 @@
 // Service Worker – VoteBattle: cache stron, aby działały offline (sieć lokalna)
-const CACHE_NAME = 'votebattle-v3';
+const CACHE_NAME = 'votebattle-v5';
 
 const PRECACHE = [
   '/Screen.html',
@@ -7,7 +7,10 @@ const PRECACHE = [
   '/vote.html',
   '/editor.html',
   '/manifest.json',
-  '/socket.io/socket.io.js'
+  '/socket.io/socket.io.js',
+  '/prezentacja-screen.html',
+  '/lib/audiomotion-analyzer.min.js',
+  '/lib/webvs.min.js'
 ];
 
 self.addEventListener('install', (event) => {
@@ -38,7 +41,10 @@ self.addEventListener('fetch', (event) => {
     url.pathname === '/vote.html' ||
     url.pathname === '/editor.html' ||
     url.pathname === '/manifest.json' ||
-    url.pathname === '/socket.io/socket.io.js';
+    url.pathname === '/socket.io/socket.io.js' ||
+    url.pathname === '/prezentacja-screen.html' ||
+    url.pathname === '/lib/audiomotion-analyzer.min.js' ||
+    url.pathname === '/lib/webvs.min.js';
 
   if (isPrecached) {
     event.respondWith(

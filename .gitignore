@@ -25,3 +25,10 @@ license-private.pem
 
 # Prywatna zawartość Imprezatora – TYLKO to jest prywatne i nie trafia do builda
 public/imprezator-configs/*.json
+
+# Lokalny backup VirtualDJ do testów (np. symlink do ~/Documents/backup.zip)
+tools/vdj-database-editor/test-backup-vdj.zip
+
+# NJR Konwerter — osobny produkt; w Quiz tylko szablon (bez commitowania kodu z editor/)
+njr-konwerter-1.0/editor/*
+!njr-konwerter-1.0/editor/README.md

@@ -70,7 +70,10 @@ def _load_token() -> Optional[dict]:
         if data.get("accessToken") and data.get("expiresAfter", 0) > time.time() + 60:
             return data
         if data.get("refreshToken"):
-            return _refresh_token(data["refreshToken"]) or data
+            refreshed = _refresh_token(data["refreshToken"])
+            if refreshed is not None:
+                return refreshed
+            return None
     except Exception:
         pass
     return None
@@ -95,7 +98,7 @@ def _refresh_token(refresh: str) -> Optional[dict]:
             "client_id": cid,
             "refresh_token": refresh,
             "grant_type": "refresh_token",
-            "scope": "user.read playlists.read r_usr",
+            "scope": "user.read playlists.read",
         }).encode()
         req = urllib.request.Request(
             "https://auth.tidal.com/v1/oauth2/token",
@@ -139,8 +142,8 @@ def get_authorize_url(redirect_uri: str) -> tuple[Optional[str], Optional[str], 
         return None, None, None, "Brak kluczy Tidal. Utwórz ~/.config/njr/tidal-credentials.json z client_id i client_secret z developer.tidal.com"
     verifier, challenge = _pkce_verifier_challenge()
     state = secrets.token_urlsafe(16)
-    # API wymaga playlists.read + r_usr dla /playlists (OAS)
-    scope = "user.read playlists.read r_usr"
+    # playlists.read wystarczy dla openapi.tidal.com; r_usr usunięty (może być deprecated)
+    scope = "user.read playlists.read"
     params = {
         "response_type": "code",
         "client_id": cid,

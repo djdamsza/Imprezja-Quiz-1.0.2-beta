@@ -17,13 +17,15 @@ Integracja z [Stripe Billing](https://docs.stripe.com/billing/quickstart) dla mo
 1. Zaloguj się do [Stripe Dashboard](https://dashboard.stripe.com)
 2. Przejdź do **Products** → **Add product**
 3. Utwórz produkt **Imprezja Quiz** (nazwa dowolna)
-4. Dodaj **4 ceny** (Prices) z poniższymi parametrami:
+4. Dodaj **6 cen** (Prices): subskrypcja 1m, 3m; jednorazowe 1m-onetime, 3m-onetime, 12m-onetime, lifetime:
 
 | Plan | Lookup key | Typ | Cena | Interwał |
 |------|------------|-----|------|----------|
 | 1 miesiąc | `imprezja-1m` | Recurring | 30 PLN | monthly |
 | 3 miesiące | `imprezja-3m` | Recurring | 80 PLN | every 3 months |
-| 12 miesięcy | `imprezja-12m` | Recurring | 290 PLN | yearly |
+| 1 miesiąc (jednorazowo) | `imprezja-1m-onetime` | One-time | 29 PLN | — |
+| 3 miesiące (jednorazowo) | `imprezja-3m-onetime` | One-time | 79 PLN | — |
+| 12 miesięcy (jednorazowo) | `imprezja-12m-onetime` | One-time | 249 PLN | — |
 | Dożywotnia | `imprezja-lifetime` | One-time | 500 PLN | — |
 
 **Lookup key** ustaw w Price → **Additional options** → **Lookup key**.

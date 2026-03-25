@@ -38,6 +38,7 @@
         .gear-wrap {
             position: relative;
             flex-shrink: 0;
+            z-index: 10002;
         }
         .gear-btn {
             width: 44px;
@@ -63,16 +64,19 @@
             top: calc(100% + 10px);
             right: 0;
             min-width: 240px;
+            background: #0d1728;
             background: linear-gradient(160deg, #1e2a4a 0%, #14213d 60%, #0d1728 100%);
             border: 1px solid rgba(100,140,255,0.25);
             border-radius: 16px;
             box-shadow:
-                0 20px 60px rgba(0,0,0,0.7),
-                0 0 0 1px rgba(255,255,255,0.06) inset,
-                0 1px 0 rgba(255,255,255,0.1) inset;
+                0 20px 60px rgba(0,0,0,0.85),
+                0 0 0 1px rgba(255,255,255,0.08) inset,
+                0 1px 0 rgba(255,255,255,0.12) inset;
             padding: 6px 0 8px;
-            z-index: 1000;
+            z-index: 1;
             overflow: hidden;
+            opacity: 1;
+            pointer-events: auto;
         }
         .gear-menu::before {
             content: '';
@@ -81,6 +85,15 @@
             background: linear-gradient(90deg, #3b82f6, #8b5cf6, #06b6d4);
             margin-bottom: 6px;
         }
+        .gear-menu-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background: transparent;
+            cursor: default;
+        }
+        .gear-wrap.menu-open .gear-menu-backdrop { display: block; }
         .gear-menu.open { display: block; animation: menuFadeIn 0.15s ease; }
         @keyframes menuFadeIn {
             from { opacity: 0; transform: translateY(-6px) scale(0.97); }
@@ -187,6 +200,50 @@
         .mode-btn.whitney:hover { border-color: #00bcd4; background: rgba(0, 188, 212, 0.15); }
         .mode-btn.statki-solo { border-color: rgba(14, 165, 233, 0.4); grid-column: 2; }
         .mode-btn.statki-solo:hover { border-color: #0ea5e9; background: rgba(14, 165, 233, 0.15); }
+        .mode-btn.imprezator { border-color: rgba(16, 185, 129, 0.4); }
+        .mode-btn.imprezator:hover { border-color: #10b981; background: rgba(16, 185, 129, 0.15); }
+        .mode-btn.prezentacja { border-color: rgba(139, 92, 246, 0.4); }
+        .mode-btn.prezentacja:hover { border-color: #8b5cf6; background: rgba(139, 92, 246, 0.15); }
+        /* Przyciski: Ekran główny, Panel na telefonie, Panel na komputerze */
+        .bottom-panel-btns {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 10001;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .bottom-panel-btns a,
+        .bottom-panel-btns button {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: 1px solid rgba(52,152,219,0.5);
+            background: rgba(52,152,219,0.3);
+            color: #fff;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        .bottom-panel-btns a:hover,
+        .bottom-panel-btns button:hover {
+            background: rgba(52,152,219,0.5);
+            border-color: rgba(52,152,219,0.7);
+            color: #fff;
+        }
+        .editors-section-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: rgba(255,255,255,0.55);
+            margin-bottom: 12px;
+        }
         @media (max-width: 900px) {
             .mode-btn.statki-solo { grid-column: auto; }
         }
@@ -196,6 +253,7 @@
             align-items: center;
             gap: 16px;
             margin-top: 12px;
+            margin-bottom: 60px;
         }
         .version-footer { font-size: 0.8rem; color: rgba(255,255,255,0.45); }
         .btn-updates {
@@ -236,6 +294,34 @@
         .license-contact a { color: #3498db; text-decoration: none; }
         .license-contact a:hover { text-decoration: underline; }
         .license-contact-name { display: block; margin-top: 4px; color: rgba(255,255,255,0.7); }
+        .admin-status-tile {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-right: 12px;
+        }
+        .admin-status-tile.connected {
+            background: rgba(46, 204, 113, 0.25);
+            border: 1px solid rgba(46, 204, 113, 0.6);
+            color: #2ecc71;
+        }
+        .admin-status-tile.disconnected {
+            background: rgba(231, 76, 60, 0.25);
+            border: 1px solid rgba(231, 76, 60, 0.6);
+            color: #e74c3c;
+        }
+        .admin-status-tile .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .admin-status-tile.connected .dot { background: #2ecc71; }
+        .admin-status-tile.disconnected .dot { background: #e74c3c; }
         .mode-btn.requires-license { position: relative; }
         .mode-btn.requires-license::after {
             content: '';
@@ -250,22 +336,27 @@
             -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2'%3E%3Cpath d='M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z'/%3E%3C/svg%3E") center/contain no-repeat;
             box-shadow: 0 1px 4px rgba(0,0,0,0.3);
         }
+        /* Pełna licencja (po wpisaniu klucza) – ukryj kłódki */
+        body.license-full .mode-btn.requires-license::after { display: none !important; }
     </style>
 </head>
 <body>
     <header class="top-bar">
         <img src="/img/logo_imprezja.png" alt="Imprezja Quiz" class="logo-start">
-        <div class="gear-wrap">
+        <div class="gear-wrap" id="gear-wrap">
             <button type="button" class="gear-btn" id="gear-btn" title="Ustawienia, licencje, poradniki">⚙️</button>
+            <div class="gear-menu-backdrop" id="gear-menu-backdrop" aria-hidden="true"></div>
             <div class="gear-menu" id="gear-menu">
                 <span class="menu-section-label">Poradniki</span>
                 <a href="/poradniki/router-wifi.html">📶 Router WiFi</a>
+                <a href="/wifi-analyzer.html" target="_blank" rel="noopener">📊 WiFi Analyzer 2,4 GHz</a>
                 <a href="/poradniki/tworzenie-quizu.html">🎮 Tworzenie własnego quizu</a>
                 <a href="/poradniki/familiada-wlasna.html">🎤 Familiada – pełny poradnik</a>
                 <a href="/poradniki/kiedy-tunel.html">🌐 Kiedy tunel (LTE)</a>
                 <a href="/poradniki/tryb-druzynowy.html">👥 Tryb drużynowy</a>
                 <a href="/poradniki/rodzaje-pytan.html">📋 Rodzaje pytań</a>
                 <a href="/poradniki/sampler-zabawy-muzyczne.html">🎛️ Sampler i zabawy muzyczne</a>
+                <a href="/poradniki/wizualizacja-dj.html">🎧 Wizualizacja DJ (BlackHole)</a>
                 <a href="/poradniki/changelog.html">✨ Co nowego</a>
                 <div class="menu-divider"></div>
                 <span class="menu-section-label">Aplikacja</span>
@@ -290,8 +381,13 @@
                     <p id="license-expiry-wrap" style="display: none;"><strong>Ważna do:</strong> <span id="license-expiry"></span></p>
                 </div>
                 <div class="license-machine-id" style="margin: 16px 0; padding: 12px; background: rgba(0,0,0,0.25); border-radius: 8px;">
-                    <p style="margin: 0 0 8px 0; font-size: 0.9rem;"><strong>ID komputera</strong> (podaj przy zakupie lub przedłużeniu):</p>
+                    <p style="margin: 0 0 8px 0; font-size: 0.9rem;"><strong>ID komputera</strong> (podaj przy zakupie — <strong>dokładnie</strong> ten ciąg, 16 znaków: 0–9 i a–f):</p>
                     <code id="license-machine-id-display" style="display: block; font-size: 0.85rem; word-break: break-all; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 4px; margin-bottom: 8px;">—</code>
+                    <div id="license-machine-ids-alt-wrap" style="display: none; margin-top: 10px;">
+                        <p style="margin: 0 0 6px 0; font-size: 0.82rem; color: rgba(255,255,255,0.85);"><strong>Alternatywne ID</strong> (ten sam Mac — klucz RSA musi być wygenerowany dla <em>jednego</em> z nich):</p>
+                        <code id="license-machine-ids-alt" style="display: block; font-size: 0.8rem; word-break: break-all; padding: 8px; background: rgba(0,0,0,0.35); border-radius: 4px; white-space: pre-wrap;"></code>
+                    </div>
+                    <p style="margin: 10px 0 0 0; font-size: 0.75rem; color: rgba(255,255,255,0.55); line-height: 1.4;">Jeśli w mailu klucz „nie działa”, często przy zamówieniu wpisano <strong>zły identyfikator</strong> (nie ten z programu). Poproś o nowy klucz z ID skopiowanym stąd.</p>
                 </div>
                 <div class="license-howto" style="margin-bottom: 16px; font-size: 0.9rem; color: rgba(255,255,255,0.85);">
                     <p style="margin: 0 0 8px 0;"><strong>Jak aktywować licencję:</strong></p>
@@ -304,7 +400,11 @@
                 <div class="license-activate-block" style="margin-bottom: 16px;">
                     <label for="license-key-input" style="display: block; margin-bottom: 6px; font-size: 0.9rem;">Wklej klucz licencyjny:</label>
                     <input type="text" id="license-key-input" placeholder="IMPREZJA-RSA-... lub IMPREZJA-XXXX-XXXX-XXXX-XXXX" autocomplete="off" style="width: 100%; padding: 12px; border-radius: 8px; border: 2px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: #fff; font-size: 14px; font-family: monospace; letter-spacing: 0.5px; box-sizing: border-box;">
-                    <button type="button" id="license-activate-btn" style="margin-top: 10px; padding: 12px 20px; background: linear-gradient(#2ecc71, #27ae60); color: #fff; font-weight: 700; border: none; border-radius: 8px; cursor: pointer;">Aktywuj licencję</button>
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; align-items: center;">
+                    <button type="button" id="license-paste-btn" style="padding: 10px 16px; background: rgba(255,255,255,0.12); color: #fff; font-weight: 600; border: 2px solid rgba(255,255,255,0.35); border-radius: 8px; cursor: pointer;">📋 Wklej ze schowka</button>
+                    <button type="button" id="license-activate-btn" style="padding: 12px 20px; background: linear-gradient(#2ecc71, #27ae60); color: #fff; font-weight: 700; border: none; border-radius: 8px; cursor: pointer;">Aktywuj licencję</button>
+                    </div>
+                    <p style="margin-top: 8px; font-size: 0.78rem; color: rgba(255,255,255,0.5);">Skrót: <strong>Cmd+V</strong> (Mac) / <strong>Ctrl+V</strong> (Windows) — w aplikacji Electron jest też menu <strong>Edycja → Wklej</strong>.</p>
                     <div id="license-activate-error" style="margin-top: 10px; color: #e74c3c; font-size: 0.9rem; display: none;"></div>
                 </div>
                 <div class="license-actions">
@@ -343,41 +443,61 @@
 
     <main class="main">
         <div class="mode-grid">
-            <a href="/Screen.html" class="mode-btn quiz">
+            <a href="/editor.html" class="mode-btn quiz">
                 <span class="mode-icon">🎮</span>
                 <span class="mode-title">Imprezja Quiz</span>
-                <span class="mode-desc">Quiz z głosowaniem na telefonach. Gracze przez QR.</span>
+                <span class="mode-desc">Edytor quizów. Sterowanie z Admin PWA.</span>
             </a>
-            <a href="/familiada/screen.html" class="mode-btn familiada">
+            <a href="/familiada/editor.html" class="mode-btn familiada">
                 <span class="mode-icon">🎤</span>
                 <span class="mode-title">Familiada</span>
-                <span class="mode-desc">Gra drużynowa, tablica odpowiedzi. Pilot na telefonie.</span>
+                <span class="mode-desc">Edytor pytań Familiady. Sterowanie z Admin PWA.</span>
             </a>
-            <a href="/njr-sampler.html" class="mode-btn sampler requires-license" data-requires-license="1">
+            <a href="/njr-sampler.html?editor=1" class="mode-btn sampler requires-license" data-requires-license="1">
                 <span class="mode-icon">🎛️</span>
                 <span class="mode-title">NJR Sampler</span>
-                <span class="mode-desc">Panel samplera na telefonie. Odtwarzaj z komputera.</span>
+                <span class="mode-desc">Edytor kafelków. Panel na telefonie, odtwarzaj z komputera.</span>
             </a>
-            <a href="/spiewaj-dalej.html" class="mode-btn spiewaj-dalej requires-license" data-requires-license="1">
+            <a href="/spiewaj-dalej.html?editor=1" class="mode-btn spiewaj-dalej requires-license" data-requires-license="1">
                 <span class="mode-icon">🎤</span>
                 <span class="mode-title">Śpiewaj Dalej</span>
-                <span class="mode-desc">Fragmenty muzyczne na telefonie. Odtwarzaj na PC.</span>
+                <span class="mode-desc">Edytor fragmentów. Panel na telefonie, odtwarzaj na PC.</span>
             </a>
-            <a href="/bitwa-wokalna.html" class="mode-btn bitwa-wokalna requires-license" data-requires-license="1">
+            <a href="/bitwa-wokalna.html?editor=1" class="mode-btn bitwa-wokalna requires-license" data-requires-license="1">
                 <span class="mode-icon">🎙️</span>
                 <span class="mode-title">Bitwa wokalna</span>
-                <span class="mode-desc">Fragmenty muzyczne na telefonie. Odtwarzaj na PC.</span>
+                <span class="mode-desc">Edytor fragmentów. Panel na telefonie, odtwarzaj na PC.</span>
             </a>
-            <a href="/whitney.html" class="mode-btn whitney requires-license" data-requires-license="1">
+            <a href="/whitney.html?editor=1" class="mode-btn whitney requires-license" data-requires-license="1">
                 <span class="mode-icon">🥁</span>
                 <span class="mode-title">Whitney</span>
-                <span class="mode-desc">8 kafelków na telefonie. QR – odtwarzaj z komputera.</span>
+                <span class="mode-desc">Edytor kafelków. Panel na telefonie, odtwarzaj z komputera.</span>
             </a>
-            <a href="/statki-solo/" class="mode-btn statki-solo">
+            <a href="/statki-solo/editor.html" class="mode-btn statki-solo">
                 <span class="mode-icon">⚓</span>
                 <span class="mode-title">Statki Solo</span>
-                <span class="mode-desc">Gra w statki bez telefonów. Admin celuje, Screen pokazuje mapę. Nagrody za trafienia.</span>
+                <span class="mode-desc">Edytor planszy i nagród. Sterowanie z Admin PWA.</span>
             </a>
+            <a href="/imprezator.html?editor=1" class="mode-btn imprezator requires-license" data-requires-license="1">
+                <span class="mode-icon">🎵</span>
+                <span class="mode-title">Imprezator</span>
+                <span class="mode-desc">Edytor muzyki do tańca. Panel na telefonie, odtwarzaj z komputera.</span>
+            </a>
+            <a href="/editor-prezentacja.html" class="mode-btn prezentacja">
+                <span class="mode-icon">📽️</span>
+                <span class="mode-title">Prezentacja</span>
+                <span class="mode-desc">Slajdy na ekranie. Edytor prezentacji, odtwarzanie na TV.</span>
+            </a>
+            <a href="/welcome-editor.html" class="mode-btn">
+                <span class="mode-icon">👋</span>
+                <span class="mode-title">Ekran powitalny</span>
+                <span class="mode-desc">Tekst i grafika powitalna na ekranie głównym.</span>
+            </a>
+        </div>
+        <div class="bottom-panel-btns">
+            <a href="/screen-controller.html" target="_blank" rel="noopener">🖥️ Ekran główny</a>
+            <a href="/admin-pwa-qr.html" target="_blank" rel="noopener">📱 Panel na telefonie</a>
+            <a href="/admin-pwa.html" target="_blank" rel="noopener">💻 Panel na komputerze</a>
         </div>
         <div class="bottom-row">
             <button type="button" class="btn-updates" onclick="checkForUpdates()">🔍 Sprawdź aktualizacje</button>
@@ -387,21 +507,32 @@
     </main>
 
     <script>
+        const gearWrap = document.getElementById('gear-wrap');
+        const gearMenu = document.getElementById('gear-menu');
+        const gearBackdrop = document.getElementById('gear-menu-backdrop');
+        function closeGearMenu() {
+            gearMenu.classList.remove('open');
+            gearWrap.classList.remove('menu-open');
+        }
         document.getElementById('gear-btn').addEventListener('click', function(e) {
             e.stopPropagation();
-            document.getElementById('gear-menu').classList.toggle('open');
+            gearMenu.classList.toggle('open');
+            gearWrap.classList.toggle('menu-open');
         });
-        document.addEventListener('click', function() {
-            document.getElementById('gear-menu').classList.remove('open');
-        });
-        document.getElementById('gear-menu').addEventListener('click', function(e) { e.stopPropagation(); });
+        document.addEventListener('click', function() { closeGearMenu(); });
+        gearBackdrop.addEventListener('click', function(e) { e.stopPropagation(); closeGearMenu(); });
+        gearMenu.addEventListener('click', function(e) { e.stopPropagation(); });
 
         let licenseStatus = null;
+        function updateLicenseLocks() {
+            const hasFull = licenseStatus && licenseStatus.valid && licenseStatus.type !== 'trial';
+            document.body.classList.toggle('license-full', !!hasFull);
+        }
         async function loadLicenseStatus() {
             try {
                 const r = await fetch('/api/license/status');
                 licenseStatus = await r.json();
-                /* Znaczek „wymaga licencji” jest w HTML (class requires-license). Poniżej tylko zachowanie przy trialu. */
+                updateLicenseLocks();
             } catch (_) {}
         }
         loadLicenseStatus();
@@ -422,6 +553,17 @@
             fetch('/api/license/machine-id').then(r => r.json()).then(function(d) {
                 const midEl = document.getElementById('license-machine-id-display');
                 if (midEl) midEl.textContent = d.machineId || '—';
+                const ids = (d.machineIds && d.machineIds.length) ? d.machineIds : [d.machineId].filter(Boolean);
+                const altWrap = document.getElementById('license-machine-ids-alt-wrap');
+                const altEl = document.getElementById('license-machine-ids-alt');
+                if (altWrap && altEl) {
+                    if (ids.length > 1) {
+                        altEl.textContent = ids.join('\n');
+                        altWrap.style.display = 'block';
+                    } else {
+                        altWrap.style.display = 'none';
+                    }
+                }
             }).catch(function() {
                 const midEl = document.getElementById('license-machine-id-display');
                 if (midEl) midEl.textContent = 'Błąd pobierania';
@@ -451,6 +593,26 @@
                 document.getElementById('license-status-text').textContent = 'Nie można połączyć z serwerem.';
             });
         }
+        (function() {
+            var pasteBtn = document.getElementById('license-paste-btn');
+            if (!pasteBtn) return;
+            pasteBtn.addEventListener('click', function() {
+                var keyInput = document.getElementById('license-key-input');
+                var errorEl = document.getElementById('license-activate-error');
+                errorEl.style.display = 'none';
+                if (navigator.clipboard && navigator.clipboard.readText) {
+                    navigator.clipboard.readText().then(function(t) {
+                        if (t && keyInput) { keyInput.value = String(t).trim(); keyInput.focus(); }
+                    }).catch(function() {
+                        errorEl.textContent = 'Nie udało się odczytać schowka. Użyj Cmd+V (Mac) / Ctrl+V (Windows) lub w aplikacji: menu Edycja → Wklej.';
+                        errorEl.style.display = 'block';
+                    });
+                } else {
+                    errorEl.textContent = 'Brak dostępu do schowka — wklej skrótem klawiszowym lub z menu Edycja.';
+                    errorEl.style.display = 'block';
+                }
+            });
+        })();
         document.getElementById('license-activate-btn').addEventListener('click', function() {
             const keyInput = document.getElementById('license-key-input');
             const errorEl = document.getElementById('license-activate-error');
@@ -465,9 +627,11 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ key: key })
-            }).then(function(r) { return r.json().then(function(result) { return { ok: r.ok, result: result }; }); }).then(function({ ok, result }) {
+            }).then(function(r) { return r.json().then(function(result) { return { ok: r.ok, result: result }; });             }).then(function({ ok, result }) {
                 if (ok && result.success) {
                     keyInput.value = '';
+                    licenseStatus = result.status || null;
+                    updateLicenseLocks();
                     openLicenseModal();
                     loadLicenseStatus();
                 } else {
@@ -501,6 +665,24 @@
             const el = document.getElementById('version-footer');
             if (el) el.textContent = 'Imprezja Quiz v' + (d.version || '');
         }).catch(() => {});
+
+        function updateAdminStatus(connected) {
+            const tile = document.getElementById('admin-status-tile');
+            const text = document.getElementById('admin-status-text');
+            if (!tile || !text) return;
+            tile.classList.toggle('connected', connected);
+            tile.classList.toggle('disconnected', !connected);
+            text.textContent = connected ? 'Admin połączony' : 'Admin rozłączony';
+        }
+        async function pollAdminStatus() {
+            try {
+                const r = await fetch('/api/admin-status');
+                const d = await r.json();
+                updateAdminStatus(!!d.connected);
+            } catch (_) { updateAdminStatus(false); }
+        }
+        pollAdminStatus();
+        setInterval(pollAdminStatus, 2500);
         async function checkForUpdates() {
             const resultEl = document.getElementById('update-result');
             if (!resultEl) return;

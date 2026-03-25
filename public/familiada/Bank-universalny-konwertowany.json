@@ -1,0 +1,7253 @@
+[
+  {
+    "question": "Czym można posłodzić herbatę?",
+    "answers": [
+      {
+        "text": "cukrem",
+        "points": 25
+      },
+      {
+        "text": "miodem",
+        "points": 21
+      },
+      {
+        "text": "słodzikiem",
+        "points": 18
+      },
+      {
+        "text": "sokiem",
+        "points": 15
+      },
+      {
+        "text": "konfiturą",
+        "points": 12
+      },
+      {
+        "text": "stewią",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Polska potrawa narodowa to:",
+    "answers": [
+      {
+        "text": "pierogi",
+        "points": 25
+      },
+      {
+        "text": "bigos",
+        "points": 21
+      },
+      {
+        "text": "żurek",
+        "points": 18
+      },
+      {
+        "text": "gołąbki",
+        "points": 15
+      },
+      {
+        "text": "rosół",
+        "points": 12
+      },
+      {
+        "text": "kotlet schabowy",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Najpopularniejsze ciasta:",
+    "answers": [
+      {
+        "text": "szarlotka",
+        "points": 25
+      },
+      {
+        "text": "sernik",
+        "points": 21
+      },
+      {
+        "text": "makowiec",
+        "points": 18
+      },
+      {
+        "text": "wuzetka",
+        "points": 15
+      },
+      {
+        "text": "napoleonka",
+        "points": 12
+      },
+      {
+        "text": "piernik",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Czym można ozdobić tort?",
+    "answers": [
+      {
+        "text": "kremem",
+        "points": 30
+      },
+      {
+        "text": "owocami",
+        "points": 25
+      },
+      {
+        "text": "czekoladą",
+        "points": 20
+      },
+      {
+        "text": "świeczkami",
+        "points": 15
+      },
+      {
+        "text": "orzechami",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Co grillujemy?",
+    "answers": [
+      {
+        "text": "kiełbasę",
+        "points": 25
+      },
+      {
+        "text": "karkówkę",
+        "points": 21
+      },
+      {
+        "text": "skrzydełka",
+        "points": 18
+      },
+      {
+        "text": "kaszankę",
+        "points": 15
+      },
+      {
+        "text": "szaszłyki",
+        "points": 12
+      },
+      {
+        "text": "chleb",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Najczęściej spożywane ryby:",
+    "answers": [
+      {
+        "text": "łosoś",
+        "points": 25
+      },
+      {
+        "text": "tuńczyk",
+        "points": 21
+      },
+      {
+        "text": "karp",
+        "points": 18
+      },
+      {
+        "text": "śledź",
+        "points": 15
+      },
+      {
+        "text": "makrela",
+        "points": 12
+      },
+      {
+        "text": "panga",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Jakie produkty można kupić w słoiku?",
+    "answers": [
+      {
+        "text": "dżem",
+        "points": 30
+      },
+      {
+        "text": "ogórki",
+        "points": 25
+      },
+      {
+        "text": "majonez",
+        "points": 20
+      },
+      {
+        "text": "miód",
+        "points": 15
+      },
+      {
+        "text": "musztardę",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Okrągłe warzywo:",
+    "answers": [
+      {
+        "text": "seler",
+        "points": 30
+      },
+      {
+        "text": "cebula",
+        "points": 25
+      },
+      {
+        "text": "kapusta",
+        "points": 20
+      },
+      {
+        "text": "burak",
+        "points": 15
+      },
+      {
+        "text": "brukselka",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Największe hity zespołu Dżem",
+    "answers": [
+      {
+        "text": "Wehikuł czasu",
+        "points": 25
+      },
+      {
+        "text": "Whisky",
+        "points": 21
+      },
+      {
+        "text": "Czerwony jak cegła",
+        "points": 18
+      },
+      {
+        "text": "Sen o Wiktorii",
+        "points": 15
+      },
+      {
+        "text": "Do kołyski",
+        "points": 12
+      },
+      {
+        "text": "List do M.",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Największe hity zespołu Golec uOrkiestra",
+    "answers": [
+      {
+        "text": "Ściernisko",
+        "points": 25
+      },
+      {
+        "text": "Lornetka",
+        "points": 21
+      },
+      {
+        "text": "Słodycze",
+        "points": 18
+      },
+      {
+        "text": "Pędzą konie",
+        "points": 15
+      },
+      {
+        "text": "Kto się ceni",
+        "points": 12
+      },
+      {
+        "text": "Crazy is my life",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Największe hity zespołu Bajm",
+    "answers": [
+      {
+        "text": "Biała armia",
+        "points": 25
+      },
+      {
+        "text": "Co mi Panie dasz",
+        "points": 21
+      },
+      {
+        "text": "Nie ma wody na pustyni",
+        "points": 18
+      },
+      {
+        "text": "Ta sama chwila",
+        "points": 15
+      },
+      {
+        "text": "Modlitwa o złoty deszcz",
+        "points": 12
+      },
+      {
+        "text": "Józek, nie daruje Ci tej nocy",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Największe hity zespołu Kombi",
+    "answers": [
+      {
+        "text": "Słodkiego miłego życia",
+        "points": 30
+      },
+      {
+        "text": "Black & White",
+        "points": 25
+      },
+      {
+        "text": "Pokolenie",
+        "points": 20
+      },
+      {
+        "text": "Nasze Randez Vous",
+        "points": 15
+      },
+      {
+        "text": "Ślad",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Największe hity zespołu Lady Pank",
+    "answers": [
+      {
+        "text": "Kryzysowa narzeczona",
+        "points": 25
+      },
+      {
+        "text": "Mniej niż zero",
+        "points": 21
+      },
+      {
+        "text": "Marchewkowe pole",
+        "points": 18
+      },
+      {
+        "text": "Tańcz głupia tańcz",
+        "points": 15
+      },
+      {
+        "text": "Tacy sami",
+        "points": 12
+      },
+      {
+        "text": "Zawsze tam gdzie ty",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Największe hity Michaela Jacksona",
+    "answers": [
+      {
+        "text": "Billie Jean",
+        "points": 25
+      },
+      {
+        "text": "Thriller",
+        "points": 21
+      },
+      {
+        "text": "Beat It",
+        "points": 18
+      },
+      {
+        "text": "Smooth Criminal",
+        "points": 15
+      },
+      {
+        "text": "Black or White",
+        "points": 12
+      },
+      {
+        "text": "We Are The World",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Największe hity zespołu Ich Troje",
+    "answers": [
+      {
+        "text": "Powiedz",
+        "points": 30
+      },
+      {
+        "text": "A wszystko to bo Ciebie kocham",
+        "points": 25
+      },
+      {
+        "text": "Zawsze z Tobą chciałbym być",
+        "points": 20
+      },
+      {
+        "text": "Keine Grenzen",
+        "points": 15
+      },
+      {
+        "text": "Ci wielcy",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Największe hity zespołu Varius Manx",
+    "answers": [
+      {
+        "text": "Orła cień",
+        "points": 30
+      },
+      {
+        "text": "Piosenka Księżycowa",
+        "points": 25
+      },
+      {
+        "text": "Zamigotał świat",
+        "points": 20
+      },
+      {
+        "text": "Pocałuj noc",
+        "points": 15
+      },
+      {
+        "text": "Zanim zrozumiesz",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Piosenki biesiadne grane na weselach",
+    "answers": [
+      {
+        "text": "Hej Sokoły",
+        "points": 25
+      },
+      {
+        "text": "Szła dzieweczka do laseczka",
+        "points": 21
+      },
+      {
+        "text": "Biały Miś",
+        "points": 18
+      },
+      {
+        "text": "Gdybym miał gitarę",
+        "points": 15
+      },
+      {
+        "text": "Zabrałaś serce moje",
+        "points": 12
+      },
+      {
+        "text": "Głęboka Studzienka",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Największe hity Piaska",
+    "answers": [
+      {
+        "text": "Chodź, przytul, przebacz",
+        "points": 30
+      },
+      {
+        "text": "Śniadanie do łóżka",
+        "points": 25
+      },
+      {
+        "text": "Prawie do nieba",
+        "points": 20
+      },
+      {
+        "text": "Imię deszczu",
+        "points": 15
+      },
+      {
+        "text": "To co dobre, to co lepsze",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Nosimy to na szyi",
+    "answers": [
+      {
+        "text": "naszyjnik",
+        "points": 50
+      },
+      {
+        "text": "szalik",
+        "points": 33
+      },
+      {
+        "text": "apaszka",
+        "points": 17
+      }
+    ]
+  },
+  {
+    "question": "Jaki rodzaj butów ma w domu każdy mężczyzna?",
+    "answers": [
+      {
+        "text": "sportowe",
+        "points": 30
+      },
+      {
+        "text": "zimowe",
+        "points": 25
+      },
+      {
+        "text": "półbuty",
+        "points": 20
+      },
+      {
+        "text": "klapki",
+        "points": 15
+      },
+      {
+        "text": "sandały",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Część garderoby na literę S",
+    "answers": [
+      {
+        "text": "spodnie",
+        "points": 25
+      },
+      {
+        "text": "sweter",
+        "points": 21
+      },
+      {
+        "text": "sukienka",
+        "points": 18
+      },
+      {
+        "text": "spódnica",
+        "points": 15
+      },
+      {
+        "text": "skarpetka",
+        "points": 12
+      },
+      {
+        "text": "szalik",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Co zakładamy, żeby zakryć uszy?",
+    "answers": [
+      {
+        "text": "czapka",
+        "points": 50
+      },
+      {
+        "text": "kaptur",
+        "points": 33
+      },
+      {
+        "text": "nauszniki",
+        "points": 17
+      }
+    ]
+  },
+  {
+    "question": "Wymień rodzaje zapięć w ubraniach",
+    "answers": [
+      {
+        "text": "suwak",
+        "points": 25
+      },
+      {
+        "text": "guzik",
+        "points": 21
+      },
+      {
+        "text": "klamra",
+        "points": 18
+      },
+      {
+        "text": "rzep",
+        "points": 15
+      },
+      {
+        "text": "zatrzask",
+        "points": 12
+      },
+      {
+        "text": "wiązanie",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Wymień części ubioru występujące w parach",
+    "answers": [
+      {
+        "text": "buty",
+        "points": 40
+      },
+      {
+        "text": "skarpetki",
+        "points": 30
+      },
+      {
+        "text": "rękawiczki",
+        "points": 20
+      },
+      {
+        "text": "podkolanówki",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Jaką plamę ciężko usunąć z ubrania?",
+    "answers": [
+      {
+        "text": "z wina",
+        "points": 25
+      },
+      {
+        "text": "z oleju",
+        "points": 21
+      },
+      {
+        "text": "z krwi",
+        "points": 18
+      },
+      {
+        "text": "po atramencie",
+        "points": 15
+      },
+      {
+        "text": "z kawy",
+        "points": 12
+      },
+      {
+        "text": "po trawie",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Podaj rodzaj tkaniny",
+    "answers": [
+      {
+        "text": "bawełna",
+        "points": 25
+      },
+      {
+        "text": "len",
+        "points": 21
+      },
+      {
+        "text": "jedwab",
+        "points": 18
+      },
+      {
+        "text": "poliester",
+        "points": 15
+      },
+      {
+        "text": "aksamit",
+        "points": 12
+      },
+      {
+        "text": "wełna",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Wymień części garderoby przeznaczone dla kobiet",
+    "answers": [
+      {
+        "text": "stanik",
+        "points": 25
+      },
+      {
+        "text": "sukienka",
+        "points": 21
+      },
+      {
+        "text": "szpilki",
+        "points": 18
+      },
+      {
+        "text": "spódnica",
+        "points": 15
+      },
+      {
+        "text": "rajstopy",
+        "points": 12
+      },
+      {
+        "text": "bikini",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Co ubieramy gdy jest zimno?",
+    "answers": [
+      {
+        "text": "czapkę",
+        "points": 25
+      },
+      {
+        "text": "szalik",
+        "points": 21
+      },
+      {
+        "text": "rękawiczki",
+        "points": 18
+      },
+      {
+        "text": "kurtkę",
+        "points": 15
+      },
+      {
+        "text": "kalesony",
+        "points": 12
+      },
+      {
+        "text": "bluzę",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Rodzaje butów",
+    "answers": [
+      {
+        "text": "sportowe",
+        "points": 30
+      },
+      {
+        "text": "szpilki",
+        "points": 25
+      },
+      {
+        "text": "kozaki",
+        "points": 20
+      },
+      {
+        "text": "klapki",
+        "points": 15
+      },
+      {
+        "text": "pantofle",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Część garderoby na literę B",
+    "answers": [
+      {
+        "text": "buty",
+        "points": 25
+      },
+      {
+        "text": "bluzka",
+        "points": 21
+      },
+      {
+        "text": "bluza",
+        "points": 18
+      },
+      {
+        "text": "bielizna",
+        "points": 15
+      },
+      {
+        "text": "body",
+        "points": 12
+      },
+      {
+        "text": "beret",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Część garderoby na literę K",
+    "answers": [
+      {
+        "text": "koszula",
+        "points": 25
+      },
+      {
+        "text": "krawat",
+        "points": 21
+      },
+      {
+        "text": "kurtka",
+        "points": 18
+      },
+      {
+        "text": "klapki",
+        "points": 15
+      },
+      {
+        "text": "kozaki",
+        "points": 12
+      },
+      {
+        "text": "kostium kąpielowy",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Co można zrobić z butami?",
+    "answers": [
+      {
+        "text": "ubrać",
+        "points": 40
+      },
+      {
+        "text": "ściągnąć",
+        "points": 30
+      },
+      {
+        "text": "pastować",
+        "points": 20
+      },
+      {
+        "text": "myć",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Męskie ozdoby",
+    "answers": [
+      {
+        "text": "zegarek",
+        "points": 25
+      },
+      {
+        "text": "pasek",
+        "points": 21
+      },
+      {
+        "text": "sygnet",
+        "points": 18
+      },
+      {
+        "text": "naszyjnik",
+        "points": 15
+      },
+      {
+        "text": "krawat",
+        "points": 12
+      },
+      {
+        "text": "kolczyk",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Część garderoby typowa dla lata",
+    "answers": [
+      {
+        "text": "kostium kąpielowy",
+        "points": 25
+      },
+      {
+        "text": "klapki",
+        "points": 21
+      },
+      {
+        "text": "sandały",
+        "points": 18
+      },
+      {
+        "text": "słomiany kapelusz",
+        "points": 15
+      },
+      {
+        "text": "okulary przeciwsłoneczne",
+        "points": 12
+      },
+      {
+        "text": "szorty",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Nazwy ubrań zapożyczone z j. angielskiego",
+    "answers": [
+      {
+        "text": "dżinsy",
+        "points": 30
+      },
+      {
+        "text": "t-shirt",
+        "points": 25
+      },
+      {
+        "text": "sweter",
+        "points": 20
+      },
+      {
+        "text": "kardigan",
+        "points": 15
+      },
+      {
+        "text": "golf",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Zakładane na głowę",
+    "answers": [
+      {
+        "text": "czapka",
+        "points": 30
+      },
+      {
+        "text": "kapelusz",
+        "points": 25
+      },
+      {
+        "text": "kask",
+        "points": 20
+      },
+      {
+        "text": "kaptur",
+        "points": 15
+      },
+      {
+        "text": "beret",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Okazja do założenia garnituru",
+    "answers": [
+      {
+        "text": "ślub",
+        "points": 30
+      },
+      {
+        "text": "bankiet",
+        "points": 25
+      },
+      {
+        "text": "pogrzeb",
+        "points": 20
+      },
+      {
+        "text": "chrzciny",
+        "points": 15
+      },
+      {
+        "text": "wesele",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Japońskie marki samochodów",
+    "answers": [
+      {
+        "text": "Toyota",
+        "points": 25
+      },
+      {
+        "text": "Honda",
+        "points": 21
+      },
+      {
+        "text": "Mazda",
+        "points": 18
+      },
+      {
+        "text": "Nissan",
+        "points": 15
+      },
+      {
+        "text": "Suzuki",
+        "points": 12
+      },
+      {
+        "text": "Subaru",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Wymień pojazdy dwukołowe",
+    "answers": [
+      {
+        "text": "rower",
+        "points": 40
+      },
+      {
+        "text": "motocykl",
+        "points": 30
+      },
+      {
+        "text": "skuter",
+        "points": 20
+      },
+      {
+        "text": "hulajnoga",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Jak zabijamy czas podczas jazdy pociągiem?",
+    "answers": [
+      {
+        "text": "czytamy",
+        "points": 25
+      },
+      {
+        "text": "śpimy",
+        "points": 21
+      },
+      {
+        "text": "rozmawiamy",
+        "points": 18
+      },
+      {
+        "text": "wyglądamy przez okno",
+        "points": 15
+      },
+      {
+        "text": "rozmyślamy",
+        "points": 12
+      },
+      {
+        "text": "słuchamy muzyki",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Jakie mamy rodzaje znaków drogowych?",
+    "answers": [
+      {
+        "text": "ostrzegawcze",
+        "points": 30
+      },
+      {
+        "text": "zakazu",
+        "points": 25
+      },
+      {
+        "text": "nakazu",
+        "points": 20
+      },
+      {
+        "text": "informacyjne",
+        "points": 15
+      },
+      {
+        "text": "kierunku i miejscowości",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Jakie wyróżniamy rodzaje transportu?",
+    "answers": [
+      {
+        "text": "lotniczy",
+        "points": 30
+      },
+      {
+        "text": "kolejowy",
+        "points": 25
+      },
+      {
+        "text": "drogowy",
+        "points": 20
+      },
+      {
+        "text": "lądowy",
+        "points": 15
+      },
+      {
+        "text": "wodny",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Jaką formą transportu można się poruszać bez kół?",
+    "answers": [
+      {
+        "text": "statkiem",
+        "points": 25
+      },
+      {
+        "text": "samolotem",
+        "points": 21
+      },
+      {
+        "text": "konno",
+        "points": 18
+      },
+      {
+        "text": "balonem",
+        "points": 15
+      },
+      {
+        "text": "lotnią",
+        "points": 12
+      },
+      {
+        "text": "piechotą",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Powody, przez które nie otwieramy szyb w samochodzie",
+    "answers": [
+      {
+        "text": "opady",
+        "points": 25
+      },
+      {
+        "text": "owady",
+        "points": 21
+      },
+      {
+        "text": "brzydki zapach",
+        "points": 18
+      },
+      {
+        "text": "hałas",
+        "points": 15
+      },
+      {
+        "text": "włączona klimatyzacja",
+        "points": 12
+      },
+      {
+        "text": "wiatr",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Niemieckie marki samochodów",
+    "answers": [
+      {
+        "text": "Mercedes",
+        "points": 25
+      },
+      {
+        "text": "BMW",
+        "points": 21
+      },
+      {
+        "text": "Audi",
+        "points": 18
+      },
+      {
+        "text": "Opel",
+        "points": 15
+      },
+      {
+        "text": "Volkswagen",
+        "points": 12
+      },
+      {
+        "text": "Porsche",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Czym można latać?",
+    "answers": [
+      {
+        "text": "samolotem",
+        "points": 30
+      },
+      {
+        "text": "helikopterem",
+        "points": 25
+      },
+      {
+        "text": "balonem",
+        "points": 20
+      },
+      {
+        "text": "paralotnią",
+        "points": 15
+      },
+      {
+        "text": "szybowcem",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Wymień firmy kurierskie",
+    "answers": [
+      {
+        "text": "DHL",
+        "points": 25
+      },
+      {
+        "text": "DPD",
+        "points": 21
+      },
+      {
+        "text": "FEDEX",
+        "points": 18
+      },
+      {
+        "text": "UPS",
+        "points": 15
+      },
+      {
+        "text": "POCZTEX",
+        "points": 12
+      },
+      {
+        "text": "INPOST",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Co można znaleźć pod maską samochodu?",
+    "answers": [
+      {
+        "text": "silnik",
+        "points": 30
+      },
+      {
+        "text": "akumulator",
+        "points": 25
+      },
+      {
+        "text": "chłodnicę",
+        "points": 20
+      },
+      {
+        "text": "przewody",
+        "points": 15
+      },
+      {
+        "text": "płyn do spryskiwacza",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Z jakich części składa się rower?",
+    "answers": [
+      {
+        "text": "kierownica",
+        "points": 30
+      },
+      {
+        "text": "koła",
+        "points": 25
+      },
+      {
+        "text": "pedały",
+        "points": 20
+      },
+      {
+        "text": "rama",
+        "points": 15
+      },
+      {
+        "text": "siodełko",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Jakie wagony specjalne mogą wchodzić w skład pociągu?",
+    "answers": [
+      {
+        "text": "sypialniany",
+        "points": 40
+      },
+      {
+        "text": "restauracyjny",
+        "points": 30
+      },
+      {
+        "text": "bagażowy",
+        "points": 20
+      },
+      {
+        "text": "pocztowy",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Czym przemieszczamy się na siedząco?",
+    "answers": [
+      {
+        "text": "samochodem",
+        "points": 25
+      },
+      {
+        "text": "rowerem",
+        "points": 21
+      },
+      {
+        "text": "pociągiem",
+        "points": 18
+      },
+      {
+        "text": "samolotem",
+        "points": 15
+      },
+      {
+        "text": "motorem",
+        "points": 12
+      },
+      {
+        "text": "kajakiem",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Marki samochodów sportowych",
+    "answers": [
+      {
+        "text": "Ferrari",
+        "points": 30
+      },
+      {
+        "text": "Lamborghini",
+        "points": 25
+      },
+      {
+        "text": "Porsche",
+        "points": 20
+      },
+      {
+        "text": "Aston Martin",
+        "points": 15
+      },
+      {
+        "text": "Maserati",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Typy nadwozia samochodów",
+    "answers": [
+      {
+        "text": "sedan",
+        "points": 25
+      },
+      {
+        "text": "kombi",
+        "points": 21
+      },
+      {
+        "text": "pick-up",
+        "points": 18
+      },
+      {
+        "text": "van",
+        "points": 15
+      },
+      {
+        "text": "kabriolet",
+        "points": 12
+      },
+      {
+        "text": "SUV",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Jakie pojazdy są uprzywilejowane?",
+    "answers": [
+      {
+        "text": "policja",
+        "points": 25
+      },
+      {
+        "text": "karetka",
+        "points": 21
+      },
+      {
+        "text": "straż pożarna",
+        "points": 18
+      },
+      {
+        "text": "straż graniczna",
+        "points": 15
+      },
+      {
+        "text": "służba celna",
+        "points": 12
+      },
+      {
+        "text": "straż miejska",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Typy samochodów",
+    "answers": [
+      {
+        "text": "samochody osobowe",
+        "points": 30
+      },
+      {
+        "text": "samochody dostawcze",
+        "points": 25
+      },
+      {
+        "text": "autobusy",
+        "points": 20
+      },
+      {
+        "text": "samochody ciężarowe",
+        "points": 15
+      },
+      {
+        "text": "samochody terenowe",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Wymień kolory okręgów na fladze olimpijskiej",
+    "answers": [
+      {
+        "text": "czerwony",
+        "points": 30
+      },
+      {
+        "text": "czarny",
+        "points": 25
+      },
+      {
+        "text": "niebieski",
+        "points": 20
+      },
+      {
+        "text": "zielony",
+        "points": 15
+      },
+      {
+        "text": "żółty",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Najbardziej znani na świecie polscy sportowcy",
+    "answers": [
+      {
+        "text": "R. Lewandowski",
+        "points": 25
+      },
+      {
+        "text": "A. Małysz",
+        "points": 21
+      },
+      {
+        "text": "J. Kowalczyk",
+        "points": 18
+      },
+      {
+        "text": "K. Stoch",
+        "points": 15
+      },
+      {
+        "text": "R. Kubica",
+        "points": 12
+      },
+      {
+        "text": "O. Jędrzejczak",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Wymień selekcjonerów piłkarskiej reprezentacji Polski w XXI wieku",
+    "answers": [
+      {
+        "text": "Adam Nawałka",
+        "points": 30
+      },
+      {
+        "text": "Franciszek Smuda",
+        "points": 25
+      },
+      {
+        "text": "Paweł Janas",
+        "points": 20
+      },
+      {
+        "text": "Leo Beenhakker",
+        "points": 15
+      },
+      {
+        "text": "Jerzy Engel",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Wymień nazwy najlepszych lig piłkarskich w Europie",
+    "answers": [
+      {
+        "text": "Premier League",
+        "points": 40
+      },
+      {
+        "text": "Primera División",
+        "points": 30
+      },
+      {
+        "text": "Serie A",
+        "points": 20
+      },
+      {
+        "text": "Bundesliga",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Wymień sporty, w których rywalizuje się 1 na 1",
+    "answers": [
+      {
+        "text": "tenis",
+        "points": 25
+      },
+      {
+        "text": "ping pong",
+        "points": 21
+      },
+      {
+        "text": "bilard",
+        "points": 18
+      },
+      {
+        "text": "szermierka",
+        "points": 15
+      },
+      {
+        "text": "sporty walki",
+        "points": 12
+      },
+      {
+        "text": "szachy",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Jak określimy osobę, która zdobyła pierwsze miejsce?",
+    "answers": [
+      {
+        "text": "zwycięzca",
+        "points": 25
+      },
+      {
+        "text": "mistrz",
+        "points": 21
+      },
+      {
+        "text": "medalista",
+        "points": 18
+      },
+      {
+        "text": "laureat",
+        "points": 15
+      },
+      {
+        "text": "lider",
+        "points": 12
+      },
+      {
+        "text": "triumfator",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Wymień sporty, w których gra się piłką",
+    "answers": [
+      {
+        "text": "piłka nożna",
+        "points": 30
+      },
+      {
+        "text": "piłka ręczna",
+        "points": 25
+      },
+      {
+        "text": "siatkówka",
+        "points": 20
+      },
+      {
+        "text": "koszykówka",
+        "points": 15
+      },
+      {
+        "text": "tenis",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Zawód sportowców, który często wykonują po skończeniu kariery",
+    "answers": [
+      {
+        "text": "trener",
+        "points": 50
+      },
+      {
+        "text": "komentator",
+        "points": 33
+      },
+      {
+        "text": "menedżer",
+        "points": 17
+      }
+    ]
+  },
+  {
+    "question": "Znani polscy skoczkowie narciarscy",
+    "answers": [
+      {
+        "text": "Adam Małysz",
+        "points": 25
+      },
+      {
+        "text": "Kamil Stoch",
+        "points": 21
+      },
+      {
+        "text": "Piotr Żyła",
+        "points": 18
+      },
+      {
+        "text": "Dawid Kubacki",
+        "points": 15
+      },
+      {
+        "text": "Maciej Kot",
+        "points": 12
+      },
+      {
+        "text": "Stefan Hula",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Jakie sporty są popularne w USA, ale nie w Polsce?",
+    "answers": [
+      {
+        "text": "baseball",
+        "points": 40
+      },
+      {
+        "text": "futbol amerykański",
+        "points": 30
+      },
+      {
+        "text": "hokej",
+        "points": 20
+      },
+      {
+        "text": "golf",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Podaj sport z udziałem zwierząt",
+    "answers": [
+      {
+        "text": "polo",
+        "points": 30
+      },
+      {
+        "text": "wyścigi konne",
+        "points": 25
+      },
+      {
+        "text": "rodeo",
+        "points": 20
+      },
+      {
+        "text": "psie zaprzęgi",
+        "points": 15
+      },
+      {
+        "text": "corrida",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Wymień rodzaje rowerów",
+    "answers": [
+      {
+        "text": "górski",
+        "points": 30
+      },
+      {
+        "text": "miejski",
+        "points": 25
+      },
+      {
+        "text": "stacjonarny",
+        "points": 20
+      },
+      {
+        "text": "szosowy",
+        "points": 15
+      },
+      {
+        "text": "bmx",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Wymień sporty lekkoatletyczne",
+    "answers": [
+      {
+        "text": "biegi",
+        "points": 25
+      },
+      {
+        "text": "skok wzwyż",
+        "points": 21
+      },
+      {
+        "text": "skok w dal",
+        "points": 18
+      },
+      {
+        "text": "rzut młotem",
+        "points": 15
+      },
+      {
+        "text": "rzut oszczepem",
+        "points": 12
+      },
+      {
+        "text": "pchnięcie kulą",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Znane hiszpańskie kluby piłkarskie",
+    "answers": [
+      {
+        "text": "Real Madryt",
+        "points": 30
+      },
+      {
+        "text": "FC Barcelona",
+        "points": 25
+      },
+      {
+        "text": "Atletico Madryt",
+        "points": 20
+      },
+      {
+        "text": "Sevilla FC",
+        "points": 15
+      },
+      {
+        "text": "Valencia CF",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Znane angielskie kluby piłkarskie",
+    "answers": [
+      {
+        "text": "Manchester United",
+        "points": 25
+      },
+      {
+        "text": "Arsenal Londyn",
+        "points": 21
+      },
+      {
+        "text": "Liverpool F.C.",
+        "points": 18
+      },
+      {
+        "text": "Manchester City",
+        "points": 15
+      },
+      {
+        "text": "Tottenham Hotspur F.C.",
+        "points": 12
+      },
+      {
+        "text": "Chelsea Londyn",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Znane włoskie kluby piłkarskie",
+    "answers": [
+      {
+        "text": "AC Milan",
+        "points": 30
+      },
+      {
+        "text": "AS Roma",
+        "points": 25
+      },
+      {
+        "text": "Juventus Turyn",
+        "points": 20
+      },
+      {
+        "text": "Inter Mediolan",
+        "points": 15
+      },
+      {
+        "text": "ACF Fiorentina",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Znane niemieckie kluby piłkarskie",
+    "answers": [
+      {
+        "text": "Bayern Monachium",
+        "points": 40
+      },
+      {
+        "text": "Borussia Dortmund",
+        "points": 30
+      },
+      {
+        "text": "Bayer Leverkusen",
+        "points": 20
+      },
+      {
+        "text": "Schalke 04",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Z jakich powodów wyjeżdżamy z rodzinnego miasta/kraju?",
+    "answers": [
+      {
+        "text": "praca",
+        "points": 40
+      },
+      {
+        "text": "wakacje",
+        "points": 30
+      },
+      {
+        "text": "szkoła",
+        "points": 20
+      },
+      {
+        "text": "miłość",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Czego lekarze każą nam unikać?",
+    "answers": [
+      {
+        "text": "alkoholu",
+        "points": 30
+      },
+      {
+        "text": "stresu",
+        "points": 25
+      },
+      {
+        "text": "soli",
+        "points": 20
+      },
+      {
+        "text": "papierosów",
+        "points": 15
+      },
+      {
+        "text": "tłuszczu",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Co robi fryzjer z włosami?",
+    "answers": [
+      {
+        "text": "obcina",
+        "points": 30
+      },
+      {
+        "text": "farbuje",
+        "points": 25
+      },
+      {
+        "text": "stylizuje",
+        "points": 20
+      },
+      {
+        "text": "myje",
+        "points": 15
+      },
+      {
+        "text": "suszy",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Co kupujemy w pasmanterii?",
+    "answers": [
+      {
+        "text": "nici",
+        "points": 25
+      },
+      {
+        "text": "guziki",
+        "points": 21
+      },
+      {
+        "text": "igły",
+        "points": 18
+      },
+      {
+        "text": "wstążki",
+        "points": 15
+      },
+      {
+        "text": "agrafki",
+        "points": 12
+      },
+      {
+        "text": "koraliki",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Kto może skorzystać z biletu ulgowego?",
+    "answers": [
+      {
+        "text": "uczeń",
+        "points": 30
+      },
+      {
+        "text": "student",
+        "points": 25
+      },
+      {
+        "text": "emeryt",
+        "points": 20
+      },
+      {
+        "text": "niepełnosprawny",
+        "points": 15
+      },
+      {
+        "text": "rencista",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Co kupujemy, gdy wprowadzamy się do nowego mieszkania?",
+    "answers": [
+      {
+        "text": "łóżko",
+        "points": 30
+      },
+      {
+        "text": "stół",
+        "points": 25
+      },
+      {
+        "text": "lodówka",
+        "points": 20
+      },
+      {
+        "text": "telewizor",
+        "points": 15
+      },
+      {
+        "text": "pralka",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Co może poprawić nasz nastrój?",
+    "answers": [
+      {
+        "text": "muzyka",
+        "points": 25
+      },
+      {
+        "text": "zakupy",
+        "points": 21
+      },
+      {
+        "text": "kąpiel",
+        "points": 18
+      },
+      {
+        "text": "spacer",
+        "points": 15
+      },
+      {
+        "text": "spotkanie",
+        "points": 12
+      },
+      {
+        "text": "pogoda",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Jakie rzeczy mamy przy łóżku?",
+    "answers": [
+      {
+        "text": "stolik",
+        "points": 25
+      },
+      {
+        "text": "lampka nocna",
+        "points": 21
+      },
+      {
+        "text": "budzik",
+        "points": 18
+      },
+      {
+        "text": "kapcie",
+        "points": 15
+      },
+      {
+        "text": "telefon",
+        "points": 12
+      },
+      {
+        "text": "okulary",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Wymień elementy dekoracji wnętrz",
+    "answers": [
+      {
+        "text": "zasłony",
+        "points": 25
+      },
+      {
+        "text": "firanki",
+        "points": 21
+      },
+      {
+        "text": "lampa",
+        "points": 18
+      },
+      {
+        "text": "obraz",
+        "points": 15
+      },
+      {
+        "text": "wazon",
+        "points": 12
+      },
+      {
+        "text": "świece",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Co ludzie często gubią?",
+    "answers": [
+      {
+        "text": "klucze",
+        "points": 25
+      },
+      {
+        "text": "portfel",
+        "points": 21
+      },
+      {
+        "text": "parasolkę",
+        "points": 18
+      },
+      {
+        "text": "rękawiczki",
+        "points": 15
+      },
+      {
+        "text": "okulary",
+        "points": 12
+      },
+      {
+        "text": "telefon",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Co zabieramy na plażę?",
+    "answers": [
+      {
+        "text": "ręcznik",
+        "points": 25
+      },
+      {
+        "text": "kostium kąpielowy",
+        "points": 21
+      },
+      {
+        "text": "napój",
+        "points": 18
+      },
+      {
+        "text": "krem z filtrem",
+        "points": 15
+      },
+      {
+        "text": "okulary przeciwsłoneczne",
+        "points": 12
+      },
+      {
+        "text": "książkę",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Co kolekcjonujemy?",
+    "answers": [
+      {
+        "text": "znaczki",
+        "points": 25
+      },
+      {
+        "text": "monety",
+        "points": 21
+      },
+      {
+        "text": "pocztówki",
+        "points": 18
+      },
+      {
+        "text": "magnesy",
+        "points": 15
+      },
+      {
+        "text": "minerały",
+        "points": 12
+      },
+      {
+        "text": "książki",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Jakie urządzenia podłączamy do komputera stacjonarnego?",
+    "answers": [
+      {
+        "text": "monitor",
+        "points": 25
+      },
+      {
+        "text": "klawiaturę",
+        "points": 21
+      },
+      {
+        "text": "myszkę",
+        "points": 18
+      },
+      {
+        "text": "głośniki",
+        "points": 15
+      },
+      {
+        "text": "drukarkę",
+        "points": 12
+      },
+      {
+        "text": "pendrive",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Na jakie pierwsze wydarzenie w życiu niemowlęcia czekają rodzice?",
+    "answers": [
+      {
+        "text": "kroczki",
+        "points": 50
+      },
+      {
+        "text": "słowo",
+        "points": 33
+      },
+      {
+        "text": "pojawienie się ząbka",
+        "points": 17
+      }
+    ]
+  },
+  {
+    "question": "Jak można wyleczyć się z czkawki?",
+    "answers": [
+      {
+        "text": "wstrzymując powietrze",
+        "points": 50
+      },
+      {
+        "text": "pijąc lub jedząc",
+        "points": 33
+      },
+      {
+        "text": "strachem",
+        "points": 17
+      }
+    ]
+  },
+  {
+    "question": "Co wieszamy na ścianie?",
+    "answers": [
+      {
+        "text": "zegar",
+        "points": 25
+      },
+      {
+        "text": "lustro",
+        "points": 21
+      },
+      {
+        "text": "obraz",
+        "points": 18
+      },
+      {
+        "text": "kalendarz",
+        "points": 15
+      },
+      {
+        "text": "zdjęcia",
+        "points": 12
+      },
+      {
+        "text": "telewizor",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Co wkładamy do etui?",
+    "answers": [
+      {
+        "text": "telefon",
+        "points": 30
+      },
+      {
+        "text": "okulary",
+        "points": 25
+      },
+      {
+        "text": "laptop",
+        "points": 20
+      },
+      {
+        "text": "tablet",
+        "points": 15
+      },
+      {
+        "text": "instrument",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Postać z dowcipu",
+    "answers": [
+      {
+        "text": "blondynka",
+        "points": 25
+      },
+      {
+        "text": "Jaś",
+        "points": 21
+      },
+      {
+        "text": "zając",
+        "points": 18
+      },
+      {
+        "text": "teściowa",
+        "points": 15
+      },
+      {
+        "text": "policjant",
+        "points": 12
+      },
+      {
+        "text": "Polak",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Wymień rzeczy, które kupujemy w rolkach",
+    "answers": [
+      {
+        "text": "papier toaletowy",
+        "points": 25
+      },
+      {
+        "text": "ręcznik kuchenny",
+        "points": 21
+      },
+      {
+        "text": "taśma klejąca",
+        "points": 18
+      },
+      {
+        "text": "folia aluminiowa",
+        "points": 15
+      },
+      {
+        "text": "papier do pieczenia",
+        "points": 12
+      },
+      {
+        "text": "papier śniadaniowy",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Dział matematyki",
+    "answers": [
+      {
+        "text": "arytmetyka",
+        "points": 30
+      },
+      {
+        "text": "geometria",
+        "points": 25
+      },
+      {
+        "text": "algebra",
+        "points": 20
+      },
+      {
+        "text": "analiza",
+        "points": 15
+      },
+      {
+        "text": "trygonometria",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Mało popularny język europejski",
+    "answers": [
+      {
+        "text": "węgierski",
+        "points": 30
+      },
+      {
+        "text": "holenderski",
+        "points": 25
+      },
+      {
+        "text": "estoński",
+        "points": 20
+      },
+      {
+        "text": "bułgarski",
+        "points": 15
+      },
+      {
+        "text": "fiński",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Nazwy zawodów bez damskiego odpowiednika",
+    "answers": [
+      {
+        "text": "kierowca",
+        "points": 30
+      },
+      {
+        "text": "strażak",
+        "points": 25
+      },
+      {
+        "text": "kominiarz",
+        "points": 20
+      },
+      {
+        "text": "kolejarz",
+        "points": 15
+      },
+      {
+        "text": "marynarz",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Wymień rodzaje alfabetów",
+    "answers": [
+      {
+        "text": "łaciński",
+        "points": 30
+      },
+      {
+        "text": "grecki",
+        "points": 25
+      },
+      {
+        "text": "cyrylica",
+        "points": 20
+      },
+      {
+        "text": "Braille",
+        "points": 15
+      },
+      {
+        "text": "migowy",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Popularny wzór tatuażu",
+    "answers": [
+      {
+        "text": "róża",
+        "points": 25
+      },
+      {
+        "text": "serce",
+        "points": 21
+      },
+      {
+        "text": "skorpion",
+        "points": 18
+      },
+      {
+        "text": "skrzydła",
+        "points": 15
+      },
+      {
+        "text": "motyl",
+        "points": 12
+      },
+      {
+        "text": "czaszka",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Rodzaj karty",
+    "answers": [
+      {
+        "text": "kredytowa",
+        "points": 30
+      },
+      {
+        "text": "dank",
+        "points": 25
+      },
+      {
+        "text": "do gry",
+        "points": 20
+      },
+      {
+        "text": "pamięci",
+        "points": 15
+      },
+      {
+        "text": "SIM",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Wiosenny kwiat",
+    "answers": [
+      {
+        "text": "przebiśnieg",
+        "points": 25
+      },
+      {
+        "text": "tulipan",
+        "points": 21
+      },
+      {
+        "text": "krokus",
+        "points": 18
+      },
+      {
+        "text": "żonkil",
+        "points": 15
+      },
+      {
+        "text": "sasanka",
+        "points": 12
+      },
+      {
+        "text": "narcyz",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Rodzaje zboża",
+    "answers": [
+      {
+        "text": "pszenica",
+        "points": 25
+      },
+      {
+        "text": "owies",
+        "points": 21
+      },
+      {
+        "text": "żyto",
+        "points": 18
+      },
+      {
+        "text": "jęczmień",
+        "points": 15
+      },
+      {
+        "text": "kukurydza",
+        "points": 12
+      },
+      {
+        "text": "ryż",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Broń biała",
+    "answers": [
+      {
+        "text": "miecz",
+        "points": 25
+      },
+      {
+        "text": "nóż",
+        "points": 21
+      },
+      {
+        "text": "szabla",
+        "points": 18
+      },
+      {
+        "text": "szpada",
+        "points": 15
+      },
+      {
+        "text": "topór",
+        "points": 12
+      },
+      {
+        "text": "sztylet",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Internetowe serwisy aukcyjne",
+    "answers": [
+      {
+        "text": "Allegro",
+        "points": 25
+      },
+      {
+        "text": "Amazon",
+        "points": 21
+      },
+      {
+        "text": "eBay",
+        "points": 18
+      },
+      {
+        "text": "OLX",
+        "points": 15
+      },
+      {
+        "text": "AliExpress",
+        "points": 12
+      },
+      {
+        "text": "Świstak",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Markety handlujące elektroniką w Polsce",
+    "answers": [
+      {
+        "text": "Media Markt",
+        "points": 30
+      },
+      {
+        "text": "Media Expert",
+        "points": 25
+      },
+      {
+        "text": "Neonet",
+        "points": 20
+      },
+      {
+        "text": "Saturn",
+        "points": 15
+      },
+      {
+        "text": "RTV EURO AGD",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Markety budowlane",
+    "answers": [
+      {
+        "text": "OBI",
+        "points": 25
+      },
+      {
+        "text": "Castorama",
+        "points": 21
+      },
+      {
+        "text": "Ikea",
+        "points": 18
+      },
+      {
+        "text": "Leroy Merlin",
+        "points": 15
+      },
+      {
+        "text": "Praktiker",
+        "points": 12
+      },
+      {
+        "text": "PSB-Mrówka",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Najwięksi producenci smartfonów",
+    "answers": [
+      {
+        "text": "Samsung",
+        "points": 25
+      },
+      {
+        "text": "Huawei",
+        "points": 21
+      },
+      {
+        "text": "Apple",
+        "points": 18
+      },
+      {
+        "text": "Xiaomi",
+        "points": 15
+      },
+      {
+        "text": "LG",
+        "points": 12
+      },
+      {
+        "text": "Sony",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Producenci kosmetyków dla kobiet",
+    "answers": [
+      {
+        "text": "Avon",
+        "points": 25
+      },
+      {
+        "text": "Maybelline",
+        "points": 21
+      },
+      {
+        "text": "Max Factor",
+        "points": 18
+      },
+      {
+        "text": "Astor",
+        "points": 15
+      },
+      {
+        "text": "Nivea",
+        "points": 12
+      },
+      {
+        "text": "Rimmel",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Sieci Fast Food",
+    "answers": [
+      {
+        "text": "McDonald",
+        "points": 25
+      },
+      {
+        "text": "KFC",
+        "points": 21
+      },
+      {
+        "text": "Burger King",
+        "points": 18
+      },
+      {
+        "text": "Pizza Hut",
+        "points": 15
+      },
+      {
+        "text": "Subway",
+        "points": 12
+      },
+      {
+        "text": "TelePizza",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Słynne postaci z gier",
+    "answers": [
+      {
+        "text": "Mario",
+        "points": 25
+      },
+      {
+        "text": "Pacman",
+        "points": 21
+      },
+      {
+        "text": "Lara Croft",
+        "points": 18
+      },
+      {
+        "text": "Sonic",
+        "points": 15
+      },
+      {
+        "text": "Donkey Kong",
+        "points": 12
+      },
+      {
+        "text": "Luigi",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Dyskonty spożywcze w Polsce",
+    "answers": [
+      {
+        "text": "Lidl",
+        "points": 25
+      },
+      {
+        "text": "Biedronka",
+        "points": 21
+      },
+      {
+        "text": "Kaufland",
+        "points": 18
+      },
+      {
+        "text": "E.Leclerc",
+        "points": 15
+      },
+      {
+        "text": "Carrefour",
+        "points": 12
+      },
+      {
+        "text": "Aldi",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Szczególnie niebezpieczne zawody",
+    "answers": [
+      {
+        "text": "strażak",
+        "points": 30
+      },
+      {
+        "text": "policjant",
+        "points": 25
+      },
+      {
+        "text": "żołnierz",
+        "points": 20
+      },
+      {
+        "text": "górnik",
+        "points": 15
+      },
+      {
+        "text": "pilot",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Przeglądarki internetowe",
+    "answers": [
+      {
+        "text": "Chrome",
+        "points": 30
+      },
+      {
+        "text": "Mozilla",
+        "points": 25
+      },
+      {
+        "text": "Internet Explorer",
+        "points": 20
+      },
+      {
+        "text": "Opera",
+        "points": 15
+      },
+      {
+        "text": "Safari",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Kto potrzebuje do pracy specjalnej torby?",
+    "answers": [
+      {
+        "text": "listonosz",
+        "points": 30
+      },
+      {
+        "text": "hydraulik",
+        "points": 25
+      },
+      {
+        "text": "lekarz",
+        "points": 20
+      },
+      {
+        "text": "dostawca jedzenia",
+        "points": 15
+      },
+      {
+        "text": "mechanik",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Znane polskie kluby piłkarskie",
+    "answers": [
+      {
+        "text": "Legia Warszawa",
+        "points": 25
+      },
+      {
+        "text": "Lech Poznań",
+        "points": 21
+      },
+      {
+        "text": "Wisła Kraków",
+        "points": 18
+      },
+      {
+        "text": "Cracovia Kraków",
+        "points": 15
+      },
+      {
+        "text": "Korona Kielce",
+        "points": 12
+      },
+      {
+        "text": "Arka Gdynia",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Jaki sport uprawia się na trawie?",
+    "answers": [
+      {
+        "text": "piłka nożna",
+        "points": 30
+      },
+      {
+        "text": "hokej na trawie",
+        "points": 25
+      },
+      {
+        "text": "golf",
+        "points": 20
+      },
+      {
+        "text": "rugby",
+        "points": 15
+      },
+      {
+        "text": "polo",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Nazwa sportu, w którym nie używa się piłki",
+    "answers": [
+      {
+        "text": "pływanie",
+        "points": 30
+      },
+      {
+        "text": "kolarstwo",
+        "points": 25
+      },
+      {
+        "text": "bieg",
+        "points": 20
+      },
+      {
+        "text": "skoki narciarskie",
+        "points": 15
+      },
+      {
+        "text": "szachy",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "W jakim sporcie zawodnik musi dotrzeć do mety?",
+    "answers": [
+      {
+        "text": "biegi",
+        "points": 30
+      },
+      {
+        "text": "wyścigi samochodowe",
+        "points": 25
+      },
+      {
+        "text": "kolarstwo",
+        "points": 20
+      },
+      {
+        "text": "narciarstwo",
+        "points": 15
+      },
+      {
+        "text": "łyżwiarstwo",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Wymień style pływackie",
+    "answers": [
+      {
+        "text": "kraul",
+        "points": 30
+      },
+      {
+        "text": "żabka",
+        "points": 25
+      },
+      {
+        "text": "motylek",
+        "points": 20
+      },
+      {
+        "text": "piesek",
+        "points": 15
+      },
+      {
+        "text": "grzbietowy",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Sporty, w których używa się kija lub kijków",
+    "answers": [
+      {
+        "text": "baseball",
+        "points": 25
+      },
+      {
+        "text": "bilard",
+        "points": 21
+      },
+      {
+        "text": "hokej",
+        "points": 18
+      },
+      {
+        "text": "golf",
+        "points": 15
+      },
+      {
+        "text": "narciarstwo",
+        "points": 12
+      },
+      {
+        "text": "nordic walking",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Sztuki walki",
+    "answers": [
+      {
+        "text": "karate",
+        "points": 30
+      },
+      {
+        "text": "judo",
+        "points": 25
+      },
+      {
+        "text": "boks",
+        "points": 20
+      },
+      {
+        "text": "taekwondo",
+        "points": 15
+      },
+      {
+        "text": "aikido",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Zespoły F1",
+    "answers": [
+      {
+        "text": "Ferrari",
+        "points": 22
+      },
+      {
+        "text": "Mercedes",
+        "points": 18
+      },
+      {
+        "text": "Red Bull",
+        "points": 15
+      },
+      {
+        "text": "McLaren",
+        "points": 13
+      },
+      {
+        "text": "Renault",
+        "points": 12
+      },
+      {
+        "text": "Alfa Romeo",
+        "points": 11
+      },
+      {
+        "text": "Williams",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Osoba występująca w zawodach sportowych to",
+    "answers": [
+      {
+        "text": "zawodnik",
+        "points": 30
+      },
+      {
+        "text": "uczestnik",
+        "points": 25
+      },
+      {
+        "text": "sportowiec",
+        "points": 20
+      },
+      {
+        "text": "gracz",
+        "points": 15
+      },
+      {
+        "text": "reprezentant",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Znane stadiony",
+    "answers": [
+      {
+        "text": "Camp Nou",
+        "points": 25
+      },
+      {
+        "text": "Wembley Stadium",
+        "points": 21
+      },
+      {
+        "text": "Estadio Santiago Bernabeu",
+        "points": 18
+      },
+      {
+        "text": "San Siro",
+        "points": 15
+      },
+      {
+        "text": "Narodowy",
+        "points": 12
+      },
+      {
+        "text": "Old Trafford",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Polscy bokserzy",
+    "answers": [
+      {
+        "text": "Andrzej Gołota",
+        "points": 25
+      },
+      {
+        "text": "Tomasz Adamek",
+        "points": 21
+      },
+      {
+        "text": "Krzysztof Włodarczyk",
+        "points": 18
+      },
+      {
+        "text": "Dariusz Michalczewski",
+        "points": 15
+      },
+      {
+        "text": "Artur Szpilka",
+        "points": 12
+      },
+      {
+        "text": "Przemysław Saleta",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Polscy komentatorzy sportowi",
+    "answers": [
+      {
+        "text": "Dariusz Szpakowski",
+        "points": 30
+      },
+      {
+        "text": "Włodzimierz Szaranowicz",
+        "points": 25
+      },
+      {
+        "text": "Przemysław Babiarz",
+        "points": 20
+      },
+      {
+        "text": "Mateusz Borek",
+        "points": 15
+      },
+      {
+        "text": "Tomasz Swędrowski",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Pozycje w drużynie siatkarskiej",
+    "answers": [
+      {
+        "text": "atakujący",
+        "points": 30
+      },
+      {
+        "text": "przyjmujący",
+        "points": 25
+      },
+      {
+        "text": "rozgrywający",
+        "points": 20
+      },
+      {
+        "text": "libero",
+        "points": 15
+      },
+      {
+        "text": "środkowy",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Znane polskie sportsmenki",
+    "answers": [
+      {
+        "text": "Agnieszka Radwańska",
+        "points": 25
+      },
+      {
+        "text": "Justyna Kowalczyk",
+        "points": 21
+      },
+      {
+        "text": "Otylia Jędrzejczak",
+        "points": 18
+      },
+      {
+        "text": "Anita Włodarczyk",
+        "points": 15
+      },
+      {
+        "text": "Sylwia Gruchała",
+        "points": 12
+      },
+      {
+        "text": "Maja Włoszczowska",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Kraj, który zdobył mistrzostwo świata w piłkę nożną",
+    "answers": [
+      {
+        "text": "Brazylia",
+        "points": 30
+      },
+      {
+        "text": "Niemcy",
+        "points": 25
+      },
+      {
+        "text": "Włochy",
+        "points": 20
+      },
+      {
+        "text": "Argentyna",
+        "points": 15
+      },
+      {
+        "text": "Hiszpania",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Światowe potęgi siatkarskie",
+    "answers": [
+      {
+        "text": "Polska",
+        "points": 25
+      },
+      {
+        "text": "Brazylia",
+        "points": 21
+      },
+      {
+        "text": "USA",
+        "points": 18
+      },
+      {
+        "text": "Rosja",
+        "points": 15
+      },
+      {
+        "text": "Włochy",
+        "points": 12
+      },
+      {
+        "text": "Francja",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Wymień atrybuty rycerza",
+    "answers": [
+      {
+        "text": "miecz",
+        "points": 30
+      },
+      {
+        "text": "tarcza",
+        "points": 25
+      },
+      {
+        "text": "zbroja",
+        "points": 20
+      },
+      {
+        "text": "herb",
+        "points": 15
+      },
+      {
+        "text": "koń",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Wymień królów polskich",
+    "answers": [
+      {
+        "text": "Władysław Jagiełło",
+        "points": 22
+      },
+      {
+        "text": "Bolesław Chrobry",
+        "points": 18
+      },
+      {
+        "text": "Zygmunt Stary",
+        "points": 15
+      },
+      {
+        "text": "Kazimierz Wielki",
+        "points": 13
+      },
+      {
+        "text": "Jan III Sobieski",
+        "points": 12
+      },
+      {
+        "text": "Zygmunt III Waza",
+        "points": 11
+      },
+      {
+        "text": "Stanisław August Poniatowski",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Wymień prezydentów USA",
+    "answers": [
+      {
+        "text": "George Bush",
+        "points": 25
+      },
+      {
+        "text": "Abraham Lincoln",
+        "points": 21
+      },
+      {
+        "text": "Barack Obama",
+        "points": 18
+      },
+      {
+        "text": "Donald Trump",
+        "points": 15
+      },
+      {
+        "text": "George Washington",
+        "points": 12
+      },
+      {
+        "text": "John Kennedy",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Wymień polskich noblistów",
+    "answers": [
+      {
+        "text": "Maria Skłodowska-Curie",
+        "points": 25
+      },
+      {
+        "text": "Wisława Szymborska",
+        "points": 21
+      },
+      {
+        "text": "Lech Wałęsa",
+        "points": 18
+      },
+      {
+        "text": "Henryk Sienkiewicz",
+        "points": 15
+      },
+      {
+        "text": "Czesław Miłosz",
+        "points": 12
+      },
+      {
+        "text": "Władysław Reymont",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Wymień atrybuty królewskie",
+    "answers": [
+      {
+        "text": "korona",
+        "points": 30
+      },
+      {
+        "text": "tron",
+        "points": 25
+      },
+      {
+        "text": "zamek",
+        "points": 20
+      },
+      {
+        "text": "berło",
+        "points": 15
+      },
+      {
+        "text": "szata",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Słynne polskie powstanie",
+    "answers": [
+      {
+        "text": "styczniowe",
+        "points": 30
+      },
+      {
+        "text": "listopadowe",
+        "points": 25
+      },
+      {
+        "text": "warszawskie",
+        "points": 20
+      },
+      {
+        "text": "kościuszkowskie",
+        "points": 15
+      },
+      {
+        "text": "wielkopolskie",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Były premier Polski",
+    "answers": [
+      {
+        "text": "Donald Tusk",
+        "points": 30
+      },
+      {
+        "text": "Jarosław Kaczyński",
+        "points": 25
+      },
+      {
+        "text": "Kazimierz Marcinkiewicz",
+        "points": 20
+      },
+      {
+        "text": "Leszek Miller",
+        "points": 15
+      },
+      {
+        "text": "Jerzy Buzek",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Starożytne cywilizacje",
+    "answers": [
+      {
+        "text": "Rzym",
+        "points": 30
+      },
+      {
+        "text": "Grecja",
+        "points": 25
+      },
+      {
+        "text": "Egipt",
+        "points": 20
+      },
+      {
+        "text": "Mezopotamia",
+        "points": 15
+      },
+      {
+        "text": "Indie",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Kto występuje na banknotach?",
+    "answers": [
+      {
+        "text": "Mieszko",
+        "points": 30
+      },
+      {
+        "text": "Bolesław Chrobry",
+        "points": 25
+      },
+      {
+        "text": "Kazimierz Wielki",
+        "points": 20
+      },
+      {
+        "text": "Władysław Jagiełło",
+        "points": 15
+      },
+      {
+        "text": "Zygmunt Stary",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Wymień najpopularniejsze dzieła malarskie Leonardo da Vinci",
+    "answers": [
+      {
+        "text": "Mona Lisa",
+        "points": 50
+      },
+      {
+        "text": "Ostatnia wieczerza",
+        "points": 33
+      },
+      {
+        "text": "Dama z gronostajem",
+        "points": 17
+      }
+    ]
+  },
+  {
+    "question": "Rzeczy potrzebne do malowania",
+    "answers": [
+      {
+        "text": "pędzel",
+        "points": 40
+      },
+      {
+        "text": "farba",
+        "points": 30
+      },
+      {
+        "text": "płótno",
+        "points": 20
+      },
+      {
+        "text": "sztaluga",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Znani światowi malarze",
+    "answers": [
+      {
+        "text": "Leonardo da Vinci",
+        "points": 25
+      },
+      {
+        "text": "Michał Anioł",
+        "points": 21
+      },
+      {
+        "text": "Rembrandt",
+        "points": 18
+      },
+      {
+        "text": "Salvador Dali",
+        "points": 15
+      },
+      {
+        "text": "Vincent van Gogh",
+        "points": 12
+      },
+      {
+        "text": "Pablo Picasso",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Znani filozofowie",
+    "answers": [
+      {
+        "text": "Sokrates",
+        "points": 25
+      },
+      {
+        "text": "Platon",
+        "points": 21
+      },
+      {
+        "text": "Arystoteles",
+        "points": 18
+      },
+      {
+        "text": "Immanuel Kant",
+        "points": 15
+      },
+      {
+        "text": "Tomasz z Akwinu",
+        "points": 12
+      },
+      {
+        "text": "Friedrich Nietzsche",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Słynni polscy dowódcy",
+    "answers": [
+      {
+        "text": "Józef Piłsudski",
+        "points": 30
+      },
+      {
+        "text": "Jan Sobieski",
+        "points": 25
+      },
+      {
+        "text": "Stefan Czarniecki",
+        "points": 20
+      },
+      {
+        "text": "Tadeusz Kościuszko",
+        "points": 15
+      },
+      {
+        "text": "Władysław Anders",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Stopnie wojskowe",
+    "answers": [
+      {
+        "text": "szeregowy",
+        "points": 25
+      },
+      {
+        "text": "major",
+        "points": 21
+      },
+      {
+        "text": "oficer",
+        "points": 18
+      },
+      {
+        "text": "pułkownik",
+        "points": 15
+      },
+      {
+        "text": "kapral",
+        "points": 12
+      },
+      {
+        "text": "admirał",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Do średniowiecznych cudów świata można zaliczyć",
+    "answers": [
+      {
+        "text": "Stonehenge",
+        "points": 40
+      },
+      {
+        "text": "Koloseum",
+        "points": 30
+      },
+      {
+        "text": "Wielki Mur Chiński",
+        "points": 20
+      },
+      {
+        "text": "Tadż Mahal",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Wymień filmowe serie z gatunku fantasy",
+    "answers": [
+      {
+        "text": "Władca Pierścieni",
+        "points": 40
+      },
+      {
+        "text": "Harry Potter",
+        "points": 30
+      },
+      {
+        "text": "Hobbit",
+        "points": 20
+      },
+      {
+        "text": "Opowieści z Narnii",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Wymień najpopularniejsze baśnie braci Grimm",
+    "answers": [
+      {
+        "text": "Czerwony kapturek",
+        "points": 30
+      },
+      {
+        "text": "Jaś i Małgosia",
+        "points": 25
+      },
+      {
+        "text": "Kopciuszek",
+        "points": 20
+      },
+      {
+        "text": "Królewna Śnieżka",
+        "points": 15
+      },
+      {
+        "text": "Śpiąca królewna",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Wymień najpopularniejsze baśnie H. C. Andersena",
+    "answers": [
+      {
+        "text": "Dziewczynka z zapałkami",
+        "points": 25
+      },
+      {
+        "text": "Królowa śniegu",
+        "points": 21
+      },
+      {
+        "text": "Calineczka",
+        "points": 18
+      },
+      {
+        "text": "Brzydkie kaczątko",
+        "points": 15
+      },
+      {
+        "text": "Mała syrenka",
+        "points": 12
+      },
+      {
+        "text": "Nowe szaty cesarza",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Wymień sławne psy z filmów animowanych",
+    "answers": [
+      {
+        "text": "Reksio",
+        "points": 30
+      },
+      {
+        "text": "Scooby-Doo",
+        "points": 25
+      },
+      {
+        "text": "Pluto",
+        "points": 20
+      },
+      {
+        "text": "Goofy",
+        "points": 15
+      },
+      {
+        "text": "Huckleberry",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Wymień znanego misia z filmów animowanych",
+    "answers": [
+      {
+        "text": "Kubuś Puchatek",
+        "points": 25
+      },
+      {
+        "text": "Uszatek",
+        "points": 21
+      },
+      {
+        "text": "Colargol",
+        "points": 18
+      },
+      {
+        "text": "Yogi",
+        "points": 15
+      },
+      {
+        "text": "Ted",
+        "points": 12
+      },
+      {
+        "text": "Paddington",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Wymień kultowe dobranocki",
+    "answers": [
+      {
+        "text": "Smerfy",
+        "points": 23
+      },
+      {
+        "text": "Gumisie",
+        "points": 18
+      },
+      {
+        "text": "Muminki",
+        "points": 15
+      },
+      {
+        "text": "Bolek i Lolek",
+        "points": 12
+      },
+      {
+        "text": "Reksio",
+        "points": 10
+      },
+      {
+        "text": "Miś Uszatek",
+        "points": 8
+      },
+      {
+        "text": "Pszczółka Maja",
+        "points": 5
+      },
+      {
+        "text": "Kot Filemon",
+        "points": 4
+      },
+      {
+        "text": "Koziołek Matołek",
+        "points": 3
+      },
+      {
+        "text": "Krecik",
+        "points": 1
+      },
+      {
+        "text": "Kubuś Puchatek",
+        "points": 1
+      }
+    ]
+  },
+  {
+    "question": "Znane polskie telenowele",
+    "answers": [
+      {
+        "text": "M jak Miłość",
+        "points": 25
+      },
+      {
+        "text": "Klan",
+        "points": 21
+      },
+      {
+        "text": "Pierwsza Miłość",
+        "points": 18
+      },
+      {
+        "text": "Na Wspólnej",
+        "points": 15
+      },
+      {
+        "text": "Barwy szczęścia",
+        "points": 12
+      },
+      {
+        "text": "Na dobre i na złe",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Podaj tytuły baśni, których akcja rozgrywała się w lesie",
+    "answers": [
+      {
+        "text": "Czerwony Kapturek",
+        "points": 50
+      },
+      {
+        "text": "Królewna Śnieżka",
+        "points": 33
+      },
+      {
+        "text": "Jaś i Małgosia",
+        "points": 17
+      }
+    ]
+  },
+  {
+    "question": "Podaj znane postacie z bajki Muminki",
+    "answers": [
+      {
+        "text": "Muminek",
+        "points": 25
+      },
+      {
+        "text": "Migotka",
+        "points": 21
+      },
+      {
+        "text": "Buka",
+        "points": 18
+      },
+      {
+        "text": "Mała Mi",
+        "points": 15
+      },
+      {
+        "text": "Włóczykij",
+        "points": 12
+      },
+      {
+        "text": "Mama Muminka",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Wymień popularne seriale paradokumentalne",
+    "answers": [
+      {
+        "text": "Trudne sprawy",
+        "points": 25
+      },
+      {
+        "text": "Dlaczego ja?",
+        "points": 21
+      },
+      {
+        "text": "Ukryta prawda",
+        "points": 18
+      },
+      {
+        "text": "Szpital",
+        "points": 15
+      },
+      {
+        "text": "Szkoła",
+        "points": 12
+      },
+      {
+        "text": "Sekrety rodziny",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Wymień księżniczki Disneya",
+    "answers": [
+      {
+        "text": "Królewna Śnieżka",
+        "points": 25
+      },
+      {
+        "text": "Śpiąca Królewna",
+        "points": 21
+      },
+      {
+        "text": "Kopciuszek",
+        "points": 18
+      },
+      {
+        "text": "Pocahontas",
+        "points": 15
+      },
+      {
+        "text": "Elsa",
+        "points": 12
+      },
+      {
+        "text": "Ariel",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Podaj najpopularniejszych członków grupy Avengers",
+    "answers": [
+      {
+        "text": "Iron Man",
+        "points": 40
+      },
+      {
+        "text": "Thor",
+        "points": 30
+      },
+      {
+        "text": "Kapitan Ameryka",
+        "points": 20
+      },
+      {
+        "text": "Hulk",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Wymień gatunki filmowe",
+    "answers": [
+      {
+        "text": "komedia",
+        "points": 25
+      },
+      {
+        "text": "horror",
+        "points": 21
+      },
+      {
+        "text": "sensacyjny",
+        "points": 18
+      },
+      {
+        "text": "fantasy",
+        "points": 15
+      },
+      {
+        "text": "dramat",
+        "points": 12
+      },
+      {
+        "text": "thriller",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Wymień postacie z trylogii H. Sienkiewicza",
+    "answers": [
+      {
+        "text": "Kmicic",
+        "points": 40
+      },
+      {
+        "text": "Wołodyjowski",
+        "points": 30
+      },
+      {
+        "text": "Zagłoba",
+        "points": 20
+      },
+      {
+        "text": "Skrzetuski",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Popularne seriale amerykańskie",
+    "answers": [
+      {
+        "text": "Gra o tron",
+        "points": 25
+      },
+      {
+        "text": "Breaking Bad",
+        "points": 21
+      },
+      {
+        "text": "House of cards",
+        "points": 18
+      },
+      {
+        "text": "The walking dead",
+        "points": 15
+      },
+      {
+        "text": "Przyjaciele",
+        "points": 12
+      },
+      {
+        "text": "Plotkara",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Wymień znanych bohaterów komiksów",
+    "answers": [
+      {
+        "text": "Superman",
+        "points": 25
+      },
+      {
+        "text": "Batman",
+        "points": 21
+      },
+      {
+        "text": "Spiderman",
+        "points": 18
+      },
+      {
+        "text": "Ironman",
+        "points": 15
+      },
+      {
+        "text": "Kapitan Ameryka",
+        "points": 12
+      },
+      {
+        "text": "Thor",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Sławne polskie komedie",
+    "answers": [
+      {
+        "text": "Seksmisja",
+        "points": 22
+      },
+      {
+        "text": "Kogel mogel",
+        "points": 18
+      },
+      {
+        "text": "Chłopaki nie płaczą",
+        "points": 15
+      },
+      {
+        "text": "Kiler",
+        "points": 13
+      },
+      {
+        "text": "Poranek kojota",
+        "points": 12
+      },
+      {
+        "text": "Dzień świra",
+        "points": 11
+      },
+      {
+        "text": "U Pana Boga za piecem",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Odcienie koloru zielonego",
+    "answers": [
+      {
+        "text": "seledynowy",
+        "points": 25
+      },
+      {
+        "text": "miętowy",
+        "points": 21
+      },
+      {
+        "text": "oliwkowy",
+        "points": 18
+      },
+      {
+        "text": "malachitowy",
+        "points": 15
+      },
+      {
+        "text": "szmaragdowy",
+        "points": 12
+      },
+      {
+        "text": "butelkowa zieleń",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Odcienie koloru niebieskiego",
+    "answers": [
+      {
+        "text": "błękitny",
+        "points": 25
+      },
+      {
+        "text": "granatowy",
+        "points": 21
+      },
+      {
+        "text": "szafirowy",
+        "points": 18
+      },
+      {
+        "text": "lazurowy",
+        "points": 15
+      },
+      {
+        "text": "turkusowy",
+        "points": 12
+      },
+      {
+        "text": "chabrowy",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Odcienie koloru czerwonego",
+    "answers": [
+      {
+        "text": "bordowy",
+        "points": 25
+      },
+      {
+        "text": "ceglasty",
+        "points": 21
+      },
+      {
+        "text": "wiśniowy",
+        "points": 18
+      },
+      {
+        "text": "krwisty",
+        "points": 15
+      },
+      {
+        "text": "burgund",
+        "points": 12
+      },
+      {
+        "text": "rubinowy",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Kolory, których nazwy nawiązują do owoców",
+    "answers": [
+      {
+        "text": "pomarańczowy",
+        "points": 25
+      },
+      {
+        "text": "cytrynowy",
+        "points": 21
+      },
+      {
+        "text": "wiśniowy",
+        "points": 18
+      },
+      {
+        "text": "malinowy",
+        "points": 15
+      },
+      {
+        "text": "śliwkowy",
+        "points": 12
+      },
+      {
+        "text": "morelowy",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Jakie kolory może mieć róża?",
+    "answers": [
+      {
+        "text": "czerwony",
+        "points": 25
+      },
+      {
+        "text": "biały",
+        "points": 21
+      },
+      {
+        "text": "żółty",
+        "points": 18
+      },
+      {
+        "text": "pomarańczowy",
+        "points": 15
+      },
+      {
+        "text": "różowy",
+        "points": 12
+      },
+      {
+        "text": "fioletowe",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Co jest czarno-białe?",
+    "answers": [
+      {
+        "text": "zebra",
+        "points": 25
+      },
+      {
+        "text": "film",
+        "points": 21
+      },
+      {
+        "text": "zdjęcie",
+        "points": 18
+      },
+      {
+        "text": "gazeta",
+        "points": 15
+      },
+      {
+        "text": "panda",
+        "points": 12
+      },
+      {
+        "text": "pingwin",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Coś czarnego",
+    "answers": [
+      {
+        "text": "dziura",
+        "points": 25
+      },
+      {
+        "text": "kawa",
+        "points": 21
+      },
+      {
+        "text": "włosy",
+        "points": 18
+      },
+      {
+        "text": "asfalt",
+        "points": 15
+      },
+      {
+        "text": "charakter",
+        "points": 12
+      },
+      {
+        "text": "humor",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Kolory związane z Bożym Narodzeniem",
+    "answers": [
+      {
+        "text": "czerwony",
+        "points": 50
+      },
+      {
+        "text": "złoty",
+        "points": 33
+      },
+      {
+        "text": "zielony",
+        "points": 17
+      }
+    ]
+  },
+  {
+    "question": "Kolory związane z Wielkanocą",
+    "answers": [
+      {
+        "text": "żółty",
+        "points": 50
+      },
+      {
+        "text": "zielony",
+        "points": 33
+      },
+      {
+        "text": "biały",
+        "points": 17
+      }
+    ]
+  },
+  {
+    "question": "Jakie kolory kojarzymy z wiosną?",
+    "answers": [
+      {
+        "text": "zielony",
+        "points": 50
+      },
+      {
+        "text": "żółty",
+        "points": 33
+      },
+      {
+        "text": "różowy",
+        "points": 17
+      }
+    ]
+  },
+  {
+    "question": "Jakie kolory kojarzymy z zimą?",
+    "answers": [
+      {
+        "text": "biały",
+        "points": 50
+      },
+      {
+        "text": "niebieski",
+        "points": 33
+      },
+      {
+        "text": "szary",
+        "points": 17
+      }
+    ]
+  },
+  {
+    "question": "Jakie kolory kojarzymy z latem?",
+    "answers": [
+      {
+        "text": "żółty",
+        "points": 40
+      },
+      {
+        "text": "zielony",
+        "points": 30
+      },
+      {
+        "text": "pomarańczowy",
+        "points": 20
+      },
+      {
+        "text": "błękitny",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Jakie kolory kojarzymy z jesienią?",
+    "answers": [
+      {
+        "text": "czerwony",
+        "points": 40
+      },
+      {
+        "text": "żółty",
+        "points": 30
+      },
+      {
+        "text": "brązowy",
+        "points": 20
+      },
+      {
+        "text": "pomarańczowy",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Najpopularniejsze kolory samochodów",
+    "answers": [
+      {
+        "text": "czarny",
+        "points": 30
+      },
+      {
+        "text": "czerwony",
+        "points": 25
+      },
+      {
+        "text": "biały",
+        "points": 20
+      },
+      {
+        "text": "srebrny",
+        "points": 15
+      },
+      {
+        "text": "niebieski",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Najczęstsze kolory męskich koszul",
+    "answers": [
+      {
+        "text": "biały",
+        "points": 25
+      },
+      {
+        "text": "błękitny",
+        "points": 21
+      },
+      {
+        "text": "szary",
+        "points": 18
+      },
+      {
+        "text": "czarny",
+        "points": 15
+      },
+      {
+        "text": "granatowy",
+        "points": 12
+      },
+      {
+        "text": "bordowy",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Kolor oczu",
+    "answers": [
+      {
+        "text": "piwny",
+        "points": 25
+      },
+      {
+        "text": "niebieski",
+        "points": 21
+      },
+      {
+        "text": "zielony",
+        "points": 18
+      },
+      {
+        "text": "szary",
+        "points": 15
+      },
+      {
+        "text": "brązowy",
+        "points": 12
+      },
+      {
+        "text": "czarny",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Kolor włosów",
+    "answers": [
+      {
+        "text": "blond",
+        "points": 30
+      },
+      {
+        "text": "czarny",
+        "points": 25
+      },
+      {
+        "text": "siwy",
+        "points": 20
+      },
+      {
+        "text": "brązowy",
+        "points": 15
+      },
+      {
+        "text": "rudy",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Co przeważnie jest zielone?",
+    "answers": [
+      {
+        "text": "trawa",
+        "points": 25
+      },
+      {
+        "text": "ogórek",
+        "points": 21
+      },
+      {
+        "text": "liść",
+        "points": 18
+      },
+      {
+        "text": "groszek",
+        "points": 15
+      },
+      {
+        "text": "brokuł",
+        "points": 12
+      },
+      {
+        "text": "żaba",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Co przeważnie jest żółte?",
+    "answers": [
+      {
+        "text": "słońce",
+        "points": 50
+      },
+      {
+        "text": "cytryna",
+        "points": 33
+      },
+      {
+        "text": "banan",
+        "points": 17
+      }
+    ]
+  },
+  {
+    "question": "Co przeważnie jest czerwone?",
+    "answers": [
+      {
+        "text": "róża",
+        "points": 30
+      },
+      {
+        "text": "papryka",
+        "points": 25
+      },
+      {
+        "text": "jabłko",
+        "points": 20
+      },
+      {
+        "text": "serce",
+        "points": 15
+      },
+      {
+        "text": "krew",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Co możemy kupić na stacji benzynowej?",
+    "answers": [
+      {
+        "text": "paliwo",
+        "points": 25
+      },
+      {
+        "text": "kawę",
+        "points": 21
+      },
+      {
+        "text": "płyn do spryskiwaczy",
+        "points": 18
+      },
+      {
+        "text": "papierosy",
+        "points": 15
+      },
+      {
+        "text": "alkohol",
+        "points": 12
+      },
+      {
+        "text": "słodycze",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Co możemy znaleźć w schowku samochodu?",
+    "answers": [
+      {
+        "text": "dokumenty",
+        "points": 25
+      },
+      {
+        "text": "klucze",
+        "points": 21
+      },
+      {
+        "text": "pieniądze",
+        "points": 18
+      },
+      {
+        "text": "okulary",
+        "points": 15
+      },
+      {
+        "text": "długopis",
+        "points": 12
+      },
+      {
+        "text": "mapę",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Co kupujemy w tubkach?",
+    "answers": [
+      {
+        "text": "pastę do zębów",
+        "points": 25
+      },
+      {
+        "text": "maść",
+        "points": 21
+      },
+      {
+        "text": "klej",
+        "points": 18
+      },
+      {
+        "text": "mleko zagęszczone",
+        "points": 15
+      },
+      {
+        "text": "krem",
+        "points": 12
+      },
+      {
+        "text": "farbę",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Gdzie możemy trzymać pieniądze?",
+    "answers": [
+      {
+        "text": "w portfelu",
+        "points": 25
+      },
+      {
+        "text": "w banku",
+        "points": 21
+      },
+      {
+        "text": "w sejfie",
+        "points": 18
+      },
+      {
+        "text": "w skarbonce",
+        "points": 15
+      },
+      {
+        "text": "w skarpecie",
+        "points": 12
+      },
+      {
+        "text": "w kieszeni",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Komu zostawiamy napiwek?",
+    "answers": [
+      {
+        "text": "kelnerowi",
+        "points": 25
+      },
+      {
+        "text": "kierowcy taksówki",
+        "points": 21
+      },
+      {
+        "text": "dostawcy",
+        "points": 18
+      },
+      {
+        "text": "sprzedawcy",
+        "points": 15
+      },
+      {
+        "text": "sprzątaczce",
+        "points": 12
+      },
+      {
+        "text": "barmanowi",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Podaj miejsca, w których zachowujemy ciszę",
+    "answers": [
+      {
+        "text": "kościół",
+        "points": 25
+      },
+      {
+        "text": "muzeum",
+        "points": 21
+      },
+      {
+        "text": "biblioteka",
+        "points": 18
+      },
+      {
+        "text": "kino",
+        "points": 15
+      },
+      {
+        "text": "teatr",
+        "points": 12
+      },
+      {
+        "text": "cmentarz",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Czego używaliśmy dawniej, a teraz stało się przeżytkiem?",
+    "answers": [
+      {
+        "text": "maszyny do pisania",
+        "points": 30
+      },
+      {
+        "text": "dyskietek",
+        "points": 25
+      },
+      {
+        "text": "magnetowidu",
+        "points": 20
+      },
+      {
+        "text": "walkmana",
+        "points": 15
+      },
+      {
+        "text": "magnetofonu",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Co nosimy w portfelu?",
+    "answers": [
+      {
+        "text": "pieniądze",
+        "points": 25
+      },
+      {
+        "text": "dokumenty",
+        "points": 21
+      },
+      {
+        "text": "karty",
+        "points": 18
+      },
+      {
+        "text": "paragony",
+        "points": 15
+      },
+      {
+        "text": "bilety",
+        "points": 12
+      },
+      {
+        "text": "zdjęcia",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Co wpisujemy w CV?",
+    "answers": [
+      {
+        "text": "dane osobowe",
+        "points": 25
+      },
+      {
+        "text": "wykształcenie",
+        "points": 21
+      },
+      {
+        "text": "doświadczenie",
+        "points": 18
+      },
+      {
+        "text": "zainteresowania",
+        "points": 15
+      },
+      {
+        "text": "umiejętności",
+        "points": 12
+      },
+      {
+        "text": "dane kontaktowe",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Mężczyźni narzekają, że kobiety zawsze wolno",
+    "answers": [
+      {
+        "text": "ubierają się",
+        "points": 30
+      },
+      {
+        "text": "malują się",
+        "points": 25
+      },
+      {
+        "text": "jeżdżą",
+        "points": 20
+      },
+      {
+        "text": "robią zakupy",
+        "points": 15
+      },
+      {
+        "text": "chodzą",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Według mężczyzn kobiety trwonią pieniądze na",
+    "answers": [
+      {
+        "text": "ubrania",
+        "points": 25
+      },
+      {
+        "text": "kosmetyki",
+        "points": 21
+      },
+      {
+        "text": "buty",
+        "points": 18
+      },
+      {
+        "text": "fryzjera",
+        "points": 15
+      },
+      {
+        "text": "kosmetyczkę",
+        "points": 12
+      },
+      {
+        "text": "telefony",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Obudzić nas może",
+    "answers": [
+      {
+        "text": "budzik",
+        "points": 30
+      },
+      {
+        "text": "telefon",
+        "points": 25
+      },
+      {
+        "text": "człowiek",
+        "points": 20
+      },
+      {
+        "text": "słońce",
+        "points": 15
+      },
+      {
+        "text": "hałas",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Czego byśmy nie zjedli przed wyjściem na randkę?",
+    "answers": [
+      {
+        "text": "czosnku",
+        "points": 40
+      },
+      {
+        "text": "cebuli",
+        "points": 30
+      },
+      {
+        "text": "grochu",
+        "points": 20
+      },
+      {
+        "text": "fasoli",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Na co bierzemy kredyt?",
+    "answers": [
+      {
+        "text": "dom",
+        "points": 40
+      },
+      {
+        "text": "samochód",
+        "points": 30
+      },
+      {
+        "text": "wakacje",
+        "points": 20
+      },
+      {
+        "text": "rachunki",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Co najczęściej bierzemy na raty?",
+    "answers": [
+      {
+        "text": "komputer",
+        "points": 25
+      },
+      {
+        "text": "telewizor",
+        "points": 21
+      },
+      {
+        "text": "pralkę",
+        "points": 18
+      },
+      {
+        "text": "lodówkę",
+        "points": 15
+      },
+      {
+        "text": "telefon",
+        "points": 12
+      },
+      {
+        "text": "kuchenkę",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Gdy jesteśmy chorzy dokucza nam",
+    "answers": [
+      {
+        "text": "katar",
+        "points": 30
+      },
+      {
+        "text": "kaszel",
+        "points": 25
+      },
+      {
+        "text": "gorączka",
+        "points": 20
+      },
+      {
+        "text": "ból głowy",
+        "points": 15
+      },
+      {
+        "text": "ból gardła",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Co znajdziemy w damskiej torebce?",
+    "answers": [
+      {
+        "text": "portfel",
+        "points": 25
+      },
+      {
+        "text": "klucze",
+        "points": 21
+      },
+      {
+        "text": "telefon",
+        "points": 18
+      },
+      {
+        "text": "szminkę",
+        "points": 15
+      },
+      {
+        "text": "chusteczki higieniczne",
+        "points": 12
+      },
+      {
+        "text": "lusterko",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Gra lub zabawa z dziecięcych lat",
+    "answers": [
+      {
+        "text": "berek",
+        "points": 25
+      },
+      {
+        "text": "chowany",
+        "points": 21
+      },
+      {
+        "text": "zbijak",
+        "points": 18
+      },
+      {
+        "text": "kapsle",
+        "points": 15
+      },
+      {
+        "text": "podchody",
+        "points": 12
+      },
+      {
+        "text": "klasy",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Jakie słone przekąski często kupujemy?",
+    "answers": [
+      {
+        "text": "chipsy",
+        "points": 30
+      },
+      {
+        "text": "paluszki",
+        "points": 25
+      },
+      {
+        "text": "orzeszki",
+        "points": 20
+      },
+      {
+        "text": "popcorn",
+        "points": 15
+      },
+      {
+        "text": "krakersy",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Firmy produkujące jogurty",
+    "answers": [
+      {
+        "text": "Danone",
+        "points": 40
+      },
+      {
+        "text": "Zott",
+        "points": 30
+      },
+      {
+        "text": "Bakoma",
+        "points": 20
+      },
+      {
+        "text": "Mlekovita",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Wymień popularne smaki lodów",
+    "answers": [
+      {
+        "text": "waniliowy",
+        "points": 30
+      },
+      {
+        "text": "czekoladowy",
+        "points": 25
+      },
+      {
+        "text": "truskawkowy",
+        "points": 20
+      },
+      {
+        "text": "orzechowy",
+        "points": 15
+      },
+      {
+        "text": "śmietankowy",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Jakie smaki rozróżnia człowiek?",
+    "answers": [
+      {
+        "text": "słodki",
+        "points": 30
+      },
+      {
+        "text": "słony",
+        "points": 25
+      },
+      {
+        "text": "kwaśny",
+        "points": 20
+      },
+      {
+        "text": "gorzki",
+        "points": 15
+      },
+      {
+        "text": "ostry",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Wymień popularne marki piwa",
+    "answers": [
+      {
+        "text": "Żywiec",
+        "points": 22
+      },
+      {
+        "text": "Lech",
+        "points": 18
+      },
+      {
+        "text": "Warka",
+        "points": 15
+      },
+      {
+        "text": "Tyskie",
+        "points": 13
+      },
+      {
+        "text": "Żubr",
+        "points": 12
+      },
+      {
+        "text": "Okocim",
+        "points": 11
+      },
+      {
+        "text": "Heineken",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Wymień marki kaw",
+    "answers": [
+      {
+        "text": "Prima",
+        "points": 25
+      },
+      {
+        "text": "Nescafe",
+        "points": 21
+      },
+      {
+        "text": "Tchibo",
+        "points": 18
+      },
+      {
+        "text": "Jacobs",
+        "points": 15
+      },
+      {
+        "text": "Lavazza",
+        "points": 12
+      },
+      {
+        "text": "Woseba",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Jakie mogą być pierogi?",
+    "answers": [
+      {
+        "text": "z mięsem",
+        "points": 30
+      },
+      {
+        "text": "ruskie",
+        "points": 25
+      },
+      {
+        "text": "z kapustą i grzybami",
+        "points": 20
+      },
+      {
+        "text": "z truskawkami",
+        "points": 15
+      },
+      {
+        "text": "ze szpinakiem",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Jakie jadalne grzyby rosną w lesie?",
+    "answers": [
+      {
+        "text": "borowiki",
+        "points": 25
+      },
+      {
+        "text": "kanie",
+        "points": 21
+      },
+      {
+        "text": "kurki",
+        "points": 18
+      },
+      {
+        "text": "maślaki",
+        "points": 15
+      },
+      {
+        "text": "rydze",
+        "points": 12
+      },
+      {
+        "text": "kozaki",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Znane drinki alkoholowe",
+    "answers": [
+      {
+        "text": "Mojito",
+        "points": 25
+      },
+      {
+        "text": "Krwawa Mary",
+        "points": 21
+      },
+      {
+        "text": "Sex on the beach",
+        "points": 18
+      },
+      {
+        "text": "Tequila Sunrise",
+        "points": 15
+      },
+      {
+        "text": "Martini",
+        "points": 12
+      },
+      {
+        "text": "Cosmopolitan",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Wymień popularne batony",
+    "answers": [
+      {
+        "text": "Mars",
+        "points": 25
+      },
+      {
+        "text": "Snickers",
+        "points": 21
+      },
+      {
+        "text": "Lion",
+        "points": 18
+      },
+      {
+        "text": "Milky Way",
+        "points": 15
+      },
+      {
+        "text": "Kit Kat",
+        "points": 12
+      },
+      {
+        "text": "Twix",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Wymień rodzaje orzechów",
+    "answers": [
+      {
+        "text": "włoski",
+        "points": 25
+      },
+      {
+        "text": "laskowy",
+        "points": 21
+      },
+      {
+        "text": "ziemny",
+        "points": 18
+      },
+      {
+        "text": "nerkowca",
+        "points": 15
+      },
+      {
+        "text": "kokos",
+        "points": 12
+      },
+      {
+        "text": "pistacja",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Co pijemy do śniadania?",
+    "answers": [
+      {
+        "text": "kawa",
+        "points": 30
+      },
+      {
+        "text": "herbata",
+        "points": 25
+      },
+      {
+        "text": "kakao",
+        "points": 20
+      },
+      {
+        "text": "sok",
+        "points": 15
+      },
+      {
+        "text": "mleko",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Wymień przekąski sprzedawane w kinie",
+    "answers": [
+      {
+        "text": "popcorn",
+        "points": 50
+      },
+      {
+        "text": "nachosy",
+        "points": 33
+      },
+      {
+        "text": "chipsy",
+        "points": 17
+      }
+    ]
+  },
+  {
+    "question": "W jakiej postaci najczęściej spożywamy jajka?",
+    "answers": [
+      {
+        "text": "jajecznica",
+        "points": 30
+      },
+      {
+        "text": "na miękko",
+        "points": 25
+      },
+      {
+        "text": "na twardo",
+        "points": 20
+      },
+      {
+        "text": "sadzone",
+        "points": 15
+      },
+      {
+        "text": "omlet",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Wymień warzywa na literę K",
+    "answers": [
+      {
+        "text": "kapusta",
+        "points": 30
+      },
+      {
+        "text": "kalafior",
+        "points": 25
+      },
+      {
+        "text": "kukurydza",
+        "points": 20
+      },
+      {
+        "text": "kalarepa",
+        "points": 15
+      },
+      {
+        "text": "kabaczek",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Popularne marki whisky",
+    "answers": [
+      {
+        "text": "Jack Daniels",
+        "points": 25
+      },
+      {
+        "text": "Johnnie Walker",
+        "points": 21
+      },
+      {
+        "text": "Jim Beam",
+        "points": 18
+      },
+      {
+        "text": "Ballantine's",
+        "points": 15
+      },
+      {
+        "text": "Grant's",
+        "points": 12
+      },
+      {
+        "text": "Jameson",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Wchodzi w skład włoszczyzny",
+    "answers": [
+      {
+        "text": "marchewka",
+        "points": 30
+      },
+      {
+        "text": "pietruszka",
+        "points": 25
+      },
+      {
+        "text": "por",
+        "points": 20
+      },
+      {
+        "text": "seler",
+        "points": 15
+      },
+      {
+        "text": "kapusta",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Wymień warzywa na literę P",
+    "answers": [
+      {
+        "text": "pietruszka",
+        "points": 40
+      },
+      {
+        "text": "pomidor",
+        "points": 30
+      },
+      {
+        "text": "papryka",
+        "points": 20
+      },
+      {
+        "text": "por",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Wymień owoce na literę A",
+    "answers": [
+      {
+        "text": "ananas",
+        "points": 40
+      },
+      {
+        "text": "arbuz",
+        "points": 30
+      },
+      {
+        "text": "agrest",
+        "points": 20
+      },
+      {
+        "text": "aronia",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Wymień owoce na literę B",
+    "answers": [
+      {
+        "text": "banan",
+        "points": 50
+      },
+      {
+        "text": "brzoskwinia",
+        "points": 33
+      },
+      {
+        "text": "borówka",
+        "points": 17
+      }
+    ]
+  },
+  {
+    "question": "Co według legend i popkultury może zaszkodzić wampirom?",
+    "answers": [
+      {
+        "text": "czosnek",
+        "points": 30
+      },
+      {
+        "text": "światło",
+        "points": 25
+      },
+      {
+        "text": "drewniany kołek",
+        "points": 20
+      },
+      {
+        "text": "krzyż",
+        "points": 15
+      },
+      {
+        "text": "srebro",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Rzeczy charakterystyczne dla czarownicy",
+    "answers": [
+      {
+        "text": "miotła",
+        "points": 25
+      },
+      {
+        "text": "czarny kot",
+        "points": 21
+      },
+      {
+        "text": "kapelusz",
+        "points": 18
+      },
+      {
+        "text": "krzywy nos",
+        "points": 15
+      },
+      {
+        "text": "kociołek",
+        "points": 12
+      },
+      {
+        "text": "różdżka",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Rodzaj przesądu/zabobonu",
+    "answers": [
+      {
+        "text": "czarny kot",
+        "points": 22
+      },
+      {
+        "text": "trzymanie kciuków",
+        "points": 18
+      },
+      {
+        "text": "stłuczenie lustra",
+        "points": 15
+      },
+      {
+        "text": "kominiarz i guzik",
+        "points": 13
+      },
+      {
+        "text": "czterolistna koniczyna",
+        "points": 12
+      },
+      {
+        "text": "przejście pod drabina",
+        "points": 11
+      },
+      {
+        "text": "siadanie na rogu stołu",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Symbole przynoszące szczęście",
+    "answers": [
+      {
+        "text": "czterolistna koniczyna",
+        "points": 25
+      },
+      {
+        "text": "podkowa",
+        "points": 21
+      },
+      {
+        "text": "słonik",
+        "points": 18
+      },
+      {
+        "text": "cyfra 7",
+        "points": 15
+      },
+      {
+        "text": "królicza łapka",
+        "points": 12
+      },
+      {
+        "text": "grosz",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Popularne prezenty na Pierwszą Komunię",
+    "answers": [
+      {
+        "text": "rower",
+        "points": 30
+      },
+      {
+        "text": "zegarek",
+        "points": 25
+      },
+      {
+        "text": "laptop",
+        "points": 20
+      },
+      {
+        "text": "pieniądze",
+        "points": 15
+      },
+      {
+        "text": "smartfon",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Wymień największe światowe religie",
+    "answers": [
+      {
+        "text": "chrześcijaństwo",
+        "points": 30
+      },
+      {
+        "text": "islam",
+        "points": 25
+      },
+      {
+        "text": "judaizm",
+        "points": 20
+      },
+      {
+        "text": "buddyzm",
+        "points": 15
+      },
+      {
+        "text": "hinduizm",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Symbole reprezentujące miłość",
+    "answers": [
+      {
+        "text": "serce",
+        "points": 25
+      },
+      {
+        "text": "amorek",
+        "points": 21
+      },
+      {
+        "text": "usta",
+        "points": 18
+      },
+      {
+        "text": "róża",
+        "points": 15
+      },
+      {
+        "text": "gołębie",
+        "points": 12
+      },
+      {
+        "text": "pierścionek",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Podaj najbardziej znane magiczne zaklęcia",
+    "answers": [
+      {
+        "text": "czary-mary",
+        "points": 50
+      },
+      {
+        "text": "abrakadabra",
+        "points": 33
+      },
+      {
+        "text": "hokus-pokus",
+        "points": 17
+      }
+    ]
+  },
+  {
+    "question": "Wymień bogów greckich",
+    "answers": [
+      {
+        "text": "Zeus",
+        "points": 22
+      },
+      {
+        "text": "Atena",
+        "points": 18
+      },
+      {
+        "text": "Posejdon",
+        "points": 15
+      },
+      {
+        "text": "Afrodyta",
+        "points": 13
+      },
+      {
+        "text": "Apollo",
+        "points": 12
+      },
+      {
+        "text": "Hades",
+        "points": 11
+      },
+      {
+        "text": "Artemida",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Atrybuty św. Mikołaja",
+    "answers": [
+      {
+        "text": "prezenty",
+        "points": 25
+      },
+      {
+        "text": "sanie",
+        "points": 21
+      },
+      {
+        "text": "czerwony strój",
+        "points": 18
+      },
+      {
+        "text": "renifery",
+        "points": 15
+      },
+      {
+        "text": "broda",
+        "points": 12
+      },
+      {
+        "text": "worek",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Mityczny potwór",
+    "answers": [
+      {
+        "text": "smok",
+        "points": 25
+      },
+      {
+        "text": "bazyliszek",
+        "points": 21
+      },
+      {
+        "text": "gryf",
+        "points": 18
+      },
+      {
+        "text": "cyklop",
+        "points": 15
+      },
+      {
+        "text": "syrena",
+        "points": 12
+      },
+      {
+        "text": "centaur",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Zarazem bóstwo i planeta",
+    "answers": [
+      {
+        "text": "Mars",
+        "points": 25
+      },
+      {
+        "text": "Wenus",
+        "points": 21
+      },
+      {
+        "text": "Neptun",
+        "points": 18
+      },
+      {
+        "text": "Jowisz",
+        "points": 15
+      },
+      {
+        "text": "Saturn",
+        "points": 12
+      },
+      {
+        "text": "Merkury",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Kto lub co spełnia życzenia?",
+    "answers": [
+      {
+        "text": "złota rybka",
+        "points": 40
+      },
+      {
+        "text": "wróżka",
+        "points": 30
+      },
+      {
+        "text": "dżin",
+        "points": 20
+      },
+      {
+        "text": "święty Mikołaj",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Imię jednego z Apostołów",
+    "answers": [
+      {
+        "text": "Piotr",
+        "points": 25
+      },
+      {
+        "text": "Paweł",
+        "points": 21
+      },
+      {
+        "text": "Jan",
+        "points": 18
+      },
+      {
+        "text": "Judasz",
+        "points": 15
+      },
+      {
+        "text": "Jakub",
+        "points": 12
+      },
+      {
+        "text": "Tomasz",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Sakramenty kościelne",
+    "answers": [
+      {
+        "text": "chrzest",
+        "points": 30
+      },
+      {
+        "text": "małżeństwo",
+        "points": 25
+      },
+      {
+        "text": "bierzmowanie",
+        "points": 20
+      },
+      {
+        "text": "eucharystia",
+        "points": 15
+      },
+      {
+        "text": "pokuta",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Postacie występujące w polskich legendach",
+    "answers": [
+      {
+        "text": "Syrenka",
+        "points": 30
+      },
+      {
+        "text": "Smok Wawelski",
+        "points": 25
+      },
+      {
+        "text": "Bazyliszek",
+        "points": 20
+      },
+      {
+        "text": "Popiel",
+        "points": 15
+      },
+      {
+        "text": "Pan Twardowski",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Atrybuty pirata",
+    "answers": [
+      {
+        "text": "opaska",
+        "points": 25
+      },
+      {
+        "text": "hak",
+        "points": 21
+      },
+      {
+        "text": "statek",
+        "points": 18
+      },
+      {
+        "text": "chusta",
+        "points": 15
+      },
+      {
+        "text": "szabla",
+        "points": 12
+      },
+      {
+        "text": "papuga",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Znaki zodiaku",
+    "answers": [
+      {
+        "text": "baran",
+        "points": 25
+      },
+      {
+        "text": "wodnik",
+        "points": 21
+      },
+      {
+        "text": "lew",
+        "points": 18
+      },
+      {
+        "text": "koziorożec",
+        "points": 15
+      },
+      {
+        "text": "waga",
+        "points": 12
+      },
+      {
+        "text": "ryby",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Z czego można wróżyć?",
+    "answers": [
+      {
+        "text": "z kart",
+        "points": 30
+      },
+      {
+        "text": "z ręki",
+        "points": 25
+      },
+      {
+        "text": "z fusów",
+        "points": 20
+      },
+      {
+        "text": "ze szklanej kuli",
+        "points": 15
+      },
+      {
+        "text": "z wosku",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Atrybut górnika",
+    "answers": [
+      {
+        "text": "kilof",
+        "points": 40
+      },
+      {
+        "text": "kask",
+        "points": 30
+      },
+      {
+        "text": "kopalnia",
+        "points": 20
+      },
+      {
+        "text": "lampka",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Wymień greckie litery",
+    "answers": [
+      {
+        "text": "alfa",
+        "points": 25
+      },
+      {
+        "text": "omega",
+        "points": 21
+      },
+      {
+        "text": "beta",
+        "points": 18
+      },
+      {
+        "text": "gamma",
+        "points": 15
+      },
+      {
+        "text": "delta",
+        "points": 12
+      },
+      {
+        "text": "epsilon",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Wymień wyrazy, które czytane od tyłu brzmią tak samo",
+    "answers": [
+      {
+        "text": "kajak",
+        "points": 30
+      },
+      {
+        "text": "oko",
+        "points": 25
+      },
+      {
+        "text": "Anna",
+        "points": 20
+      },
+      {
+        "text": "potop",
+        "points": 15
+      },
+      {
+        "text": "zakaz",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Mówi się, że można spać jak",
+    "answers": [
+      {
+        "text": "dziecko",
+        "points": 50
+      },
+      {
+        "text": "kamień",
+        "points": 33
+      },
+      {
+        "text": "suseł",
+        "points": 17
+      }
+    ]
+  },
+  {
+    "question": "Inaczej żart",
+    "answers": [
+      {
+        "text": "kawał",
+        "points": 30
+      },
+      {
+        "text": "dowcip",
+        "points": 25
+      },
+      {
+        "text": "suchar",
+        "points": 20
+      },
+      {
+        "text": "psikus",
+        "points": 15
+      },
+      {
+        "text": "anegdota",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Co możemy rozwiązać?",
+    "answers": [
+      {
+        "text": "sznurówki",
+        "points": 25
+      },
+      {
+        "text": "zadanie",
+        "points": 21
+      },
+      {
+        "text": "zagadkę",
+        "points": 18
+      },
+      {
+        "text": "krzyżówkę",
+        "points": 15
+      },
+      {
+        "text": "umowę",
+        "points": 12
+      },
+      {
+        "text": "problem",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Co może być ujemne?",
+    "answers": [
+      {
+        "text": "liczba",
+        "points": 25
+      },
+      {
+        "text": "saldo",
+        "points": 21
+      },
+      {
+        "text": "wynik",
+        "points": 18
+      },
+      {
+        "text": "temperatura",
+        "points": 15
+      },
+      {
+        "text": "Rh",
+        "points": 12
+      },
+      {
+        "text": "ładunek",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Co nie ma skrzydeł, a leci?",
+    "answers": [
+      {
+        "text": "balon",
+        "points": 30
+      },
+      {
+        "text": "czas",
+        "points": 25
+      },
+      {
+        "text": "muzyka",
+        "points": 20
+      },
+      {
+        "text": "latawiec",
+        "points": 15
+      },
+      {
+        "text": "krew z nosa",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Jaki może być pilot?",
+    "answers": [
+      {
+        "text": "do telewizora",
+        "points": 30
+      },
+      {
+        "text": "samolotu",
+        "points": 25
+      },
+      {
+        "text": "wycieczek",
+        "points": 20
+      },
+      {
+        "text": "do samochodu",
+        "points": 15
+      },
+      {
+        "text": "rajdowy",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Podaj część ciała na 3 litery",
+    "answers": [
+      {
+        "text": "oko",
+        "points": 40
+      },
+      {
+        "text": "nos",
+        "points": 30
+      },
+      {
+        "text": "udo",
+        "points": 20
+      },
+      {
+        "text": "ząb",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Do czego może być płyn?",
+    "answers": [
+      {
+        "text": "do szyb",
+        "points": 25
+      },
+      {
+        "text": "do mycia naczyń",
+        "points": 21
+      },
+      {
+        "text": "do spryskiwaczy",
+        "points": 18
+      },
+      {
+        "text": "do płukania",
+        "points": 15
+      },
+      {
+        "text": "do podłóg",
+        "points": 12
+      },
+      {
+        "text": "do kąpieli",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Słowo, którego używamy zamiast tak",
+    "answers": [
+      {
+        "text": "OK",
+        "points": 25
+      },
+      {
+        "text": "no",
+        "points": 21
+      },
+      {
+        "text": "dobrze",
+        "points": 18
+      },
+      {
+        "text": "owszem",
+        "points": 15
+      },
+      {
+        "text": "jasne",
+        "points": 12
+      },
+      {
+        "text": "oczywiście",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Podaj słowa, które zaczynają się na tele",
+    "answers": [
+      {
+        "text": "telefon",
+        "points": 25
+      },
+      {
+        "text": "telewizor",
+        "points": 21
+      },
+      {
+        "text": "telenowela",
+        "points": 18
+      },
+      {
+        "text": "telegram",
+        "points": 15
+      },
+      {
+        "text": "teleskop",
+        "points": 12
+      },
+      {
+        "text": "teleturniej",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Jaki może być rok?",
+    "answers": [
+      {
+        "text": "przestępny",
+        "points": 30
+      },
+      {
+        "text": "kalendarzowy",
+        "points": 25
+      },
+      {
+        "text": "szkolny",
+        "points": 20
+      },
+      {
+        "text": "liturgiczny",
+        "points": 15
+      },
+      {
+        "text": "świetlny",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Co zapada?",
+    "answers": [
+      {
+        "text": "zmrok",
+        "points": 40
+      },
+      {
+        "text": "wyrok",
+        "points": 30
+      },
+      {
+        "text": "decyzja",
+        "points": 20
+      },
+      {
+        "text": "cisza",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Co możemy rozbić?",
+    "answers": [
+      {
+        "text": "szkło",
+        "points": 40
+      },
+      {
+        "text": "jajko",
+        "points": 30
+      },
+      {
+        "text": "bank",
+        "points": 20
+      },
+      {
+        "text": "obóz",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Jak inaczej możemy nazwać mężczyznę?",
+    "answers": [
+      {
+        "text": "pan",
+        "points": 30
+      },
+      {
+        "text": "facet",
+        "points": 25
+      },
+      {
+        "text": "gość",
+        "points": 20
+      },
+      {
+        "text": "chłop",
+        "points": 15
+      },
+      {
+        "text": "typek",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Słowa zaczynające się na kom",
+    "answers": [
+      {
+        "text": "komórka",
+        "points": 25
+      },
+      {
+        "text": "komputer",
+        "points": 21
+      },
+      {
+        "text": "komedia",
+        "points": 18
+      },
+      {
+        "text": "komar",
+        "points": 15
+      },
+      {
+        "text": "komin",
+        "points": 12
+      },
+      {
+        "text": "komenda",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Co się pieni?",
+    "answers": [
+      {
+        "text": "piwo",
+        "points": 25
+      },
+      {
+        "text": "mydło",
+        "points": 21
+      },
+      {
+        "text": "szampon",
+        "points": 18
+      },
+      {
+        "text": "napój gazowany",
+        "points": 15
+      },
+      {
+        "text": "pasta do zębów",
+        "points": 12
+      },
+      {
+        "text": "płyn do naczyń",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Zawody na literę P",
+    "answers": [
+      {
+        "text": "policjant",
+        "points": 25
+      },
+      {
+        "text": "prawnik",
+        "points": 21
+      },
+      {
+        "text": "pilot",
+        "points": 18
+      },
+      {
+        "text": "polityk",
+        "points": 15
+      },
+      {
+        "text": "piłkarz",
+        "points": 12
+      },
+      {
+        "text": "pisarz",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Jak potocznie mówimy na pieniądze?",
+    "answers": [
+      {
+        "text": "forsa",
+        "points": 25
+      },
+      {
+        "text": "kasa",
+        "points": 21
+      },
+      {
+        "text": "hajs",
+        "points": 18
+      },
+      {
+        "text": "siano",
+        "points": 15
+      },
+      {
+        "text": "kapusta",
+        "points": 12
+      },
+      {
+        "text": "szmal",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Co można wysłać?",
+    "answers": [
+      {
+        "text": "list",
+        "points": 30
+      },
+      {
+        "text": "sms",
+        "points": 25
+      },
+      {
+        "text": "przesyłkę",
+        "points": 20
+      },
+      {
+        "text": "e-mail",
+        "points": 15
+      },
+      {
+        "text": "kwiaty",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Znany polski aktor",
+    "answers": [
+      {
+        "text": "Cezary Pazura",
+        "points": 25
+      },
+      {
+        "text": "Linda",
+        "points": 21
+      },
+      {
+        "text": "Żmijewski",
+        "points": 18
+      },
+      {
+        "text": "Szyc",
+        "points": 15
+      },
+      {
+        "text": "Maciej Stuhr",
+        "points": 12
+      },
+      {
+        "text": "Karolak",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Jeden z bohaterów Smerfów",
+    "answers": [
+      {
+        "text": "Papa Smerf",
+        "points": 25
+      },
+      {
+        "text": "Gargamel",
+        "points": 21
+      },
+      {
+        "text": "Smerfetka",
+        "points": 18
+      },
+      {
+        "text": "Ważniak",
+        "points": 15
+      },
+      {
+        "text": "Klakier",
+        "points": 12
+      },
+      {
+        "text": "Zgrywus",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Znana polska aktorka",
+    "answers": [
+      {
+        "text": "Kożuchowska",
+        "points": 25
+      },
+      {
+        "text": "Foremniak",
+        "points": 21
+      },
+      {
+        "text": "Figura",
+        "points": 18
+      },
+      {
+        "text": "Liszowska",
+        "points": 15
+      },
+      {
+        "text": "Mucha",
+        "points": 12
+      },
+      {
+        "text": "Dygant",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Bajka, której bohaterką jest mała dziewczynka",
+    "answers": [
+      {
+        "text": "Czerwony Kapturek",
+        "points": 30
+      },
+      {
+        "text": "Dziewczynka z zapałkami",
+        "points": 25
+      },
+      {
+        "text": "Calineczka",
+        "points": 20
+      },
+      {
+        "text": "Alicja w Krainie Czarów",
+        "points": 15
+      },
+      {
+        "text": "Jaś i Małgosia",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Wymień znanych reżyserów",
+    "answers": [
+      {
+        "text": "Spielberg",
+        "points": 25
+      },
+      {
+        "text": "Tarantino",
+        "points": 21
+      },
+      {
+        "text": "Wajda",
+        "points": 18
+      },
+      {
+        "text": "Hitchcock",
+        "points": 15
+      },
+      {
+        "text": "Jackson",
+        "points": 12
+      },
+      {
+        "text": "Polański",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Znane koty z bajek",
+    "answers": [
+      {
+        "text": "Garfield",
+        "points": 25
+      },
+      {
+        "text": "Klakier",
+        "points": 21
+      },
+      {
+        "text": "Tom",
+        "points": 18
+      },
+      {
+        "text": "Sylwester",
+        "points": 15
+      },
+      {
+        "text": "Filemon",
+        "points": 12
+      },
+      {
+        "text": "Kot w butach",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Nagrody filmowe",
+    "answers": [
+      {
+        "text": "Oscar",
+        "points": 30
+      },
+      {
+        "text": "Złoty Glob",
+        "points": 25
+      },
+      {
+        "text": "Cannes",
+        "points": 20
+      },
+      {
+        "text": "Złote Maliny",
+        "points": 15
+      },
+      {
+        "text": "Fryderyk",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Najbardziej znane rasy postaci z Władcy Pierścieni",
+    "answers": [
+      {
+        "text": "elfy",
+        "points": 30
+      },
+      {
+        "text": "hobbici",
+        "points": 25
+      },
+      {
+        "text": "ludzie",
+        "points": 20
+      },
+      {
+        "text": "krasnoludy",
+        "points": 15
+      },
+      {
+        "text": "orkowie",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Filmy, w których grał Leonardo DiCaprio",
+    "answers": [
+      {
+        "text": "Titanic",
+        "points": 30
+      },
+      {
+        "text": "Aviator",
+        "points": 25
+      },
+      {
+        "text": "Wielki Gatsby",
+        "points": 20
+      },
+      {
+        "text": "Wilk z Wall Street",
+        "points": 15
+      },
+      {
+        "text": "Django",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Atrybuty kojarzone z Indiana Jonesem",
+    "answers": [
+      {
+        "text": "kapelusz",
+        "points": 25
+      },
+      {
+        "text": "bat",
+        "points": 21
+      },
+      {
+        "text": "pistolet",
+        "points": 18
+      },
+      {
+        "text": "nóż",
+        "points": 15
+      },
+      {
+        "text": "mapa",
+        "points": 12
+      },
+      {
+        "text": "buty",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Główni bohaterowie Gwiezdnych Wojen",
+    "answers": [
+      {
+        "text": "Han Solo",
+        "points": 25
+      },
+      {
+        "text": "Yoda",
+        "points": 21
+      },
+      {
+        "text": "Luke",
+        "points": 18
+      },
+      {
+        "text": "Leia",
+        "points": 15
+      },
+      {
+        "text": "Darth Vader",
+        "points": 12
+      },
+      {
+        "text": "Chewbacca",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Do jakich seriali scenariusze napisała Ilona Łepkowska?",
+    "answers": [
+      {
+        "text": "M jak Miłość",
+        "points": 40
+      },
+      {
+        "text": "Na dobre i na złe",
+        "points": 30
+      },
+      {
+        "text": "Klan",
+        "points": 20
+      },
+      {
+        "text": "Barwy Szczęścia",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Jedne z największych romansów wszechczasów",
+    "answers": [
+      {
+        "text": "Romeo i Julia",
+        "points": 30
+      },
+      {
+        "text": "Przeminęło z wiatrem",
+        "points": 25
+      },
+      {
+        "text": "Duma i uprzedzenie",
+        "points": 20
+      },
+      {
+        "text": "Wichrowe wzgórza",
+        "points": 15
+      },
+      {
+        "text": "Anna Karenina",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Słynne dzieła Williama Shakespeare'a",
+    "answers": [
+      {
+        "text": "Romeo i Julia",
+        "points": 30
+      },
+      {
+        "text": "Hamlet",
+        "points": 25
+      },
+      {
+        "text": "Makbet",
+        "points": 20
+      },
+      {
+        "text": "Król Lear",
+        "points": 15
+      },
+      {
+        "text": "Otello",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "Kultowe filmy animowane",
+    "answers": [
+      {
+        "text": "Shrek",
+        "points": 25
+      },
+      {
+        "text": "Madagaskar",
+        "points": 21
+      },
+      {
+        "text": "Epoka lodowcowa",
+        "points": 18
+      },
+      {
+        "text": "Kraina lodu",
+        "points": 15
+      },
+      {
+        "text": "Toy Story",
+        "points": 12
+      },
+      {
+        "text": "Potwory i spółka",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Kultowe musicale filmowe",
+    "answers": [
+      {
+        "text": "Grease",
+        "points": 25
+      },
+      {
+        "text": "Skrzypek na dachu",
+        "points": 21
+      },
+      {
+        "text": "Deszczowa piosenka",
+        "points": 18
+      },
+      {
+        "text": "Upiór w operze",
+        "points": 15
+      },
+      {
+        "text": "Gorączka sobotniej nocy",
+        "points": 12
+      },
+      {
+        "text": "Chicago",
+        "points": 9
+      }
+    ]
+  }
+]

@@ -1,0 +1,8 @@
+{
+  "name": "Odliczanie",
+  "slides": [
+    { "type": "countdown", "minutes": 5 }
+  ],
+  "transition": "fade",
+  "loop": true
+}

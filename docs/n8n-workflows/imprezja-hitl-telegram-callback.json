@@ -1,0 +1,130 @@
+{
+  "name": "imprezja-hitl-telegram-callback",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Callback z Telegram (inline Akceptuj / Odrzuć)\n\n1. **Credential:** Telegram API (token bota) — ten sam co `TELEGRAM_BOT_TOKEN` w env dla HTTP w enqueue\n2. **Env:** `TELEGRAM_OPERATOR_CHAT_ID` — tylko ten chat obsługujemy\n3. **Po imporcie:** podłącz **Execute Workflow** do workflowu automail (kopia gałęzi Resend) albo wyślij mail ręcznie — szablon w docs\n4. **answerCallbackQuery** — poniżej HTTP, żeby zniknęło „loading” na przycisku",
+        "height": 380,
+        "width": 400
+      },
+      "id": "sticky-cb",
+      "name": "Sticky_Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-200, 0]
+    },
+    {
+      "parameters": {
+        "updates": ["callback_query"]
+      },
+      "id": "tg-tr-cb",
+      "name": "Telegram_Trigger_Callback",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "webhookId": "imprezja-hitl-callback-v1",
+      "notes": "Po imporcie: dodaj credential Telegram API (Access Token = TELEGRAM_BOT_TOKEN)."
+    },
+    {
+      "parameters": {
+        "jsCode": "const root = $input.first().json;\nconst u = root.callback_query || root;\nconst cqid = u.id != null ? u.id : null;\nif (!u || !u.data) return [{ json: { skip: true, callback_query_id: cqid, answer_text: 'Brak danych.' } }];\nconst data = String(u.data || '');\nconst fromId = u.from && u.from.id != null ? String(u.from.id) : '';\nlet allowed = '';\ntry { allowed = String($env.TELEGRAM_OPERATOR_CHAT_ID || '').trim(); } catch (e) {}\nif (!allowed || fromId !== allowed) {\n  return [{ json: { skip: true, callback_query_id: cqid, answer_text: 'Brak uprawnien.' } }];\n}\nlet action = '';\nlet leadId = '';\nif (data.startsWith('ap:')) { action = 'approve'; leadId = data.slice(3).trim(); }\nelse if (data.startsWith('rj:')) { action = 'reject'; leadId = data.slice(3).trim(); }\nelse return [{ json: { skip: true, callback_query_id: cqid, answer_text: 'Nieznana akcja.' } }];\nif (!leadId || leadId.length < 32) return [{ json: { skip: true, callback_query_id: cqid, answer_text: 'Zly ID.' } }];\nconst opId = u.from && u.from.id != null ? u.from.id : null;\nreturn [{ json: { skip: false, action, lead_id: leadId, callback_query_id: cqid, message_chat_id: u.message && u.message.chat ? u.message.chat.id : null, message_id: u.message && u.message.message_id, operator_telegram_user_id: opId } }];"
+      },
+      "id": "code-cb-parse",
+      "name": "Code_ParseCallback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "version": 2, "leftValue": "", "caseSensitive": true, "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "s1",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-skip",
+      "name": "If_Skip",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/answerCallbackQuery",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ callback_query_id: $json.callback_query_id, text: $json.answer_text || 'OK', show_alert: false }) }}",
+        "options": {}
+      },
+      "id": "http-answer-skip",
+      "name": "HTTP_AnswerCallback_Skip",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [920, 160]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE lead_queue SET status = $2, decided_at = NOW(), decided_by_chat_id = $3::bigint WHERE id = $1::uuid AND status = 'pending' RETURNING *",
+        "options": {
+          "queryReplacement": "={{ [$json.lead_id, $json.action === 'approve' ? 'approved' : 'rejected', Number($json.operator_telegram_user_id)] }}"
+        }
+      },
+      "id": "pg-update",
+      "name": "Postgres_UpdateStatus",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [920, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/answerCallbackQuery",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ callback_query_id: $('Code_ParseCallback').first().json.callback_query_id, text: $('Code_ParseCallback').first().json.action === 'approve' ? 'Zatwierdzono' : 'Odrzucono', show_alert: false }) }}",
+        "options": {}
+      },
+      "id": "http-answer-ok",
+      "name": "HTTP_AnswerCallback_OK",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1140, 400]
+    },
+    {
+      "parameters": {
+        "content": "## Dalej: Execute Workflow\n\nTu wklej **Execute Workflow** z ID kopii automail (tylko gałąź oferty) albo **HTTP Request** do wewnętrznego webhooka z `payload_json` z RETURNING.",
+        "height": 200,
+        "width": 320
+      },
+      "id": "sticky-exec",
+      "name": "Sticky_ExecuteNext",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1320, 360]
+    }
+  ],
+  "connections": {
+    "Telegram_Trigger_Callback": { "main": [[{ "node": "Code_ParseCallback", "type": "main", "index": 0 }]] },
+    "Code_ParseCallback": { "main": [[{ "node": "If_Skip", "type": "main", "index": 0 }]] },
+    "If_Skip": {
+      "main": [
+        [{ "node": "HTTP_AnswerCallback_Skip", "type": "main", "index": 0 }],
+        [{ "node": "Postgres_UpdateStatus", "type": "main", "index": 0 }]
+      ]
+    },
+    "Postgres_UpdateStatus": { "main": [[{ "node": "HTTP_AnswerCallback_OK", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": { "templateCredsSetupCompleted": false }
+}

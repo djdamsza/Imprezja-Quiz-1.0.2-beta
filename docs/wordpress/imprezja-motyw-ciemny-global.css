@@ -1,0 +1,227 @@
+/* ===== IMPREZJA.PL – MOTYW CIEMNY GLOBALNY =====
+   Wklej do: Wygląd → Dostosuj → Dodatkowy CSS
+   Czarne tło, czcionki dopasowane do ciemności, cienie w odcieniach szarości.
+*/
+
+/* --- Zmienne (referencja) ---
+   Tło: #0a0a0a, #161616
+   Tekst: #f5f0e8, #c4b8a3
+   Akcent: #fcb424
+   Cienie: rgba(0,0,0,0.3–0.6)
+*/
+
+/* === TŁO GŁÓWNE === */
+body,
+.site,
+#page {
+  background-color: #0a0a0a !important;
+  color: #f5f0e8 !important;
+}
+
+/* === TYPOGRAFIA === */
+body,
+.entry-content,
+.site-main,
+.wp-block-post-content,
+h1, h2, h3, h4, h5, h6 {
+  color: #f5f0e8 !important;
+}
+
+p, li, span {
+  color: #e8e4dc !important;
+}
+
+/* Nagłówki – delikatnie jaśniejsze */
+h1, h2, h3, h4, h5, h6 {
+  color: #f5f0e8 !important;
+}
+
+/* Tekst drugoplanowy / etykiety */
+small, .wp-block-post-excerpt, .entry-meta, .posted-on, .byline {
+  color: #a8a399 !important;
+}
+
+/* === LINKI === */
+a {
+  color: #fcb424 !important;
+}
+
+a:hover {
+  color: #ffc94d !important;
+}
+
+/* === BLOKI – tło i cienie === */
+.wp-block-group,
+.wp-block-cover,
+.wp-block-columns > .wp-block-column,
+.entry-content > .wp-block-group,
+.entry-content > .wp-block-cover,
+.entry-content > .wp-block-columns {
+  background-color: #161616 !important;
+  border: 1px solid #2a2a2a !important;
+  border-radius: 14px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Bloki z paddingiem */
+.wp-block-group.has-background,
+.wp-block-cover.has-background {
+  background-color: #1a1a1a !important;
+  border-color: #333 !important;
+}
+
+/* === ZDJĘCIA – cienie i ramka === */
+.wp-block-image img,
+figure img,
+.entry-content img,
+.wp-block-post-featured-image img {
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 2px 12px rgba(0, 0, 0, 0.3) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Większe zdjęcia – mocniejszy cień */
+.wp-block-image.is-style-rounded img,
+.wp-block-post-featured-image img {
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* === TABELA PORÓWNAWCZA (imprezja-custom.css) === */
+.tabela-porownawcza-wrapper {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4) !important;
+}
+
+.tabela-porownawcza-wrapper th,
+.tabela-porownawcza-wrapper td {
+  border-color: #333 !important;
+}
+
+.tabela-porownawcza-wrapper thead th {
+  background-color: #fcb424 !important;
+  color: #1a1208 !important;
+}
+
+.tabela-porownawcza-wrapper tbody th {
+  background-color: #1f1f1f !important;
+  color: #e8e4dc !important;
+}
+
+.tabela-porownawcza-wrapper tbody td {
+  background-color: #161616 !important;
+  color: #e8e4dc !important;
+}
+
+/* === PRZYCISKI === */
+.wp-block-button__link,
+button,
+input[type="submit"] {
+  background-color: #fcb424 !important;
+  color: #1a1208 !important;
+  border: none !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
+}
+
+.wp-block-button__link:hover,
+button:hover,
+input[type="submit"]:hover {
+  background-color: #ffc94d !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* === POLA FORMULARZA === */
+input[type="text"],
+input[type="email"],
+input[type="tel"],
+input[type="url"],
+textarea,
+select {
+  background-color: #2a2a2a !important;
+  border: 1px solid #3a3a3a !important;
+  color: #f5f0e8 !important;
+  border-radius: 10px;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #6b6b6b !important;
+}
+
+/* === CYTATY / QUOTE === */
+.wp-block-quote,
+blockquote {
+  background-color: #161616 !important;
+  border-left: 4px solid #fcb424 !important;
+  color: #e8e4dc !important;
+  border-radius: 0 12px 12px 0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* === LISTY === */
+.wp-block-list li::marker {
+  color: #fcb424;
+}
+
+/* === NAGŁÓWEK / FOOTER (jeśli w motywie) === */
+.site-header,
+.header-wrap,
+#masthead {
+  background-color: #0a0a0a !important;
+  border-bottom: 1px solid #2a2a2a !important;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.3) !important;
+}
+
+.site-footer,
+#colophon,
+.footer-wrap {
+  background-color: #0a0a0a !important;
+  border-top: 1px solid #2a2a2a !important;
+  color: #a8a399 !important;
+}
+
+/* === KARTY / CARD (Kadence, Spectra) === */
+.wp-block-kadence-rowlayout,
+.wp-block-uagb-column,
+.kb-advanced-column {
+  background-color: #161616 !important;
+  border: 1px solid #2a2a2a !important;
+  border-radius: 14px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* === REKOMENDACJE (Trustindex) – jeśli używane === */
+.rekomendacje-wrap,
+.rekomendacje-section {
+  background-color: #161616 !important;
+  border: 1px solid #2a2a2a !important;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* === CENNIK STRIPE – karty === */
+#imprezja-cennik-stripe .imprezja-cennik-grid > div {
+  background-color: #161616 !important;
+  border: 1px solid #2a2a2a !important;
+  color: #f5f0e8 !important;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* === SCROLLBAR (opcjonalnie) === */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #3a3a3a;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4a4a4a;
+}

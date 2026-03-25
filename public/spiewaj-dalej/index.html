@@ -100,7 +100,12 @@
         .bank-tab { padding: 8px 14px; border-radius: 8px; border: 2px solid var(--border); background: rgba(0,0,0,0.3); color: #fff; cursor: pointer; font-size: 0.9rem; }
         .bank-tab:hover { border-color: var(--accent2); }
         .bank-tab.active { border-color: var(--accent); background: rgba(231,76,60,0.2); }
+        html.editor-first .intro-view { display: none !important; }
+        html.editor-first .editor-section { display: block !important; }
     </style>
+    <script>
+        (function(){ if (/\beditor=1\b/.test(location.search)) document.documentElement.classList.add('editor-first'); })();
+    </script>
 </head>
 <body>
     <div class="container">
@@ -180,6 +185,8 @@
     <script>
         if (location.protocol === 'file:') {
             document.body.innerHTML = '<div class="container" style="padding:40px;text-align:center;"><h1>⚠️ Otwórz przez serwer</h1><p><a href="http://127.0.0.1:3000/spiewaj-dalej.html" style="color:#e74c3c;">http://127.0.0.1:3000/spiewaj-dalej.html</a></p></div>';
+        } else if (!new URLSearchParams(location.search).get('editor')) {
+            location.replace(location.pathname + '?editor=1' + (location.hash || ''));
         } else {
         const socket = io();
         let config = { banks: [] };
@@ -197,12 +204,13 @@
         function getCurrentTracks() { const b = getCurrentBank(); return b ? (b.tracks || []) : []; }
 
         const RGB_16 = ['#000000','#ffffff','#808080','#c0c0c0','#800000','#ff0000','#800080','#ff00ff','#008000','#00ff00','#808000','#ffff00','#000080','#0000ff','#008080','#00ffff'];
+        const fromEditor = new URLSearchParams(location.search).get('editor');
 
         socket.emit('spiewaj_dalej_join_screen');
         socket.on('spiewaj_dalej_state', (s) => {
             updateIntroButtonsForActive(!!s.active);
             if (s.active) { loadQRData(); showQRMode(); }
-            else showIntroMode();
+            else (fromEditor ? showEditorMode : showIntroMode)();
         });
         let spiewajCurrentTrackId = null;
         let progressInterval = null;
@@ -272,7 +280,7 @@
             };
             a.play().catch(e => console.warn('Audio:', e));
         });
-        socket.on('spiewaj_dalej_stop', (payload) => {
+        const doSpiewajStop = (payload) => {
             const a = document.getElementById('spiewaj-audio');
             const trackId = spiewajCurrentTrackId;
             if (!a || a.paused) {
@@ -281,10 +289,10 @@
                 return;
             }
             spiewajCurrentTrackId = null;
-            fadeOutAndStop(a, 1500, () => {
-                if (trackId) socket.emit('spiewaj_dalej_ended', { trackId });
-            });
-        });
+            fadeOutAndStop(a, 500, () => { if (trackId) socket.emit('spiewaj_dalej_ended', { trackId }); });
+        };
+        socket.on('spiewaj_dalej_stop', doSpiewajStop);
+        socket.on('admin_stop_music', () => doSpiewajStop({}));
         socket.on('spiewaj_dalej_volume', (v) => {
             const vol = Math.max(0, Math.min(1, v));
             if (spiewajGainNode) {
@@ -723,7 +731,7 @@
 
         async function stopSpiewajDalej() {
             await fetch('/api/spiewaj-dalej/stop', { method: 'POST' });
-            showIntroMode();
+            (fromEditor ? showEditorMode : showIntroMode)();
         }
 
         document.getElementById('config-select').addEventListener('change', (e) => loadConfigByName(e.target.value));
@@ -745,7 +753,7 @@
             if (btn && btn.classList.contains('intro-btn-stop')) stopSpiewajDalej();
             else startSpiewajDalej();
         });
-        document.getElementById('btn-zamknij-editor').addEventListener('click', showIntroMode);
+        document.getElementById('btn-zamknij-editor').addEventListener('click', () => { window.location.href = '/start.html'; });
         document.getElementById('lte-start-btn')?.addEventListener('click', () => {
             const status = document.getElementById('qr-lte-status');
             if (status) status.textContent = 'Uruchamianie tunelu...';

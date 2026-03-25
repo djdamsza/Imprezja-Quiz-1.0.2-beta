@@ -14,6 +14,7 @@ const path = require('path');
 const os = require('os');
 
 const LICENSE_FILE = path.join(os.homedir(), '.imprezja-license');
+const LICENSE_CACHE_FILE = path.join(os.homedir(), '.imprezja-license-cache');
 /** Główny plik trialu – odinstalowanie aplikacji go nie usuwa. Usunięcie przez użytkownika jest wykrywane dzięki zapasowemu rekordowi. */
 const TRIAL_START_FILE = path.join(os.homedir(), '.imprezja-trial-start');
 const TRIAL_DAYS = 14;
@@ -90,10 +91,48 @@ const LICENSE_TYPE_LABELS = {
 };
 
 function getMachineId() {
-    /* Hostname jest stabilny – nie zmienia się przy zmianie WiFi/VPN. MAC-e mogą się zmieniać. */
     const hostname = require('os').hostname();
     const platform = process.platform;
     return crypto.createHash('sha256').update(`${hostname}-${platform}`).digest('hex').substring(0, 16);
+}
+
+/** Alternatywne ID – gdy hostname się zmienia (np. różne sieci), licencja może pasować do któregoś */
+function getMachineIdAlternatives() {
+    const ids = [getMachineId()];
+    if (process.platform === 'darwin') {
+        try {
+            const { execSync } = require('child_process');
+            const out = execSync('system_profiler SPHardwareDataType 2>/dev/null | grep "Hardware UUID"', { encoding: 'utf8', timeout: 3000 });
+            const m = out.match(/Hardware UUID:\s*(.+)/);
+            if (m && m[1].trim()) {
+                const hwId = crypto.createHash('sha256').update(m[1].trim().toLowerCase()).digest('hex').substring(0, 16);
+                if (!ids.includes(hwId)) ids.push(hwId);
+            }
+        } catch (_) {}
+    } else if (process.platform === 'win32') {
+        try {
+            const { execSync } = require('child_process');
+            const out = execSync('wmic csproduct get uuid', { encoding: 'utf8', timeout: 3000 });
+            const m = out.match(/UUID\s+([a-fA-F0-9-]+)/);
+            if (m && m[1]) {
+                const hwId = crypto.createHash('sha256').update(m[1].trim().toLowerCase()).digest('hex').substring(0, 16);
+                if (!ids.includes(hwId)) ids.push(hwId);
+            }
+        } catch (_) {}
+    } else {
+        try {
+            const { execSync } = require('child_process');
+            const machineId = '/etc/machine-id';
+            if (fs.existsSync(machineId)) {
+                const out = fs.readFileSync(machineId, 'utf8').trim();
+                if (out) {
+                    const hwId = crypto.createHash('sha256').update(out).digest('hex').substring(0, 16);
+                    if (!ids.includes(hwId)) ids.push(hwId);
+                }
+            }
+        } catch (_) {}
+    }
+    return ids;
 }
 
 const TRIAL_FORMAT_VERSION = 3; /* hostname zamiast MAC – stabilny przy zmianie sieci */
@@ -174,6 +213,11 @@ function base64urlDecode(str) {
     return Buffer.from(b64 + (pad ? '='.repeat(4 - pad) : ''), 'base64');
 }
 
+/** 16 znaków hex — jedyny poprawny format „m” w kluczu RSA (tak jak w UI programu). */
+function isCanonicalHexMachineId(s) {
+    return typeof s === 'string' && /^[a-fA-F0-9]{16}$/.test(s.trim());
+}
+
 /** Weryfikacja formatu RSA: IMPREZJA-RSA-{base64url(payload)}.{base64url(signature)} */
 function verifyRSAFormat(licenseKey) {
     const match = licenseKey.match(/^IMPREZJA-RSA-([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)$/);
@@ -189,9 +233,20 @@ function verifyRSAFormat(licenseKey) {
         if (!verify.verify(PUBLIC_KEY_PEM, signature)) {
             return { valid: false, reason: 'Nieprawidłowy podpis klucza' };
         }
-        const machineId = getMachineId();
-        if (payload.m !== machineId) {
-            return { valid: false, reason: 'Klucz nie pasuje do tego komputera' };
+        const machineIds = getMachineIdAlternatives();
+        const payloadM = payload.m != null ? String(payload.m).trim() : '';
+        const norm = (x) => String(x).trim().toLowerCase();
+        const matches = machineIds.some((mid) => norm(mid) === norm(payloadM));
+        if (!matches) {
+            const localList = machineIds.join(', ');
+            const badFormat = payloadM && !isCanonicalHexMachineId(payloadM);
+            let reason = `Klucz został wygenerowany dla innego ID niż ten komputer. W programie: ${localList}. W kluczu zapisano: ${payloadM || '(brak)'}.`;
+            if (badFormat) {
+                reason += ' To ID w kluczu nie wygląda na poprawne (oczekiwane: dokładnie 16 znaków 0–9 i a–f z okna licencji). Przy zamówieniu wklej ID ze skrzynki programu — bez zmian.';
+            } else {
+                reason += ' Poproś wydawcę o nowy klucz wygenerowany dla powyższego ID z Twojego programu.';
+            }
+            return { valid: false, reason };
         }
         const type = payload.t || 'LT';
         if (!['LT', '1M', '3M', '6M', '1Y'].includes(type)) {
@@ -227,10 +282,10 @@ function verifyLicenseKey(licenseKey) {
     const oldFormatMatch = keyUpper.match(/^IMPREZJA-([A-Z0-9]{4})-([A-Z0-9]{4})-([A-Z0-9]{4})-([A-Z0-9]{4})$/);
     if (oldFormatMatch) {
         const keyParts = keyUpper.replace(/IMPREZJA-?/g, '').split('-').join('');
-        const machineId = getMachineId();
-        const expectedHash = crypto.createHash('sha256').update(`IMPREZJA-${machineId}`).digest('hex').substring(0, 16).toUpperCase();
+        const machineIds = getMachineIdAlternatives();
         const keyHash = keyParts.substring(0, 16);
-        if (keyHash === expectedHash) {
+        const matches = machineIds.some(mid => crypto.createHash('sha256').update(`IMPREZJA-${mid}`).digest('hex').substring(0, 16).toUpperCase() === keyHash);
+        if (matches) {
             return { valid: true, type: 'LT', typeLabel: 'dożywotnia', expires: null };
         }
         return { valid: false, reason: 'Klucz nie pasuje do tego komputera' };
@@ -244,6 +299,8 @@ function saveLicenseKey(licenseKey) {
         const verification = verifyLicenseKey(licenseKey);
         if (!verification.valid) return false;
 
+        licenseCache = null;
+        try { if (fs.existsSync(LICENSE_CACHE_FILE)) fs.unlinkSync(LICENSE_CACHE_FILE); } catch (_) {}
         const activated = Date.now();
         let expires = null;
         if (verification.type && LICENSE_TYPES[verification.type]) {
@@ -267,14 +324,51 @@ function saveLicenseKey(licenseKey) {
     }
 }
 
+/** Cache wyniku walidacji – walidacja raz, działanie offline. Nie blokujemy przy braku internetu. */
+let licenseCache = null;
+
+function readLicenseCacheFromDisk() {
+    try {
+        if (!fs.existsSync(LICENSE_CACHE_FILE)) return null;
+        const data = JSON.parse(fs.readFileSync(LICENSE_CACHE_FILE, 'utf8'));
+        if (!data || !data.valid || data.type === 'trial') return null;
+        return data;
+    } catch (_) {
+        return null;
+    }
+}
+
+function writeLicenseCacheToDisk(status) {
+    try {
+        if (!status || status.type === 'trial') return;
+        const toWrite = {
+            valid: status.valid,
+            type: status.type,
+            typeLabel: status.typeLabel,
+            expires: status.expires,
+            cachedAt: Date.now()
+        };
+        fs.writeFileSync(LICENSE_CACHE_FILE, JSON.stringify(toWrite, null, 0), 'utf8');
+    } catch (_) {}
+}
+
 function checkLicense() {
+    const now = Date.now();
+
+    /* 1. Użyj cache w pamięci jeśli mamy ważny wynik */
+    if (licenseCache && licenseCache.valid) {
+        const expires = licenseCache.expires;
+        if (!expires) return licenseCache;
+        if (now < expires) return licenseCache;
+        licenseCache = null;
+    }
+
     try {
         if (fs.existsSync(LICENSE_FILE)) {
             const data = JSON.parse(fs.readFileSync(LICENSE_FILE, 'utf8'));
             const verification = verifyLicenseKey(data.key);
 
             if (verification.valid) {
-                const now = Date.now();
                 const expires = data.expires || verification.expires;
                 if (expires && expires < now) {
                     return {
@@ -284,17 +378,44 @@ function checkLicense() {
                         trial: checkTrialPeriod()
                     };
                 }
-                return {
+                const status = {
                     valid: true,
                     type: verification.type || data.type || 'full',
                     typeLabel: verification.typeLabel || data.typeLabel || 'pełna',
                     expires: data.expires || null,
                     activated: data.activated
                 };
+                if (status.type !== 'trial') {
+                    licenseCache = status;
+                    writeLicenseCacheToDisk(status);
+                }
+                return status;
+            }
+        }
+        /* Plik nie istnieje lub weryfikacja nie przeszła – spróbuj cache z dysku */
+        const diskCache = readLicenseCacheFromDisk();
+        if (diskCache && diskCache.valid) {
+            const expires = diskCache.expires;
+            if (!expires || now < expires) {
+                licenseCache = diskCache;
+                return diskCache;
             }
         }
     } catch (err) {
         console.warn('⚠️ Błąd odczytu licencji:', err.message);
+        /* Przy błędzie – użyj cache (pamięć lub dysk) */
+        if (licenseCache && licenseCache.valid) {
+            const expires = licenseCache.expires;
+            if (!expires || now < expires) return licenseCache;
+        }
+        const diskCache = readLicenseCacheFromDisk();
+        if (diskCache && diskCache.valid) {
+            const expires = diskCache.expires;
+            if (!expires || now < expires) {
+                licenseCache = diskCache;
+                return diskCache;
+            }
+        }
     }
 
     const trial = checkTrialPeriod();
@@ -313,6 +434,7 @@ module.exports = {
     saveLicenseKey,
     checkTrialPeriod,
     getMachineId,
+    getMachineIdAlternatives,
     TRIAL_DAYS,
     LICENSE_TYPES,
     LICENSE_TYPE_LABELS

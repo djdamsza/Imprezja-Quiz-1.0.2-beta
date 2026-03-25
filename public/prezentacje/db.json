@@ -1,0 +1,8 @@
+{
+  "name": "dB",
+  "slides": [
+    { "type": "dbmeter" }
+  ],
+  "transition": "fade",
+  "loop": true
+}

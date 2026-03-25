@@ -4,10 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Bitwa wokalna – Panel</title>
-    <link rel="icon" href="data:,">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico"><link rel="icon" type="image/png" sizes="32x32" href="/img/icon-32.png"><link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
     <script src="/socket.io/socket.io.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        .track-item, .track-item * { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+        .track-item { touch-action: manipulation; }
         html { width: 100%; height: 100%; -webkit-text-size-adjust: 100%; overflow-x: hidden; }
         html.fullscreen, html:fullscreen, html:-webkit-full-screen { width: 100vw; height: 100vh; height: 100dvh; overflow: auto; -webkit-overflow-scrolling: touch; }
         body {
@@ -77,7 +79,7 @@
             border: 2px solid rgba(255,255,255,0.15);
             cursor: pointer;
             transition: transform 0.1s;
-            font-size: 1.4rem;
+            font-size: 1.12rem;
             font-weight: 600;
             line-height: 1.3;
             text-align: center;
@@ -91,6 +93,7 @@
             transition: background 0.15s linear;
         }
         .track-item .track-label { position: relative; z-index: 1; }
+        .track-item .track-icon { font-size: 1.1rem; margin-right: 6px; opacity: 0.9; }
         .track-item:active { transform: scale(0.98); }
         .track-item.playing { border-color: #9b59b6; box-shadow: 0 0 0 2px rgba(155,89,182,0.5); }
         .wait-screen {
@@ -240,10 +243,11 @@
                 } else {
                     bgStyle = color;
                 }
+                const icon = isPlaying ? '⏸' : '▶';
                 return `
-                    <div class="track-item ${isUsed ? 'used' : ''} ${isPlaying ? 'playing' : ''}" data-id="${t.id}" onclick="handleTrackClick('${t.id}')">
+                    <div class="track-item ${isUsed ? 'used' : ''} ${isPlaying ? 'playing' : ''}" data-id="${t.id}">
                         <div class="track-bg" style="background:${bgStyle}"></div>
-                        <span class="track-label">${label}</span>
+                        <span class="track-label"><span class="track-icon">${icon}</span> ${label}</span>
                     </div>
                 `;
             }).join('');
@@ -257,23 +261,38 @@
             render();
         }
 
+        let didSwipe = false;
         document.getElementById('tracks').addEventListener('touchstart', (e) => {
             touchStartX = e.touches[0].clientX;
             touchStartY = e.touches[0].clientY;
+            didSwipe = false;
         }, { passive: true });
         document.getElementById('tracks').addEventListener('touchend', (e) => {
+            if (!e.changedTouches || !e.changedTouches[0]) return;
             const dx = e.changedTouches[0].clientX - touchStartX;
             const dy = e.changedTouches[0].clientY - touchStartY;
             if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) {
+                didSwipe = true;
                 goToBank(dx > 0 ? -1 : 1);
             }
         }, { passive: true });
+        document.getElementById('tracks').addEventListener('click', (e) => {
+            if (didSwipe) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const item = e.target.closest('.track-item[data-id]');
+            if (item && item.dataset.id) handleTrackClick(item.dataset.id);
+        });
+        document.getElementById('tracks').addEventListener('contextmenu', (e) => {
+            if (e.target.closest('.track-item')) e.preventDefault();
+        });
 
         function handleTrackClick(id) {
             if (!active) return;
             if (justStoppedId === id) return; // ignoruj kliknięcie tuż po stop (zapobiega stop->play)
             if (playingTrackId === id) {
                 socket.emit('bitwa_wokalna_stop', id);
+                playingTrackId = null;
                 trackProgress[id] = 0;
                 justStoppedId = id;
                 setTimeout(() => { justStoppedId = null; }, 2000);

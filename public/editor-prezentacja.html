@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edytor prezentacji – Imprezja</title>
+    <link rel="icon" href="/favicon.ico">
+    <link rel="stylesheet" href="/reveal/reveal.css">
+    <link rel="stylesheet" href="/reveal/theme/black.css">
+    <link rel="stylesheet" href="/css/admin-editor-shared.css">
+    <style>
+        :root { --bg: var(--imp-bg); --glass: var(--imp-glass); --border: var(--imp-border); --accent: var(--imp-accent); }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: var(--imp-font); background: var(--imp-bg); color: var(--imp-text); min-height: 100vh; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; background: var(--imp-glass); padding: 30px; border-radius: 12px; border: 1px solid var(--imp-border); backdrop-filter: blur(10px); }
+        h1 { color: var(--imp-accent); margin-bottom: 20px; font-size: 1.5rem; }
+        .toolbar { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; align-items: center; }
+        .btn { padding: 10px 18px; border-radius: 8px; border: 1px solid var(--border); background: var(--glass); color: #fff; font-weight: 600; cursor: pointer; font-size: 14px; }
+        .btn:hover { background: rgba(241,196,15,0.2); border-color: var(--accent); }
+        .btn-primary { background: linear-gradient(135deg, #f1c40f, #e67e22); color: #000; border: none; }
+        .section { background: var(--glass); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+        .section h2 { font-size: 1rem; color: var(--accent); margin-bottom: 16px; }
+        .slide-list { display: flex; flex-direction: column; gap: 12px; }
+        .slide-item { display: flex; align-items: center; gap: 12px; padding: 12px; background: rgba(0,0,0,0.3); border-radius: 8px; border: 1px solid var(--border); }
+        .slide-item .thumb { width: 80px; height: 50px; object-fit: cover; border-radius: 4px; background: #333; }
+        .slide-item .info { flex: 1; min-width: 0; }
+        .slide-item .type { font-size: 0.75rem; color: rgba(255,255,255,0.6); }
+        .slide-item .content { font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .slide-item .actions { display: flex; gap: 6px; }
+        .slide-item .actions button { padding: 6px 10px; font-size: 12px; }
+        .form-row { margin-bottom: 12px; }
+        .form-row label { display: block; font-size: 0.85rem; color: rgba(255,255,255,0.8); margin-bottom: 4px; }
+        .form-row input, .form-row select, .form-row textarea { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border); background: rgba(0,0,0,0.3); color: #fff; font-size: 14px; }
+        .form-row input[type="checkbox"] { width: auto; flex-shrink: 0; }
+        .form-row label.checkbox-row { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+        .form-row textarea { min-height: 80px; resize: vertical; }
+        .back-link { display: inline-block; margin-bottom: 20px; color: var(--accent); text-decoration: none; font-weight: 600; }
+        .back-link:hover { text-decoration: underline; }
+        .transition-opts { display: flex; flex-wrap: wrap; gap: 8px; }
+        .transition-opts label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+        .transition-opts input { width: auto; }
+    </style>
+</head>
+<body class="imp-admin-editor">
+    <div class="container">
+    <a href="/start.html" class="back-link imp-back-link">← Powrót</a>
+    <h1>📽️ Edytor prezentacji</h1>
+
+    <div class="toolbar">
+        <a href="/admin-pwa.html" target="_blank" rel="noopener" class="btn" title="Opcjonalny panel admin (Quiz, Familiada itd.)">💻 Panel admin</a>
+        <input type="text" id="preset-name" placeholder="Nazwa prezentacji (np. Prezentacja 1)" style="padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:rgba(0,0,0,0.3);color:#fff;min-width:200px;">
+        <select id="preset-select" style="padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:rgba(0,0,0,0.3);color:#fff;min-width:200px;">
+            <option value="">— Wybierz istniejącą —</option>
+        </select>
+        <button type="button" class="btn btn-primary" id="btn-save">💾 Zapisz</button>
+        <button type="button" class="btn" id="btn-save-as">💾 Zapisz jako</button>
+        <button type="button" class="btn" id="btn-load">📂 Załaduj</button>
+        <button type="button" class="btn" id="btn-delete" style="background:rgba(231,76,60,0.3);border-color:#e74c3c;">🗑 Usuń</button>
+    </div>
+
+    <div class="section">
+        <h2>🖼 Logo (nakładki LOGO, LOGO BOUNCER, slajd Logo Bouncer)</h2>
+        <div class="form-row">
+            <label>Plik logo (PNG bez tła najlepiej)</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                <input type="text" id="preset-logo" placeholder="/img/logo_imprezja.png" style="flex:1;min-width:200px;">
+                <button type="button" class="btn" id="btn-browse-preset-logo">📁 Wybierz plik</button>
+            </div>
+            <p style="font-size:0.8rem;color:rgba(255,255,255,0.6);margin-top:12px;">Zmiana logo aktualizuje nakładki LOGO i LOGO BOUNCER w panelu prezentacji oraz slajdy Logo Bouncer (gdy nie mają własnego pliku).</p>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🎵 Tło muzyczne</h2>
+        <div class="form-row">
+            <label>Plik audio (opcjonalnie)</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                <input type="text" id="preset-bg-music" placeholder="/uploads/muzyka.mp3 lub URL" style="flex:1;min-width:200px;">
+                <button type="button" class="btn" id="btn-browse-music">📁 Wybierz plik</button>
+            </div>
+        </div>
+        <div class="form-row"><label class="checkbox-row"><input type="checkbox" id="preset-bg-loop" checked> Odtwarzaj w pętli</label></div>
+    </div>
+
+    <div class="section">
+        <h2>Przejścia (Reveal.js)</h2>
+        <div class="transition-opts" id="transition-opts">
+            <label><input type="radio" name="transition" value="none"> Brak</label>
+            <label><input type="radio" name="transition" value="fade" checked> Fade</label>
+            <label><input type="radio" name="transition" value="slide"> Slide</label>
+            <label><input type="radio" name="transition" value="convex"> Convex</label>
+            <label><input type="radio" name="transition" value="concave"> Concave</label>
+            <label><input type="radio" name="transition" value="zoom"> Zoom</label>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Slajdy</h2>
+        <div class="slide-list" id="slide-list"></div>
+        <div style="margin-top:16px;">
+            <button type="button" class="btn" id="btn-add-text">➕ Napis</button>
+            <button type="button" class="btn" id="btn-add-many-images">DODAJ ZDJECIA</button>
+            <button type="button" class="btn" id="btn-add-video">➕ Film</button>
+            <button type="button" class="btn" id="btn-add-visualization" title="Wizualizacja audio (mikrofon/BlackHole) – equalizer reagujący na muzykę na żywo">➕ Wizualizacja</button>
+            <button type="button" class="btn" id="btn-add-clock" title="Duży zegar cyfrowy – aktualny czas systemowy">🕐 Zegar</button>
+            <button type="button" class="btn" id="btn-add-dbmeter" title="Decybelomierz – poziom dźwięku z mikrofonu">📊 dB</button>
+            <button type="button" class="btn" id="btn-add-countdown" title="Odliczanie – ustaw czas, po Play leci do zera">⏱ Odliczanie</button>
+            <button type="button" class="btn" id="btn-add-logo-bouncer" title="Logo Bouncer – logo pulsuje w rytm basu (40–110 Hz) z mikrofonu">🎵 Logo Bouncer</button>
+        </div>
+        <p style="font-size:0.8rem;color:rgba(255,255,255,0.6);margin-top:8px;">💡 <strong>Grupa</strong> – slajdy z tą samą nazwą grupy tworzą stos (np. zdjęcia pionowe). Każdy wypełnia ekran. Next/Prev przechodzą po kolei.</p>
+    </div>
+
+    <div class="section" id="edit-panel" style="display:none;">
+        <h2>Edycja slajdu</h2>
+        <div id="edit-content"></div>
+        <button type="button" class="btn btn-primary" id="btn-apply" style="margin-top:12px;">Zastosuj</button>
+    </div>
+
+    <input type="file" id="file-picker-input" multiple style="display:none" accept="image/*,video/*">
+    <input type="file" id="music-picker-input" style="display:none" accept="audio/*">
+    <input type="file" id="preset-logo-picker-input" style="display:none" accept="image/*">
+    </div>
+
+    <script>
+        let slides = [];
+        let editingIndex = -1;
+        const REVEAL_TRANSITIONS = ['none','fade','slide','convex','concave','zoom'];
+
+        function renderSlides() {
+            const list = document.getElementById('slide-list');
+            list.innerHTML = slides.map((s, i) => {
+                let thumb = '', content = '';
+                if (s.type === 'text') {
+                    content = (s.groupId ? '[' + s.groupId + '] ' : '') + (s.text || '').substring(0, 40) + (s.text && s.text.length > 40 ? '…' : '');
+                    thumb = '<div class="thumb" style="display:flex;align-items:center;justify-content:center;font-size:10px;color:#888;">TXT</div>';
+                } else if (s.type === 'image') {
+                    thumb = `<img class="thumb" src="${(s.src || '').startsWith('/') ? s.src : '/' + s.src}" alt="" onerror="this.style.background='#333'">`;
+                    content = (s.groupId ? '[' + s.groupId + '] ' : '') + (s.caption || s.src || 'Zdjęcie');
+                } else if (s.type === 'video') {
+                    content = (s.groupId ? '[' + s.groupId + '] ' : '') + (s.src || 'Film');
+                    thumb = '<div class="thumb" style="display:flex;align-items:center;justify-content:center;font-size:10px;color:#888;">VID</div>';
+                } else if (s.type === 'visualization') {
+                    const p = s.preset || 'equalizer';
+                    let extras = [];
+                    if (s.vizOverlayClock) extras.push('🕐');
+                    if (s.vizOverlayCountdown) extras.push('⏱');
+                    if (s.vizOverlayDbmeter) extras.push('dB');
+                    const extraStr = extras.length ? ' + ' + extras.join(' ') : '';
+                    content = (p === 'winamp' ? 'Winamp (5 trybów)' + (s.winampAutoRotate ? ' • auto' : '') : p === 'webvs' ? 'Webvs AVS' : p === 'milkdrop' ? 'Milkdrop (500+ presetów)' : 'Wizualizacja audio') + extraStr;
+                    thumb = '<div class="thumb" style="display:flex;align-items:center;justify-content:center;font-size:10px;color:#888;">' + (p === 'winamp' ? '📊' : p === 'webvs' ? '🌀' : p === 'milkdrop' ? '🌈' : '🎵') + '</div>';
+                } else if (s.type === 'clock') {
+                    content = 'Zegar cyfrowy' + (s.showSeconds ? ' (z sekundami)' : '');
+                    thumb = '<div class="thumb" style="display:flex;align-items:center;justify-content:center;font-size:10px;color:#888;">🕐</div>';
+                } else if (s.type === 'dbmeter') {
+                    content = 'Decybelomierz';
+                    thumb = '<div class="thumb" style="display:flex;align-items:center;justify-content:center;font-size:10px;color:#888;">📊</div>';
+                } else if (s.type === 'countdown') {
+                    const m = s.minutes ?? 3;
+                    content = 'Odliczanie ' + m + ' min';
+                    thumb = '<div class="thumb" style="display:flex;align-items:center;justify-content:center;font-size:10px;color:#888;">⏱</div>';
+                } else if (s.type === 'logo-bouncer') {
+                    content = 'Logo Bouncer – ' + (s.src ? s.src.replace(/^.*\//, '') : 'domyślne logo');
+                    thumb = '<div class="thumb" style="display:flex;align-items:center;justify-content:center;font-size:10px;color:#888;">🎵</div>';
+                }
+                return `<div class="slide-item" data-i="${i}">
+                    ${thumb}
+                    <div class="info">
+                        <div class="type">${s.type}</div>
+                        <div class="content">${content}</div>
+                    </div>
+                    <div class="actions">
+                        <button type="button" class="btn" onclick="moveSlide(${i},-1)">↑</button>
+                        <button type="button" class="btn" onclick="moveSlide(${i},1)">↓</button>
+                        <button type="button" class="btn" onclick="editSlide(${i})">✏️</button>
+                        <button type="button" class="btn" onclick="removeSlide(${i})">🗑</button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function moveSlide(i, dir) {
+            const j = i + dir;
+            if (j < 0 || j >= slides.length) return;
+            [slides[i], slides[j]] = [slides[j], slides[i]];
+            renderSlides();
+        }
+
+        function removeSlide(i) {
+            slides.splice(i, 1);
+            renderSlides();
+            if (editingIndex === i) { editingIndex = -1; document.getElementById('edit-panel').style.display = 'none'; }
+        }
+
+        function editSlide(i) {
+            editingIndex = i;
+            const s = slides[i];
+            const panel = document.getElementById('edit-panel');
+            const content = document.getElementById('edit-content');
+            panel.style.display = 'block';
+            if (s.type === 'text') {
+                const grp = (s.groupId || '').replace(/</g,'&lt;');
+                content.innerHTML = `
+                    <div class="form-row"><label>Tekst</label><textarea id="edit-text">${(s.text || '').replace(/</g,'&lt;')}</textarea></div>
+                    <div class="form-row"><label>Grupa (opcjonalnie)</label><input type="text" id="edit-group" value="${grp}" placeholder="np. Wesele"></div>
+                    <div class="form-row"><label>Wielkość</label><select id="edit-size"><option value="small" ${s.size==='small'?'selected':''}>Mała</option><option value="medium" ${!s.size||s.size==='medium'?'selected':''}>Średnia</option><option value="large" ${s.size==='large'?'selected':''}>Duża</option></select></div>
+                    <div class="form-row"><label>Animacja</label><select id="edit-animation"><option value="none">Brak</option><option value="fade" ${s.animation==='fade'?'selected':''}>Fade</option><option value="slide" ${s.animation==='slide'?'selected':''}>Slide</option><option value="pulse" ${s.animation==='pulse'?'selected':''}>Pulse</option></select></div>
+                    <div class="form-row"><label class="checkbox-row"><input type="checkbox" id="edit-shadow" ${s.shadow?'checked':''}> Cień</label></div>
+                `;
+            } else if (s.type === 'image') {
+                const dur = s.duration ?? 8;
+                const grp = (s.groupId || '').replace(/</g,'&lt;');
+                content.innerHTML = `
+                    <div class="form-row"><label>Źródło</label><input type="text" id="edit-src" value="${(s.src||'').replace(/</g,'&lt;')}" placeholder="/uploads/obraz.jpg"></div>
+                    <div class="form-row"><label>Grupa (opcjonalnie)</label><input type="text" id="edit-group" value="${grp}" placeholder="np. Wesele – slajdy z tą samą nazwą tworzą stos"></div>
+                    <div class="form-row"><label>Czas wyświetlania (sekundy)</label><input type="number" id="edit-duration" value="${dur}" min="1" max="120" step="1"></div>
+                    <div class="form-row"><label>Podpis</label><input type="text" id="edit-caption" value="${(s.caption||'').replace(/</g,'&lt;')}"></div>
+                    <button type="button" class="btn" id="btn-browse-img">📁 Wybierz pliki</button>
+                `;
+                document.getElementById('btn-browse-img').onclick = () => triggerFilePicker('image');
+            } else if (s.type === 'video') {
+                const grp = (s.groupId || '').replace(/</g,'&lt;');
+                content.innerHTML = `
+                    <div class="form-row"><label>Źródło</label><input type="text" id="edit-src" value="${(s.src||'').replace(/</g,'&lt;')}" placeholder="/uploads/film.mp4"></div>
+                    <div class="form-row"><label>Grupa (opcjonalnie)</label><input type="text" id="edit-group" value="${grp}" placeholder="np. Klipy – slajdy z tą samą nazwą tworzą stos"></div>
+                    <button type="button" class="btn" id="btn-browse-vid">📁 Wybierz pliki</button>
+                `;
+                document.getElementById('btn-browse-vid').onclick = () => triggerFilePicker('video');
+            } else if (s.type === 'visualization') {
+                const preset = (s.preset || 'equalizer').replace(/</g,'&lt;');
+                const dur = (s.duration ?? 0);
+                const isWinamp = preset === 'winamp' || preset === 'tunnel';
+                const isWebvs = preset === 'webvs';
+                const winampAuto = !!(s.winampAutoRotate);
+                const winampInterval = Math.max(5, Math.min(120, s.winampRotateInterval || 10));
+                const overlayClock = !!(s.vizOverlayClock);
+                const overlayClockSec = s.vizOverlayClockSeconds !== false;
+                const overlayCountdown = !!(s.vizOverlayCountdown);
+                const overlayCountdownMin = Math.max(1, Math.min(120, s.vizOverlayCountdownMinutes || 3));
+                const overlayDbmeter = !!(s.vizOverlayDbmeter);
+                content.innerHTML = `
+                    <div class="form-row"><label>Preset</label><select id="edit-preset"><option value="equalizer" ${preset==='equalizer'?'selected':''}>Equalizer (klasyczny)</option><option value="equalizer-mirror" ${preset==='equalizer-mirror'?'selected':''}>Equalizer (odbicie lustrzane)</option><option value="spectrum" ${preset==='spectrum'?'selected':''}>Spektrum</option><option value="led" ${preset==='led'?'selected':''}>LED</option><option value="winamp" ${isWinamp?'selected':''}>Winamp (5 trybów)</option><option value="webvs" ${preset==='webvs'?'selected':''}>Webvs AVS (tunel, spektrum)</option><option value="milkdrop" ${preset==='milkdrop'?'selected':''}>Milkdrop (klasyczny wizualizer)</option></select></div>
+                    <div id="edit-winamp-opts" style="${isWinamp?'':'display:none'}">
+                        <div class="form-row"><label class="checkbox-row"><input type="checkbox" id="edit-winamp-auto" ${winampAuto?'checked':''}> Auto zmiana wizualizacji</label></div>
+                        <div class="form-row"><label>Co ile sekund (5–120)</label><input type="number" id="edit-winamp-interval" value="${winampInterval}" min="5" max="120" step="1"></div>
+                    </div>
+                    <div class="form-row"><label>Czas wyświetlania (sekundy, 0 = tylko ręcznie)</label><input type="number" id="edit-viz-duration" value="${dur}" min="0" max="3600" step="1"></div>
+                    <div class="form-row" style="margin-top:12px;"><label style="opacity:0.9;">Nakładki na wizualizację</label></div>
+                    <div class="form-row"><label class="checkbox-row"><input type="checkbox" id="edit-viz-overlay-clock" ${overlayClock?'checked':''}> Zegar</label></div>
+                    <div class="form-row" id="edit-viz-overlay-clock-opts" style="${overlayClock?'':'display:none'};padding-left:20px;"><label class="checkbox-row"><input type="checkbox" id="edit-viz-overlay-clock-sec" ${overlayClockSec?'checked':''}> Pokaż sekundy</label></div>
+                    <div class="form-row"><label class="checkbox-row"><input type="checkbox" id="edit-viz-overlay-countdown" ${overlayCountdown?'checked':''}> Odliczanie</label></div>
+                    <div class="form-row" id="edit-viz-overlay-countdown-opts" style="${overlayCountdown?'':'display:none'};padding-left:20px;"><label>Czas (minuty)</label><input type="number" id="edit-viz-overlay-countdown-min" value="${overlayCountdownMin}" min="1" max="120" step="1"></div>
+                    <div class="form-row"><label class="checkbox-row"><input type="checkbox" id="edit-viz-overlay-dbmeter" ${overlayDbmeter?'checked':''}> dB-mierz</label></div>
+                    <p style="font-size:0.8rem;color:rgba(255,255,255,0.7);margin-top:8px;">Źródło: <strong>mikrofon</strong>. Winamp: 5 trybów – kliknij aby zmienić lub włącz auto. Webvs: Fala, Spektrum – kliknij aby zmienić. Milkdrop: 500+ presetów – strzałki lub klik. <a href="/poradniki/wizualizacja-dj.html" target="_blank" rel="noopener" style="color:var(--accent);">📖 Instrukcja BlackHole dla DJ-a</a></p>
+                `;
+                document.getElementById('edit-viz-overlay-clock').onchange = () => {
+                    document.getElementById('edit-viz-overlay-clock-opts').style.display = document.getElementById('edit-viz-overlay-clock').checked ? '' : 'none';
+                };
+                document.getElementById('edit-viz-overlay-countdown').onchange = () => {
+                    document.getElementById('edit-viz-overlay-countdown-opts').style.display = document.getElementById('edit-viz-overlay-countdown').checked ? '' : 'none';
+                };
+                document.getElementById('edit-preset').onchange = () => {
+                    document.getElementById('edit-winamp-opts').style.display = document.getElementById('edit-preset').value === 'winamp' ? '' : 'none';
+                };
+            } else if (s.type === 'clock') {
+                const sec = s.showSeconds !== false;
+                content.innerHTML = `
+                    <div class="form-row"><label class="checkbox-row"><input type="checkbox" id="edit-clock-seconds" ${sec?'checked':''}> Pokaż sekundy</label></div>
+                `;
+            } else if (s.type === 'dbmeter') {
+                content.innerHTML = `<p style="font-size:0.8rem;color:rgba(255,255,255,0.7);">Źródło: mikrofon. Bez uprawnień decybelomierz się nie wyświetli.</p>`;
+            } else if (s.type === 'countdown') {
+                const min = s.minutes ?? 3;
+                content.innerHTML = `
+                    <div class="form-row"><label>Czas odliczania (minuty)</label><input type="number" id="edit-countdown-min" value="${min}" min="1" max="120" step="1"></div>
+                    <p style="font-size:0.8rem;color:rgba(255,255,255,0.7);margin-top:8px;">Odliczanie startuje po naciśnięciu <strong>Play</strong> w panelu prezentacji.</p>
+                `;
+            } else if (s.type === 'logo-bouncer') {
+                const presetLogo = (document.getElementById('preset-logo') || {}).value || '/img/logo_imprezja.png';
+                const src = (s.src || presetLogo).replace(/</g,'&lt;');
+                const dur = (s.duration ?? 0);
+                const fn = src ? src.replace(/^.*\//, '') : 'z ustawień';
+                content.innerHTML = `
+                    <div class="form-row"><label>Logo (PNG bez tła najlepiej)</label></div>
+                    <div class="form-row" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                        <input type="text" id="edit-src" value="${src}" placeholder="Puste = logo z ustawień" style="flex:1;min-width:150px;">
+                        <button type="button" class="btn" id="btn-browse-logo">📁 Wybierz plik</button>
+                    </div>
+                    <div class="form-row"><label>Czas wyświetlania (sekundy, 0 = tylko ręcznie)</label><input type="number" id="edit-lb-duration" value="${dur}" min="0" max="3600" step="1"></div>
+                    <p style="font-size:0.8rem;color:rgba(255,255,255,0.7);margin-top:8px;">Puste pole = używa logo z ustawień powyżej. Logo pulsuje w rytm basu (40–110 Hz) z mikrofonu.</p>
+                `;
+                document.getElementById('btn-browse-logo').onclick = () => triggerFilePicker('image');
+            }
+        }
+
+        function applyEdit() {
+            if (editingIndex < 0) return;
+            const s = slides[editingIndex];
+            if (s.type === 'text') {
+                s.text = document.getElementById('edit-text').value;
+                s.size = document.getElementById('edit-size').value;
+                s.animation = document.getElementById('edit-animation').value;
+                s.shadow = document.getElementById('edit-shadow').checked;
+                const grpEl = document.getElementById('edit-group');
+                s.groupId = grpEl ? (grpEl.value || '').trim() || undefined : undefined;
+            } else if (s.type === 'image' || s.type === 'video') {
+                s.src = document.getElementById('edit-src').value;
+                const grpEl = document.getElementById('edit-group');
+                s.groupId = grpEl ? (grpEl.value || '').trim() || undefined : undefined;
+                if (s.type === 'image') {
+                    s.caption = document.getElementById('edit-caption').value;
+                    const durEl = document.getElementById('edit-duration');
+                    s.duration = durEl ? Math.max(1, Math.min(120, parseInt(durEl.value, 10) || 8)) : 8;
+                }
+            } else if (s.type === 'visualization') {
+                const presetEl = document.getElementById('edit-preset');
+                s.preset = presetEl ? presetEl.value : 'equalizer';
+                const durEl = document.getElementById('edit-viz-duration');
+                s.duration = durEl ? Math.max(0, Math.min(3600, parseInt(durEl.value, 10) || 0)) : 0;
+                if (s.preset === 'winamp') {
+                    s.winampAutoRotate = document.getElementById('edit-winamp-auto') ? document.getElementById('edit-winamp-auto').checked : false;
+                    const intEl = document.getElementById('edit-winamp-interval');
+                    s.winampRotateInterval = intEl ? Math.max(5, Math.min(120, parseInt(intEl.value, 10) || 10)) : 10;
+                }
+                s.vizOverlayClock = document.getElementById('edit-viz-overlay-clock') ? document.getElementById('edit-viz-overlay-clock').checked : false;
+                s.vizOverlayClockSeconds = document.getElementById('edit-viz-overlay-clock-sec') ? document.getElementById('edit-viz-overlay-clock-sec').checked : true;
+                s.vizOverlayCountdown = document.getElementById('edit-viz-overlay-countdown') ? document.getElementById('edit-viz-overlay-countdown').checked : false;
+                const cdMinEl = document.getElementById('edit-viz-overlay-countdown-min');
+                s.vizOverlayCountdownMinutes = cdMinEl ? Math.max(1, Math.min(120, parseInt(cdMinEl.value, 10) || 3)) : 3;
+                s.vizOverlayDbmeter = document.getElementById('edit-viz-overlay-dbmeter') ? document.getElementById('edit-viz-overlay-dbmeter').checked : false;
+            } else if (s.type === 'clock') {
+                s.showSeconds = document.getElementById('edit-clock-seconds') ? document.getElementById('edit-clock-seconds').checked : true;
+            } else if (s.type === 'dbmeter') {
+                // brak opcji
+            } else if (s.type === 'countdown') {
+                const minEl = document.getElementById('edit-countdown-min');
+                s.minutes = minEl ? Math.max(1, Math.min(120, parseInt(minEl.value, 10) || 3)) : 3;
+            } else if (s.type === 'logo-bouncer') {
+                const srcEl = document.getElementById('edit-src');
+                const v = srcEl ? srcEl.value.trim() : '';
+                s.src = v || undefined;
+                const durEl = document.getElementById('edit-lb-duration');
+                s.duration = durEl ? Math.max(0, Math.min(3600, parseInt(durEl.value, 10) || 0)) : 0;
+            }
+            renderSlides();
+            document.getElementById('edit-panel').style.display = 'none';
+            editingIndex = -1;
+        }
+
+        function triggerFilePicker(forType) {
+            const inp = document.getElementById('file-picker-input');
+            inp.accept = forType === 'image' ? 'image/*' : 'video/*';
+            inp.multiple = true;
+            inp.onchange = (e) => handleFilePickerChange(e, forType);
+            inp.value = '';
+            inp.click();
+        }
+
+        function triggerFilePickerForBulk(forType) {
+            const inp = document.getElementById('file-picker-input');
+            inp.accept = forType === 'image' ? 'image/*' : 'video/*';
+            inp.multiple = true;
+            inp.onchange = (e) => handleBulkFilePickerChange(e, forType);
+            inp.value = '';
+            inp.click();
+        }
+
+        async function uploadSingleFile(file, forType) {
+            const formData = new FormData();
+            formData.append('file', file);
+            const name = document.getElementById('preset-name').value.trim();
+            if (name) {
+                formData.append('name', name);
+                const r = await fetch('/api/prezentacje/upload', { method: 'POST', body: formData });
+                const j = await r.json();
+                if (j.filepath) return j.filepath;
+                throw new Error(j.error || 'Błąd uploadu');
+            }
+            const r = await fetch('/upload', { method: 'POST', body: formData });
+            const j = await r.json();
+            if (j.filepath) return j.filepath;
+            throw new Error(j.error || 'Błąd uploadu');
+        }
+
+        async function handleFilePickerChange(e, forType) {
+            const files = Array.from(e.target.files || []);
+            if (!files.length) return;
+            const btn = document.querySelector('#btn-browse-img, #btn-browse-vid, #btn-browse-logo');
+            if (btn) { btn.disabled = true; btn.textContent = '⏳ Wgrywanie...'; }
+            try {
+                const paths = [];
+                for (const f of files) {
+                    try {
+                        const path = await uploadSingleFile(f, forType);
+                        paths.push(path);
+                    } catch (err) {
+                        console.warn('Upload failed:', f.name, err);
+                        alert('Nie udało się wgrać: ' + f.name);
+                    }
+                }
+                if (paths.length > 0) {
+                    const src = document.getElementById('edit-src');
+                    if (src) src.value = paths[0];
+                    const fnEl = document.getElementById('edit-logo-filename');
+                    if (fnEl) fnEl.textContent = paths[0].replace(/^.*\//, '') || paths[0];
+                    const isLogoBouncer = editingIndex >= 0 && slides[editingIndex]?.type === 'logo-bouncer';
+                    if (paths.length > 1 && forType === 'image' && !isLogoBouncer) {
+                        for (let i = 1; i < paths.length; i++) {
+                            slides.splice(editingIndex + i, 0, { type: 'image', src: paths[i], caption: '', duration: 8 });
+                        }
+                        renderSlides();
+                    }
+                }
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = '📁 Wybierz pliki'; }
+                e.target.value = '';
+            }
+        }
+
+        async function handleBulkFilePickerChange(e, forType) {
+            const files = Array.from(e.target.files || []);
+            if (!files.length) return;
+            const btn = forType === 'video' ? document.getElementById('btn-add-video') : document.getElementById('btn-add-many-images');
+            const btnText = forType === 'video' ? '➕ Film' : 'DODAJ ZDJECIA';
+            if (btn) { btn.disabled = true; btn.textContent = '⏳ Wgrywanie...'; }
+            try {
+                for (const f of files) {
+                    try {
+                        const path = await uploadSingleFile(f, forType);
+                        slides.push({ type: forType, src: path, caption: '', duration: forType === 'image' ? 8 : undefined });
+                    } catch (err) {
+                        console.warn('Upload failed:', f.name, err);
+                        alert('Nie udało się wgrać: ' + f.name);
+                    }
+                }
+                renderSlides();
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = btnText; }
+                e.target.value = '';
+            }
+        }
+
+        document.getElementById('btn-browse-preset-logo').onclick = () => {
+            const inp = document.getElementById('preset-logo-picker-input');
+            inp.onchange = async (e) => {
+                const f = e.target.files && e.target.files[0];
+                if (!f) return;
+                try {
+                    const path = await uploadSingleFile(f, 'image');
+                    document.getElementById('preset-logo').value = path;
+                } catch (err) { alert('Błąd: ' + err.message); }
+                e.target.value = '';
+            };
+            inp.value = '';
+            inp.click();
+        };
+
+        document.getElementById('btn-browse-music').onclick = () => {
+            const inp = document.getElementById('music-picker-input');
+            inp.onchange = async (e) => {
+                const f = e.target.files && e.target.files[0];
+                if (!f) return;
+                const name = document.getElementById('preset-name').value.trim();
+                const formData = new FormData();
+                formData.append('file', f);
+                if (name) formData.append('name', name);
+                try {
+                    const url = name ? '/api/prezentacje/upload' : '/upload';
+                    const r = await fetch(url, { method: 'POST', body: formData });
+                    const j = await r.json();
+                    if (j.filepath) document.getElementById('preset-bg-music').value = j.filepath;
+                } catch (err) { alert('Błąd: ' + err.message); }
+                e.target.value = '';
+            };
+            inp.value = '';
+            inp.click();
+        };
+
+        document.getElementById('btn-add-text').onclick = ()=>{ slides.push({type:'text',text:'Nowy napis',size:'medium',animation:'fade',shadow:true}); renderSlides(); };
+        document.getElementById('btn-add-many-images').onclick = ()=>{ triggerFilePickerForBulk('image'); };
+        document.getElementById('btn-add-video').onclick = ()=>{ triggerFilePickerForBulk('video'); };
+        document.getElementById('btn-add-visualization').onclick = ()=>{ slides.push({type:'visualization',preset:'equalizer'}); renderSlides(); editSlide(slides.length-1); };
+        document.getElementById('btn-add-clock').onclick = ()=>{ slides.push({type:'clock',showSeconds:true}); renderSlides(); editSlide(slides.length-1); };
+        document.getElementById('btn-add-dbmeter').onclick = ()=>{ slides.push({type:'dbmeter'}); renderSlides(); editSlide(slides.length-1); };
+        document.getElementById('btn-add-countdown').onclick = ()=>{ slides.push({type:'countdown',minutes:3}); renderSlides(); editSlide(slides.length-1); };
+        document.getElementById('btn-add-logo-bouncer').onclick = ()=>{ const logo = (document.getElementById('preset-logo') || {}).value || '/img/logo_imprezja.png'; slides.push({type:'logo-bouncer',src:logo}); renderSlides(); editSlide(slides.length-1); };
+        document.getElementById('btn-apply').onclick = applyEdit;
+
+        async function refreshPresetList() {
+            const r = await fetch('/api/prezentacje/list');
+            const { list } = await r.json();
+            const sel = document.getElementById('preset-select');
+            const current = sel.value;
+            sel.innerHTML = '<option value="">— Wybierz istniejącą —</option>' + (list || []).map(n => `<option value="${(n||'').replace(/"/g,'&quot;')}">${(n||'').replace(/</g,'&lt;')}</option>`).join('');
+            if (current && list && list.includes(current)) sel.value = current;
+        }
+
+        async function loadPresentation(name) {
+            if (!name) return;
+            const r = await fetch('/api/prezentacje/config?name=' + encodeURIComponent(name));
+            if (!r.ok) { alert('Nie znaleziono'); return; }
+            const cfg = await r.json();
+            slides = cfg.slides || [];
+            document.getElementById('preset-name').value = cfg.name || name;
+            const logoEl = document.getElementById('preset-logo');
+            if (logoEl) logoEl.value = cfg.logo || '/img/logo_imprezja.png';
+            const t = cfg.transition || 'fade';
+            const radio = document.querySelector(`input[name="transition"][value="${(t||'fade').replace(/"/g,'\\"')}"]`);
+            if (radio) radio.checked = true;
+            const bgEl = document.getElementById('preset-bg-music');
+            if (bgEl) bgEl.value = cfg.backgroundMusic || '';
+            const loopEl = document.getElementById('preset-bg-loop');
+            if (loopEl) loopEl.checked = cfg.backgroundMusicLoop !== false;
+            renderSlides();
+        }
+
+        document.getElementById('preset-select').onchange = async function() {
+            const name = this.value;
+            if (!name) return;
+            await loadPresentation(name);
+        };
+
+        document.getElementById('btn-save').onclick = async ()=>{
+            const name = document.getElementById('preset-name').value.trim();
+            if (!name) { alert('Podaj nazwę prezentacji'); return; }
+            const transition = document.querySelector('input[name="transition"]:checked').value;
+            const bgMusic = (document.getElementById('preset-bg-music') || {}).value || '';
+            const bgLoop = (document.getElementById('preset-bg-loop') || {}).checked !== false;
+            const logo = (document.getElementById('preset-logo') || {}).value || '';
+            const config = { name, slides, transition, loop: true, backgroundMusic: bgMusic || undefined, backgroundMusicLoop: bgLoop, logo: logo || undefined };
+            const r = await fetch('/api/prezentacje/save', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name, config }) });
+            const j = await r.json();
+            if (j.success) { alert('Zapisano: ' + name); refreshPresetList(); } else alert('Błąd: ' + (j.error||''));
+        };
+
+        document.getElementById('btn-save-as').onclick = async ()=>{
+            const newName = prompt('Zapisz jako (nowa nazwa):', document.getElementById('preset-name').value.trim() || 'Prezentacja');
+            if (!newName || !newName.trim()) return;
+            const name = newName.trim();
+            const transition = document.querySelector('input[name="transition"]:checked').value;
+            const bgMusic = (document.getElementById('preset-bg-music') || {}).value || '';
+            const bgLoop = (document.getElementById('preset-bg-loop') || {}).checked !== false;
+            const logo = (document.getElementById('preset-logo') || {}).value || '';
+            const config = { name, slides, transition, loop: true, backgroundMusic: bgMusic || undefined, backgroundMusicLoop: bgLoop, logo: logo || undefined };
+            const r = await fetch('/api/prezentacje/save', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name, config }) });
+            const j = await r.json();
+            if (j.success) { alert('Zapisano jako: ' + name); document.getElementById('preset-name').value = name; refreshPresetList(); } else alert('Błąd: ' + (j.error||''));
+        };
+
+        document.getElementById('btn-delete').onclick = async ()=>{
+            const name = document.getElementById('preset-name').value.trim();
+            if (!name) { alert('Podaj nazwę prezentacji do usunięcia'); return; }
+            if (!confirm('Usunąć prezentację „' + name + '”? Pliki powiązane (w folderze prezentacji) zostaną usunięte z dysku.')) return;
+            try {
+                const r = await fetch('/api/prezentacje/config?name=' + encodeURIComponent(name), { method: 'DELETE' });
+                const j = await r.json();
+                if (r.ok) {
+                    alert('Usunięto.');
+                    document.getElementById('preset-name').value = '';
+                    document.getElementById('preset-select').value = '';
+                    slides = [];
+                    renderSlides();
+                    refreshPresetList();
+                } else alert('Błąd: ' + (j.error || r.status));
+            } catch (e) { alert('Błąd: ' + e.message); }
+        };
+
+        document.getElementById('btn-load').onclick = async ()=>{
+            const name = document.getElementById('preset-select').value;
+            if (!name) { alert('Wybierz prezentację z listy'); return; }
+            await loadPresentation(name);
+        };
+
+        refreshPresetList();
+    </script>
+</body>
+</html>

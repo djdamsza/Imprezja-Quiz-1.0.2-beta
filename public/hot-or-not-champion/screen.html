@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<title>Hot or Not Champion – Screen</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#080816; color:#fff; font-family:'Arial Black',Arial,sans-serif; overflow:hidden; height:100vh; }
+
+/* ── BRACKET VIEW ── */
+#bracket-view { display:none; position:fixed; inset:0; background:#080816; flex-direction:column; align-items:center; padding:24px 20px 16px; }
+#bv-title { font-size:42px; color:#ffd700; font-weight:900; text-shadow:0 0 40px rgba(255,215,0,.5); letter-spacing:3px; margin-bottom:4px; text-align:center; }
+#bv-subtitle { font-size:18px; color:#888; margin-bottom:18px; letter-spacing:2px; text-align:center; }
+#bv-bracket { flex:1; width:100%; overflow:hidden; display:flex; gap:0; }
+.bv-round { flex:1; display:flex; flex-direction:column; }
+.bv-round-title { text-align:center; font-size:11px; color:#555; letter-spacing:2px; text-transform:uppercase; padding:0 0 8px; }
+.bv-matches { flex:1; display:flex; flex-direction:column; justify-content:space-around; padding:0 8px; gap:4px; }
+.bv-match { display:flex; flex-direction:column; gap:3px; padding:7px 8px; background:#10121e; border:1px solid #1e2132; border-radius:8px; }
+.bv-match.bv-active { border-color:#ffd700; background:#1c1908; box-shadow:0 0 16px rgba(255,215,0,.25); }
+.bv-match.bv-done { opacity:.65; }
+.bv-match.bv-next { border-color:rgba(255,215,0,.4); animation:nextPulse 2s infinite; }
+@keyframes nextPulse { 50%{border-color:rgba(255,215,0,.9); box-shadow:0 0 12px rgba(255,215,0,.3)} }
+.bv-seed { display:flex; align-items:center; gap:6px; padding:3px 5px; border-radius:5px; border:1px solid transparent; }
+.bv-seed.bv-won { background:rgba(255,215,0,.12); border-color:#ffd700; }
+.bv-seed img { width:36px; height:36px; object-fit:cover; border-radius:5px; flex-shrink:0; }
+.bv-tbd-img { width:36px; height:36px; background:#1e2130; border-radius:5px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:14px; color:#333; }
+.bv-seed-name { font-size:12px; color:#ccc; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
+
+/* ── ROUND COMPLETE ── */
+#round-complete-ov { display:none; position:fixed; inset:0; background:rgba(0,0,0,.88); z-index:80; align-items:center; justify-content:center; flex-direction:column; gap:14px; }
+#rc-label { font-size:20px; color:#888; letter-spacing:3px; text-transform:uppercase; }
+#rc-name { font-size:72px; font-weight:900; color:#ffd700; text-shadow:0 0 50px rgba(255,215,0,.7); letter-spacing:4px; animation:rcIn .6s ease-out; }
+@keyframes rcIn { from{opacity:0;transform:scale(.6)} to{opacity:1;transform:scale(1)} }
+#rc-next { font-size:24px; color:#aaa; }
+
+/* ── MATCH VIEW ── */
+#match-view { display:none; height:100vh; position:relative; }
+
+.panel { position:absolute; top:0; bottom:12vh; width:calc(50% - 90px); display:flex; flex-direction:column; align-items:center; justify-content:center; overflow:hidden; transition:opacity .5s; gap:0; }
+.panel.A { left:0; background:linear-gradient(to right,#1a0830,#0c0c1e); }
+.panel.B { right:0; background:linear-gradient(to left,#08182e,#0c0c1e); }
+
+.panel img { max-width:95%; object-fit:contain; transition:transform .8s cubic-bezier(.17,.67,.42,1.3), box-shadow .8s; flex-shrink:1; min-height:0; }
+.panel-img-wrap { flex:1; display:flex; align-items:center; justify-content:center; width:100%; min-height:0; padding:0 10px; }
+.panel-img-wrap img { max-width:100%; max-height:100%; object-fit:contain; transition:transform .8s cubic-bezier(.17,.67,.42,1.3), box-shadow .8s; }
+
+/* Description: BIG, below photo */
+.panel .desc { font-size:11vw; color:#fff; text-align:center; padding:6px 12px 4px; font-weight:900; text-shadow:0 2px 12px rgba(0,0,0,.8); letter-spacing:1px; flex-shrink:0; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; line-height:1.1; }
+
+.side-lbl { position:absolute; top:14px; font-size:90px; font-weight:900; opacity:.07; }
+.panel.A .side-lbl { left:14px; color:#ff5555; }
+.panel.B .side-lbl { right:14px; color:#5588ff; }
+
+/* Winner/loser animation */
+.panel.winner-panel .panel-img-wrap img { transform:scale(1.08); box-shadow:0 0 60px rgba(255,215,0,.7), 0 0 120px rgba(255,215,0,.3); }
+.panel.loser-panel { opacity:.2 !important; }
+
+/* ── BATTLE BAR ── */
+#hnc-battle-bar { position:absolute; bottom:46px; left:0; right:0; height:9vh; display:none;
+  background:linear-gradient(to right,#c0392b,#e74c3c); overflow:hidden;
+  box-shadow:0 -4px 20px rgba(0,0,0,.6); }
+#hnc-bar-fill { height:100%; width:50%; background:linear-gradient(to right,#2980b9,#3498db);
+  transition:width .8s ease-out; position:relative; border-right:3px solid rgba(255,255,255,.8); }
+.hnc-bar-score { position:absolute; top:50%; transform:translateY(-50%); font-size:5vw; font-weight:900;
+  color:#fff; text-shadow:0 2px 8px rgba(0,0,0,.8); z-index:5; }
+.hnc-bar-score.sa { left:20px; }
+.hnc-bar-score.sb { right:20px; }
+
+/* ── CENTER ── */
+#center { position:absolute; left:50%; transform:translateX(-50%); top:0; bottom:12vh; width:180px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:10; gap:6px; }
+#match-nm { font-size:12px; color:#888; letter-spacing:3px; text-transform:uppercase; text-align:center; }
+#vs { font-size:54px; font-weight:900; color:#fff; text-shadow:0 0 20px rgba(255,255,255,.6); }
+#timer { width:88px; height:88px; border-radius:50%; border:4px solid #fff; display:flex; align-items:center; justify-content:center; font-size:38px; font-weight:900; }
+#timer.urgent { border-color:#ff4444; color:#ff4444; animation:pulse .5s infinite; }
+@keyframes pulse { 50%{transform:scale(1.12)} }
+#vinfo { font-size:11px; color:#888; text-align:center; }
+#tie-lbl { font-size:14px; color:#ff9800; font-weight:bold; text-align:center; display:none; }
+
+/* ── BRACKET BAR ── */
+#bracket-bar { position:fixed; bottom:0; left:0; right:0; height:46px; background:rgba(0,0,0,.8);
+  padding:4px 16px; display:flex; align-items:center; gap:6px; overflow-x:auto; z-index:20; border-top:1px solid rgba(255,255,255,.06); }
+.bb-round { display:flex; flex-direction:column; align-items:center; gap:2px; flex-shrink:0; }
+.bb-rname { font-size:8px; color:#555; letter-spacing:1px; text-transform:uppercase; }
+.bb-matches { display:flex; flex-direction:column; gap:2px; }
+.bb-match { display:flex; gap:1px; }
+.bb-photo { width:28px; height:28px; object-fit:cover; border-radius:3px; border:2px solid transparent; }
+.bb-photo.won { border-color:#ffd700; }
+.bb-photo.cur { border-color:#fff; }
+.bb-tbd { width:28px; height:28px; background:#1e2130; border-radius:3px; border:2px solid #2a2a3a; }
+.bb-sep { width:1px; background:#2a2a3a; margin:0 5px; align-self:stretch; }
+
+/* ── COIN OVERLAY ── */
+#coin-ov { display:none; position:fixed; inset:0; background:rgba(0,0,0,.9); z-index:90; align-items:center; justify-content:center; flex-direction:column; gap:20px; }
+#coin-ov h2 { font-size:30px; color:#ffd700; letter-spacing:3px; }
+#coin { width:180px; height:180px; border-radius:50%; background:radial-gradient(circle at 35% 35%,#ffe566,#cc9900);
+  display:flex; align-items:center; justify-content:center; font-size:76px; font-weight:900; color:#000;
+  box-shadow:0 0 40px rgba(255,215,0,.5); }
+#coin.spin { animation:coinSpin 1.8s cubic-bezier(.4,0,.2,1) forwards; }
+@keyframes coinSpin { 0%{transform:rotateY(0) scale(1)} 50%{transform:rotateY(900deg) scale(1.3)} 100%{transform:rotateY(1440deg) scale(1)} }
+#coin-res { font-size:44px; font-weight:900; color:#ffd700; opacity:0; transition:opacity .6s; margin-top:10px; }
+
+/* ── CHAMPION ── */
+#champ-ov { display:none; position:fixed; inset:0; background:linear-gradient(135deg,#06061a,#100830); z-index:90; align-items:center; justify-content:center; flex-direction:column; gap:14px; }
+#ct { font-size:66px; color:#ffd700; font-weight:900; text-shadow:0 0 50px rgba(255,215,0,.8); letter-spacing:6px; animation:cIn 1s ease-out; }
+@keyframes cIn { from{opacity:0;transform:scale(.5) translateY(30px)} to{opacity:1;transform:none} }
+#ci { max-width:500px; max-height:48vh; object-fit:contain; border:6px solid #ffd700; border-radius:14px;
+  animation:cIn 1s .3s ease-out both; box-shadow:0 0 60px rgba(255,215,0,.4); }
+#cd { font-size:5vw; font-weight:900; color:#fff; animation:cIn 1s .6s ease-out both; }
+#confetti-c { position:fixed; inset:0; pointer-events:none; }
+</style>
+</head>
+<body>
+
+<!-- Bracket view -->
+<div id="bracket-view">
+  <div id="bv-title">🏆 HOT OR NOT CHAMPION</div>
+  <div id="bv-subtitle">Oczekiwanie na turniej…</div>
+  <div id="bv-bracket"></div>
+</div>
+
+<!-- Match view -->
+<div id="match-view">
+  <div class="panel A" id="pA">
+    <div class="side-lbl">A</div>
+    <div class="panel-img-wrap"><img id="imgA" src="" alt=""></div>
+    <div class="desc" id="descA"></div>
+  </div>
+  <div id="center">
+    <div id="match-nm">FINAŁ</div>
+    <div id="vs">VS</div>
+    <div id="timer" style="display:none">15</div>
+    <div id="vinfo"></div>
+    <div id="tie-lbl">REMIS<br>RZUT MONETĄ</div>
+  </div>
+  <div class="panel B" id="pB">
+    <div class="side-lbl" style="right:14px;left:auto">B</div>
+    <div class="panel-img-wrap"><img id="imgB" src="" alt=""></div>
+    <div class="desc" id="descB"></div>
+  </div>
+
+  <!-- Battle bar -->
+  <div id="hnc-battle-bar">
+    <div class="hnc-bar-score sa" id="scoreA">0%</div>
+    <div id="hnc-bar-fill"></div>
+    <div class="hnc-bar-score sb" id="scoreB">0%</div>
+  </div>
+</div>
+
+<!-- Bottom bracket bar -->
+<div id="bracket-bar"></div>
+
+<!-- Round complete overlay -->
+<div id="round-complete-ov">
+  <div id="rc-label">KONIEC</div>
+  <div id="rc-name"></div>
+  <div id="rc-next"></div>
+</div>
+
+<!-- Coin flip overlay -->
+<div id="coin-ov">
+  <h2>🎲 RZUT MONETĄ</h2>
+  <div id="coin">?</div>
+  <div id="coin-res"></div>
+</div>
+
+<!-- Champion overlay -->
+<div id="champ-ov">
+  <canvas id="confetti-c"></canvas>
+  <div id="ct">🏆 MISTRZ TURNIEJU</div>
+  <img id="ci" src="" alt="">
+  <div id="cd"></div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+socket.emit('hnc_join_screen');
+let state = null;
+
+socket.on('hnc_state', s => { state = s; render(s); });
+socket.on('hnc_coin_result', data => showCoin(data));
+
+function render(s) {
+  const bv = document.getElementById('bracket-view');
+  const mv = document.getElementById('match-view');
+  const champOv = document.getElementById('champ-ov');
+  const rcOv = document.getElementById('round-complete-ov');
+
+  [bv, mv, champOv, rcOv].forEach(el => el.style.display = 'none');
+
+  if (s.phase === 'champion') {
+    champOv.style.display = 'flex';
+    renderChamp(s);
+    renderBracketBar(s);
+    return;
+  }
+  if (s.phase === 'round_complete') {
+    bv.style.display = 'flex';
+    const title = s.questionText || '🏆 HOT OR NOT CHAMPION';
+    document.getElementById('bv-title').textContent = title;
+    renderBracketVis(s);
+    document.getElementById('bv-subtitle').textContent = '';
+    rcOv.style.display = 'flex';
+    document.getElementById('rc-name').textContent = s.completedRoundName || '';
+    document.getElementById('rc-next').textContent = s.matchName ? `Następna runda: ${s.matchName}` : '';
+    return;
+  }
+  if (s.phase === 'setup' || s.phase === 'ready' || !s.match) {
+    bv.style.display = 'flex';
+    const title = s.questionText || '🏆 HOT OR NOT CHAMPION';
+    document.getElementById('bv-title').textContent = title;
+    renderBracketVis(s);
+    document.getElementById('bv-subtitle').textContent = s.phase === 'setup'
+      ? 'Oczekiwanie na konfigurację…'
+      : `Przygotowanie do: ${s.matchName} · Mecz ${s.currentMatch+1}/${s.matchesInRound}`;
+    return;
+  }
+
+  mv.style.display = 'block';
+  renderMatch(s);
+  renderBracketBar(s);
+}
+
+function renderMatch(s) {
+  const m = s.match;
+  if (!m || !m.photoA || !m.photoB) return;
+  document.getElementById('imgA').src = m.photoA.url;
+  document.getElementById('descA').textContent = m.photoA.desc || '';
+  document.getElementById('imgB').src = m.photoB.url;
+  document.getElementById('descB').textContent = m.photoB.desc || '';
+  document.getElementById('match-nm').textContent = `${s.matchName} · ${s.currentMatch+1}/${s.matchesInRound}`;
+
+  const showR = s.phase === 'match_result';
+  const total = m.votesA + m.votesB;
+  const pA = total ? Math.round(m.votesA/total*100) : 50;
+  const pB = 100 - pA;
+
+  // Battle bar
+  const bar = document.getElementById('hnc-battle-bar');
+  bar.style.display = showR ? 'block' : 'none';
+  if (showR) {
+    document.getElementById('hnc-bar-fill').style.width = pA + '%';
+    document.getElementById('scoreA').textContent = `${pA}%`;
+    document.getElementById('scoreB').textContent = `${pB}%`;
+  }
+
+  // Winner/loser animation
+  const winA = showR && m.winner?.id === m.photoA?.id;
+  const winB = showR && m.winner?.id === m.photoB?.id;
+  document.getElementById('pA').classList.toggle('winner-panel', winA);
+  document.getElementById('pA').classList.toggle('loser-panel', showR && !winA && !!m.winner);
+  document.getElementById('pB').classList.toggle('winner-panel', winB);
+  document.getElementById('pB').classList.toggle('loser-panel', showR && !winB && !!m.winner);
+
+  const timerEl = document.getElementById('timer');
+  timerEl.style.display = s.phase === 'voting' ? 'flex' : 'none';
+  timerEl.textContent = s.timeLeft;
+  timerEl.className = s.timeLeft <= 5 ? 'urgent' : '';
+  document.getElementById('tie-lbl').style.display = s.phase === 'tiebreak' ? 'block' : 'none';
+  document.getElementById('vinfo').textContent = s.phase === 'voting' ? `${s.votedCount}/${s.voterCount}` : '';
+}
+
+function renderBracketVis(s) {
+  if (!s.bracket || !s.bracket.length) return;
+  const container = document.getElementById('bv-bracket');
+  const total = s.totalRounds;
+  let html = '';
+  s.bracket.forEach((round, ri) => {
+    const rname = getRoundName(ri, total);
+    html += `<div class="bv-round"><div class="bv-round-title">${rname}</div><div class="bv-matches">`;
+    round.forEach((m, mi) => {
+      const isActive = ri === s.currentRound && mi === s.currentMatch;
+      const isDone = m?.winner;
+      const isNext = s.phase === 'ready' && isActive;
+      html += `<div class="bv-match ${isNext?'bv-next':isActive&&!isDone?'bv-active':''} ${isDone?'bv-done':''}">`;
+      ['photoA','photoB'].forEach(k => {
+        const p = m?.[k];
+        const won = m?.winner?.id === p?.id;
+        if (p) html += `<div class="bv-seed ${won?'bv-won':''}"><img src="${p.url}"><span class="bv-seed-name">${p.desc||''}</span></div>`;
+        else html += `<div class="bv-seed"><div class="bv-tbd-img">?</div><span class="bv-seed-name" style="color:#333">TBD</span></div>`;
+      });
+      html += '</div>';
+    });
+    html += '</div></div>';
+  });
+  container.innerHTML = html;
+}
+
+function renderBracketBar(s) {
+  if (!s.bracket || !s.bracket.length) return;
+  const bar = document.getElementById('bracket-bar');
+  let html = '';
+  s.bracket.forEach((round, ri) => {
+    if (ri > 0) html += '<div class="bb-sep"></div>';
+    html += `<div class="bb-round"><div class="bb-rname">${getRoundName(ri, s.totalRounds)}</div><div class="bb-matches">`;
+    round.forEach((m, mi) => {
+      const isActive = ri === s.currentRound && mi === s.currentMatch;
+      html += '<div class="bb-match">';
+      ['photoA','photoB'].forEach(k => {
+        const p = m?.[k];
+        const won = m?.winner?.id === p?.id;
+        if (p) html += `<img class="bb-photo ${won?'won':isActive?'cur':''}" src="${p.url}">`;
+        else html += '<div class="bb-tbd"></div>';
+      });
+      html += '</div>';
+    });
+    html += '</div></div>';
+  });
+  bar.innerHTML = html;
+}
+
+function showCoin(data) {
+  const ov = document.getElementById('coin-ov');
+  const coin = document.getElementById('coin');
+  const res = document.getElementById('coin-res');
+  ov.style.display = 'flex';
+  coin.textContent = '?'; coin.className = '';
+  res.style.opacity = '0';
+  setTimeout(() => {
+    coin.className = 'spin';
+    setTimeout(() => {
+      coin.textContent = data.side;
+      const desc = data.winner?.desc || '';
+      res.textContent = desc ? `Wygrywa: ${desc}` : `Strona ${data.side} wygrywa!`;
+      res.style.opacity = '1';
+      setTimeout(() => { ov.style.display = 'none'; }, 3000);
+    }, 1800);
+  }, 100);
+}
+
+function renderChamp(s) {
+  const lastR = s.bracket[s.bracket.length - 1];
+  const w = lastR?.[0]?.winner;
+  if (!w) return;
+  document.getElementById('ci').src = w.url;
+  document.getElementById('cd').textContent = w.desc || '';
+  startConfetti();
+}
+
+function getRoundName(ri, total) {
+  const d = total - 1 - ri;
+  if (d === 0) return 'FINAŁ';
+  if (d === 1) return 'PÓŁFINAŁ';
+  if (d === 2) return 'ĆWIERĆFINAŁ';
+  return `1/${Math.pow(2,d)} FINAŁU`;
+}
+
+function startConfetti() {
+  const c = document.getElementById('confetti-c');
+  const ctx = c.getContext('2d');
+  c.width = innerWidth; c.height = innerHeight;
+  const colors = ['#ffd700','#ff6b35','#f9ca24','#fff','#ff4444','#44ff88','#4488ff'];
+  const pts = Array.from({length:220}, () => ({
+    x: Math.random()*c.width, y: Math.random()*c.height - c.height,
+    s: Math.random()*9+4, c: colors[~~(Math.random()*colors.length)],
+    sp: Math.random()*3+1.5, ang: Math.random()*360, spin: (Math.random()-.5)*6
+  }));
+  (function loop() {
+    ctx.clearRect(0,0,c.width,c.height);
+    pts.forEach(p => {
+      p.y += p.sp; p.ang += p.spin;
+      if (p.y > c.height) { p.y = -20; p.x = Math.random()*c.width; }
+      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.ang*Math.PI/180);
+      ctx.fillStyle=p.c; ctx.fillRect(-p.s/2,-p.s/2,p.s,p.s); ctx.restore();
+    });
+    requestAnimationFrame(loop);
+  })();
+}
+</script>
+</body>
+</html>

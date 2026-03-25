@@ -1,0 +1,132 @@
+{
+  "name": "imprezja-hitl-enqueue",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## HITL — zapis leadu + Telegram\n\n1. **Migracja SQL:** [`schema-lead-queue.sql`](./schema-lead-queue.sql)\n2. **Env:** `HITL_WEBHOOK_SECRET`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_OPERATOR_CHAT_ID` (Twój numeryczny chat_id)\n3. **Postgres:** przypisz credential do **Postgres_InsertLead**\n4. **Wywołanie z automail:** po `ParseAndRoute` dodaj **IF** + **HTTP Request** `POST` na URL webhooka z nagłówkiem `Authorization: Bearer …` i body jak w [`N8N_TELEGRAM_HITL_ZAPYTANIA.md`](../N8N_TELEGRAM_HITL_ZAPYTANIA.md)\n5. **Callback:** import [`imprezja-hitl-telegram-callback.json`](./imprezja-hitl-telegram-callback.json)",
+        "height": 520,
+        "width": 420
+      },
+      "id": "sticky-hitl-enq",
+      "name": "Sticky_Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-200, -60]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "imprezja-hitl-enqueue",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-hitl-enq",
+      "name": "Webhook_Enqueue",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "imprezja-hitl-enqueue-v1"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Oczekuje JSON body: { source?, payload_json, ai_json? }\n * payload_json = pełny obiekt z ParseAndRoute + pola maila (jak w automail).\n * Nagłówek: Authorization: Bearer <HITL_WEBHOOK_SECRET>\n */\nfunction uuidv4() {\n  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {\n    const r = (Math.random() * 16) | 0;\n    const v = c === 'x' ? r : (r & 0x3) | 0x8;\n    return v.toString(16);\n  });\n}\nconst item = $input.first().json;\nconst headers = item.headers || {};\nconst auth = String(headers.authorization || headers.Authorization || '').trim();\nlet secret = '';\ntry { secret = String($env.HITL_WEBHOOK_SECRET || '').trim(); } catch (e) {}\nif (!secret || auth !== 'Bearer ' + secret) {\n  return [{ json: { unauthorized: true } }];\n}\nconst body = item.body;\nif (!body || typeof body !== 'object') {\n  return [{ json: { unauthorized: true, bad_body: true } }];\n}\nconst source = String(body.source || 'mail');\nconst payload_json = body.payload_json != null ? body.payload_json : body;\nconst ai_json = body.ai_json != null ? body.ai_json : null;\nlet chatId = '';\ntry { chatId = String($env.TELEGRAM_OPERATOR_CHAT_ID || '').trim(); } catch (e) {}\nif (!chatId) throw new Error('Ustaw TELEGRAM_OPERATOR_CHAT_ID (env)');\nconst lead_id = uuidv4();\nconst subj = String(payload_json.emailSubject || '').slice(0, 100);\nconst from = String(payload_json.emailFrom || payload_json.client_to_email || '').slice(0, 80);\nconst text =\n  'Nowe zapytanie (HITL) — zatwierdz wysylke\\n\\n' +\n  'ID: ' + lead_id + '\\n' +\n  'Zrodlo: ' + source + '\\n' +\n  'Temat: ' + subj + '\\n' +\n  'Od: ' + from + '\\n\\n' +\n  'Akceptuj / Odrzuc — przyciski ponizej.';\nreturn [{\n  json: {\n    unauthorized: false,\n    lead_id,\n    source,\n    payload_json,\n    ai_json,\n    chatId,\n    telegram_text: text,\n    callback_approve: 'ap:' + lead_id,\n    callback_reject: 'rj:' + lead_id,\n  },\n}];"
+      },
+      "id": "code-hitl-auth",
+      "name": "Code_AuthAndPrepare",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "version": 2, "leftValue": "", "caseSensitive": true, "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "u1",
+              "leftValue": "={{ $json.unauthorized }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-hitl-auth",
+      "name": "If_Unauthorized",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: false, error: \"unauthorized\" }) }}",
+        "options": { "responseCode": 401 }
+      },
+      "id": "resp-401",
+      "name": "Respond_401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [920, 160]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO lead_queue (id, status, source, payload_json, ai_json, telegram_chat_id) VALUES ($1::uuid, 'pending', $2, $3::jsonb, $4::jsonb, $5::bigint) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [$json.lead_id, $json.source, JSON.stringify($json.payload_json), $json.ai_json != null ? JSON.stringify($json.ai_json) : null, Number($json.chatId)] }}"
+        }
+      },
+      "id": "pg-insert-lead",
+      "name": "Postgres_InsertLead",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [920, 380],
+      "notesInFlow": true,
+      "notes": "Przypisz credential Postgres (ta sama baza co schema-lead-queue.sql). Gdy queryReplacement nie działa w Twojej wersji n8n, zamień na Insert przez UI lub ręczny SQL w dokumentacji."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: Number($('Code_AuthAndPrepare').first().json.chatId), text: $('Code_AuthAndPrepare').first().json.telegram_text, reply_markup: { inline_keyboard: [[{ text: 'Akceptuj', callback_data: $('Code_AuthAndPrepare').first().json.callback_approve }, { text: 'Odrzuć', callback_data: $('Code_AuthAndPrepare').first().json.callback_reject }]] } }) }}",
+        "options": {}
+      },
+      "id": "http-tg-send",
+      "name": "HTTP_Telegram_SendMessage",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1140, 380]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, lead_id: $('Code_AuthAndPrepare').first().json.lead_id }) }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "resp-200",
+      "name": "Respond_OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1360, 380]
+    }
+  ],
+  "connections": {
+    "Webhook_Enqueue": { "main": [[{ "node": "Code_AuthAndPrepare", "type": "main", "index": 0 }]] },
+    "Code_AuthAndPrepare": { "main": [[{ "node": "If_Unauthorized", "type": "main", "index": 0 }]] },
+    "If_Unauthorized": {
+      "main": [
+        [{ "node": "Respond_401", "type": "main", "index": 0 }],
+        [{ "node": "Postgres_InsertLead", "type": "main", "index": 0 }]
+      ]
+    },
+    "Postgres_InsertLead": { "main": [[{ "node": "HTTP_Telegram_SendMessage", "type": "main", "index": 0 }]] },
+    "HTTP_Telegram_SendMessage": { "main": [[{ "node": "Respond_OK", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": { "templateCredsSetupCompleted": false }
+}

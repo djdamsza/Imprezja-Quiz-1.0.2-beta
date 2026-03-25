@@ -1,0 +1,226 @@
+[
+  {
+    "question": "Polska potrawa narodowa to:",
+    "answers": [
+      {
+        "text": "pierogi",
+        "points": 25
+      },
+      {
+        "text": "bigos",
+        "points": 21
+      },
+      {
+        "text": "żurek",
+        "points": 18
+      },
+      {
+        "text": "gołąbki",
+        "points": 15
+      },
+      {
+        "text": "rosół",
+        "points": 12
+      },
+      {
+        "text": "kotlet schabowy",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Najpopularniejsze ciasta:",
+    "answers": [
+      {
+        "text": "szarlotka",
+        "points": 25
+      },
+      {
+        "text": "sernik",
+        "points": 21
+      },
+      {
+        "text": "makowiec",
+        "points": 18
+      },
+      {
+        "text": "wuzetka",
+        "points": 15
+      },
+      {
+        "text": "napoleonka",
+        "points": 12
+      },
+      {
+        "text": "piernik",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Co grillujemy?",
+    "answers": [
+      {
+        "text": "kiełbasę",
+        "points": 25
+      },
+      {
+        "text": "karkówkę",
+        "points": 21
+      },
+      {
+        "text": "skrzydełka",
+        "points": 18
+      },
+      {
+        "text": "kaszankę",
+        "points": 15
+      },
+      {
+        "text": "szaszłyki",
+        "points": 12
+      },
+      {
+        "text": "chleb",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Największe hity Michaela Jacksona",
+    "answers": [
+      {
+        "text": "Billie Jean",
+        "points": 25
+      },
+      {
+        "text": "Thriller",
+        "points": 21
+      },
+      {
+        "text": "Beat It",
+        "points": 18
+      },
+      {
+        "text": "Smooth Criminal",
+        "points": 15
+      },
+      {
+        "text": "Black or White",
+        "points": 12
+      },
+      {
+        "text": "We Are The World",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Japońskie marki samochodów",
+    "answers": [
+      {
+        "text": "Toyota",
+        "points": 25
+      },
+      {
+        "text": "Honda",
+        "points": 21
+      },
+      {
+        "text": "Mazda",
+        "points": 18
+      },
+      {
+        "text": "Nissan",
+        "points": 15
+      },
+      {
+        "text": "Suzuki",
+        "points": 12
+      },
+      {
+        "text": "Subaru",
+        "points": 9
+      }
+    ]
+  },
+  {
+    "question": "Jakie produkty można kupić w słoiku?",
+    "answers": [
+      {
+        "text": "dżem",
+        "points": 25
+      },
+      {
+        "text": "ogórki",
+        "points": 21
+      },
+      {
+        "text": "majonez",
+        "points": 18
+      },
+      {
+        "text": "miód",
+        "points": 15
+      },
+      {
+        "text": "musztardę",
+        "points": 12
+      }
+    ]
+  },
+  {
+    "question": "Wymień sporty, w których gra się piłką",
+    "answers": [
+      {
+        "text": "piłka nożna",
+        "points": 25
+      },
+      {
+        "text": "piłka ręczna",
+        "points": 21
+      },
+      {
+        "text": "siatkówka",
+        "points": 18
+      },
+      {
+        "text": "koszykówka",
+        "points": 15
+      },
+      {
+        "text": "tenis",
+        "points": 12
+      }
+    ]
+  },
+  {
+    "question": "Największe hity zespołu Lady Pank",
+    "answers": [
+      {
+        "text": "Kryzysowa narzeczona",
+        "points": 25
+      },
+      {
+        "text": "Mniej niż zero",
+        "points": 21
+      },
+      {
+        "text": "Marchewkowe pole",
+        "points": 18
+      },
+      {
+        "text": "Tańcz głupia tańcz",
+        "points": 15
+      },
+      {
+        "text": "Tacy sami",
+        "points": 12
+      },
+      {
+        "text": "Zawsze tam gdzie ty",
+        "points": 9
+      }
+    ]
+  }
+]

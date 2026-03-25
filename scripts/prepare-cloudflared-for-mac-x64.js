@@ -10,7 +10,7 @@ const path = require('path');
 const https = require('https');
 const { execSync } = require('child_process');
 
-const CLOUDFLARED_VERSION = '2026.2.0';
+const CLOUDFLARED_VERSION = require('./cloudflared-version.js');
 const TGZ_URL = `https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-darwin-amd64.tgz`;
 
 const root = path.join(__dirname, '..');

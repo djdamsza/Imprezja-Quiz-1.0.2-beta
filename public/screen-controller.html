@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Imprezja – ekran główny</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/img/icon-32.png">
+    <script>
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+            regs.forEach(function(r) { r.unregister(); });
+        });
+        if (caches && caches.keys) caches.keys().then(function(keys) {
+            keys.forEach(function(k) { caches.delete(k); });
+        });
+    }
+    </script>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            background: radial-gradient(ellipse at center, #1a1a2e 0%, #0d0d14 100%);
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Widoki – tylko jeden aktywny */
+        .screen-view {
+            display: none;
+            flex: 1;
+            min-height: 0;
+            position: relative;
+        }
+        .screen-view.active {
+            display: flex;
+            flex-direction: column;
+        }
+        .screen-view iframe {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        /* Ekran powitalny */
+        #view-welcome {
+            position: relative;
+            align-items: stretch;
+            justify-content: stretch;
+            padding: 0;
+            text-align: center;
+            overflow: hidden;
+        }
+        #view-welcome .welcome-bg-wrap {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            background: radial-gradient(ellipse at center, #1a1a2e 0%, #0d0d14 100%);
+        }
+        #view-welcome .welcome-image {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            object-position: center;
+        }
+        #view-welcome .welcome-logo {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            max-height: 48px;
+            width: auto;
+            z-index: 10;
+            opacity: 0.9;
+        }
+        #view-welcome .welcome-text-wrap {
+            position: absolute;
+            left: 0;
+            right: 0;
+            z-index: 5;
+            padding: 24px 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #view-welcome .welcome-text-wrap.text-top { top: 0; bottom: auto; }
+        #view-welcome .welcome-text-wrap.text-center { top: 0; bottom: 0; }
+        #view-welcome .welcome-text-wrap.text-bottom { top: auto; bottom: 0; }
+        #view-welcome .welcome-text {
+            font-size: clamp(2rem, 5vw, 4rem);
+            font-weight: 700;
+            white-space: pre-line;
+            color: #fff;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8), 0 4px 12px rgba(0,0,0,0.6), 0 0 40px rgba(0,0,0,0.5);
+            letter-spacing: 0.02em;
+            line-height: 1.2;
+        }
+
+        .music-mode-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 5000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+            pointer-events: none;
+        }
+        .music-mode-overlay img { max-width: 90%; max-height: 90%; object-fit: contain; }
+        /* Ukrycie bez display:none – iframe ładuje się i odtwarza dźwięk */
+        .screen-view.music-audio-loading {
+            display: block !important;
+            position: absolute;
+            left: -9999px;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            visibility: hidden;
+        }
+    </style>
+</head>
+<body>
+    <!-- Widok powitalny -->
+    <div id="view-welcome" class="screen-view active">
+        <div class="welcome-bg-wrap">
+            <img id="welcome-image" class="welcome-image" alt="" style="display:none;">
+        </div>
+        <img id="welcome-logo" class="welcome-logo" src="/img/logo_imprezja.png" alt="Imprezja Quiz" style="display:block;">
+        <div id="welcome-text-wrap" class="welcome-text-wrap text-center">
+            <div id="welcome-text" class="welcome-text"></div>
+        </div>
+    </div>
+
+    <!-- Widoki trybów (iframe ładowany przy pierwszym wyświetleniu) -->
+    <div id="view-quiz" class="screen-view">
+        <iframe id="iframe-quiz" data-src="/Screen.html"></iframe>
+    </div>
+    <div id="view-familiada" class="screen-view">
+        <iframe id="iframe-familiada" data-src="/familiada/screen.html"></iframe>
+    </div>
+    <div id="view-statki" class="screen-view">
+        <iframe id="iframe-statki" data-src="/statki-solo/screen.html"></iframe>
+    </div>
+    <div id="view-prezentacja" class="screen-view">
+        <iframe id="iframe-prezentacja" data-src="/prezentacja-screen.html"></iframe>
+    </div>
+    <div id="view-camera" class="screen-view">
+        <img id="camera-view" alt="" style="width:100%;height:100%;object-fit:contain;background:#000;">
+    </div>
+    <div id="view-stream" class="screen-view">
+        <img id="stream-view" alt="" style="width:100%;height:100%;object-fit:contain;background:#000;">
+    </div>
+    <!-- Tryby muzyczne – dźwięk na ekranie (TV) -->
+    <div id="view-sampler" class="screen-view">
+        <iframe id="iframe-sampler" data-src="/njr-sampler/index.html"></iframe>
+    </div>
+    <div id="view-spiewaj" class="screen-view">
+        <iframe id="iframe-spiewaj" data-src="/spiewaj-dalej.html"></iframe>
+    </div>
+    <div id="view-bitwa" class="screen-view">
+        <iframe id="iframe-bitwa" data-src="/bitwa-wokalna.html"></iframe>
+    </div>
+    <div id="view-whitney" class="screen-view">
+        <iframe id="iframe-whitney" data-src="/whitney.html"></iframe>
+    </div>
+    <div id="view-imprezator" class="screen-view">
+        <iframe id="iframe-imprezator" data-src="/imprezator.html"></iframe>
+    </div>
+
+    <!-- Overlay grafiki trybu muzycznego (Śpiewaj, Bitwa, Whitney) – wyświetla się zawsze gdy ustawiona -->
+    <div id="music-mode-overlay" class="music-mode-overlay" style="display:none;">
+        <img id="music-mode-overlay-img" alt="" style="width:100%;height:100%;object-fit:contain;">
+    </div>
+
+    <script>
+        const IMPREZJA_LOG = (...args) => { try { console.log('[IMPREZJA-SCREEN]', new Date().toISOString(), ...args); } catch (_) {} };
+        const IMPREZJA_ERR = (...args) => { try { console.error('[IMPREZJA-SCREEN-ERR]', new Date().toISOString(), ...args); } catch (_) {} };
+        window.onerror = function(msg, url, line, col, err) {
+            IMPREZJA_ERR('window.onerror', msg, url, line, col, err && err.stack);
+            return false;
+        };
+        window.addEventListener('unhandledrejection', e => { IMPREZJA_ERR('unhandledrejection', e.reason); });
+
+        const socket = io();
+        let currentMode = 'welcome';
+
+        const MUSIC_MODES = ['sampler', 'spiewaj', 'bitwa', 'whitney', 'imprezator'];
+        /** Quiz (Screen.html) w iframe — odblokuj audio po załadowaniu (Windows / brak kliknięcia w dokumencie iframe). */
+        function tryUnlockIframeQuizAudio(iframe) {
+            if (!iframe) return;
+            try {
+                const w = iframe.contentWindow;
+                if (w && typeof w.unlockQuizAudioElements === 'function') w.unlockQuizAudioElements();
+            } catch (_) {}
+        }
+        function showView(mode) {
+            IMPREZJA_LOG('showView', mode, 'MUSIC_MODES.includes=', MUSIC_MODES.includes(mode));
+            if (MUSIC_MODES.includes(mode)) return;
+            try {
+                document.querySelectorAll('.screen-view').forEach(v => { v.classList.remove('active'); });
+                const view = document.getElementById('view-' + mode);
+                IMPREZJA_LOG('showView view=', !!view, 'id=view-' + mode);
+                if (view) {
+                    view.classList.add('active');
+                    const iframe = view.querySelector('iframe[data-src]');
+                    if (iframe && iframe.dataset.src && !iframe.src) {
+                        IMPREZJA_LOG('showView loading iframe', iframe.dataset.src);
+                        iframe.onload = () => {
+                            IMPREZJA_LOG('iframe loaded', iframe.dataset.src);
+                            tryUnlockIframeQuizAudio(iframe);
+                        };
+                        iframe.onerror = (e) => IMPREZJA_ERR('iframe error', iframe.dataset.src, e);
+                        iframe.src = iframe.dataset.src;
+                    }
+                }
+                currentMode = mode;
+                IMPREZJA_LOG('showView done', 'currentMode=', currentMode);
+            } catch (e) {
+                IMPREZJA_ERR('showView error', e);
+                throw e;
+            }
+        }
+
+        // Aktualizuj ekran powitalny
+        const FONT_SIZES = { small: 'clamp(1.2rem, 3vw, 2.5rem)', medium: 'clamp(2rem, 5vw, 4rem)', large: 'clamp(2.8rem, 7vw, 5.5rem)' };
+        function updateWelcome(data) {
+            const logo = document.getElementById('welcome-logo');
+            const img = document.getElementById('welcome-image');
+            const text = document.getElementById('welcome-text');
+            const textWrap = document.getElementById('welcome-text-wrap');
+            if (data.logoVisible !== false && logo) logo.style.display = 'block';
+            else if (data.logoVisible === false && logo) logo.style.display = 'none';
+            if (data.imageUrl && img) {
+                img.src = data.imageUrl.startsWith('/') ? (window.location.origin + data.imageUrl) : data.imageUrl;
+                img.style.display = 'block';
+            } else if (img) img.style.display = 'none';
+            if (text) {
+                text.textContent = data.text || '';
+                text.style.display = data.text ? 'block' : 'none';
+                text.style.fontSize = FONT_SIZES[data.fontSize] || FONT_SIZES.medium;
+                text.style.color = data.textColor || '#ffffff';
+            }
+            if (textWrap) {
+                textWrap.classList.remove('text-top', 'text-center', 'text-bottom');
+                textWrap.classList.add('text-' + (data.textPosition || 'center'));
+                textWrap.style.display = data.text ? 'flex' : 'none';
+            }
+        }
+
+        // Socket.IO
+        socket.on('screen_switch', (data) => {
+            const mode = (data && data.mode) || 'welcome';
+            IMPREZJA_LOG('screen_switch', mode, 'data=', JSON.stringify(data));
+            if (MUSIC_MODES.includes(mode)) {
+                const view = document.getElementById('view-' + mode);
+                const iframe = view && view.querySelector('iframe[data-src]');
+                if (iframe && iframe.dataset.src && !iframe.src) {
+                    view.classList.add('music-audio-loading');
+                    iframe.src = iframe.dataset.src;
+                }
+                currentMode = mode;
+                return;
+            }
+            showView(mode);
+        });
+        socket.on('music_mode_screen', (data) => {
+            const overlay = document.getElementById('music-mode-overlay');
+            const img = document.getElementById('music-mode-overlay-img');
+            if (!overlay || !img) return;
+            const url = (data && data.graphicUrl) || '';
+            if (url) {
+                img.src = url.startsWith('/') ? (window.location.origin + url) : url;
+                overlay.style.display = 'flex';
+            } else {
+                overlay.style.display = 'none';
+                img.src = '';
+            }
+        });
+        socket.on('welcome_update', (data) => {
+            if (data) updateWelcome(data);
+        });
+        socket.on('screen_state', (data) => {
+            IMPREZJA_LOG('screen_state', data && data.mode, 'data=', JSON.stringify(data && { mode: data.mode }));
+            if (data && data.mode) {
+                const mode = data.mode;
+                if (MUSIC_MODES.includes(mode)) {
+                    const view = document.getElementById('view-' + mode);
+                    const iframe = view && view.querySelector('iframe[data-src]');
+                    if (iframe && iframe.dataset.src && !iframe.src) {
+                        view.classList.add('music-audio-loading');
+                        iframe.src = iframe.dataset.src;
+                    }
+                    currentMode = mode;
+                } else {
+                    showView(mode);
+                }
+            }
+            if (data && data.welcome) updateWelcome(data.welcome);
+        });
+        socket.on('camera_frame', (data) => {
+            if (!data || data.image == null) return;
+            const targets = currentMode === 'stream' ? ['stream-view'] : ['camera-view'];
+            targets.forEach(id => {
+                const img = document.getElementById(id);
+                if (!img) return;
+                if (typeof data.image === 'string') {
+                    img.src = data.image;
+                } else {
+                    const blob = new Blob([data.image], { type: 'image/jpeg' });
+                    const url = URL.createObjectURL(blob);
+                    if (img._cameraBlobUrl) URL.revokeObjectURL(img._cameraBlobUrl);
+                    img._cameraBlobUrl = url;
+                    img.src = url;
+                }
+            });
+        });
+        socket.on('prezentacja_winamp_mode', (data) => {
+            const iframe = document.querySelector('#view-prezentacja iframe');
+            if (iframe && iframe.contentWindow) {
+                try {
+                    iframe.contentWindow.postMessage({ type: 'prezentacja_winamp_mode', delta: data && data.delta }, '*');
+                } catch (_) {}
+            }
+        });
+
+        socket.on('connect', () => { IMPREZJA_LOG('socket connect'); socket.emit('screen_join'); });
+        socket.on('disconnect', (r) => IMPREZJA_LOG('socket disconnect', r));
+        socket.on('connect_error', (e) => IMPREZJA_ERR('socket connect_error', e));
+        // Tryb dwu monitorowy: ?mode=prezentacja – start w widoku prezentacji
+        (function() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('mode') === 'prezentacja') {
+                showView('prezentacja');
+            }
+        })();
+    </script>
+</body>
+</html>

@@ -4,19 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>Admin Panel - Imprezja Quiz</title>
-    <link rel="icon" href="data:,">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico"><link rel="icon" type="image/png" sizes="32x32" href="/img/icon-32.png"><link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
     <link rel="manifest" href="/manifest.json">
+    <link rel="stylesheet" href="/css/admin-editor-shared.css">
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        :root {
-            --bg-dark: radial-gradient(circle at center, #1a1a2e, #000);
-            --glass-bg: rgba(255, 255, 255, 0.08);
-            --glass-border: rgba(255, 255, 255, 0.15);
-            --accent-gold: #f1c40f;
-            --accent-orange: #e67e22;
-            --text-white: #ffffff;
-            --text-muted: rgba(255, 255, 255, 0.75);
-        }
         * {
             margin: 0;
             padding: 0;
@@ -205,6 +197,8 @@
         .btn-success { background: #2ecc71; color: #000; }
         .btn-warning { background: #f1c40f; color: #000; }
         .btn-danger { background: #e74c3c; color: white; }
+        .btn-end-game { background: #2c3e50; color: #fff; border: 2px solid #1a252f; }
+        .btn-end-game:hover { background: #1a252f; }
         .btn-gold { background: linear-gradient(135deg, var(--accent-gold), var(--accent-orange)); color: #000; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
         .btn-wifi { background: var(--glass-bg); color: var(--accent-gold); border: 2px solid var(--accent-gold); width: auto; font-weight: 700; }
         .btn-close { width: 50px !important; flex: 0 0 50px; font-size: 1.2rem; padding: 0; display: flex; align-items: center; justify-content: center; background: #e74c3c; color: white; }
@@ -288,6 +282,8 @@
         .qc-nav-buttons .btn-nav-next:active {
             transform: scale(0.98);
         }
+        @keyframes wybAllVotedPulse { 0%,100%{background: linear-gradient(135deg, #1a7a1a, #2e9e2e);} 50%{background: linear-gradient(135deg, #2e9e2e, #4caf50);} }
+        .all-voted-ready { animation: wybAllVotedPulse 1s infinite; color: #fff !important; border-color: #4caf50 !important; }
         .admin-answers-list { list-style: none; padding: 0; margin: 0 0 20px 0; display: flex; flex-direction: column; gap: 10px; }
         .admin-answer-item { background: var(--glass-bg); padding: 12px 15px; border-radius: 8px; border: 2px solid var(--glass-border); font-size: 1.1rem; font-weight: bold; color: var(--text-white); display: flex; align-items: center; }
         .admin-answer-badge { font-weight: 900; font-size: 1.1rem; color: #fff; margin-right: 15px; background: var(--accent-orange); width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 50%; flex-shrink: 0; }
@@ -395,6 +391,7 @@
         .type-badge-Z { background: #5c6bc0; }
         .type-badge-O { background: #2e7d32; }
         .type-badge-B { background: #0066cc; }
+        .type-badge-W { background: linear-gradient(135deg,#c0a000,#7a5e00); color:#fff; }
         .type-badge-L { background: #9c27b0; }
         .question-type-line { margin-bottom: 6px; }
         .question-text-line { display: block; text-align: left; }
@@ -439,7 +436,7 @@
         }
     </style>
 </head>
-<body>
+<body class="imp-admin-editor">
     <button id="btn-fs-admin" type="button" onclick="toggleFullscreenAdmin()" title="Pełny ekran">⛶ Pełny ekran</button>
     <div class="container">
         <header id="admin-header">
@@ -557,6 +554,11 @@
         <!-- ========== SEKCJA 2: ROZGRYWKA ========== -->
         <div id="rozgrywka-section" class="rozgrywka-section">
             <button type="button" onclick="goToAdmin()" class="btn btn-secondary section-top-btn">← ADMIN (powrót do ustawień)</button>
+            <div class="section-top-btn" style="display:flex;gap:8px;flex-wrap:wrap;">
+                <span style="font-size:0.85rem;color:var(--text-muted);align-self:center;">Ekran TV:</span>
+                <button type="button" onclick="if(typeof socket!==\'undefined\')socket.emit(\'screen_switch\',{mode:\'welcome\'})" class="btn btn-secondary">👋 Powitanie</button>
+                <button type="button" onclick="if(typeof socket!==\'undefined\')socket.emit(\'screen_switch\',{mode:\'quiz\'})" class="btn btn-secondary">🎮 Quiz</button>
+            </div>
 
         <!-- WYBÓR QUIZU -->
         <section class="quiz-selector">
@@ -593,6 +595,32 @@
                 <button onclick="sendCommand('admin_idle')" class="btn btn-secondary">⏸️ Pauza muzyka</button>
                 <button onclick="showPodium()" class="btn btn-gold">🏆 Podium</button>
                 <button type="button" id="btn-zaraz-zaczynamy" onclick="toggleZaraz()" class="btn btn-secondary">🎬 Ekran startowy</button>
+            </div>
+
+            <!-- Panel QR kodów na adminie (do gry bez screen.html) -->
+            <div id="admin-qr-panel" style="display:none; margin:0 0 12px;">
+                <div style="text-align: center; padding: 12px; background: rgba(30,30,50,.6); border: 1px solid rgba(102,126,234,.3); border-radius: 12px;">
+                    <h3 style="color: #667eea; margin: 0 0 12px; font-size: 1rem;">📱 Przekaż dalej dostęp do gry</h3>
+                    <div style="display: flex; flex-direction: row; flex-wrap: wrap; gap: 16px; justify-content: center; align-items: flex-start;">
+                        <div id="admin-qr-wifi-block" style="width: 100%; max-width: 180px; display: none;">
+                            <h4 style="margin: 0 0 6px; font-size: 0.85rem; color: #3498db;">📶 WiFi</h4>
+                            <div id="admin-qr-wifi-wrap" style="background: white; padding: 8px; border-radius: 8px; display: inline-block;"></div>
+                            <div id="admin-qr-wifi-ssid" style="margin-top: 6px; font-size: 0.8rem; font-weight: bold; color: var(--accent-gold);"></div>
+                        </div>
+                        <div id="admin-qr-local-block" style="width: 100%; max-width: 180px; display: none;">
+                            <h4 style="margin: 0 0 6px; font-size: 0.85rem; color: #2ecc71;">🎮 Gra (Wi‑Fi)</h4>
+                            <div id="admin-qr-local-wrap" style="background: white; padding: 8px; border-radius: 8px; display: inline-block;"></div>
+                        </div>
+                        <div id="admin-qr-tunnel-block" style="width: 100%; max-width: 180px; display: none;">
+                            <h4 style="margin: 0 0 6px; font-size: 0.85rem; color: #e67e22;">🌐 Gra (LTE)</h4>
+                            <div id="admin-qr-tunnel-wrap" style="background: white; padding: 8px; border-radius: 8px; display: inline-block;"></div>
+                        </div>
+                    </div>
+                    <div id="admin-qr-nicks-wrap" style="margin-top: 10px;">
+                        <div id="admin-qr-nicks-count" style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;"></div>
+                        <ul id="admin-qr-nicks-list" style="list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:5px; justify-content:center;"></ul>
+                    </div>
+                </div>
             </div>
 
             <!-- Ranking graczy (jak na TV) + Podium – kto na którym miejscu -->
@@ -684,6 +712,101 @@
                 <button onclick="showRankingPopup()" class="btn btn-primary">🏆 Ranking</button>
             </div>
 
+            <!-- WYBORCZY – panel zarządzania głosowaniem gwiazdkowym -->
+            <div id="wyborczy-panel" style="display:none; margin-top:12px; border-top:1px solid rgba(255,215,0,0.3); padding-top:12px;">
+                <div style="color:#ffd700; font-weight:700; margin-bottom:8px;">👑 Głosowanie Wybiorcze</div>
+
+                <!-- Status bieżącego zdjęcia -->
+                <div id="wyb-photo-status" style="background:rgba(255,215,0,0.08); border:1px solid rgba(255,215,0,0.3); border-radius:8px; padding:10px; margin-bottom:10px; display:flex; align-items:center; gap:12px;">
+                    <img id="wyb-photo-thumb" src="" style="width:60px;height:60px;object-fit:cover;border-radius:6px;display:none;background:#222">
+                    <div style="flex:1;">
+                        <div id="wyb-photo-label" style="font-weight:600; color:#fff;">— brak —</div>
+                        <div id="wyb-photo-progress" style="color:#aaa; font-size:12px;">Zdjęcie — / —</div>
+                        <div id="wyb-timer-display" style="color:#ffd700; font-size:20px; font-weight:700; display:none;">⏱ <span id="wyb-timer-val">0</span>s</div>
+                        <div id="wyb-votes-display" style="color:#7fc; font-size:13px;"></div>
+                    </div>
+                </div>
+
+                <!-- Nawigacja zdjęciami -->
+                <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+                    <button onclick="wybAdminPrev()" class="btn btn-secondary" id="wyb-btn-prev" style="display:none;">◀ Poprzednie</button>
+                    <button onclick="wybAdminNext()" class="btn btn-warning" id="wyb-btn-next">▶ Następne zdjęcie</button>
+                </div>
+
+                <!-- Reveal podium -->
+                <div id="wyb-podium-section" style="display:none; border-top:1px solid rgba(255,215,0,0.2); padding-top:10px; margin-top:10px;">
+                    <div style="color:#ffd700; font-weight:600; margin-bottom:8px;">🏆 Podium (TOP 3)</div>
+                    <div id="wyb-podium-steps" style="display:flex; flex-direction:column; gap:6px;"></div>
+                    <button onclick="showWybFullPodium()" class="btn" id="wyb-btn-full-podium" style="display:none; margin-top:8px; background:linear-gradient(135deg,#c0a000,#7a5e00); color:#fff;">🏅 Pokaż pełne podium (słupki)</button>
+
+                    <div style="color:#ffd700; font-weight:600; margin-top:14px; margin-bottom:8px;">📋 Wszystkie wyniki</div>
+                    <div id="wyb-allresults-steps" style="display:flex; flex-direction:column; gap:6px;"></div>
+
+                    <div id="wyb-dogrywka-section" style="display:none; margin-top:14px; border-top:1px solid rgba(255,80,80,0.3); padding-top:10px;">
+                        <div style="color:#ff8080; font-weight:600; margin-bottom:6px;">⚡ Wykryto remis w TOP 3 – Dogrywka</div>
+                        <div id="wyb-dogrywka-info" style="color:#aaa; font-size:12px; margin-bottom:8px;"></div>
+                        <button onclick="wybStartDogrywka()" class="btn btn-danger">⚡ Rozpocznij dogrywkę</button>
+                        <div id="wyb-dogrywka-active" style="display:none; margin-top:8px;">
+                            <div style="color:#ff8080; margin-bottom:6px;">Dogrywka aktywna</div>
+                            <button onclick="wybDogrywkaNajastepne()" class="btn btn-warning" id="wyb-dogrywka-next">▶ Następne zdjęcie dogrywki</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HNC – panel zarządzania turniejem Hot or Not Champion -->
+            <div id="hnc-panel" style="display:none; margin-top:12px; border-top:1px solid rgba(52,152,219,0.4); padding-top:12px;">
+                <div style="color:#3498db; font-weight:700; margin-bottom:8px;">🏆 Hot or Not Champion</div>
+
+                <!-- Status meczu -->
+                <div id="hnc-match-status" style="background:rgba(52,152,219,0.08); border:1px solid rgba(52,152,219,0.3); border-radius:10px; padding:12px; margin-bottom:10px;">
+                    <div id="hnc-phase-label" style="font-size:11px; color:#888; margin-bottom:6px; letter-spacing:1px; text-transform:uppercase;"></div>
+                    <div id="hnc-match-name" style="font-weight:700; color:#ffd700; font-size:15px; margin-bottom:8px;"></div>
+                    <div style="display:flex; gap:12px; align-items:center;">
+                        <!-- A side -->
+                        <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; min-width:0;">
+                            <img id="hnc-thumb-a" src="" style="width:100%;height:auto;max-height:90px;object-fit:contain;border-radius:8px;display:none;background:#111;border:2px solid #3498db;">
+                            <div id="hnc-desc-a" style="color:#fff; font-size:14px; font-weight:700; text-align:center; width:100%; overflow:hidden; display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;"></div>
+                        </div>
+                        <!-- Center info -->
+                        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; min-width:50px; flex-shrink:0;">
+                            <div style="font-size:18px; font-weight:900; color:#fff;">VS</div>
+                            <div id="hnc-votes-info" style="color:#7fc; font-size:12px; text-align:center;"></div>
+                            <div id="hnc-timer-display" style="color:#ffd700; font-size:20px; font-weight:700; display:none;">⏱ <span id="hnc-timer-val">0</span>s</div>
+                        </div>
+                        <!-- B side -->
+                        <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; min-width:0;">
+                            <img id="hnc-thumb-b" src="" style="width:100%;height:auto;max-height:90px;object-fit:contain;border-radius:8px;display:none;background:#111;border:2px solid #e74c3c;">
+                            <div id="hnc-desc-b" style="color:#fff; font-size:14px; font-weight:700; text-align:center; width:100%; overflow:hidden; display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;"></div>
+                        </div>
+                    </div>
+                    <div id="hnc-match-desc" style="display:none;"></div>
+                </div>
+
+                <!-- Przyciski sterowania -->
+                <div id="hnc-ctrl-ready" style="display:none; margin-bottom:8px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                    <button onclick="hncAdminStartMatch()" class="btn" style="background:#27ae60;color:#fff;">▶ START GŁOSOWANIA</button>
+                    <button id="hnc-btn-shuffle" onclick="hncAdminShuffle()" class="btn" style="background:#8e44ad;color:#fff;display:none;">🔀 RANDOM</button>
+                </div>
+                <div id="hnc-ctrl-voting" style="display:none; margin-bottom:8px; display:flex; gap:8px; flex-wrap:wrap;">
+                    <button onclick="hncAdminForceEnd()" class="btn btn-warning">⏹ Zakończ głosowanie</button>
+                </div>
+                <div id="hnc-ctrl-result" style="display:none; margin-bottom:8px; display:flex; gap:8px; flex-wrap:wrap;">
+                    <button onclick="hncAdminCoinFlip()" class="btn btn-secondary" id="hnc-coin-btn" style="display:none;">🎲 Rzut monetą (losowy)</button>
+                    <button onclick="hncAdminAdvance()" class="btn btn-primary" id="hnc-btn-advance">➡ Dalej</button>
+                </div>
+                <div id="hnc-ctrl-round-complete" style="display:none; margin-bottom:8px;">
+                    <button onclick="hncAdminNextRound()" class="btn" style="background:#2980b9;color:#fff;" id="hnc-btn-next-round">🏁 Rozpocznij następną rundę</button>
+                </div>
+                <div id="hnc-ctrl-champion" style="display:none; margin-bottom:8px;">
+                    <div id="hnc-champion-info" style="color:#ffd700; font-weight:700; margin-bottom:8px;">🏆 Turniej zakończony!</div>
+                    <button onclick="nextQuestion()" class="btn btn-primary">▶ Następne pytanie quizu</button>
+                </div>
+
+                <!-- Mini drabinka -->
+                <div id="hnc-bracket-mini" style="margin-top:10px; border-top:1px solid rgba(52,152,219,0.2); padding-top:8px; overflow-x:auto;"></div>
+            </div>
+
             <!-- Ranking inline – rozwija się wewnątrz panelu, nad przyciskiem Następne -->
             <div class="ranking-inline" id="ranking-inline">
                 <h3 id="ranking-inline-title">🏆 Ranking graczy</h3>
@@ -698,6 +821,8 @@
         <!-- Przycisk Reset na dole strony (z potwierdzeniem); poniżej miejsce na przewinięcie -->
         <div class="reset-single-wrap" style="padding: 20px 10px 120px; text-align: center;">
             <button type="button" id="btn-reset-game" class="btn btn-danger" onclick="confirmResetGame()" style="font-size: 1rem; padding: 12px 24px;">🔴 RESET GRY</button>
+            <button type="button" id="btn-end-game" class="btn btn-end-game" onclick="confirmEndGame()" style="font-size: 1rem; padding: 12px 24px; margin-top: 12px;">⛔ KONIEC GRY</button>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 8px;">Koniec gry: wyłącza muzykę, zatrzymuje tunel i rozłącza telefony graczy.</p>
         </div>
         </div>
         <!-- /rozgrywka-section -->
@@ -789,6 +914,7 @@
             document.getElementById('admin-section').style.display = 'none';
             document.getElementById('rozgrywka-section').style.display = 'block';
             localStorage.setItem('adminActiveSection', 'rozgrywka');
+            if (typeof socket !== 'undefined' && socket.connected) socket.emit('screen_switch', { mode: 'quiz' });
             var slider = document.getElementById('master-volume');
             if (slider && typeof setMasterVolume === 'function') setMasterVolume(slider.value);
             window.scrollTo(0, 0);
@@ -846,6 +972,7 @@
             if (section === 'rozgrywka') {
                 document.getElementById('admin-section').style.display = 'none';
                 document.getElementById('rozgrywka-section').style.display = 'block';
+                if (typeof socket !== 'undefined' && socket.connected) socket.emit('screen_switch', { mode: 'quiz' });
             }
             const savedVol = localStorage.getItem('adminMasterVolume');
             if (savedVol != null) setMasterVolume(savedVol);
@@ -921,6 +1048,31 @@
             const banner = document.getElementById('disconnect-banner');
             if (banner) banner.style.display = 'none';
             socket.emit('admin_login', isAdminFromComputer() ? { isComputer: true } : undefined);
+            const roz = document.getElementById('rozgrywka-section');
+            if (roz && roz.style.display !== 'none') socket.emit('screen_switch', { mode: 'quiz' });
+        });
+
+        socket.on('qr_codes_on_phones', (data) => {
+            const wifiBlock = document.getElementById('admin-qr-wifi-block');
+            const localBlock = document.getElementById('admin-qr-local-block');
+            const tunnelBlock = document.getElementById('admin-qr-tunnel-block');
+            if (wifiBlock) wifiBlock.style.display = data.wifiQR ? 'block' : 'none';
+            if (localBlock) localBlock.style.display = data.localGameQR ? 'block' : 'none';
+            if (tunnelBlock) tunnelBlock.style.display = data.tunnelQR ? 'block' : 'none';
+            if (data.wifiQR) {
+                const c = document.getElementById('admin-qr-wifi-wrap');
+                if (c) c.innerHTML = '<img src="' + data.wifiQR.qrCode + '" alt="QR WiFi" style="max-width:160px;height:auto;">';
+                const s = document.getElementById('admin-qr-wifi-ssid');
+                if (s) s.textContent = data.wifiSSID || '';
+            }
+            if (data.localGameQR) {
+                const c = document.getElementById('admin-qr-local-wrap');
+                if (c) c.innerHTML = '<img src="' + data.localGameQR.qrCode + '" alt="QR Gra" style="max-width:160px;height:auto;">';
+            }
+            if (data.tunnelQR) {
+                const c = document.getElementById('admin-qr-tunnel-wrap');
+                if (c) c.innerHTML = '<img src="' + data.tunnelQR.qrCode + '" alt="QR Tunel" style="max-width:160px;height:auto;">';
+            }
         });
         
         // Potwierdzenie aktywacji trybu drużynowego (tylko raz)
@@ -1183,7 +1335,7 @@
             }
         });
 
-        var TYPE_LABELS = { S: 'Speedrun', E: 'Eliminacja', Z: 'Szacowanie', O: 'Pytanie otwarte', L: 'Pytanie z literą', H: 'Hot or Not', Q: 'QUIZ', V: 'Głosowanie', F: 'Foto Głos', M: 'Muzyka', B: 'Statki', BS: 'Statki Solo' };
+        var TYPE_LABELS = { S: 'Speedrun', E: 'Eliminacja', Z: 'Szacowanie', O: 'Pytanie otwarte', L: 'Pytanie z literą', H: 'Hot or Not', Q: 'QUIZ', V: 'Głosowanie', F: 'Foto Głos', M: 'Muzyka', B: 'Statki', W: '👑 Wyborczy' };
 
         function getTypeBadges(q) {
             const badges = [];
@@ -1198,6 +1350,7 @@
             else if (q && q.type === 'MUSIC') badges.push('M');
             else if (q && q.type === 'VOTE_IMG') badges.push('F');
             else if (q && q.type === 'VOTE') badges.push('V');
+            else if (q && q.type === 'WYBORCZY') badges.push('W');
             return badges;
         }
 
@@ -1312,11 +1465,19 @@
             currentQuestionIndex = index;
             activeQuestionIndex = index;
             usedQuestions.add(index);
+            // Reset wyborczy state
+            wybRevealedPodium = {};
+            wybRevealedAll = {};
+            const podiumSteps = document.getElementById('wyb-podium-steps');
+            const allSteps = document.getElementById('wyb-allresults-steps');
+            const fullBtn = document.getElementById('wyb-btn-full-podium');
+            if (podiumSteps) { podiumSteps.innerHTML = ''; delete podiumSteps.dataset.built; }
+            if (allSteps) { allSteps.innerHTML = ''; delete allSteps.dataset.built; }
+            if (fullBtn) fullBtn.style.display = 'none';
             const question = questions[index];
             if (question && question.type === 'LETTER') {
                 log('🔤 [admin] Start pytania LETTER (index ' + index + ') – potem kliknij "Wyślij 1 literę" lub "Wyślij 2 litery"');
             }
-            // Dla LETTER wysyłamy tylko index - litery wyśle admin przyciskiem "Wyślij 1 literę" / "Wyślij 2 litery"
             socket.emit('admin_start_question', index);
             const panelRef = document.getElementById('question-control');
             renderQuestionsList(); // Rozegrane pytania znikają z listy
@@ -1327,7 +1488,12 @@
         }
 
         function prevQuestion() { if (currentQuestionIndex > 0) startQuestion(currentQuestionIndex - 1); }
-        function nextQuestion() { 
+        function nextQuestion() {
+            // Block if HNC tournament is in progress (not yet decided champion)
+            if (hncAdminState && hncAdminState.phase && hncAdminState.phase !== 'champion') {
+                document.getElementById('hnc-block-modal').style.display = 'flex';
+                return;
+            }
             if (currentQuestionIndex < questions.length - 1) startQuestion(currentQuestionIndex + 1); 
             else showPodium();
         }
@@ -1588,6 +1754,24 @@
                     playersQrBtn.style.background = '';
                 }
             }
+            // Panel QR na adminie — widoczny gdy QR+nicki włączone
+            const adminQrPanel = document.getElementById('admin-qr-panel');
+            if (adminQrPanel) {
+                const wasHidden = adminQrPanel.style.display === 'none';
+                adminQrPanel.style.display = state.showPlayersWithQR ? 'block' : 'none';
+                if (state.showPlayersWithQR) {
+                    if (wasHidden) socket.emit('request_qr_codes_on_phones');
+                    const countEl = document.getElementById('admin-qr-nicks-count');
+                    const nicksList = document.getElementById('admin-qr-nicks-list');
+                    const nicks = Array.isArray(state.playerNicks) ? state.playerNicks : [];
+                    if (countEl) countEl.textContent = nicks.length > 0 ? '👥 ' + nicks.length + ' graczy' : 'Czekam na graczy…';
+                    if (nicksList) {
+                        nicksList.innerHTML = nicks.length
+                            ? nicks.map(n => '<li style="background:rgba(255,255,255,0.1);border-radius:16px;padding:3px 10px;font-size:0.75rem;">'+n.replace(/</g,'&lt;')+'</li>').join('')
+                            : '';
+                    }
+                }
+            }
             // Aktualizuj stan przycisku „Ekran startowy"
             const zarazBtn = document.getElementById('btn-zaraz-zaczynamy');
             if (zarazBtn) {
@@ -1670,7 +1854,6 @@
                 const isPlayoff = !!(state.playoff && state.playoff.active);
                 const isEstimation = q && q.type === 'ESTIMATION';
                 const isShips = q && q.type === 'SHIPS';
-                const isShipsSolo = q && q.type === 'SHIPS_SOLO';
                 const isLetter = q && q.type === 'LETTER';
                 const hasCorrect = q && q.correct !== undefined && q.correct !== null && q.correct !== -1;
                 const hasCorrectValue = isEstimation && q.correctValue !== undefined && q.correctValue !== null && q.correctValue !== '';
@@ -1710,18 +1893,16 @@
                     });
                 }
                 
+                // Przycisk Ranking graczy – widoczny we wszystkich trybach oprócz HNC (WYBORCZY, SHIPS, zwykły quiz itd.)
+                const rankBtn = document.querySelector('[onclick="showRankingPopup()"]');
+                if (rankBtn) rankBtn.style.display = (q && q.type === 'HNC') ? 'none' : '';
+
                 if (isShips) {
                     if (shipsNextBtn) shipsNextBtn.style.display = '';
                     if (shipsEndBtn) shipsEndBtn.style.display = '';
                     if (shipsShowAnswerBtn) shipsShowAnswerBtn.style.display = '';
                     if (correctBtn) correctBtn.style.display = 'none';
                     if (statsBtn) statsBtn.style.display = '';
-                } else if (isShipsSolo) {
-                    if (shipsNextBtn) shipsNextBtn.style.display = 'none';
-                    if (shipsEndBtn) shipsEndBtn.style.display = 'none';
-                    if (shipsShowAnswerBtn) shipsShowAnswerBtn.style.display = 'none';
-                    if (correctBtn) correctBtn.style.display = 'none';
-                    if (statsBtn) statsBtn.style.display = 'none';
                 } else {
                     if (shipsNextBtn) shipsNextBtn.style.display = 'none';
                     if (shipsEndBtn) shipsEndBtn.style.display = 'none';
@@ -1843,8 +2024,6 @@
                         statsDiv.appendChild(table);
                         answersList.appendChild(statsDiv);
                     }
-                } else if (q.type === 'SHIPS_SOLO') {
-                    renderShipsSoloAdmin(q, state, answersList);
                 } else if (q.type === 'OPEN') {
                     if (state.openCloud && state.openCloud.length > 0) {
                         const hint = document.createElement('p');
@@ -1970,6 +2149,10 @@
                     qcNextBtn.className = "btn-nav-next btn-primary";
                 }
             }
+            // Wyborczy panel update
+            try { updateWybPanel(state); } catch(e) { console.error('wyb panel error', e); }
+            try { updateHncPanel(state); } catch(e) { console.error('hnc panel error', e); }
+
             } catch (e) {
                 console.error('update_state error:', e);
             }
@@ -2019,144 +2202,6 @@
                 socket.emit('admin_show_ships_answer');
             }
         }
-        // ─── SHIPS SOLO – celownik i strzały ────────────────────────────────────
-        let shipsSoloState = { phase: 'row', aimRow: null, aimCol: null };
-        const SOLO_LETTERS = 'ABCDEFGHIJ';
-
-        function renderShipsSoloAdmin(q, state, container) {
-            const g = state.shipsSoloGame;
-            const boardSize = q.boardSize || 8;
-            const shots = g ? g.shots : {};
-            const ships = q.ships || [];
-            const rewards = q.rewards || {};
-            const cellSize = Math.min(38, Math.floor(320 / boardSize));
-
-            // Miniaturka planszy
-            let boardHtml = `<div style="overflow-x:auto;margin-bottom:14px;"><table style="border-collapse:collapse;border:2px solid #0ea5e9;background:#000;">`;
-            boardHtml += `<tr><th style="width:${cellSize}px;height:${cellSize}px;border:1px solid #0ea5e9;background:#00111f;"></th>`;
-            for (let c = 0; c < boardSize; c++) {
-                boardHtml += `<th style="width:${cellSize}px;height:${cellSize}px;border:1px solid #0ea5e9;color:#7dd3fc;font-size:${Math.max(10,cellSize*0.4)}px;background:#00111f;">${SOLO_LETTERS[c]}</th>`;
-            }
-            boardHtml += `</tr>`;
-            for (let r = 0; r < boardSize; r++) {
-                const isAimRow = g && g.aimRow === r;
-                const isAimCol = g && g.aimCol !== null;
-                boardHtml += `<tr>`;
-                boardHtml += `<th style="width:${cellSize}px;height:${cellSize}px;border:1px solid #0ea5e9;color:#7dd3fc;font-size:${Math.max(10,cellSize*0.4)}px;background:${isAimRow ? '#1e3a5f' : '#00111f'};">${r+1}</th>`;
-                for (let c = 0; c < boardSize; c++) {
-                    const key = `${r}_${c}`;
-                    const shot = shots[key];
-                    let hasShip = ships.some(ship => {
-                        for (let i = 0; i < ship.size; i++) {
-                            const sr = ship.row + (ship.vertical ? i : 0);
-                            const sc = ship.col + (ship.vertical ? 0 : i);
-                            if (sr === r && sc === c) return true;
-                        }
-                        return false;
-                    });
-                    const isAim = g && g.aimRow === r && g.aimCol === c;
-                    let bg = '#001122', content = '';
-                    if (shot) {
-                        bg = shot.hit ? '#15803d' : '#334155';
-                        content = shot.hit ? '🔥' : '○';
-                    } else if (hasShip) {
-                        bg = '#1e40af';
-                    }
-                    if (isAim) bg = '#f59e0b';
-                    boardHtml += `<td style="width:${cellSize}px;height:${cellSize}px;border:1px solid #0ea5e9;background:${bg};text-align:center;font-size:${Math.max(10,cellSize*0.4)}px;">${content}</td>`;
-                }
-                boardHtml += `</tr>`;
-            }
-            boardHtml += `</table></div>`;
-
-            // Suwak celowniczy
-            const phase = g ? g.phase : 'row';
-            const ended = g && g.gameEnded;
-            const lastShot = g && g.lastShot;
-
-            let controlHtml = '';
-            if (ended) {
-                controlHtml = `<div style="text-align:center;padding:20px;color:#7dd3fc;font-size:1.2rem;">🏁 Gra zakończona</div>
-                <button onclick="socket.emit('ships_solo_end',{questionId:'${q.id}'})" class="btn btn-danger" style="display:none;"></button>`;
-            } else if (phase === 'row') {
-                // Wybór wiersza – duży picker
-                controlHtml = `<div id="solo-row-picker" style="margin-bottom:12px;">
-                    <p style="color:#7dd3fc;text-align:center;font-weight:600;margin:0 0 8px;">🎯 Wybierz rząd (1–${boardSize})</p>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
-                    ${Array.from({length:boardSize},(_,r)=>`<button onclick="soloPickRow(${r})" 
-                        style="width:56px;height:56px;font-size:1.4rem;font-weight:700;border-radius:12px;border:2px solid #0ea5e9;background:${g&&g.aimRow===r?'#0ea5e9':'#00111f'};color:${g&&g.aimRow===r?'#fff':'#7dd3fc'};cursor:pointer;transition:all .15s;">${r+1}</button>`).join('')}
-                    </div>
-                    ${g&&g.aimRow!==null?`<div style="text-align:center;margin-top:10px;"><button onclick="soloConfirmRow()" class="btn btn-primary" style="padding:12px 32px;font-size:1.1rem;">✔ Potwierdź rząd ${(g.aimRow+1)}</button></div>`:''}
-                </div>`;
-            } else {
-                // Wybór kolumny – litery
-                controlHtml = `<div id="solo-col-picker" style="margin-bottom:12px;">
-                    <p style="color:#7dd3fc;text-align:center;font-weight:600;margin:0 0 8px;">🎯 Wybierz kolumnę (rząd: ${g.aimRow+1})</p>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
-                    ${Array.from({length:boardSize},(_,c)=>{
-                        const key=`${g.aimRow}_${c}`;
-                        const already=shots[key];
-                        return `<button onclick="${already?'':'soloFireShot('+c+')'}"
-                            style="width:56px;height:56px;font-size:1.3rem;font-weight:700;border-radius:12px;border:2px solid ${already?'#334155':'#0ea5e9'};background:${already?(shots[key].hit?'#15803d':'#334155'):'#00111f'};color:${already?'#9ca3af':'#7dd3fc'};cursor:${already?'default':'pointer'};transition:all .15s;">${SOLO_LETTERS[c]}</button>`;
-                    }).join('')}
-                    </div>
-                    <div style="text-align:center;margin-top:10px;">
-                        <button onclick="soloResetRow()" class="btn btn-secondary" style="font-size:0.9rem;">← Zmień rząd</button>
-                    </div>
-                </div>`;
-            }
-
-            // Ostatni strzał
-            let lastShotHtml = '';
-            if (lastShot) {
-                lastShotHtml = `<div style="text-align:center;padding:10px;border-radius:8px;background:${lastShot.hit?'rgba(21,128,61,0.3)':'rgba(51,65,85,0.5)'};border:1px solid ${lastShot.hit?'#15803d':'#334155'};margin-bottom:12px;">
-                    ${lastShot.hit ? `<span style="color:#4ade80;font-size:1.1rem;font-weight:700;">🔥 TRAFIONY! ${SOLO_LETTERS[lastShot.col]}${lastShot.row+1}</span>${lastShot.reward?`<br><span style="color:#fbbf24;font-size:1rem;">🏆 ${lastShot.reward}</span>`:''}` 
-                    : `<span style="color:#94a3b8;font-size:1rem;">Pudło – ${SOLO_LETTERS[lastShot.col]}${lastShot.row+1}</span>`}
-                </div>`;
-            }
-
-            // Wolumin soundtracku
-            const soundHtml = q.soundtrack ? `<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-                <span style="color:#7dd3fc;font-size:0.85rem;">🎵</span>
-                <input type="range" min="0" max="1" step="0.05" value="0.65" oninput="socket.emit('ships_solo_volume',{volume:parseFloat(this.value)})" style="flex:1;accent-color:#0ea5e9;">
-                <span style="color:#64748b;font-size:0.8rem;">Głośność soundtracku</span>
-            </div>` : '';
-
-            const endBtn = `<div style="text-align:center;margin-top:10px;">
-                <button onclick="if(confirm('Zakończyć Statki Solo?'))socket.emit('ships_solo_end',{questionId:'${q.id}'})" class="btn btn-danger" style="font-size:0.85rem;">🏁 Zakończ grę</button>
-            </div>`;
-
-            const wrap = document.createElement('div');
-            wrap.style.cssText = 'padding:14px;background:rgba(0,17,31,0.8);border-radius:10px;border:2px solid #0ea5e9;';
-            wrap.innerHTML = `<h4 style="color:#7dd3fc;margin:0 0 12px;text-align:center;">🎯 Statki Solo – Panel Admina</h4>${soundHtml}${lastShotHtml}${boardHtml}${controlHtml}${endBtn}`;
-            container.appendChild(wrap);
-        }
-
-        function soloPickRow(r) {
-            const q = questions[activeQuestionIndex];
-            if (!q || q.type !== 'SHIPS_SOLO') return;
-            socket.emit('ships_solo_aim', { questionId: q.id, aimRow: r, aimCol: null, phase: 'row' });
-        }
-        function soloConfirmRow() {
-            const q = questions[activeQuestionIndex];
-            const g = (currentGameState || {}).shipsSoloGame;
-            if (!q || q.type !== 'SHIPS_SOLO' || !g || g.aimRow === null) return;
-            socket.emit('ships_solo_aim', { questionId: q.id, aimRow: g.aimRow, aimCol: null, phase: 'col' });
-        }
-        function soloResetRow() {
-            const q = questions[activeQuestionIndex];
-            if (!q || q.type !== 'SHIPS_SOLO') return;
-            socket.emit('ships_solo_aim', { questionId: q.id, aimRow: null, aimCol: null, phase: 'row' });
-        }
-        function soloFireShot(col) {
-            const q = questions[activeQuestionIndex];
-            const g = (currentGameState || {}).shipsSoloGame;
-            if (!q || q.type !== 'SHIPS_SOLO' || !g || g.aimRow === null) return;
-            socket.emit('ships_solo_shot', { questionId: q.id, row: g.aimRow, col });
-        }
-        // Nasłuchuj wyniku strzału – odśwież widok
-        socket.on('ships_solo_shot_result', () => { /* broadcastState już zaktualizuje widok */ });
-
         function repeatMusic() {
             socket.emit('admin_repeat_music');
         }
@@ -2209,6 +2254,11 @@
         }
         function resetGame() {
             socket.emit('admin_reset_game');
+        }
+        function confirmEndGame() {
+            if (confirm('⛔ Koniec gry?\n\nWyłączy muzykę, zatrzyma tunel LTE i rozłączy wszystkie telefony graczy. Gracze będą musieli ponownie wejść do gry.')) {
+                socket.emit('admin_end_game_session');
+            }
         }
         function endGame() {
             if (confirm('⛔ CZY NA PEWNO CHCESZ ZAKOŃCZYĆ GRĘ I WYŁĄCZYĆ SERWER?\n\nSerwer zostanie zatrzymany, wszystkie połączenia (ekran, telefony, admin) zostaną zamknięte.\nAby uruchomić grę ponownie, trzeba będzie uruchomić serwer od nowa (np. start.command).\n\nKontynuować?')) {
@@ -2322,12 +2372,372 @@
                 isActivatingTeamMode = false;
             }
         };
+
+        // ═══ WYBORCZY ADMIN ═══
+        let wybCurrentState = null;
+        let wybRevealedPodium = {};
+        let wybRevealedAll = {};
+
+        function updateWybPanel(state) {
+            if (!state) return;
+            const q = state.activeQuestion;
+            const ws = state.wyborczyState;
+            const panel = document.getElementById('wyborczy-panel');
+            if (!panel) return;
+
+            const isWyb = q && q.type === 'WYBORCZY';
+            panel.style.display = isWyb ? '' : 'none';
+            if (!isWyb || !ws) return;
+
+            wybCurrentState = ws;
+
+            const thumb = document.getElementById('wyb-photo-thumb');
+            const labelEl = document.getElementById('wyb-photo-label');
+            const progressEl = document.getElementById('wyb-photo-progress');
+            const timerEl = document.getElementById('wyb-timer-display');
+            const timerVal = document.getElementById('wyb-timer-val');
+            const votesEl = document.getElementById('wyb-votes-display');
+            const btnNext = document.getElementById('wyb-btn-next');
+            const btnPrev = document.getElementById('wyb-btn-prev');
+            const podiumSection = document.getElementById('wyb-podium-section');
+            const nextBtn = document.getElementById('qc-next-btn');
+
+            const photos = ws.photos || [];
+            const ci = ws.currentIndex;
+            const total = photos.length;
+            const currentPhoto = ci >= 0 && ci < total ? photos[ci] : null;
+
+            if (currentPhoto) {
+                thumb.src = currentPhoto.url;
+                thumb.style.display = '';
+                labelEl.textContent = currentPhoto.label || '(brak opisu)';
+            } else {
+                thumb.style.display = 'none';
+                labelEl.textContent = ws.phase === 'idle' ? 'Kliknij "Następne zdjęcie" aby zacząć' : '—';
+            }
+            progressEl.textContent = `Zdjęcie ${ci >= 0 ? ci + 1 : 0} / ${total}`;
+
+            // Timer
+            const inVoting = ws.phase === 'voting' || ws.phase === 'dogrywka';
+            if (inVoting && ws.photoTimeLeft > 0) {
+                timerEl.style.display = '';
+                timerVal.textContent = ws.photoTimeLeft;
+            } else {
+                timerEl.style.display = 'none';
+            }
+
+            // Vote count
+            const voterCount = ws.voterCount || 0;
+            const votedCount = ci >= 0 ? ((ws.voteSummary || []).find(v => v.index === ci) || {}).count || 0 : 0;
+            votesEl.textContent = inVoting ? `Głosy: ${votedCount} / ${voterCount}` : '';
+
+            // All voted highlight on next button
+            if (ws.phase === 'voting' && voterCount > 0 && votedCount >= voterCount) {
+                btnNext.classList.add('all-voted-ready');
+                btnNext.textContent = '✅ Następne ▶';
+            } else if (ws.phase !== 'voting') {
+                btnNext.classList.remove('all-voted-ready');
+                btnNext.textContent = ws.phase === 'podium' || ws.phase === 'podium_full' || ws.phase === 'stats' ? 'Następne pytanie ▶' : '▶ Następne zdjęcie';
+            } else {
+                btnNext.classList.remove('all-voted-ready');
+                btnNext.textContent = '▶ Następne zdjęcie';
+            }
+
+            btnPrev.style.display = ci > 0 && inVoting ? '' : 'none';
+
+            // Show/hide podium section
+            const showPodium = ws.phase === 'podium' || ws.phase === 'podium_full' || ws.phase === 'stats';
+            podiumSection.style.display = showPodium ? '' : 'none';
+
+            if (showPodium && ws.ranking && ws.ranking.length > 0) {
+                buildWybPodiumSteps(ws);
+            }
+
+            // Dogrywka section
+            const dogrSection = document.getElementById('wyb-dogrywka-section');
+            const dogrActive = document.getElementById('wyb-dogrywka-active');
+            if (ws.phase === 'dogrywka') {
+                dogrSection.style.display = '';
+                dogrActive.style.display = '';
+            } else if (showPodium) {
+                const ties = ws.tiedIndices || [];
+                dogrSection.style.display = ties.length > 0 ? '' : 'none';
+                dogrActive.style.display = 'none';
+                if (ties.length > 0) {
+                    const names = ties.map(idx => {
+                        const ph = (ws.photos || [])[idx];
+                        return ph ? (ph.label || ('Zdjęcie ' + (idx + 1))) : ('Zdjęcie ' + (idx + 1));
+                    }).join(', ');
+                    const info = document.getElementById('wyb-dogrywka-info');
+                    if (info) info.textContent = 'Remis: ' + names;
+                }
+            } else {
+                dogrSection.style.display = 'none';
+            }
+
+            // Hide regular controls for WYBORCZY
+            const statsBtn = document.getElementById('stats-btn');
+            const correctBtn = document.getElementById('correct-btn');
+            if (statsBtn) statsBtn.style.display = 'none';
+            if (correctBtn) correctBtn.style.display = 'none';
+
+            // Hide quiz "Następne" when in voting (use wyborczy controls instead)
+            if (nextBtn) {
+                nextBtn.style.display = (ws.phase === 'voting' || ws.phase === 'idle') ? 'none' : '';
+            }
+        }
+
+        function buildWybPodiumSteps(ws) {
+            const stepsEl = document.getElementById('wyb-podium-steps');
+            const allEl = document.getElementById('wyb-allresults-steps');
+            const fullBtn = document.getElementById('wyb-btn-full-podium');
+            if (!stepsEl || !allEl) return;
+
+            const ranking = ws.ranking || [];
+            const top3 = ranking.filter(r => r.place <= 3).sort((a,b) => b.place - a.place); // 3,2,1
+
+            // If first build, clear
+            if (!stepsEl.dataset.built) {
+                stepsEl.innerHTML = '';
+                top3.forEach(r => {
+                    const btn = document.createElement('button');
+                    const medal = r.place === 1 ? '🥇' : r.place === 2 ? '🥈' : '🥉';
+                    btn.className = 'btn btn-secondary';
+                    btn.id = 'wyb-reveal-p-' + r.place;
+                    btn.style.cssText = 'text-align:left; padding:8px 12px;';
+                    btn.innerHTML = `${medal} Pokaż miejsce ${r.place}`;
+                    btn.onclick = () => revealWybPlace(r.place, true, 'p');
+                    stepsEl.appendChild(btn);
+                });
+                stepsEl.dataset.built = '1';
+            }
+
+            if (!allEl.dataset.built) {
+                allEl.innerHTML = '';
+                const allSorted = [...ranking].sort((a,b) => b.place - a.place); // worst first
+                allSorted.forEach(r => {
+                    const btn = document.createElement('button');
+                    btn.className = 'btn btn-secondary';
+                    btn.id = 'wyb-reveal-a-' + r.place;
+                    btn.style.cssText = 'text-align:left; padding:8px 12px;';
+                    btn.innerHTML = `📋 Pokaż miejsce ${r.place} (${r.label || r.url})`;
+                    btn.onclick = () => revealWybPlace(r.place, false, 'a');
+                    allEl.appendChild(btn);
+                });
+                allEl.dataset.built = '1';
+            }
+
+            // Show full podium button after place 1 is revealed
+            if (fullBtn && wybRevealedPodium[1]) fullBtn.style.display = '';
+        }
+
+        function revealWybPlace(place, confetti, prefix) {
+            const btnId = 'wyb-reveal-' + prefix + '-' + place;
+            const btn = document.getElementById(btnId);
+            if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
+            if (prefix === 'p') {
+                wybRevealedPodium[place] = true;
+                if (place === 1) {
+                    const fullBtn = document.getElementById('wyb-btn-full-podium');
+                    if (fullBtn) fullBtn.style.display = '';
+                }
+            } else {
+                wybRevealedAll[place] = true;
+            }
+            socket.emit('wyborczy_podium_reveal', { place, confetti: !!confetti });
+        }
+
+        function showWybFullPodium() {
+            socket.emit('wyborczy_podium_full');
+        }
+
+        function wybAdminNext() {
+            socket.emit('wyborczy_admin_next');
+        }
+        function wybAdminPrev() {
+            socket.emit('wyborczy_admin_prev');
+        }
+        function wybStartDogrywka() {
+            socket.emit('wyborczy_dogrywka_start');
+        }
+        function wybDogrywkaNajastepne() {
+            socket.emit('wyborczy_dogrywka_next');
+        }
+
+        socket.on('wyborczy_all_voted', () => {
+            const btn = document.getElementById('wyb-btn-next');
+            if (btn) {
+                btn.classList.add('all-voted-ready');
+                btn.textContent = '✅ Następne ▶';
+            }
+        });
+
+        socket.on('wyborczy_timer', (data) => {
+            const v = document.getElementById('wyb-timer-val');
+            if (v) v.textContent = data.timeLeft;
+            const d = document.getElementById('wyb-timer-display');
+            if (d) d.style.display = data.timeLeft > 0 ? '' : 'none';
+        });
+        // ═══ /WYBORCZY ADMIN ═══
+
+        // ═══ HNC ADMIN ═══
+        let hncAdminState = null;
+
+        function updateHncPanel(state) {
+            const q = state.activeQuestion;
+            const hs = state.hncState;
+            const panel = document.getElementById('hnc-panel');
+            if (!panel) return;
+
+            const isHnc = q && q.type === 'HNC';
+            panel.style.display = isHnc ? '' : 'none';
+            if (!isHnc) {
+                hncAdminState = null;
+                // Przywróć przycisk Ranking graczy we wszystkich trybach poza HNC (WYBORCZY, SHIPS, zwykły quiz itd.)
+                const rankBtnH = document.querySelector('[onclick="showRankingPopup()"]');
+                if (rankBtnH) rankBtnH.style.display = '';
+                return;
+            }
+            if (!hs) return;
+
+            hncAdminState = hs;
+            // Ukryj stats/ranking TYLKO podczas pytania HNC (Hot or Not Championship)
+            const statsBtnH = document.getElementById('stats-btn');
+            const rankBtnH = document.querySelector('[onclick="showRankingPopup()"]');
+            if (statsBtnH) statsBtnH.style.display = 'none';
+            if (rankBtnH) rankBtnH.style.display = 'none';
+            // Next button: always visible but guarded by nextQuestion()
+            const nextBtn = document.getElementById('qc-next-btn');
+            if (nextBtn) nextBtn.style.display = '';
+
+            // Phase label
+            const phaseLabels = { setup:'Przygotowanie', ready:'Gotowy do startu', voting:'Głosowanie', tiebreak:'REMIS – rzut monetą', match_result:'Wynik meczu', champion:'MISTRZ TURNIEJU!' };
+            const phaseText = hs.phase === 'round_complete'
+                ? `Koniec: ${hs.completedRoundName||'rundy'} → ${hs.matchName||'następna runda'}`
+                : (phaseLabels[hs.phase] || hs.phase);
+            document.getElementById('hnc-phase-label').textContent = phaseText;
+
+            // Current match info
+            const m = hs.match;
+            document.getElementById('hnc-match-name').textContent = hs.matchName ? `${hs.matchName} · Mecz ${hs.currentMatch+1}/${hs.matchesInRound}` : '—';
+
+            const tA = document.getElementById('hnc-thumb-a');
+            const tB = document.getElementById('hnc-thumb-b');
+            const dA = document.getElementById('hnc-desc-a');
+            const dB = document.getElementById('hnc-desc-b');
+            if (m && m.photoA) { tA.src = m.photoA.url; tA.style.display = ''; if(dA) dA.textContent = m.photoA.desc||'A'; }
+            else { tA.style.display = 'none'; if(dA) dA.textContent = ''; }
+            if (m && m.photoB) { tB.src = m.photoB.url; tB.style.display = ''; if(dB) dB.textContent = m.photoB.desc||'B'; }
+            else { tB.style.display = 'none'; if(dB) dB.textContent = ''; }
+
+            if (hs.phase === 'champion') {
+                const lastR = hs.bracket?.[hs.bracket.length-1];
+                const w = lastR?.[0]?.winner;
+                document.getElementById('hnc-champion-info').textContent = `🏆 Mistrz: ${w?.desc || 'Turniej zakończony!'}`;
+            }
+
+            document.getElementById('hnc-votes-info').textContent =
+                hs.phase === 'voting' ? `Zagłosowało: ${hs.votedCount}/${hs.voterCount}` : '';
+
+            const timerEl = document.getElementById('hnc-timer-display');
+            const timerVal = document.getElementById('hnc-timer-val');
+            if (timerEl) { timerEl.style.display = hs.phase === 'voting' && hs.timeLeft > 0 ? '' : 'none'; }
+            if (timerVal) timerVal.textContent = hs.timeLeft;
+
+            // Control panels
+            document.getElementById('hnc-ctrl-ready').style.display = hs.phase === 'ready' ? 'flex' : 'none';
+            // RANDOM button: only in eliminacje round (round 0) before any match is played
+            const shuffleBtn = document.getElementById('hnc-btn-shuffle');
+            if (shuffleBtn) {
+                const canShuffle = hs.phase === 'ready' && hs.currentRound === 0 && hs.currentMatch === 0 && !hs.bracket?.[0]?.some(m => m?.winner);
+                shuffleBtn.style.display = canShuffle ? '' : 'none';
+            }
+            document.getElementById('hnc-ctrl-voting').style.display = hs.phase === 'voting' ? 'flex' : 'none';
+            document.getElementById('hnc-ctrl-result').style.display = hs.phase === 'match_result' || hs.phase === 'tiebreak' ? 'flex' : 'none';
+            document.getElementById('hnc-ctrl-round-complete').style.display = hs.phase === 'round_complete' ? '' : 'none';
+            document.getElementById('hnc-ctrl-champion').style.display = hs.phase === 'champion' ? '' : 'none';
+
+            // Coin flip button only in tiebreak
+            const isTie = hs.phase === 'tiebreak';
+            const coinBtn = document.getElementById('hnc-coin-btn');
+            const advBtn = document.getElementById('hnc-btn-advance');
+            if (coinBtn) coinBtn.style.display = isTie ? '' : 'none';
+            if (advBtn) advBtn.style.display = isTie ? 'none' : '';
+
+            // Next round button label
+            const nrBtn = document.getElementById('hnc-btn-next-round');
+            if (nrBtn && hs.matchName) nrBtn.textContent = `🏁 Rozpocznij: ${hs.matchName}`;
+
+            // Mini bracket
+            renderHncBracketMini(hs);
+        }
+
+        function renderHncBracketMini(hs) {
+            const el = document.getElementById('hnc-bracket-mini');
+            if (!el || !hs.bracket || !hs.bracket.length) return;
+            const total = hs.totalRounds;
+            function rn(ri) {
+                const d = total-1-ri;
+                if(d===0) return 'FINAŁ'; if(d===1) return 'PÓŁFINAŁ'; if(d===2) return 'ĆWIERĆFINAŁ';
+                return `1/${Math.pow(2,d)}`;
+            }
+            let html = '<div style="display:flex;gap:12px;min-width:max-content">';
+            hs.bracket.forEach((round, ri) => {
+                html += `<div style="display:flex;flex-direction:column;gap:4px;min-width:90px">`;
+                html += `<div style="font-size:9px;color:#555;letter-spacing:1px;text-transform:uppercase;text-align:center">${rn(ri)}</div>`;
+                round.forEach((m, mi) => {
+                    const isActive = ri===hs.currentRound && mi===hs.currentMatch;
+                    const sBorder = isActive ? 'border-color:#ffd700' : m?.winner ? 'border-color:#2a3' : 'border-color:#2a2a3a';
+                    html += `<div style="background:#10121e;border:1px solid;${sBorder};border-radius:5px;padding:3px 5px">`;
+                    ['photoA','photoB'].forEach(k => {
+                        const p = m?.[k]; const won = m?.winner?.id===p?.id;
+                        if(p) html += `<div style="display:flex;align-items:center;gap:4px;${won?'color:#ffd700':'color:#aaa'};font-size:10px"><img src="${p.url}" style="width:20px;height:20px;object-fit:cover;border-radius:3px">${p.desc||'—'}</div>`;
+                        else html += `<div style="color:#333;font-size:10px">TBD</div>`;
+                    });
+                    html += '</div>';
+                });
+                html += '</div>';
+            });
+            html += '</div>';
+            el.innerHTML = html;
+        }
+
+        function hncAdminStartMatch() { socket.emit('hnc_start_match'); }
+        function hncAdminShuffle() { socket.emit('hnc_shuffle'); }
+        function hncAdminForceEnd() { socket.emit('hnc_force_end'); }
+        function hncAdminAdvance() { socket.emit('hnc_advance'); }
+        function hncAdminNextRound() { socket.emit('hnc_next_round'); }
+        function hncAdminCoinFlip() { socket.emit('hnc_coin_flip'); }
+
+        socket.on('hnc_state', (hs) => {
+            if (hncAdminState !== null) {
+                hncAdminState = hs;
+                try {
+                    updateHncPanel({ activeQuestion: window._lastAdminState?.activeQuestion, hncState: hs });
+                } catch(e) {
+                    console.error('hnc_state updateHncPanel error', e);
+                }
+            }
+        });
+        socket.on('update_state', s => { window._lastAdminState = s; });
+        // ═══ /HNC ADMIN ═══
+
     </script>
     <script>
-        if ('serviceWorker' in navigator) {
+        if ('serviceWorker' in navigator && !navigator.userAgent.includes('Electron')) {
             navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function() {});
         }
     </script>
+    <!-- HNC block modal -->
+    <div id="hnc-block-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.75);align-items:center;justify-content:center;">
+        <div style="background:#1a1a2e;border:3px solid #e74c3c;border-radius:18px;padding:36px 32px 28px;max-width:420px;width:90%;text-align:center;position:relative;box-shadow:0 0 60px rgba(231,76,60,.4);">
+            <button onclick="document.getElementById('hnc-block-modal').style.display='none'" style="position:absolute;top:10px;right:14px;background:none;border:none;color:#fff;font-size:36px;cursor:pointer;line-height:1;">✕</button>
+            <div style="font-size:48px;margin-bottom:12px;">⚠️</div>
+            <div style="font-size:22px;font-weight:900;color:#e74c3c;letter-spacing:1px;margin-bottom:10px;">UWAGA</div>
+            <div style="font-size:18px;color:#fff;font-weight:700;line-height:1.4;">ROZGRYWKA JESZCZE TRWA</div>
+            <div style="font-size:14px;color:#aaa;margin-top:10px;">Poczekaj na wyłonienie mistrza turnieju,<br>zanim przejdziesz do następnego pytania.</div>
+        </div>
+    </div>
 </body>
 </html>
 

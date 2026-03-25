@@ -1,0 +1,100 @@
+{
+  "name": "imprezja-telegram-voice-perplexity",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Glos → Perplexity (szkielet)\n\nDokończ: getFile → pobierz plik → Whisper → HTTP Perplexity → TTS → sendAudio/sendDocument.\n\nDocs: [`N8N_VOICE_PERPLEXITY_TELEGRAM.md`](../N8N_VOICE_PERPLEXITY_TELEGRAM.md)",
+        "height": 260,
+        "width": 380
+      },
+      "id": "sticky-voice",
+      "name": "Sticky_Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-200, 0]
+    },
+    {
+      "parameters": {
+        "updates": ["message"]
+      },
+      "id": "tg-tr-msg",
+      "name": "Telegram_Trigger_Message",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "webhookId": "imprezja-voice-perplexity-v1",
+      "notes": "Credential Telegram API = TELEGRAM_BOT_TOKEN"
+    },
+    {
+      "parameters": {
+        "jsCode": "const m = $input.first().json.message;\nif (!m) return [{ json: { ok: false, reason: 'no_message' } }];\nconst uid = m.from && m.from.id != null ? String(m.from.id) : '';\nlet allowed = '';\ntry { allowed = String($env.TELEGRAM_OPERATOR_CHAT_ID || '').trim(); } catch (e) {}\nif (!allowed || uid !== allowed) return [{ json: { ok: false, reason: 'not_operator' } }];\nconst v = m.voice || m.audio;\nif (!v || !v.file_id) return [{ json: { ok: false, reason: 'no_voice' } }];\nlet token = '';\ntry { token = String($env.TELEGRAM_BOT_TOKEN || '').trim(); } catch (e) {}\nif (!token) throw new Error('TELEGRAM_BOT_TOKEN');\nreturn [{ json: { ok: true, file_id: v.file_id, telegram_api_base: 'https://api.telegram.org/bot' + token } }];"
+      },
+      "id": "code-voice-gate",
+      "name": "Code_OperatorVoiceOnly",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "version": 2, "leftValue": "", "caseSensitive": true, "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "v1",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-voice-ok",
+      "name": "If_VoiceOk",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.telegram_api_base }}/getFile",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [{ "name": "file_id", "value": "={{ $json.file_id }}" }]
+        },
+        "options": {}
+      },
+      "id": "http-getfile",
+      "name": "HTTP_Telegram_GetFile",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [940, 260]
+    },
+    {
+      "parameters": {
+        "content": "## Nastepny krok\n\n`GET` `telegram_api_base + /file/bot... + file_path` z odpowiedzi getFile → binary → Whisper → Perplexity → TTS → Telegram.",
+        "height": 160,
+        "width": 300
+      },
+      "id": "sticky-next",
+      "name": "Sticky_AfterGetFile",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1120, 220]
+    }
+  ],
+  "connections": {
+    "Telegram_Trigger_Message": { "main": [[{ "node": "Code_OperatorVoiceOnly", "type": "main", "index": 0 }]] },
+    "Code_OperatorVoiceOnly": { "main": [[{ "node": "If_VoiceOk", "type": "main", "index": 0 }]] },
+    "If_VoiceOk": {
+      "main": [
+        [{ "node": "HTTP_Telegram_GetFile", "type": "main", "index": 0 }],
+        []
+      ]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": { "templateCredsSetupCompleted": false }
+}

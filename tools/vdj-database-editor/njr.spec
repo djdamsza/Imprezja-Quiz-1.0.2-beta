@@ -5,6 +5,8 @@
 block_cipher = None
 
 # Moduły wymagane przez NJR (hiddenimports)
+# Uwaga: importy wewnątrz funkcji w app.py (Tidal, playlisty online, Rekordbox DB)
+# muszą być tu jawnie – inaczej onefile kończy się ImportError w runtime.
 hidden_imports = [
     'flask',
     'flask_cors',
@@ -29,6 +31,13 @@ hidden_imports = [
     'mutagen',
     'cryptography',
     'pyrekordbox',
+    'pyrekordbox.db6',
+    'sqlalchemy',
+    'sqlalchemy.engine',
+    'tidal_auth',
+    'online_playlist_parser',
+    'tkinter',
+    'tkinter.filedialog',
 ]
 
 a = Analysis(
@@ -62,7 +71,8 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    # UPX bywa źródłem fałszywych alarmów AV na Windows – wyłącz na release jeśli trzeba
+    upx=False,
     upx_exclude=[],
     runtime_tmpdir=None,
     console=True,

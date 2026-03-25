@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edytor ekranu powitalnego – Imprezja</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/img/icon-32.png">
+    <link rel="stylesheet" href="/css/admin-editor-shared.css">
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: var(--imp-font);
+            background: var(--imp-bg-gradient);
+            color: var(--imp-text);
+            min-height: 100vh;
+            padding: 24px;
+        }
+        .container { max-width: 720px; margin: 0 auto; }
+        h1 { color: var(--imp-accent); margin-bottom: 24px; font-size: 1.6rem; }
+        .back-link { display: inline-block; margin-bottom: 20px; color: var(--imp-accent); text-decoration: none; font-weight: 600; }
+        .back-link:hover { text-decoration: underline; }
+        .section {
+            background: var(--imp-glass);
+            border: 1px solid var(--imp-border);
+            border-radius: var(--imp-radius-lg);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .section-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--imp-text-dim); margin-bottom: 12px; }
+        label { display: block; font-size: 0.9rem; margin-bottom: 6px; color: rgba(255,255,255,0.9); }
+        textarea {
+            width: 100%;
+            padding: 14px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(0,0,0,0.4);
+            color: #fff;
+            font-size: 1rem;
+            font-family: inherit;
+            resize: vertical;
+            margin-bottom: 12px;
+        }
+        textarea::placeholder { color: rgba(255,255,255,0.4); }
+        .btn-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+        .btn {
+            padding: 12px 20px;
+            border-radius: 8px;
+            border: none;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: var(--imp-info); color: #fff; }
+        .btn-primary:hover { background: var(--imp-info-hover); }
+        .btn-success { background: var(--imp-success); color: #000; }
+        .btn-success:hover { background: var(--imp-success-hover); }
+        .btn-apply { background: var(--imp-accent); color: #000; }
+        .btn-apply:hover { background: var(--imp-accent-hover); }
+        .pos-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+        .pos-btns .btn { flex: 1; min-width: 90px; }
+        .pos-btns .btn.active { background: var(--imp-accent); color: #000; border: 2px solid var(--imp-accent); }
+        .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 12px; }
+        .row label { margin-bottom: 0; margin-right: 8px; }
+        input[type="color"] { width: 48px; height: 36px; padding: 2px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); cursor: pointer; }
+        select {
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(0,0,0,0.4);
+            color: #fff;
+            font-size: 0.95rem;
+            min-width: 140px;
+        }
+        .preview-img { max-width: 100%; max-height: 200px; border-radius: 8px; margin-top: 8px; object-fit: contain; background: #000; }
+        .preview-img.empty { display: none; }
+        .status { font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-top: 12px; }
+    </style>
+</head>
+<body class="imp-admin-editor">
+    <div class="container">
+        <a href="/start.html" class="back-link">← Powrót do wyboru trybu</a>
+        <h1>👋 Edytor ekranu powitalnego</h1>
+        <p class="status" id="status">Łączenie...</p>
+
+        <div class="section">
+            <div class="section-title">Tekst</div>
+            <label for="welcome-text">Tekst powitalny (np. WESELE ANI I LESZKA, Enter = nowa linia)</label>
+            <textarea id="welcome-text" rows="4" placeholder="Opcjonalnie – Enter = nowa linia"></textarea>
+            <div class="row">
+                <label for="font-size">Rozmiar czcionki:</label>
+                <select id="font-size">
+                    <option value="small">Mały</option>
+                    <option value="medium" selected>Średni</option>
+                    <option value="large">Duży</option>
+                </select>
+            </div>
+            <div class="row">
+                <label for="text-color">Kolor tekstu:</label>
+                <input type="color" id="text-color" value="#ffffff">
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Pozycja napisów</div>
+            <div class="pos-btns">
+                <button type="button" class="btn btn-apply welcome-text-pos" data-pos="top">⬆️ Góra</button>
+                <button type="button" class="btn btn-apply welcome-text-pos" data-pos="center">⬌ Środek</button>
+                <button type="button" class="btn btn-apply welcome-text-pos" data-pos="bottom">⬇️ Dół</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Grafika</div>
+            <label>
+                <input type="checkbox" id="logo-visible" checked> Logo Imprezja widoczne w rogu
+            </label>
+            <div style="margin-top: 12px;">
+                <label>Obrazek tła (opcjonalnie)</label>
+                <input type="hidden" id="welcome-image" value="">
+                <button type="button" class="btn btn-primary" id="btn-pick-image" style="margin-top: 8px;">📁 Wybierz plik</button>
+                <img id="preview-img" class="preview-img empty" alt="" src="">
+            </div>
+        </div>
+
+        <div class="btn-row">
+            <button type="button" class="btn btn-success" id="btn-apply">Zastosuj na ekranie</button>
+            <a href="/screen-controller.html" target="_blank" class="btn btn-primary">🖥️ Otwórz ekran główny</a>
+        </div>
+    </div>
+
+    <input type="file" id="welcome-image-input" accept="image/*" style="display:none">
+
+    <script>
+        const socket = io({ transports: ['websocket', 'polling'] });
+        let welcomeTextPosition = 'center';
+
+        const statusEl = document.getElementById('status');
+        socket.on('connect', () => {
+            statusEl.textContent = 'Połączono';
+            socket.emit('admin_join');
+            socket.emit('prezentacja_join');
+        });
+        socket.on('disconnect', () => { statusEl.textContent = 'Brak połączenia'; });
+
+        socket.on('screen_state', (data) => {
+            if (data && data.welcome) loadWelcome(data.welcome);
+        });
+        socket.on('welcome_update', (data) => {
+            if (data) loadWelcome(data);
+        });
+
+        function loadWelcome(w) {
+            document.getElementById('welcome-text').value = w.text || '';
+            document.getElementById('welcome-image').value = w.imageUrl || '';
+            welcomeTextPosition = w.textPosition || 'center';
+            document.querySelectorAll('.welcome-text-pos').forEach(b => {
+                b.classList.toggle('active', b.dataset.pos === welcomeTextPosition);
+            });
+            document.getElementById('font-size').value = w.fontSize || 'medium';
+            document.getElementById('text-color').value = w.textColor || '#ffffff';
+            document.getElementById('logo-visible').checked = w.logoVisible !== false;
+            const prev = document.getElementById('preview-img');
+            if (w.imageUrl) {
+                prev.src = w.imageUrl.startsWith('/') ? (window.location.origin + w.imageUrl) : w.imageUrl;
+                prev.classList.remove('empty');
+            } else {
+                prev.src = '';
+                prev.classList.add('empty');
+            }
+        }
+
+        function emitWelcome() {
+            const text = document.getElementById('welcome-text').value.trim();
+            const imageUrl = document.getElementById('welcome-image').value.trim();
+            const logoVisible = document.getElementById('logo-visible').checked;
+            const fontSize = document.getElementById('font-size').value;
+            const textColor = document.getElementById('text-color').value;
+            socket.emit('welcome_update', {
+                text,
+                imageUrl,
+                logoVisible,
+                textPosition: welcomeTextPosition,
+                fontSize: fontSize || 'medium',
+                textColor: textColor || '#ffffff'
+            });
+        }
+
+        document.querySelectorAll('.welcome-text-pos').forEach(btn => {
+            btn.addEventListener('click', () => {
+                welcomeTextPosition = btn.dataset.pos || 'center';
+                document.querySelectorAll('.welcome-text-pos').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                emitWelcome();
+            });
+        });
+
+        document.getElementById('btn-apply').addEventListener('click', emitWelcome);
+
+        document.getElementById('logo-visible').addEventListener('change', emitWelcome);
+        document.getElementById('font-size').addEventListener('change', emitWelcome);
+        document.getElementById('text-color').addEventListener('change', emitWelcome);
+
+        document.getElementById('btn-pick-image').addEventListener('click', () => {
+            document.getElementById('welcome-image-input').click();
+        });
+        document.getElementById('welcome-image-input').addEventListener('change', async (e) => {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+            const btn = document.getElementById('btn-pick-image');
+            btn.disabled = true;
+            btn.textContent = '⏳ Wgrywanie...';
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                const r = await fetch('/upload', { method: 'POST', body: formData });
+                const j = await r.json();
+                if (j.filepath) {
+                    document.getElementById('welcome-image').value = j.filepath;
+                    document.getElementById('preview-img').src = (j.filepath.startsWith('/') ? window.location.origin : '') + j.filepath;
+                    document.getElementById('preview-img').classList.remove('empty');
+                    emitWelcome();
+                } else {
+                    alert('Błąd: ' + (j.error || 'Nie udało się wgrać'));
+                }
+            } catch (err) {
+                alert('Błąd: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '📁 Wybierz plik';
+                e.target.value = '';
+            }
+        });
+    </script>
+</body>
+</html>

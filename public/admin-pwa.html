@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Imprezja Admin</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/img/icon-32.png">
+    <link rel="manifest" href="/manifest-admin.json">
+    <link rel="stylesheet" href="/css/admin-editor-shared.css">
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+        }
+        body {
+            font-family: var(--imp-font, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+            background: var(--imp-bg, #1a1a2e);
+            color: var(--imp-text, #fff);
+            min-height: 100vh;
+            padding: 12px 6px;
+            padding-bottom: env(safe-area-inset-bottom, 12px);
+        }
+        h1 {
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+            text-align: center;
+            color: var(--imp-accent, #f1c40f);
+        }
+        .section {
+            margin-bottom: 24px;
+        }
+        .section-setup {
+            width: 100%;
+            max-width: 100%;
+        }
+        .section-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 6px;
+        }
+        .section-desc {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.5);
+            margin-bottom: 12px;
+        }
+        .screen-grid { grid-template-columns: repeat(3, 1fr); }
+        .screen-tile.active { background: var(--imp-accent-dim); border-color: var(--imp-accent); }
+        .setup-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            width: 100%;
+            max-width: 100%;
+        }
+        @media (min-width: 500px) { .setup-grid { grid-template-columns: repeat(2, 1fr); } }
+        .setup-card {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .setup-card-header {
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            background: rgba(0,0,0,0.2);
+        }
+        .setup-card-header[data-toggle]:hover { background: rgba(255,255,255,0.08); }
+        .setup-card-header .icon { font-size: 1.3rem; }
+        .setup-card-header .chevron {
+            margin-left: auto;
+            font-size: 0.7rem;
+            opacity: 0.6;
+            transition: transform 0.2s;
+        }
+        .setup-card.collapsed .setup-card-header .chevron { transform: rotate(-90deg); }
+        .setup-card-body {
+            padding: 16px;
+            border-top: 1px solid rgba(255,255,255,0.08);
+        }
+        .setup-card.collapsed .setup-card-body { display: none; }
+        .setup-card-links .setup-card-header { cursor: default; }
+        .setup-card-links a.btn-apply { color: #000; }
+        .btn-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        .btn-mode {
+            padding: 16px;
+            border-radius: 12px;
+            border: 2px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.06);
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        .btn-mode:hover, .btn-mode:active {
+            background: rgba(241,196,15,0.15);
+            border-color: rgba(241,196,15,0.5);
+        }
+        .btn-mode.active {
+            background: rgba(241,196,15,0.25);
+            border-color: #f1c40f;
+        }
+        .btn-mode .icon { font-size: 1.8rem; }
+        .btn-mode .label { font-size: 0.9rem; }
+        .btn-mode .desc { font-size: 0.75rem; color: rgba(255,255,255,0.6); font-weight: 400; }
+        .music-grid { grid-template-columns: repeat(2, 1fr); }
+        @media (min-width: 500px) { .music-grid { grid-template-columns: repeat(3, 1fr); } }
+        .music-tile.sampler-tile { border-color: rgba(155,89,182,0.4); }
+        .music-tile.sampler-tile:hover { border-color: #9b59b6; background: rgba(155,89,182,0.15); }
+        .music-tile.spiewaj-tile { border-color: rgba(230,126,34,0.4); }
+        .music-tile.spiewaj-tile:hover { border-color: #e67e22; background: rgba(230,126,34,0.15); }
+        .music-tile.bitwa-tile { border-color: rgba(155,89,182,0.4); }
+        .music-tile.bitwa-tile:hover { border-color: #9b59b6; background: rgba(155,89,182,0.15); }
+        .music-tile.whitney-tile { border-color: rgba(0,188,212,0.4); }
+        .music-tile.whitney-tile:hover { border-color: #00bcd4; background: rgba(0,188,212,0.15); }
+        .music-tile.imprezator-tile { border-color: rgba(16,185,129,0.4); }
+        .music-tile.imprezator-tile:hover { border-color: #10b981; background: rgba(16,185,129,0.15); }
+        .music-tile.active { border-color: var(--imp-accent); background: var(--imp-accent-dim); }
+        .music-embed-frame {
+            margin-top: 16px;
+            border: 2px solid rgba(241,196,15,0.3);
+            border-radius: 12px;
+            overflow: visible;
+            background: #0d0d14;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+        .music-embed-header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+            background: rgba(0,0,0,0.4);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .music-embed-header .btn-close { display: none !important; }
+        .music-modes-section { display: flex; flex-direction: column; }
+        .music-embed-frame .bank-tabs-wrap { display: none !important; }
+        .music-swipe-zone { display: none !important; }
+        .music-swipe-zone .swipe-arrow { font-size: 2rem; font-weight: 800; color: #f1c40f; text-shadow: 0 0 12px rgba(241,196,15,0.8); }
+        .music-embed-frame .bank-tab { padding: 6px 12px; border-radius: 8px; border: 2px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.06); color: #fff; cursor: pointer; font-size: 0.85rem; }
+        .music-embed-frame .bank-tab:hover { border-color: rgba(155,89,182,0.6); background: rgba(155,89,182,0.15); }
+        .music-embed-frame .bank-tab.active { border-color: #9b59b6; background: rgba(155,89,182,0.3); }
+        .music-embed-iframe-wrap {
+            min-height: 420px;
+            height: 65vh;
+            max-height: min(65vh, 600px);
+            position: relative;
+            flex: 1 1 auto;
+            overflow: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .music-embed-iframe-wrap iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+        }
+        .welcome-form {
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+        .welcome-form input, .welcome-form label {
+            display: block;
+            width: 100%;
+        }
+        .welcome-form label {
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.8);
+            margin-bottom: 4px;
+        }
+        .welcome-form input {
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(0,0,0,0.4);
+            color: #fff;
+            font-size: 1rem;
+            margin-bottom: 12px;
+        }
+        .welcome-form input::placeholder { color: rgba(255,255,255,0.4); }
+        .btn-apply {
+            padding: 12px 20px;
+            border-radius: 8px;
+            border: none;
+            background: linear-gradient(135deg, #f1c40f, #e67e22);
+            color: #000;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 8px;
+        }
+        .btn-apply:hover { opacity: 0.95; }
+        .welcome-text-pos.active { background: rgba(241,196,15,0.3) !important; border: 2px solid #f1c40f; }
+        .prez-text-pos.active { background: rgba(241,196,15,0.3) !important; border: 2px solid #f1c40f; }
+        .camera-facing-btn.active { background: rgba(241,196,15,0.3) !important; border: 2px solid #f1c40f; }
+        .status {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.5);
+            text-align: center;
+            margin-top: 16px;
+        }
+        .status.connected { color: #2ecc71; }
+        .status.disconnected { color: #e74c3c; }
+        /* Baner braku połączenia (jak w vote.html) */
+        #connection-lost-banner {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 9999;
+            background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);
+            color: #fff;
+            padding: 12px 16px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            font-size: 0.95rem;
+        }
+        #connection-lost-banner.show { display: block; }
+        #connection-lost-banner .retry-btn {
+            margin-left: 12px;
+            padding: 6px 14px;
+            background: rgba(255,255,255,0.25);
+            border: 1px solid rgba(255,255,255,0.5);
+            border-radius: 6px;
+            color: #fff;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        #connection-lost-banner .retry-btn:hover { background: rgba(255,255,255,0.4); }
+        .btn-fullscreen-panel {
+            position: fixed;
+            top: 12px;
+            right: 12px;
+            z-index: 1000;
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            border: 2px solid rgba(255,255,255,0.25);
+            background: rgba(50,50,50,0.8);
+            color: #fff;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .btn-fullscreen-panel:hover {
+            background: rgba(241,196,15,0.2);
+            border-color: rgba(241,196,15,0.5);
+        }
+        .btn-fullscreen-panel:fullscreen { top: auto; right: auto; }
+    </style>
+</head>
+<body class="imp-admin-editor">
+    <!-- Baner: brak połączenia z serwerem (jak w vote.html) -->
+    <div id="connection-lost-banner" role="alert">
+        Brak połączenia z serwerem.
+        <button type="button" class="retry-btn" id="connection-retry-btn">Ponów</button>
+    </div>
+    <button type="button" class="btn-fullscreen-panel" id="btn-fullscreen-panel" title="Pełny ekran" aria-label="Pełny ekran">⛶</button>
+    <div id="main-content">
+    <h1>📱 Imprezja Admin</h1>
+
+    <!-- SEKCJA 1: EKRAN – co pokazać na TV -->
+    <div class="section section-screen">
+        <div class="section-title">📺 Ekran</div>
+        <p class="section-desc">Kliknij – wyświetl na TV</p>
+        <div class="btn-grid screen-grid" id="screen-tiles">
+            <button type="button" class="btn-mode screen-tile" data-mode="welcome">
+                <span class="icon">👋</span>
+                <span class="label">Powitanie</span>
+            </button>
+            <button type="button" class="btn-mode screen-tile" data-mode="quiz">
+                <span class="icon">🎮</span>
+                <span class="label">Quiz</span>
+            </button>
+            <button type="button" class="btn-mode screen-tile" data-mode="familiada">
+                <span class="icon">🎤</span>
+                <span class="label">Familiada</span>
+            </button>
+            <button type="button" class="btn-mode screen-tile" data-mode="statki">
+                <span class="icon">⚓</span>
+                <span class="label">Statki</span>
+            </button>
+            <button type="button" class="btn-mode screen-tile" data-mode="prezentacja">
+                <span class="icon">📽️</span>
+                <span class="label">Prezentacja</span>
+            </button>
+            <button type="button" class="btn-mode screen-tile" data-mode="camera" id="btn-mode-camera">
+                <span class="icon">📷</span>
+                <span class="label">Kamera</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- SEKCJA 2: MUZYKA -->
+    <div class="section music-modes-section">
+        <div class="section-title">🎵 Muzyka</div>
+        <p class="section-desc">Kliknij – otwórz panel. Kliknij ponownie – zamknij.</p>
+        <div class="btn-grid music-grid" id="music-tiles">
+            <button type="button" class="btn-mode music-tile sampler-tile" data-music-mode="sampler">
+                <span class="icon">🎛️</span>
+                <span class="label">NJR Sampler</span>
+                <span class="desc">Kafelki</span>
+            </button>
+            <button type="button" class="btn-mode music-tile spiewaj-tile" data-music-mode="spiewaj">
+                <span class="icon">🎤</span>
+                <span class="label">Śpiewaj Dalej</span>
+                <span class="desc">Fragmenty</span>
+            </button>
+            <button type="button" class="btn-mode music-tile bitwa-tile" data-music-mode="bitwa">
+                <span class="icon">🎙️</span>
+                <span class="label">Bitwa wokalna</span>
+                <span class="desc">Fragmenty</span>
+            </button>
+            <button type="button" class="btn-mode music-tile whitney-tile" data-music-mode="whitney">
+                <span class="icon">🥁</span>
+                <span class="label">Whitney</span>
+                <span class="desc">8 kafelków</span>
+            </button>
+            <button type="button" class="btn-mode music-tile imprezator-tile" data-music-mode="imprezator">
+                <span class="icon">🎵</span>
+                <span class="label">Imprezator</span>
+                <span class="desc">Muzyka do tańca</span>
+            </button>
+        </div>
+        <div id="music-embed-frame" class="music-embed-frame" style="display:none;">
+            <div class="music-embed-header">
+                <button type="button" class="btn-close" id="music-embed-close">Zamknij</button>
+                <div class="bank-tabs-wrap" id="sampler-bank-tabs"></div>
+            </div>
+            <div class="music-swipe-zone" id="sampler-swipe-zone"><span class="swipe-arrow">←</span><span class="swipe-arrow">→</span></div>
+            <div class="music-embed-iframe-wrap">
+                <iframe id="music-panel-iframe" src="" title="Panel"></iframe>
+            </div>
+        </div>
+        <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;">
+            <a href="/poradniki/sampler-zabawy-muzyczne.html" target="_blank" rel="noopener" style="font-size:0.8rem;color:rgba(241,196,15,0.9);">📖 Poradnik: Sampler i zabawy</a>
+        </div>
+    </div>
+    <iframe id="music-audio-iframe" style="position:fixed;width:100px;height:100px;left:-9999px;top:0;opacity:0;pointer-events:none;z-index:-1;" title="Audio"></iframe>
+
+    <!-- SEKCJA 3: SETUP -->
+    <div class="section section-setup">
+        <div class="section-title">⚙️ SETUP</div>
+        <p class="section-desc">Konfiguracja – wybierz co ustawić</p>
+        <div class="setup-grid">
+            <div class="setup-card" id="setup-powitanie">
+                <div class="setup-card-header" data-toggle="setup-powitanie">
+                    <span class="icon">👋</span>
+                    <span class="label">Powitanie</span>
+                    <span class="chevron">▼</span>
+                </div>
+                <div class="setup-card-body" id="setup-powitanie-body">
+                    <div class="welcome-form">
+                        <label>Pozycja napisów</label>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+                            <button type="button" class="btn-apply welcome-text-pos" data-pos="top" style="flex:1;min-width:80px;">⬆️ Góra</button>
+                            <button type="button" class="btn-apply welcome-text-pos" data-pos="center" style="flex:1;min-width:80px;">⬌ Środek</button>
+                            <button type="button" class="btn-apply welcome-text-pos" data-pos="bottom" style="flex:1;min-width:80px;">⬇️ Dół</button>
+                        </div>
+                        <label for="welcome-text">Tekst – opcjonalnie (np. WESELE ANI I LESZKA, Enter = nowa linia)</label>
+                        <textarea id="welcome-text" placeholder="Opcjonalnie – Enter = nowa linia" rows="3" style="width:100%;padding:12px;margin-top:6px;margin-bottom:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.4);color:#fff;resize:vertical;font-family:inherit;"></textarea>
+                        <label>Obrazek (opcjonalnie)</label>
+                        <input type="hidden" id="welcome-image" value="">
+                        <button type="button" class="btn-apply" id="btn-welcome-pick-image" style="margin-bottom:12px;">📁 Wybierz plik</button>
+                        <button type="button" class="btn-apply" id="btn-welcome-apply">Zastosuj</button>
+                    </div>
+                </div>
+            </div>
+            <div class="setup-card" id="setup-prezentacja">
+                <div class="setup-card-header" data-toggle="setup-prezentacja">
+                    <span class="icon">📽️</span>
+                    <span class="label">Prezentacja</span>
+                    <span class="chevron">▼</span>
+                </div>
+                <div class="setup-card-body" id="setup-prezentacja-body">
+                    <div class="welcome-form">
+                        <label for="prez-file">Plik prezentacji (JSON)</label>
+                        <select id="prez-file" style="width:100%;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.4);color:#fff;margin-bottom:12px;">
+                            <option value="">— Wybierz —</option>
+                        </select>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+                            <button type="button" class="btn-apply" id="prez-load" style="flex:1;min-width:100px;">Załaduj</button>
+                            <button type="button" class="btn-apply" id="prez-play-pause" style="flex:1;min-width:80px;background:#2ecc71;">▶ Play</button>
+                            <button type="button" class="btn-apply" id="prez-prev" style="flex:1;min-width:80px;">◀</button>
+                            <button type="button" class="btn-apply" id="prez-next" style="flex:1;min-width:80px;">▶</button>
+                        </div>
+                        <div style="margin-bottom:12px;">
+                            <label style="font-size:0.85rem;color:rgba(255,255,255,0.7);display:block;margin-bottom:6px;">Nakładki na wizualizację (jeden na raz)</label>
+                            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                <button type="button" class="btn-apply prez-overlay-btn" id="prez-overlay-clock" data-type="clock" style="flex:1;min-width:70px;">🕐 Zegar</button>
+                                <button type="button" class="btn-apply prez-overlay-btn" id="prez-overlay-countdown" data-type="countdown" style="flex:1;min-width:90px;">⏱ Odliczanie</button>
+                                <button type="button" class="btn-apply prez-overlay-btn" id="prez-overlay-db" data-type="db" style="flex:1;min-width:60px;">dB</button>
+                                <button type="button" class="btn-apply prez-overlay-btn" id="prez-overlay-logo" data-type="logo" style="flex:1;min-width:70px;">🖼 LOGO</button>
+                                <button type="button" class="btn-apply prez-overlay-btn" id="prez-overlay-logo-bouncer" data-type="logo-bouncer" style="flex:1;min-width:90px;">🎵 LOGO BOUNCER</button>
+                            </div>
+                            <div id="prez-overlay-text-panel" style="display:block;margin-top:12px;padding:8px;background:rgba(0,0,0,0.3);border-radius:8px;">
+                                <label style="font-size:0.85rem;">Tekst na wizualizacji (jak na ekranie powitalnym)</label>
+                                <div style="display:flex;gap:6px;margin-top:8px;margin-bottom:8px;flex-wrap:wrap;">
+                                    <button type="button" class="btn-apply prez-text-pos" data-pos="top" style="flex:1;min-width:70px;">⬆️ Góra</button>
+                                    <button type="button" class="btn-apply prez-text-pos" data-pos="center" style="flex:1;min-width:70px;">⬌ Środek</button>
+                                    <button type="button" class="btn-apply prez-text-pos" data-pos="bottom" style="flex:1;min-width:70px;">⬇️ Dół</button>
+                                </div>
+                                <button type="button" class="btn-apply prez-overlay-btn" id="prez-overlay-text" data-type="text" style="width:100%;margin-bottom:10px;">📝 Tekst</button>
+                                <textarea id="prez-overlay-text-input" placeholder="np. WESELE ANI I LESZKA&#10;Enter = nowa linia" rows="4" style="width:100%;padding:12px;margin-bottom:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.4);color:#fff;resize:vertical;font-family:inherit;"></textarea>
+                                <button type="button" class="btn-apply" id="prez-overlay-text-ok">Zastosuj</button>
+                            </div>
+                            <div id="prez-overlay-countdown-panel" style="display:none;margin-top:8px;padding:8px;background:rgba(0,0,0,0.3);border-radius:8px;">
+                                <label style="font-size:0.85rem;">Minuty (np. 1,5) – minimalnie 1 minuta. Start: przycisk ▶ Play prezentacji</label>
+                                <div style="display:flex;gap:6px;margin-top:6px;align-items:center;">
+                                    <input type="text" id="prez-overlay-countdown-min" placeholder="np. 1,5" value="3" style="width:50%;padding:12px 16px;font-size:1.1rem;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.4);color:#fff;">
+                                    <button type="button" class="btn-apply" id="prez-overlay-countdown-ok" style="min-width:60px;">OK</button>
+                                </div>
+                            </div>
+                        </div>
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:8px;"><input type="checkbox" id="prez-loop" checked style="width:auto;"> Odtwarzaj w pętli</label>
+                        <p style="font-size:0.8rem;color:rgba(255,255,255,0.6);margin-top:12px;">Załaduj – wybierz w pamięci. Przycisk „Prezentacja” w sekcji Ekran pokaże ją na TV.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="setup-card" id="setup-kamera">
+                <div class="setup-card-header" data-toggle="setup-kamera">
+                    <span class="icon">📷</span>
+                    <span class="label">Kamera</span>
+                    <span class="chevron">▼</span>
+                </div>
+                <div class="setup-card-body" id="setup-kamera-body">
+                    <label style="display:block;margin-bottom:8px;font-size:0.9rem;">Kamera do streamu na TV</label>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <button type="button" class="btn-apply camera-facing-btn" data-facing="environment" style="flex:1;min-width:100px;">📷 Tylna</button>
+                        <button type="button" class="btn-apply camera-facing-btn" data-facing="user" style="flex:1;min-width:100px;">🤳 Przednia</button>
+                    </div>
+                    <p style="font-size:0.8rem;color:rgba(255,255,255,0.6);margin-top:12px;">Tylna – do filmowania sali. Przednia – selfie. Wake Lock trzyma ekran włączony podczas streamu. Stream: 640×480, 12 kl/s, JPEG – zoptymalizowane pod sieć lokalną.</p>
+                </div>
+            </div>
+            <div class="setup-card setup-card-links">
+                <div class="setup-card-header">
+                    <span class="icon">🎮</span>
+                    <span class="label">Admin Quiz</span>
+                </div>
+                <a href="/admin.html" target="_blank" class="btn-apply" style="display:block;text-align:center;text-decoration:none;margin:12px;">Otwórz</a>
+            </div>
+            <div class="setup-card setup-card-links">
+                <div class="setup-card-header">
+                    <span class="icon">🎤</span>
+                    <span class="label">Admin Familiada</span>
+                </div>
+                <a href="/familiada/admin.html" target="_blank" class="btn-apply" style="display:block;text-align:center;text-decoration:none;margin:12px;">Otwórz</a>
+            </div>
+            <div class="setup-card setup-card-links">
+                <div class="setup-card-header">
+                    <span class="icon">⚓</span>
+                    <span class="label">Admin Statki</span>
+                </div>
+                <a href="/statki-solo/admin.html" target="_blank" class="btn-apply" style="display:block;text-align:center;text-decoration:none;margin:12px;">Otwórz</a>
+            </div>
+            <div class="setup-card" id="setup-volume">
+                <div class="setup-card-header" data-toggle="setup-volume">
+                    <span class="icon">🔊</span>
+                    <span class="label">Mikser głośności</span>
+                    <span class="chevron">▼</span>
+                </div>
+                <div class="setup-card-master" style="padding:12px 16px;border-top:1px solid rgba(255,255,255,0.08);">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <span style="font-size:0.8rem;color:rgba(255,255,255,0.7);min-width:90px;">Master</span>
+                        <input type="range" id="master-volume" min="0" max="100" value="100" style="flex:1;accent-color:#f1c40f;">
+                        <span id="master-volume-label" style="font-size:0.9rem;min-width:40px;">100%</span>
+                    </div>
+                </div>
+                <div class="setup-card-body" id="setup-volume-body" style="padding:12px 16px;">
+                    <div id="mixer-channels" style="display:grid;gap:10px;font-size:0.85rem;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <p id="status" class="status">Łączenie...</p>
+    </div>
+
+    <input type="file" id="welcome-image-input" accept="image/*" style="display:none">
+
+    <script>
+        const socket = io({
+            transports: ['websocket', 'polling'],
+            reconnection: true,
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+            timeout: 20000
+        });
+        const statusEl = document.getElementById('status');
+        let welcomeTextPosition = 'center';
+
+        const connectionBanner = document.getElementById('connection-lost-banner');
+        const connectionRetryBtn = document.getElementById('connection-retry-btn');
+        function showConnectionLost() {
+            if (connectionBanner) connectionBanner.classList.add('show');
+            if (statusEl) {
+                statusEl.textContent = 'Brak połączenia';
+                statusEl.classList.remove('connected');
+                statusEl.classList.add('disconnected');
+            }
+        }
+        function hideConnectionLost() {
+            if (connectionBanner) connectionBanner.classList.remove('show');
+        }
+        if (connectionRetryBtn) {
+            connectionRetryBtn.addEventListener('click', () => {
+                hideConnectionLost();
+                if (socket && !socket.connected) socket.connect();
+            });
+        }
+
+        socket.on('connect', () => {
+            statusEl.textContent = 'Połączono';
+            statusEl.classList.add('connected');
+            statusEl.classList.remove('disconnected');
+            hideConnectionLost();
+            socket.emit('prezentacja_join');
+            socket.emit('admin_join');
+            try {
+                localStorage.setItem('imprezja_admin_server', window.location.origin);
+            } catch (_) {}
+        });
+        socket.on('disconnect', (reason) => {
+            statusEl.textContent = reason === 'io server disconnect' ? 'Rozłączono' : 'Łączenie...';
+            statusEl.classList.remove('connected');
+            statusEl.classList.add('disconnected');
+            showConnectionLost();
+        });
+        socket.on('connect_error', () => { showConnectionLost(); });
+        socket.on('reconnect', () => {
+            statusEl.textContent = 'Połączono';
+            statusEl.classList.add('connected');
+            statusEl.classList.remove('disconnected');
+            hideConnectionLost();
+        });
+        socket.on('screen_switch', (data) => {
+            const mode = data && data.mode;
+            if (mode && mode !== 'camera') stopCameraStream();
+        });
+        socket.on('screen_state', (data) => {
+            if (!data) return;
+            if (data.welcome) {
+                document.getElementById('welcome-text').value = data.welcome.text || '';
+                document.getElementById('welcome-image').value = data.welcome.imageUrl || '';
+                welcomeTextPosition = data.welcome.textPosition || 'center';
+                document.querySelectorAll('.welcome-text-pos').forEach(b => {
+                    b.classList.toggle('active', b.dataset.pos === welcomeTextPosition);
+                });
+            }
+            if (data.mode) {
+                document.querySelectorAll('.screen-tile[data-mode]').forEach(b => b.classList.remove('active'));
+                const active = document.querySelector(`.screen-tile[data-mode="${data.mode}"]`);
+                if (active) active.classList.add('active');
+            }
+        });
+
+        // Wake Lock – ekran admina nie gaśnie (wymaga HTTPS lub localhost)
+        let adminWakeLock = null;
+        async function requestAdminWakeLock() {
+            if (!('wakeLock' in navigator) || document.visibilityState !== 'visible') return;
+            try {
+                if (adminWakeLock) { try { await adminWakeLock.release(); } catch (e) {} adminWakeLock = null; }
+                adminWakeLock = await navigator.wakeLock.request('screen');
+                adminWakeLock.addEventListener('release', () => { adminWakeLock = null; });
+            } catch (err) {
+                if (window.isSecureContext === false) console.warn('Wake Lock: wymaga HTTPS lub localhost');
+            }
+        }
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') requestAdminWakeLock();
+        });
+        function requestAdminWakeLockOnce() {
+            requestAdminWakeLock();
+            document.removeEventListener('click', requestAdminWakeLockOnce);
+            document.removeEventListener('touchstart', requestAdminWakeLockOnce);
+        }
+        document.addEventListener('click', requestAdminWakeLockOnce, { once: true });
+        document.addEventListener('touchstart', requestAdminWakeLockOnce, { once: true });
+        if (document.visibilityState === 'visible') requestAdminWakeLock();
+
+        // Kamera – stream z telefonu na TV (optymalizowane pod sieć lokalną)
+        let cameraStream = null;
+        let cameraInterval = null;
+        let cameraVideo = null;
+        let cameraCanvas = null;
+        let cameraWakeLock = null;
+        const CAMERA_FPS = 12;          // 12 FPS – kamera
+        const CAMERA_MAX_W = 640;       // 640px – kamera (ograniczone dla WiFi)
+        const CAMERA_JPEG_QUALITY = 0.5; // 0.5 – mniejsze pliki (było 0.7)
+
+        function getCameraFacing() {
+            return localStorage.getItem('camera_facing') || 'environment';
+        }
+        function setCameraFacing(facing) {
+            localStorage.setItem('camera_facing', facing);
+            document.querySelectorAll('.camera-facing-btn').forEach(b => b.classList.toggle('active', b.dataset.facing === facing));
+        }
+
+        async function requestCameraWakeLock() {
+            if (!('wakeLock' in navigator) || document.visibilityState !== 'visible') return;
+            try {
+                if (cameraWakeLock) { await cameraWakeLock.release(); cameraWakeLock = null; }
+                cameraWakeLock = await navigator.wakeLock.request('screen');
+                cameraWakeLock.addEventListener('release', () => { cameraWakeLock = null; });
+            } catch (e) {}
+        }
+        async function releaseCameraWakeLock() {
+            if (cameraWakeLock) {
+                try { await cameraWakeLock.release(); } catch (e) {}
+                cameraWakeLock = null;
+            }
+        }
+
+        function stopCameraStream() {
+            document.removeEventListener('visibilitychange', onCameraVisibilityChange);
+            if (cameraInterval) { clearInterval(cameraInterval); cameraInterval = null; }
+            if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
+            if (cameraVideo && cameraVideo.srcObject) { cameraVideo.srcObject = null; }
+            releaseCameraWakeLock();
+        }
+
+        async function startCameraMode() {
+            if (cameraStream) return;
+            const facing = getCameraFacing();
+            try {
+                let constraints = { video: { facingMode: facing, width: { ideal: 640 }, height: { ideal: 480 } }, audio: false };
+                try {
+                    cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+                } catch (e1) {
+                    const fallback = facing === 'environment' ? 'user' : 'environment';
+                    constraints = { video: { facingMode: fallback }, audio: false };
+                    cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+                }
+                await requestCameraWakeLock();
+                document.addEventListener('visibilitychange', onCameraVisibilityChange);
+                cameraVideo = document.createElement('video');
+                cameraVideo.srcObject = cameraStream;
+                cameraVideo.playsInline = true;
+                cameraVideo.muted = true;
+                await cameraVideo.play();
+                cameraCanvas = document.createElement('canvas');
+                const ctx = cameraCanvas.getContext('2d');
+                let cameraFramePending = false;
+                cameraInterval = setInterval(() => {
+                    if (!cameraVideo || !cameraVideo.videoWidth || !ctx || cameraFramePending) return;
+                    const w = Math.min(CAMERA_MAX_W, cameraVideo.videoWidth);
+                    const h = Math.round(w * cameraVideo.videoHeight / cameraVideo.videoWidth);
+                    cameraCanvas.width = w;
+                    cameraCanvas.height = h;
+                    ctx.drawImage(cameraVideo, 0, 0, w, h);
+                    cameraFramePending = true;
+                    cameraCanvas.toBlob((blob) => {
+                        cameraFramePending = false;
+                        if (blob) socket.emit('camera_frame', { image: blob });
+                    }, 'image/jpeg', CAMERA_JPEG_QUALITY);
+                }, 1000 / CAMERA_FPS);
+                socket.emit('screen_switch', { mode: 'camera' });
+                document.querySelectorAll('.screen-tile[data-mode]').forEach(b => b.classList.remove('active'));
+                document.getElementById('btn-mode-camera').classList.add('active');
+            } catch (err) {
+                alert('Błąd kamery: ' + (err.message || 'Brak dostępu'));
+            }
+        }
+        function onCameraVisibilityChange() {
+            if (document.visibilityState === 'visible' && cameraStream) requestCameraWakeLock();
+        }
+
+        // Kamera – wybór przednia/tylna
+        setCameraFacing(getCameraFacing());
+        document.querySelectorAll('.camera-facing-btn').forEach(btn => {
+            btn.addEventListener('click', () => setCameraFacing(btn.dataset.facing));
+        });
+
+        // Sekcja 1: Przełącz ekran (screen_switch)
+        document.querySelectorAll('.screen-tile[data-mode]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mode = btn.dataset.mode;
+                if (mode === 'camera') {
+                    stopCameraStream();
+                    startCameraMode();
+                    return;
+                }
+                stopCameraStream();
+                if (mode === 'familiada' && btn.classList.contains('active')) {
+                    socket.emit('familiada_stop_music');
+                    return;
+                }
+                socket.emit('screen_switch', { mode });
+                document.querySelectorAll('.screen-tile[data-mode]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            });
+        });
+
+        // Ekran powitalny – wybór zdjęcia
+        document.getElementById('btn-welcome-pick-image').addEventListener('click', () => {
+            document.getElementById('welcome-image-input').click();
+        });
+        document.getElementById('welcome-image-input').addEventListener('change', async (e) => {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+            const btn = document.getElementById('btn-welcome-pick-image');
+            btn.disabled = true;
+            btn.textContent = '⏳ Wgrywanie...';
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                const r = await fetch('/upload', { method: 'POST', body: formData });
+                const j = await r.json();
+                if (j.filepath) {
+                    document.getElementById('welcome-image').value = j.filepath;
+                    // Zastosuj od razu – obraz wyświetli się bez wpisywania tekstu
+                    const textInput = document.getElementById('welcome-text');
+                    socket.emit('welcome_update', {
+                        text: textInput.value.trim(),
+                        imageUrl: j.filepath,
+                        logoVisible: true,
+                        textPosition: welcomeTextPosition
+                    });
+                } else {
+                    alert('Błąd: ' + (j.error || 'Nie udało się wgrać'));
+                }
+            } catch (err) {
+                alert('Błąd: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '📁 Wybierz plik';
+                e.target.value = '';
+            }
+        });
+
+        // Ekran powitalny
+        document.querySelectorAll('.welcome-text-pos').forEach(btn => {
+            btn.addEventListener('click', () => {
+                welcomeTextPosition = btn.dataset.pos || 'center';
+                document.querySelectorAll('.welcome-text-pos').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const textInput = document.getElementById('welcome-text');
+                const imgInput = document.getElementById('welcome-image');
+                socket.emit('welcome_update', {
+                    text: textInput.value.trim(),
+                    imageUrl: imgInput.value.trim(),
+                    logoVisible: true,
+                    textPosition: welcomeTextPosition
+                });
+            });
+        });
+        document.querySelector('.welcome-text-pos[data-pos="center"]')?.classList.add('active');
+        document.getElementById('btn-welcome-apply').addEventListener('click', () => {
+            const textInput = document.getElementById('welcome-text');
+            const imgInput = document.getElementById('welcome-image');
+            socket.emit('welcome_update', {
+                text: textInput.value.trim(),
+                imageUrl: imgInput.value.trim(),
+                logoVisible: true,
+                textPosition: welcomeTextPosition
+            });
+        });
+
+        // Lista prezentacji – pomijamy: Prezentacja/demo, Co słychać na mikserze (zegar, wizualizacje, db zostają)
+        const PREZ_EXCLUDE = (n) => {
+            const s = (n||'').toLowerCase();
+            if (/^prezentacja\s*[_1]?$/.test(s)) return true;
+            if (s.includes('demo')) return true;
+            if (s.includes('slychac') && s.includes('mikser')) return true;
+            return false;
+        };
+        fetch('/api/prezentacje/list').then(r=>r.json()).then(d=>{
+            const sel = document.getElementById('prez-file');
+            (d.list||[]).filter(n=>!PREZ_EXCLUDE(n)).forEach(n=>{ const o=document.createElement('option'); o.value=n; o.textContent=n; sel.appendChild(o); });
+        });
+
+        document.getElementById('prez-load').onclick = ()=>{
+            const name = document.getElementById('prez-file').value;
+            if (!name) return;
+            socket.emit('prezentacja_load', { name });
+        };
+        let prezPlaying = false;
+        const prezPlayPauseBtn = document.getElementById('prez-play-pause');
+        function updatePrezPlayPauseBtn() {
+            prezPlayPauseBtn.textContent = prezPlaying ? '⏸ Pause' : '▶ Play';
+            prezPlayPauseBtn.style.background = prezPlaying ? '#e74c3c' : '#2ecc71';
+        }
+        socket.on('prezentacja_playing', (d)=>{ prezPlaying = !!d.playing; updatePrezPlayPauseBtn(); });
+        socket.on('prezentacja_state', (d)=>{ prezPlaying = !!d.playing; updatePrezPlayPauseBtn(); });
+        socket.on('prezentacja_loaded', ()=>{ prezPlaying = false; updatePrezPlayPauseBtn(); });
+        prezPlayPauseBtn.onclick = ()=> {
+            prezPlaying = !prezPlaying;
+            socket.emit(prezPlaying ? 'prezentacja_play' : 'prezentacja_pause');
+            updatePrezPlayPauseBtn();
+        };
+        document.getElementById('prez-prev').onclick = ()=> socket.emit('prezentacja_prev');
+        document.getElementById('prez-next').onclick = ()=> socket.emit('prezentacja_next');
+        document.getElementById('prez-loop').onchange = (e)=> socket.emit('prezentacja_loop', { loop: e.target.checked });
+
+        let liveOverlay = { type: 'none', countdownMinutes: 3, text: '', textPosition: 'center' };
+        let showCountdownPanel = false;
+        let showTextPanel = false;
+        function updateOverlayButtons() {
+            document.querySelectorAll('.prez-overlay-btn').forEach(btn => {
+                const t = btn.dataset.type;
+                btn.style.background = liveOverlay.type === t ? '#f1c40f' : '';
+                btn.style.color = liveOverlay.type === t ? '#0d0d14' : '';
+            });
+            const cdPanel = document.getElementById('prez-overlay-countdown-panel');
+            cdPanel.style.display = (liveOverlay.type === 'countdown' || showCountdownPanel) ? 'block' : 'none';
+            const textPanel = document.getElementById('prez-overlay-text-panel');
+            textPanel.style.display = 'block';
+        }
+        function syncTextPanelFromOverlay() {
+            document.getElementById('prez-overlay-text-input').value = liveOverlay.text || '';
+            document.querySelectorAll('.prez-text-pos').forEach(b => b.classList.remove('active'));
+            document.querySelector('.prez-text-pos[data-pos="' + (liveOverlay.textPosition || 'center') + '"]')?.classList.add('active');
+        }
+        socket.on('prezentacja_overlay', (d) => {
+            if (d) { liveOverlay = { type: d.type || 'none', countdownMinutes: d.countdownMinutes || 3, text: d.text || '', textPosition: d.textPosition || 'center' }; syncTextPanelFromOverlay(); updateOverlayButtons(); }
+        });
+        socket.on('prezentacja_state', (d) => {
+            if (d && d.liveOverlay) { liveOverlay = { type: d.liveOverlay.type || 'none', countdownMinutes: d.liveOverlay.countdownMinutes || 3, text: d.liveOverlay.text || '', textPosition: d.liveOverlay.textPosition || 'center' }; syncTextPanelFromOverlay(); updateOverlayButtons(); }
+        });
+        document.getElementById('prez-overlay-clock').onclick = () => {
+            socket.emit('prezentacja_overlay', { type: liveOverlay.type === 'clock' ? 'none' : 'clock' });
+        };
+        document.getElementById('prez-overlay-text').onclick = () => {
+            if (liveOverlay.type === 'text') {
+                socket.emit('prezentacja_overlay', { type: 'none' });
+            } else {
+                const text = (document.getElementById('prez-overlay-text-input').value || '').trim();
+                let posBtn = document.querySelector('.prez-text-pos.active');
+                if (!posBtn) posBtn = document.querySelector('.prez-text-pos[data-pos="center"]');
+                const pos = posBtn ? posBtn.dataset.pos : 'center';
+                socket.emit('prezentacja_overlay', { type: 'text', text, textPosition: pos });
+            }
+            updateOverlayButtons();
+        };
+        document.getElementById('prez-overlay-text-ok').onclick = () => {
+            const text = (document.getElementById('prez-overlay-text-input').value || '').trim();
+            let posBtn = document.querySelector('.prez-text-pos.active');
+            if (!posBtn) posBtn = document.querySelector('.prez-text-pos[data-pos="center"]');
+            const pos = posBtn ? posBtn.dataset.pos : 'center';
+            socket.emit('prezentacja_overlay', { type: 'text', text, textPosition: pos });
+            updateOverlayButtons();
+        };
+        document.querySelectorAll('.prez-text-pos').forEach(btn => {
+            btn.onclick = () => { document.querySelectorAll('.prez-text-pos').forEach(b => b.classList.remove('active')); btn.classList.add('active'); };
+        });
+        document.querySelector('.prez-text-pos[data-pos="center"]')?.classList.add('active');
+        document.getElementById('prez-overlay-db').onclick = () => {
+            socket.emit('prezentacja_overlay', { type: liveOverlay.type === 'db' ? 'none' : 'db' });
+        };
+        document.getElementById('prez-overlay-logo').onclick = () => {
+            socket.emit('prezentacja_overlay', { type: liveOverlay.type === 'logo' ? 'none' : 'logo' });
+        };
+        document.getElementById('prez-overlay-logo-bouncer').onclick = () => {
+            socket.emit('prezentacja_overlay', { type: liveOverlay.type === 'logo-bouncer' ? 'none' : 'logo-bouncer' });
+        };
+        document.getElementById('prez-overlay-countdown').onclick = () => {
+            if (liveOverlay.type === 'countdown') {
+                socket.emit('prezentacja_overlay', { type: 'none' });
+                showCountdownPanel = false;
+            } else {
+                showCountdownPanel = true;
+                document.getElementById('prez-overlay-countdown-min').value = liveOverlay.countdownMinutes || 3;
+            }
+            updateOverlayButtons();
+        };
+        document.getElementById('prez-overlay-countdown-ok').onclick = () => {
+            const raw = (document.getElementById('prez-overlay-countdown-min').value || '3').replace(',', '.');
+            const m = parseFloat(raw) || 3;
+            socket.emit('prezentacja_overlay', { type: 'countdown', countdownMinutes: Math.max(1, Math.min(120, m)) });
+            showCountdownPanel = false;
+            updateOverlayButtons();
+        };
+
+        // Mikser: Master + kanały (zapamiętywane)
+        const volSlider = document.getElementById('master-volume');
+        const volLabel = document.getElementById('master-volume-label');
+        const mixerChannels = document.getElementById('mixer-channels');
+        const CHANNELS = [
+            { id: 'quiz', label: 'Quiz' },
+            { id: 'familiada', label: 'Familiada' },
+            { id: 'statki', label: 'Statki' },
+            { id: 'prezentacja', label: 'Prezentacja' },
+            { id: 'sampler', label: 'NJR Sampler' },
+            { id: 'spiewaj', label: 'Śpiewaj Dalej' },
+            { id: 'bitwa', label: 'Bitwa wokalna' },
+            { id: 'whitney', label: 'Whitney' },
+            { id: 'imprezator', label: 'Imprezator' }
+        ];
+        let volumes = { master: 1, quiz: 1, familiada: 1, statki: 1, prezentacja: 1, sampler: 1, spiewaj: 1, bitwa: 1, whitney: 1, imprezator: 1 };
+        function renderMixerChannels() {
+            if (!mixerChannels) return;
+            mixerChannels.innerHTML = CHANNELS.map(ch => {
+                const v = Math.round((volumes[ch.id] ?? 1) * 100);
+                return `<div style="display:flex;align-items:center;gap:8px;"><span style="min-width:100px;">${ch.label}</span><input type="range" data-channel="${ch.id}" min="0" max="100" value="${v}" style="flex:1;accent-color:#f1c40f;"><span data-label="${ch.id}" style="min-width:36px;">${v}%</span></div>`;
+            }).join('');
+            mixerChannels.querySelectorAll('input[data-channel]').forEach(inp => {
+                inp.oninput = () => {
+                    const v = inp.value / 100;
+                    const ch = inp.dataset.channel;
+                    volumes[ch] = v;
+                    const lab = mixerChannels.querySelector(`[data-label="${ch}"]`);
+                    if (lab) lab.textContent = inp.value + '%';
+                    socket.emit('channel_volume', { channel: ch, volume: v });
+                };
+            });
+        }
+        socket.on('master_volume', (d)=>{ const v = (d?.volume ?? 1); volumes.master = v; volSlider.value = Math.round(v*100); volLabel.textContent = Math.round(v*100) + '%'; });
+        socket.on('volumes_all', (d)=>{ if (d) { volumes = { ...volumes, ...d }; volSlider.value = Math.round((volumes.master ?? 1)*100); volLabel.textContent = Math.round((volumes.master ?? 1)*100) + '%'; renderMixerChannels(); } });
+        socket.on('connect', ()=>{ socket.emit('master_volume_request'); socket.emit('volumes_request'); });
+        volSlider.oninput = ()=>{ const v = volSlider.value/100; volLabel.textContent = volSlider.value + '%'; socket.emit('master_volume', { volume: v }); };
+        renderMixerChannels();
+
+        // Tryby muzyczne – panel w dolnej części (phone = kontrolki, screen = odtwarzanie dźwięku)
+        const MUSIC_MODES = {
+            sampler: { api: '/api/njr-sampler', iframe: '/njr-sampler/phone.html', screen: '/njr-sampler.html', title: 'NJR Sampler' },
+            spiewaj: { api: '/api/spiewaj-dalej', iframe: '/spiewaj-dalej/phone.html', screen: '/spiewaj-dalej.html', title: 'Śpiewaj Dalej' },
+            bitwa: { api: '/api/bitwa-wokalna', iframe: '/bitwa-wokalna/phone.html', screen: '/bitwa-wokalna.html', title: 'Bitwa wokalna' },
+            whitney: { api: '/api/whitney', iframe: '/whitney/phone.html', screen: '/whitney.html', title: 'Whitney' },
+            imprezator: { api: '/api/imprezator', iframe: '/imprezator/phone.html', screen: '/imprezator.html', title: 'Imprezator' }
+        };
+        let activeMusicMode = null;
+
+        document.getElementById('music-embed-close').onclick = () => closeMusicMode();
+
+        function renderSamplerBankTabs(config) {
+            const wrap = document.getElementById('sampler-bank-tabs');
+            const swipeZone = document.getElementById('sampler-swipe-zone');
+            if (!wrap) return;
+            const banks = config && config.banks && Array.isArray(config.banks) ? config.banks : [];
+            const nonImprezator = banks.filter(b => b.id !== '__imprezator__');
+            if (nonImprezator.length <= 1) {
+                wrap.classList.remove('visible');
+                wrap.innerHTML = '';
+                if (swipeZone) swipeZone.classList.remove('visible');
+                return;
+            }
+            wrap.classList.add('visible');
+            if (swipeZone) { swipeZone.classList.add('visible'); setupSamplerSwipe(swipeZone); }
+            const header = document.querySelector('.music-embed-header');
+            if (header) setupSamplerSwipe(header);
+            wrap.innerHTML = nonImprezator.map((b, i) =>
+                `<button type="button" class="bank-tab${i === 0 ? ' active' : ''}" data-bank-index="${i}">${(b.name || 'Bank ' + (i + 1)).replace(/</g, '&lt;')}</button>`
+            ).join('');
+            wrap.querySelectorAll('.bank-tab').forEach(btn => {
+                btn.onclick = () => {
+                    const idx = parseInt(btn.dataset.bankIndex, 10);
+                    if (isNaN(idx)) return;
+                    wrap.querySelectorAll('.bank-tab').forEach(t => t.classList.remove('active'));
+                    btn.classList.add('active');
+                    socket.emit('njr_sampler_set_bank', idx);
+                };
+            });
+        }
+
+        function setupSamplerSwipe(el) {
+            if (!el || el._swipeSetup) return;
+            el._swipeSetup = true;
+            let startX = 0, startY = 0;
+            const THRESHOLD = 60;
+            el.addEventListener('touchstart', (e) => {
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+            }, { passive: true });
+            el.addEventListener('touchend', (e) => {
+                if (!e.changedTouches?.[0]) return;
+                const dx = e.changedTouches[0].clientX - startX;
+                const dy = e.changedTouches[0].clientY - startY;
+                if (Math.abs(dx) > THRESHOLD && Math.abs(dx) > Math.abs(dy)) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    socket.emit('njr_sampler_bank_delta', dx > 0 ? -1 : 1);
+                    updateBankTabActive(dx > 0 ? -1 : 1);
+                }
+            }, { passive: false });
+            let mouseStartX = 0;
+            el.addEventListener('mousedown', (e) => { mouseStartX = e.clientX; });
+            el.addEventListener('mouseup', (e) => {
+                const dx = e.clientX - mouseStartX;
+                if (Math.abs(dx) > THRESHOLD) {
+                    socket.emit('njr_sampler_bank_delta', dx > 0 ? -1 : 1);
+                    updateBankTabActive(dx > 0 ? -1 : 1);
+                }
+            });
+        }
+        function updateBankTabActive(delta) {
+            const wrap = document.getElementById('sampler-bank-tabs');
+            if (!wrap || !wrap.classList.contains('visible')) return;
+            const tabs = wrap.querySelectorAll('.bank-tab');
+            const active = wrap.querySelector('.bank-tab.active');
+            const idx = active ? Array.from(tabs).indexOf(active) : 0;
+            const next = Math.max(0, Math.min(tabs.length - 1, idx + delta));
+            tabs.forEach((t, i) => t.classList.toggle('active', i === next));
+        }
+
+        /** Zapobiega „zawieszeniu” iframe na tym samym URL (po zamknięciu / resecie PWA) – wymusza pełne przeładowanie phone.html. */
+        function musicPanelUrlWithCacheBust(path) {
+            const sep = path.includes('?') ? '&' : '?';
+            return path + sep + '_imp=' + Date.now();
+        }
+        /**
+         * Ładuje panel muzyczny w iframe i po faktycznym loadzie odświeża zakładki banków samplera.
+         * Równoległy fetch configu bez czekania na iframe powodował puste kafelki do ręcznego odświeżenia strony.
+         */
+        function loadMusicPanelIframe(path, musicMode) {
+            const iframe = document.getElementById('music-panel-iframe');
+            if (!iframe) return;
+            const busted = musicPanelUrlWithCacheBust(path);
+            const refreshSamplerBankTabs = () => {
+                if (musicMode !== 'sampler') return;
+                fetch('/api/njr-sampler/config').then(r => r.json()).then(d => {
+                    if (d && d.config) renderSamplerBankTabs(d.config);
+                }).catch(() => {});
+            };
+            let finished = false;
+            const finish = () => {
+                if (finished) return;
+                finished = true;
+                refreshSamplerBankTabs();
+            };
+            const fallbackMs = 1500;
+            const t = setTimeout(finish, fallbackMs);
+            iframe.addEventListener('load', () => {
+                clearTimeout(t);
+                finish();
+            }, { once: true });
+            iframe.src = busted;
+        }
+
+        async function closeMusicMode() {
+            if (!activeMusicMode) return;
+            const m = MUSIC_MODES[activeMusicMode];
+            try { await fetch((window.location.origin || '') + m.api + '/stop', { method: 'POST' }); } catch (_) {}
+            socket.emit('admin_stop_music');
+            socket.emit('music_mode_screen', { graphicUrl: '' });
+            document.getElementById('music-embed-frame').style.display = 'none';
+            document.getElementById('music-panel-iframe').src = '';
+            document.getElementById('music-audio-iframe').src = '';
+            document.getElementById('sampler-bank-tabs').classList.remove('visible');
+            document.getElementById('sampler-bank-tabs').innerHTML = '';
+            document.getElementById('sampler-swipe-zone').classList.remove('visible');
+            document.querySelectorAll('.music-tile.active').forEach(t => t.classList.remove('active'));
+            activeMusicMode = null;
+        }
+        async function handleMusicTileClick(e) {
+            const btn = e.target.closest('.music-tile[data-music-mode]');
+            if (!btn) return;
+            const mode = btn.dataset.musicMode;
+            const cfg = MUSIC_MODES[mode];
+            if (!cfg) return;
+            if (activeMusicMode === mode) {
+                await closeMusicMode();
+                return;
+            }
+            if (activeMusicMode) {
+                const prev = MUSIC_MODES[activeMusicMode];
+                try { await fetch((window.location.origin || '') + prev.api + '/stop', { method: 'POST' }); } catch (_) {}
+                socket.emit('admin_stop_music');
+            }
+            try {
+                await fetch(cfg.api + '/start', { method: 'POST' });
+                const embedFrame = document.getElementById('music-embed-frame');
+                embedFrame.style.display = 'block';
+                embedFrame.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                const iframe = document.getElementById('music-panel-iframe');
+                const audioIframe = document.getElementById('music-audio-iframe');
+                loadMusicPanelIframe(cfg.iframe, mode);
+                audioIframe.src = '';
+                document.querySelectorAll('.music-tile.active').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll(`.music-tile[data-music-mode="${mode}"]`).forEach(t => t.classList.add('active'));
+                activeMusicMode = mode;
+                if (['spiewaj', 'bitwa', 'whitney'].includes(mode)) {
+                    const api = mode === 'spiewaj' ? '/api/spiewaj-dalej' : mode === 'bitwa' ? '/api/bitwa-wokalna' : '/api/whitney';
+                    fetch(api + '/screen-graphic').then(r => r.json()).then(d => {
+                        socket.emit('music_mode_screen', { graphicUrl: (d && d.screenGraphic) || '' });
+                    }).catch(() => {});
+                } else {
+                    socket.emit('music_mode_screen', { graphicUrl: '' });
+                }
+                socket.emit('screen_switch', { mode });
+                if (mode !== 'sampler') {
+                    document.getElementById('sampler-bank-tabs').classList.remove('visible');
+                    document.getElementById('sampler-bank-tabs').innerHTML = '';
+                    document.getElementById('sampler-swipe-zone').classList.remove('visible');
+                }
+            } catch (err) {
+                alert('Błąd: ' + (err.message || 'Nie udało się uruchomić'));
+            }
+        }
+        document.getElementById('music-tiles').addEventListener('click', handleMusicTileClick);
+
+        socket.on('reconnect', () => {
+            if (!activeMusicMode) return;
+            const cfg = MUSIC_MODES[activeMusicMode];
+            if (!cfg) return;
+            fetch(cfg.api + '/start', { method: 'POST' }).catch(() => {});
+            const embed = document.getElementById('music-embed-frame');
+            if (embed && embed.style.display !== 'none') {
+                loadMusicPanelIframe(cfg.iframe, activeMusicMode);
+            }
+        });
+
+        // SETUP – rozwijanie kart
+        document.querySelectorAll('.setup-card-header[data-toggle]').forEach(h => {
+            h.addEventListener('click', () => {
+                const card = document.getElementById(h.dataset.toggle);
+                if (card) card.classList.toggle('collapsed');
+            });
+        });
+        document.getElementById('setup-powitanie')?.classList.add('collapsed');
+        document.getElementById('setup-prezentacja')?.classList.add('collapsed');
+        document.getElementById('setup-kamera')?.classList.add('collapsed');
+        document.getElementById('setup-volume')?.classList.add('collapsed');
+
+        // Pełny ekran całego panelu admina
+        (function() {
+            const btn = document.getElementById('btn-fullscreen-panel');
+            if (!btn) return;
+            btn.addEventListener('click', () => {
+                const doc = document.documentElement;
+                const req = doc.requestFullscreen || doc.webkitRequestFullscreen || doc.mozRequestFullScreen || doc.msRequestFullscreen;
+                const exit = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+                const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+                if (isFs && exit) {
+                    exit.call(document).catch(() => {});
+                } else if (req) {
+                    req.call(doc).catch(() => {});
+                }
+            });
+        })();
+    </script>
+</body>
+</html>

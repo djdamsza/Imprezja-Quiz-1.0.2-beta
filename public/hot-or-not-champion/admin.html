@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HNC – Admin</title>
+<link rel="stylesheet" href="/css/admin-editor-shared.css">
+<style>
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:var(--imp-font); background:var(--imp-bg); color:var(--imp-text); min-height:100vh; padding:16px; }
+h1 { color:var(--imp-accent); font-size:1.4rem; margin-bottom:14px; }
+h2 { color:var(--imp-text-muted); font-size:0.85rem; font-weight:600; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.06em; }
+
+.card { background:var(--imp-glass); border-radius:var(--imp-radius-lg); padding:14px; margin-bottom:12px; border:1px solid var(--imp-border); }
+.card.highlight { border-color:var(--imp-accent); background:var(--imp-accent-dim); }
+
+.row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:8px; }
+label { font-size:13px; color:#888; }
+input[type=number], select { background:#252835; border:1px solid #3a3d4a; color:#fff; border-radius:6px; padding:6px 10px; font-size:13px; }
+input[type=number] { width:80px; }
+
+button { cursor:pointer; border:none; border-radius:8px; padding:9px 18px; font-size:13px; font-weight:bold; transition:all .2s; }
+.btn-primary { background:var(--imp-accent); color:#000; }
+.btn-primary:hover { background:var(--imp-accent-hover); }
+.btn-success { background:var(--imp-success); color:#000; }
+.btn-success:hover { background:var(--imp-success-hover); }
+.btn-danger { background:var(--imp-danger); color:#fff; }
+.btn-orange { background:#ff9800; color:#000; }
+.btn-blue { background:#1565c0; color:#fff; }
+.btn-blue:hover { background:#1e88e5; }
+.btn-gray { background:#37404f; color:#ddd; }
+.btn-gray:hover { background:#4a5568; }
+.btn-round { background:linear-gradient(135deg,var(--imp-accent),var(--imp-accent-orange)); color:#000; font-size:0.95rem; padding:12px 24px; }
+button:disabled { opacity:.4; cursor:default; }
+
+/* Photo list */
+#photo-list { display:flex; flex-direction:column; gap:5px; margin-bottom:10px; max-height:320px; overflow-y:auto; }
+.photo-row { display:flex; gap:8px; align-items:center; background:#252835; border-radius:8px; padding:6px 10px; }
+.photo-thumb { width:46px; height:46px; object-fit:cover; border-radius:6px; flex-shrink:0; }
+.photo-row .pr-url { font-size:11px; color:#666; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.photo-row .pr-desc { flex:1; background:#1a1d26; border:1px solid #3a3d4a; color:#fff; border-radius:5px; padding:4px 8px; font-size:12px; }
+.rm-btn { background:#d32f2f; color:#fff; border-radius:5px; padding:3px 9px; font-size:11px; border:none; cursor:pointer; flex-shrink:0; }
+
+/* Upload picker */
+#uploads-grid { display:flex; flex-wrap:wrap; gap:5px; max-height:180px; overflow-y:auto; padding:2px; }
+.upload-thumb { width:56px; height:56px; object-fit:cover; border-radius:6px; cursor:pointer; border:2px solid transparent; transition:all .15s; }
+.upload-thumb:hover { border-color:#ffd700; transform:scale(1.05); }
+.upload-thumb.selected { border-color:#00c853; }
+
+/* Upload progress */
+#upload-progress { font-size:12px; color:#ffd700; min-height:16px; margin:4px 0; }
+
+/* Match view */
+.match-photos { display:flex; gap:10px; align-items:flex-start; margin-bottom:12px; }
+.match-card { flex:1; text-align:center; background:#252835; border-radius:8px; padding:8px; }
+.match-card img { width:100%; max-height:150px; object-fit:contain; border-radius:6px; }
+.match-card .mc-label { font-size:22px; font-weight:900; margin-bottom:4px; }
+.match-card.A .mc-label { color:#ff8888; }
+.match-card.B .mc-label { color:#8888ff; }
+.match-card .mc-desc { font-size:29px; font-weight:900; color:#fff; margin:4px 0 3px; min-height:32px; text-align:center; line-height:1.1; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+.match-card .mc-score { font-size:24px; font-weight:bold; margin-top:4px; }
+.match-card.winner-card { border:2px solid #ffd700; }
+
+.phase-badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:bold; margin-bottom:8px; }
+.phase-badge.voting { background:#1565c0; color:#fff; }
+.phase-badge.tiebreak { background:#e65100; color:#fff; animation:tblink .8s infinite; }
+@keyframes tblink { 50%{opacity:.6} }
+.phase-badge.match_result { background:#2e7d32; color:#fff; }
+.phase-badge.ready { background:#37404f; color:#ddd; }
+.phase-badge.round_complete { background:#7b1fa2; color:#fff; }
+
+.vote-bar { background:#252835; border-radius:20px; height:7px; margin:6px 0; overflow:hidden; }
+.vote-bar-fill { height:100%; background:linear-gradient(to right,#ffd700,#ff9800); transition:width .4s; border-radius:20px; }
+
+.controls { display:flex; gap:7px; flex-wrap:wrap; margin-top:10px; }
+
+/* Round complete announcement */
+#round-complete-card { display:none; }
+#round-complete-card.show { display:block; }
+
+/* Bracket */
+.bracket-scroll { overflow-x:auto; padding:4px; }
+.bracket-table { display:flex; gap:12px; min-width:max-content; }
+.b-col { display:flex; flex-direction:column; gap:4px; min-width:90px; }
+.b-col-title { font-size:9px; color:#666; text-align:center; letter-spacing:1px; text-transform:uppercase; margin-bottom:2px; }
+.b-matchup { display:flex; flex-direction:column; gap:2px; background:#12141e; border:1px solid #2a2d3a; border-radius:6px; padding:4px; }
+.b-matchup.bm-active { border-color:#ffd700; background:#1e1a08; }
+.b-matchup.bm-done { opacity:.65; }
+.b-row { display:flex; gap:4px; align-items:center; padding:2px 3px; border-radius:4px; border:1px solid transparent; }
+.b-row.won { background:rgba(255,215,0,.1); border-color:#ffd700; }
+.b-thumb { width:28px; height:28px; object-fit:cover; border-radius:3px; flex-shrink:0; }
+.b-tbd { width:28px; height:28px; background:#1e2130; border-radius:3px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:8px; color:#444; }
+.b-name { font-size:9px; color:#bbb; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
+</style>
+</head>
+<body class="imp-admin-editor">
+
+<h1>🏆 Hot or Not Champion <span id="pi" style="font-size:13px;color:#666;font-weight:normal"></span></h1>
+
+<!-- SETUP -->
+<div class="card" id="setup-section">
+  <h2>⚙️ Konfiguracja turnieju</h2>
+  <div class="row" style="margin-bottom:10px">
+    <label style="min-width:120px">Treść pytania</label>
+    <input type="text" id="question-text" placeholder="np. Który DJ wygra turniej?" style="flex:1; font-size:14px; padding:8px 12px; background:#252835; border:1px solid #3a3d4a; color:#fff; border-radius:8px;">
+  </div>
+  <div class="row">
+    <label>Liczba zdjęć</label>
+    <select id="photo-count" onchange="onCountChange()">
+      <option value="4">4 (Półfinał + Finał)</option>
+      <option value="8" selected>8 (ĆF + PF + Finał)</option>
+      <option value="16">16 (1/8 + ĆF + PF + Finał)</option>
+    </select>
+    <label style="margin-left:8px">Czas głosowania (s)</label>
+    <input type="number" id="match-time" value="15" min="5" max="120">
+  </div>
+
+  <h2 style="margin-top:10px">📷 Zdjęcia <span id="photo-count-badge" style="color:#ffd700;font-weight:bold"></span></h2>
+
+  <!-- Upload buttons -->
+  <div class="row" style="margin-bottom:6px">
+    <label for="file-upload-single" class="btn-gray" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:9px 18px">
+      📎 Dodaj zdjęcie
+    </label>
+    <input type="file" id="file-upload-single" accept="image/*" style="display:none" onchange="uploadFiles(this.files)">
+
+    <label for="file-upload-multi" class="btn-gray" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:9px 18px">
+      📂 Dodaj wiele
+    </label>
+    <input type="file" id="file-upload-multi" accept="image/*" multiple style="display:none" onchange="uploadFiles(this.files)">
+
+    <button class="btn-gray" onclick="loadUploads()">🗂️ Wybierz z uploads</button>
+    <button class="btn-orange" onclick="clearPhotos()">🗑️ Wyczyść</button>
+  </div>
+
+  <div id="upload-progress"></div>
+
+  <!-- Photo list -->
+  <div id="photo-list"></div>
+
+  <!-- Uploads picker -->
+  <div id="uploads-picker" style="display:none;margin-top:8px">
+    <div class="row" style="margin-bottom:5px">
+      <span style="font-size:12px;color:#aaa">Kliknij zdjęcia aby dodać:</span>
+      <button class="btn-gray" onclick="closeUploadsPicker()" style="padding:4px 10px;font-size:11px">Zamknij</button>
+    </div>
+    <div id="uploads-grid"></div>
+  </div>
+
+  <div class="row" style="margin-top:12px">
+    <button class="btn-primary" id="start-btn" onclick="startTournament()">🚀 Rozpocznij turniej</button>
+    <span id="setup-status" style="font-size:12px;color:#888"></span>
+  </div>
+</div>
+
+<!-- ROUND COMPLETE ANNOUNCEMENT -->
+<div class="card highlight" id="round-complete-card">
+  <div style="text-align:center; padding:10px 0">
+    <div style="font-size:28px; color:#ffd700; font-weight:900; margin-bottom:6px" id="rc-title"></div>
+    <div style="font-size:16px; color:#aaa; margin-bottom:14px" id="rc-subtitle"></div>
+    <button class="btn-round" onclick="nextRound()" id="rc-btn"></button>
+  </div>
+</div>
+
+<!-- MATCH CONTROLS -->
+<div class="card highlight" id="match-section" style="display:none">
+  <div class="row" style="justify-content:space-between;margin-bottom:6px">
+    <div>
+      <div id="match-title" style="font-size:19px;font-weight:bold;color:#ffd700"></div>
+      <div id="phase-badge-el" class="phase-badge ready"></div>
+    </div>
+    <div style="text-align:right">
+      <div id="voter-prog" style="font-size:12px;color:#888"></div>
+      <div id="timer-disp" style="font-size:28px;font-weight:900;color:#ffd700"></div>
+    </div>
+  </div>
+
+  <div class="match-photos">
+    <div class="match-card A" id="cA">
+      <div class="mc-label">A</div>
+      <img id="aImg" src="" alt="">
+      <div class="mc-desc" id="aDesc"></div>
+      <div class="mc-score" id="aScore">–</div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:900;color:#444;padding:0 2px">VS</div>
+    <div class="match-card B" id="cB">
+      <div class="mc-label">B</div>
+      <img id="bImg" src="" alt="">
+      <div class="mc-desc" id="bDesc"></div>
+      <div class="mc-score" id="bScore">–</div>
+    </div>
+  </div>
+
+  <div class="vote-bar"><div class="vote-bar-fill" id="vpf" style="width:0%"></div></div>
+
+  <div class="controls">
+    <button class="btn-success" id="b-start" onclick="socket.emit('hnc_start_match')">▶ START GŁOSOWANIA</button>
+    <button class="btn-orange" id="b-end" onclick="socket.emit('hnc_force_end')" style="display:none">⏹ Zakończ</button>
+    <button class="btn-danger" id="b-coin" onclick="socket.emit('hnc_coin_flip')" style="display:none">🎲 RZUT MONETĄ</button>
+    <button class="btn-blue" id="b-adv" onclick="socket.emit('hnc_advance')" style="display:none">➡ NASTĘPNY</button>
+  </div>
+  <div id="slog" style="margin-top:8px;font-size:12px;color:#888"></div>
+</div>
+
+<!-- BRACKET -->
+<div class="card" id="bracket-section" style="display:none">
+  <h2>🏟️ Drabinka</h2>
+  <div class="bracket-scroll">
+    <div class="bracket-table" id="bkt"></div>
+  </div>
+</div>
+
+<div class="card" style="margin-top:6px">
+  <button class="btn-danger" onclick="if(confirm('Reset?'))socket.emit('hnc_reset')" style="font-size:11px;padding:5px 12px">🔄 Reset turnieju</button>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+socket.emit('hnc_join_admin');
+
+let state = null;
+let selectedUploads = new Set();
+
+socket.on('hnc_state', s => { state = s; renderAdmin(s); });
+
+function renderAdmin(s) {
+  const phase = s.phase;
+  document.getElementById('pi').textContent = phase === 'champion' ? '🏆 MISTRZ WYŁONIONY' : '';
+
+  const setupSec = document.getElementById('setup-section');
+  const matchSec = document.getElementById('match-section');
+  const bracketSec = document.getElementById('bracket-section');
+  const rcCard = document.getElementById('round-complete-card');
+
+  if (phase === 'setup') {
+    setupSec.style.display = 'block';
+    matchSec.style.display = 'none';
+    bracketSec.style.display = 'none';
+    rcCard.style.display = 'none';
+    return;
+  }
+
+  setupSec.style.display = 'none';
+  bracketSec.style.display = 'block';
+  renderBracketAdmin(s);
+
+  if (phase === 'round_complete') {
+    matchSec.style.display = 'none';
+    rcCard.style.display = 'block';
+    const completedName = s.completedRoundName || 'rundy';
+    const nextName = s.matchName || '';
+    document.getElementById('rc-title').textContent = `✅ KONIEC ${completedName.toUpperCase()}`;
+    document.getElementById('rc-subtitle').textContent = `Następna runda: ${nextName}`;
+    document.getElementById('rc-btn').textContent = `🏁 Rozpocznij ${nextName}`;
+    return;
+  }
+
+  rcCard.style.display = 'none';
+  matchSec.style.display = phase !== 'champion' ? 'block' : 'none';
+  if (phase !== 'champion') renderMatchAdmin(s);
+}
+
+function renderMatchAdmin(s) {
+  const m = s.match;
+  if (!m || !m.photoA || !m.photoB) return;
+  document.getElementById('match-title').textContent = `${s.matchName} · Mecz ${s.currentMatch+1}/${s.matchesInRound}`;
+  const labels = { ready:'Oczekiwanie', voting:'Trwa głosowanie', tiebreak:'REMIS – Rzut monetą', match_result:'Wynik meczu', champion:'Mistrz!' };
+  const badge = document.getElementById('phase-badge-el');
+  badge.textContent = labels[s.phase] || s.phase;
+  badge.className = `phase-badge ${s.phase}`;
+  document.getElementById('aImg').src = m.photoA.url;
+  document.getElementById('aDesc').textContent = m.photoA.desc || '';
+  document.getElementById('bImg').src = m.photoB.url;
+  document.getElementById('bDesc').textContent = m.photoB.desc || '';
+  const showV = s.phase === 'match_result' || s.phase === 'tiebreak';
+  document.getElementById('aScore').textContent = showV ? `${m.votesA} głosów` : '–';
+  document.getElementById('bScore').textContent = showV ? `${m.votesB} głosów` : '–';
+  const winA = m.winner?.id === m.photoA.id;
+  const winB = m.winner?.id === m.photoB.id;
+  document.getElementById('cA').className = 'match-card A' + (winA ? ' winner-card' : '');
+  document.getElementById('cB').className = 'match-card B' + (winB ? ' winner-card' : '');
+  const prog = s.voterCount > 0 ? s.votedCount / s.voterCount * 100 : 0;
+  document.getElementById('vpf').style.width = prog + '%';
+  document.getElementById('voter-prog').textContent = `Zagłosowało: ${s.votedCount}/${s.voterCount}`;
+  document.getElementById('timer-disp').textContent = s.phase === 'voting' ? s.timeLeft + 's' : '';
+  document.getElementById('b-start').style.display = s.phase === 'ready' ? '' : 'none';
+  document.getElementById('b-end').style.display = s.phase === 'voting' ? '' : 'none';
+  document.getElementById('b-coin').style.display = s.phase === 'tiebreak' ? '' : 'none';
+  document.getElementById('b-adv').style.display = s.phase === 'match_result' ? '' : 'none';
+  document.getElementById('b-adv').textContent = (s.currentMatch+1 >= s.matchesInRound && s.currentRound+1 >= s.totalRounds) ? '🏆 Wyłoń mistrza' : '➡ NASTĘPNY';
+}
+
+function renderBracketAdmin(s) {
+  if (!s.bracket || !s.bracket.length) return;
+  const table = document.getElementById('bkt');
+  let html = '';
+  s.bracket.forEach((round, ri) => {
+    const rname = getRoundName(ri, s.totalRounds);
+    html += `<div class="b-col"><div class="b-col-title">${rname}</div>`;
+    round.forEach((m, mi) => {
+      const isActive = ri === s.currentRound && mi === s.currentMatch;
+      const isDone = m?.winner;
+      html += `<div class="b-matchup ${isActive?'bm-active':''} ${isDone?'bm-done':''}">`;
+      ['photoA','photoB'].forEach(k => {
+        const p = m?.[k];
+        const won = m?.winner?.id === p?.id;
+        if (p) html += `<div class="b-row ${won?'won':''}"><img class="b-thumb" src="${p.url}"><span class="b-name">${p.desc||'?'}</span></div>`;
+        else html += `<div class="b-row"><div class="b-tbd">?</div><span class="b-name" style="color:#444">TBD</span></div>`;
+      });
+      html += '</div>';
+    });
+    html += '</div>';
+  });
+  table.innerHTML = html;
+}
+
+function getRoundName(ri, total) {
+  const d = total - 1 - ri;
+  if (d === 0) return 'FINAŁ';
+  if (d === 1) return 'PÓŁFINAŁ';
+  if (d === 2) return 'ĆWIERĆFINAŁ';
+  return `1/${Math.pow(2,d)} FINAŁU`;
+}
+
+function nextRound() { socket.emit('hnc_next_round'); }
+
+// ── SETUP ──
+function onCountChange() {
+  const n = parseInt(document.getElementById('photo-count').value);
+  document.getElementById('photo-count-badge').textContent = `(${countPhotosInList()}/${n})`;
+}
+function countPhotosInList() {
+  return document.querySelectorAll('#photo-list .photo-row[data-url]').length;
+}
+function updateCountBadge() {
+  const n = parseInt(document.getElementById('photo-count').value);
+  document.getElementById('photo-count-badge').textContent = `(${countPhotosInList()}/${n})`;
+}
+
+function addPhotoRow(url, desc) {
+  const needed = parseInt(document.getElementById('photo-count').value);
+  if (countPhotosInList() >= needed) { showUploadStatus(`Maksymalnie ${needed} zdjęć!`, 'orange'); return false; }
+  const list = document.getElementById('photo-list');
+  const row = document.createElement('div');
+  row.className = 'photo-row';
+  row.dataset.url = url;
+  row.innerHTML = `
+    <img class="photo-thumb" src="${url}" onerror="this.style.opacity='.3'">
+    <span class="pr-url" title="${url}">${url.split('/').pop()}</span>
+    <input type="text" class="pr-desc" placeholder="Opis (opcjonalny)" value="${desc}">
+    <button class="rm-btn" onclick="removeRow(this)">✕</button>`;
+  list.appendChild(row);
+  updateCountBadge();
+  return true;
+}
+
+function removeRow(btn) {
+  const row = btn.closest('.photo-row');
+  const url = row.dataset.url;
+  if (url) {
+    const fname = url.split('/').pop();
+    selectedUploads.delete(fname);
+    document.querySelectorAll(`.upload-thumb[data-file="${fname}"]`).forEach(el => el.classList.remove('selected'));
+  }
+  row.remove();
+  updateCountBadge();
+}
+
+function clearPhotos() {
+  document.getElementById('photo-list').innerHTML = '';
+  selectedUploads.clear();
+  document.querySelectorAll('.upload-thumb.selected').forEach(el => el.classList.remove('selected'));
+  updateCountBadge();
+}
+
+async function uploadFiles(files) {
+  if (!files || !files.length) return;
+  showUploadStatus('Wgrywanie...', 'yellow');
+  let uploaded = 0;
+  for (const file of files) {
+    const needed = parseInt(document.getElementById('photo-count').value);
+    if (countPhotosInList() >= needed) break;
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+      const r = await fetch('/upload', { method:'POST', body:fd });
+      const data = await r.json();
+      if (data.filepath) {
+        const name = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ').trim();
+        addPhotoRow(data.filepath, name);
+        uploaded++;
+      }
+    } catch(e) { console.error(e); }
+  }
+  showUploadStatus(uploaded ? `✅ Wgrano ${uploaded} zdjęć` : '❌ Błąd wgrywania', uploaded ? 'green' : 'red');
+  // Reset file inputs
+  document.getElementById('file-upload-single').value = '';
+  document.getElementById('file-upload-multi').value = '';
+}
+
+async function loadUploads() {
+  const picker = document.getElementById('uploads-picker');
+  const grid = document.getElementById('uploads-grid');
+  picker.style.display = 'block';
+  grid.innerHTML = '<span style="font-size:12px;color:#888">Ładowanie…</span>';
+  try {
+    const r = await fetch('/api/uploads-list');
+    const data = await r.json();
+    const imgs = (data.files || []).filter(f => /\.(jpe?g|png|webp|gif)$/i.test(f));
+    if (!imgs.length) { grid.innerHTML = '<span style="font-size:12px;color:#888">Brak zdjęć.</span>'; return; }
+    grid.innerHTML = imgs.map(f =>
+      `<img class="upload-thumb ${selectedUploads.has(f)?'selected':''}" data-file="${f}" src="/uploads/${f}" title="${f}" onclick="toggleUpload(this,'${f}')">`
+    ).join('');
+  } catch(e) { grid.innerHTML = '<span style="color:#f44;font-size:12px">Błąd.</span>'; }
+}
+
+function toggleUpload(el, filename) {
+  if (selectedUploads.has(filename)) {
+    selectedUploads.delete(filename);
+    el.classList.remove('selected');
+    document.querySelectorAll(`#photo-list .photo-row[data-url="/uploads/${filename}"]`).forEach(r => r.remove());
+    updateCountBadge();
+  } else {
+    const name = filename.replace(/^\d+-/, '').replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ').trim();
+    if (addPhotoRow(`/uploads/${filename}`, name)) {
+      selectedUploads.add(filename);
+      el.classList.add('selected');
+    }
+  }
+}
+
+function closeUploadsPicker() { document.getElementById('uploads-picker').style.display = 'none'; }
+
+function startTournament() {
+  const needed = parseInt(document.getElementById('photo-count').value);
+  const time = parseInt(document.getElementById('match-time').value) || 15;
+  const rows = document.querySelectorAll('#photo-list .photo-row[data-url]');
+  if (rows.length !== needed) {
+    showSetupStatus(`Potrzeba dokładnie ${needed} zdjęć (masz ${rows.length}).`, 'red');
+    return;
+  }
+  const photos = Array.from(rows).map(row => ({
+    url: row.dataset.url,
+    desc: row.querySelector('.pr-desc')?.value?.trim() || ''
+  }));
+  const questionText = document.getElementById('question-text')?.value?.trim() || '';
+  socket.emit('hnc_setup', { photos, time, questionText });
+  showSetupStatus('✅ Turniej uruchomiony!', 'green');
+}
+
+function showUploadStatus(msg, color) {
+  const el = document.getElementById('upload-progress');
+  el.textContent = msg;
+  el.style.color = color === 'red' ? '#f44336' : color === 'orange' ? '#ff9800' : color === 'yellow' ? '#ffd700' : '#00c853';
+  setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 4000);
+}
+function showSetupStatus(msg, color) {
+  const el = document.getElementById('setup-status');
+  el.textContent = msg;
+  el.style.color = color === 'red' ? '#f44336' : '#00c853';
+}
+
+// Init badge
+updateCountBadge();
+</script>
+</body>
+</html>

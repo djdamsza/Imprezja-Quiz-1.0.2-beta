@@ -121,8 +121,55 @@ try {
     }
     
     // Spróbuj użyć destrukturyzacji
-    const { app, BrowserWindow, dialog, Menu } = electron;
-    
+    const { app, BrowserWindow, dialog, Menu, ipcMain, screen, session } = electron;
+
+    /**
+     * Prawy przycisk w polu tekstowym → Wklej / Kopiuj (bez tego w Electron nie ma domyślnego menu kontekstowego).
+     */
+    function attachWebContentsContextMenu(webContents) {
+        if (!webContents || typeof webContents.on !== 'function') return;
+        webContents.on('context-menu', (event, params) => {
+            const template = [];
+            if (params.isEditable) {
+                template.push({ role: 'cut' });
+                template.push({ role: 'copy' });
+                template.push({ role: 'paste' });
+                if (process.platform === 'darwin') {
+                    template.push({ role: 'pasteAndMatchStyle' });
+                }
+                template.push({ type: 'separator' });
+                template.push({ role: 'selectAll' });
+            } else if (params.selectionText) {
+                template.push({ role: 'copy' });
+            }
+            if (template.length === 0) return;
+            try {
+                const win = BrowserWindow.fromWebContents(webContents);
+                Menu.buildFromTemplate(template).popup({ window: win || undefined });
+            } catch (e) {
+                logToFile('context-menu: ' + (e && e.message));
+            }
+        });
+    }
+
+    ipcMain.handle('imprezator-open-file', async (event) => {
+        const win = BrowserWindow.fromWebContents(event.sender);
+        const result = await dialog.showOpenDialog(win, {
+            properties: ['openFile'],
+            filters: [{ name: 'Audio', extensions: ['mp3', 'wav', 'm4a', 'ogg', 'aac', 'flac'] }]
+        });
+        if (result.canceled || !result.filePaths || !result.filePaths.length) return null;
+        return result.filePaths[0];
+    });
+    ipcMain.handle('imprezator-open-directory', async (event) => {
+        const win = BrowserWindow.fromWebContents(event.sender);
+        const result = await dialog.showOpenDialog(win, {
+            properties: ['openDirectory']
+        });
+        if (result.canceled || !result.filePaths || !result.filePaths.length) return null;
+        return result.filePaths[0];
+    });
+
     if (!app) {
         logToFile('Electron keys: ' + Object.keys(electron).join(', '));
         throw new Error('app nie jest dostępne w electron module. Dostępne klucze: ' + Object.keys(electron).slice(0, 10).join(', '));
@@ -138,6 +185,41 @@ try {
     const http = require('http');
     
     logToFile('All modules loaded');
+
+    // Mostek IPC przez HTTP – pozwala serwerowi (i przeglądarce) wywołać natywny dialog pliku
+    // MUSI być po const http = require('http') i po let mainWindow = null (dalej w kodzie)
+    const ELECTRON_IPC_PORT = 3099;
+    const ipcServer = http.createServer(async (req, res) => {
+        if (req.method !== 'POST') { res.writeHead(405); res.end(); return; }
+        // Odczytaj okno do dialogów (admin preferowane)
+        const win = editorWindow || adminWindow || screenWindow || mainWindow || BrowserWindow.getAllWindows()[0] || undefined;
+        try {
+            if (req.url === '/open-file') {
+                const opts = {
+                    properties: ['openFile'],
+                    filters: [{ name: 'Audio', extensions: ['mp3', 'wav', 'm4a', 'ogg', 'aac', 'flac'] }]
+                };
+                const result = await (win ? dialog.showOpenDialog(win, opts) : dialog.showOpenDialog(opts));
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ filePath: result.canceled ? null : (result.filePaths[0] || null) }));
+            } else if (req.url === '/open-directory') {
+                const opts = { properties: ['openDirectory'] };
+                const result = await (win ? dialog.showOpenDialog(win, opts) : dialog.showOpenDialog(opts));
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ dirPath: result.canceled ? null : (result.filePaths[0] || null) }));
+            } else {
+                res.writeHead(404); res.end();
+            }
+        } catch (e) {
+            logToFile(`⚠️ IPC dialog error: ${e.message}`);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: e.message }));
+        }
+    });
+    ipcServer.listen(ELECTRON_IPC_PORT, '127.0.0.1', () => {
+        logToFile(`✅ Electron IPC HTTP server on 127.0.0.1:${ELECTRON_IPC_PORT}`);
+    });
+    ipcServer.on('error', (e) => logToFile(`⚠️ Electron IPC server error: ${e.message}`));
 
     const PORT = 3000;
 
@@ -172,8 +254,33 @@ try {
 
     const APP_ROOT = getAppRoot();
     let serverProcess = null;
-    let mainWindow = null;
+    let mainWindow = null;      // okno startowe (start.html) – opcjonalne
+    let screenWindow = null;   // okno ekranu prezentacji (screen-controller)
+    let editorWindow = null;   // okno edytora prezentacji (editor-prezentacja)
+    let adminWindow = null;    // okno admina (admin-pwa.html) – opcjonalne, po przycisku
     let loadingWindow = null;
+
+    // Konfiguracja monitorów – zapis/odczyt
+    const WINDOWS_CONFIG_FILE = path.join(app.getPath('userData'), 'imprezja-windows.json');
+    function loadWindowsConfig() {
+        try {
+            if (fs.existsSync(WINDOWS_CONFIG_FILE)) {
+                const raw = fs.readFileSync(WINDOWS_CONFIG_FILE, 'utf8');
+                const cfg = JSON.parse(raw);
+                return {
+                    screenDisplayIndex: typeof cfg.screenDisplayIndex === 'number' ? cfg.screenDisplayIndex : 0,
+                    adminDisplayIndex: typeof cfg.adminDisplayIndex === 'number' ? cfg.adminDisplayIndex : 0,
+                    adminBounds: cfg.adminBounds && typeof cfg.adminBounds === 'object' ? cfg.adminBounds : null
+                };
+            }
+        } catch (e) { logToFile('⚠️ loadWindowsConfig: ' + e.message); }
+        return { screenDisplayIndex: 0, adminDisplayIndex: 0, adminBounds: null };
+    }
+    function saveWindowsConfig(cfg) {
+        try {
+            fs.writeFileSync(WINDOWS_CONFIG_FILE, JSON.stringify(cfg, null, 2), 'utf8');
+        } catch (e) { logToFile('⚠️ saveWindowsConfig: ' + e.message); }
+    }
 
     logToFile(`isPackaged: ${app.isPackaged}`);
     logToFile(`process.resourcesPath: ${process.resourcesPath || 'undefined'}`);
@@ -194,14 +301,17 @@ console.log('🔧 __dirname:', __dirname);
         logToFile('✅ Single instance lock uzyskany');
         app.on('second-instance', () => {
             logToFile('📱 Druga instancja próbuje się uruchomić');
-            if (mainWindow) {
-                if (mainWindow.isMinimized()) mainWindow.restore();
-                mainWindow.focus();
+            const focusWin = editorWindow || adminWindow || screenWindow || mainWindow;
+            if (focusWin && !focusWin.isDestroyed()) {
+                if (focusWin.isMinimized()) focusWin.restore();
+                focusWin.focus();
             }
         });
     }
     
     logToFile('✅ Wszystkie moduły załadowane, czekam na app.whenReady()');
+
+    app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
 /** Konfiguruje autoUpdater i ustawia global.imprezjaCheckForUpdates – wywołać PRZED startServer */
 function setupAutoUpdater() {
@@ -281,12 +391,16 @@ function getNodePath() {
             } catch (_) {}
         }
     } else if (process.platform === 'win32') {
-        // Windows: sprawdź typowe lokalizacje Node.js
+        // Windows: sprawdź typowe lokalizacje Node.js (fallbacki dla PROGRAMFILES)
+        const pf = process.env.PROGRAMFILES || 'C:\\Program Files';
+        const pf86 = process.env['PROGRAMFILES(X86)'] || process.env.PROGRAMFILES || 'C:\\Program Files (x86)';
+        const localAppData = process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local');
+        const appData = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');
         const candidates = [
-            path.join(process.env.PROGRAMFILES || 'C:\\Program Files', 'nodejs', 'node.exe'),
-            path.join(process.env['PROGRAMFILES(X86)'] || 'C:\\Program Files (x86)', 'nodejs', 'node.exe'),
-            path.join(process.env.LOCALAPPDATA || '', 'Programs', 'nodejs', 'node.exe'),
-            path.join(process.env.APPDATA || '', 'npm', 'node.exe'),
+            path.join(pf, 'nodejs', 'node.exe'),
+            path.join(pf86, 'nodejs', 'node.exe'),
+            path.join(localAppData, 'Programs', 'nodejs', 'node.exe'),
+            path.join(appData, 'npm', 'node.exe'),
         ];
         for (const p of candidates) {
             try {
@@ -414,6 +528,9 @@ function startServer() {
 
 function showErrorAndQuit(title, message) {
     if (mainWindow) mainWindow.close();
+    if (screenWindow) screenWindow.close();
+    if (editorWindow) editorWindow.close();
+    if (adminWindow) adminWindow.close();
     if (loadingWindow) loadingWindow.close();
     dialog.showMessageBoxSync({
         type: 'error',
@@ -449,41 +566,218 @@ function showLoadingWindow() {
     }
 }
 
+function resolvePreloadPath() {
+    return resolvePreloadByName('preload-imprezator.js');
+}
+function resolvePreloadByName(name) {
+    const candidates = [
+        process.resourcesPath ? path.join(process.resourcesPath, 'app.asar.unpacked', name) : null,
+        path.join(APP_ROOT.replace(/app\.asar$/, 'app.asar.unpacked'), name),
+        path.join(APP_ROOT, name),
+        path.join(__dirname, name),
+    ].filter(Boolean);
+    for (const p of candidates) {
+        try { if (fs.existsSync(p)) return p; } catch (_) {}
+    }
+    return undefined;
+}
+
+/** Tworzy okno ekranu prezentacji (screen-controller) na wybranym monitorze */
+function createScreenWindow(displayIndex) {
+    if (screenWindow && !screenWindow.isDestroyed()) return;
+    const displays = screen.getAllDisplays();
+    if (!displays || displays.length === 0) return;
+    const idx = Math.max(0, Math.min(displayIndex, displays.length - 1));
+    const display = displays[idx];
+    const bounds = display.bounds;
+    screenWindow = new BrowserWindow({
+        width: bounds.width,
+        height: bounds.height,
+        x: bounds.x,
+        y: bounds.y,
+        title: 'Imprezja – Ekran prezentacji',
+        fullscreen: true,
+        webPreferences: { nodeIntegration: false, contextIsolation: true }
+    });
+    screenWindow.setMenuBarVisibility(false);
+    attachWebContentsContextMenu(screenWindow.webContents);
+    screenWindow.webContents.on('render-process-gone', (e, details) => { logToFile('[SCREEN-CRASH] render-process-gone: ' + JSON.stringify(details)); });
+    screenWindow.webContents.on('crashed', () => { logToFile('[SCREEN-CRASH] webContents crashed'); });
+    screenWindow.loadURL(`http://127.0.0.1:${PORT}/screen-controller.html?mode=prezentacja&fullscreen=1`);
+    screenWindow.on('closed', () => { screenWindow = null; });
+    logToFile('✅ Ekran prezentacji na monitorze ' + idx);
+}
+
+/** Tworzy okno edytora prezentacji (editor-prezentacja) na wybranym monitorze */
+function createEditorWindow(displayIndex) {
+    if (editorWindow && !editorWindow.isDestroyed()) return;
+    const cfg = loadWindowsConfig();
+    const displays = screen.getAllDisplays();
+    if (!displays || displays.length === 0) return;
+    const idx = Math.max(0, Math.min(displayIndex, displays.length - 1));
+    const display = displays[idx];
+    const bounds = display.bounds;
+    let opts = { title: 'Imprezja – Wybór trybu', webPreferences: { nodeIntegration: false, contextIsolation: true } };
+    if (cfg.adminBounds && typeof cfg.adminBounds.width === 'number' && typeof cfg.adminBounds.height === 'number') {
+        opts = { ...opts, ...cfg.adminBounds };
+    } else {
+        const w = Math.min(480, Math.floor(bounds.width * 0.5));
+        const h = Math.min(900, Math.floor(bounds.height * 0.9));
+        opts.width = w;
+        opts.height = h;
+        opts.x = bounds.x + Math.floor((bounds.width - w) / 2);
+        opts.y = bounds.y + Math.floor((bounds.height - h) / 2);
+    }
+    editorWindow = new BrowserWindow(opts);
+    // macOS: menu aplikacji jest w pasku systemowym – pasek w oknie ukryty.
+    // Windows/Linux: bez widocznego paska nie da się dostać do „Imprezja → Monitory”.
+    if (process.platform === 'darwin') {
+        editorWindow.setMenuBarVisibility(false);
+    } else {
+        editorWindow.setMenuBarVisibility(true);
+    }
+    buildElectronMenu();
+    // Przycisk „Panel admin” – otwórz przez openAdminWindow zamiast nowej karty
+    editorWindow.webContents.setWindowOpenHandler(({ url }) => {
+        // Tylko panel na komputerze (/admin-pwa.html) → okno Electron. Panel na telefonie (/admin-pwa-qr.html) → normalne okno z QR.
+        if (url && url.includes('/admin-pwa.html') && !url.includes('admin-pwa-qr')) {
+            openAdminWindow();
+            return { action: 'deny' };
+        }
+        return { action: 'allow' };
+    });
+    attachWebContentsContextMenu(editorWindow.webContents);
+    editorWindow.loadURL(`http://127.0.0.1:${PORT}/start.html`);
+    editorWindow.on('close', () => {
+        try {
+            if (!editorWindow.isDestroyed()) {
+                const b = editorWindow.getBounds();
+                const c = loadWindowsConfig();
+                saveWindowsConfig({ ...c, adminBounds: { x: b.x, y: b.y, width: b.width, height: b.height } });
+            }
+        } catch (_) {}
+    });
+    editorWindow.on('closed', () => { editorWindow = null; });
+    mainWindow = editorWindow;
+    logToFile('✅ Wybór trybu na monitorze ' + idx);
+}
+
+/** Otwiera panel admin PWA (opcjonalnie, po przycisku) */
+function openAdminWindow() {
+    if (adminWindow && !adminWindow.isDestroyed()) {
+        adminWindow.focus();
+        return;
+    }
+    const preloadPath = resolvePreloadPath();
+    const cfg = loadWindowsConfig();
+    const displays = screen.getAllDisplays();
+    const idx = Math.max(0, Math.min(cfg.adminDisplayIndex || 0, (displays && displays.length) ? displays.length - 1 : 0));
+    const bounds = displays && displays[idx] ? displays[idx].bounds : { x: 0, y: 0, width: 800, height: 600 };
+    const w = Math.min(420, Math.floor(bounds.width * 0.4));
+    const h = Math.min(800, Math.floor(bounds.height * 0.9));
+    adminWindow = new BrowserWindow({
+        width: w,
+        height: h,
+        x: bounds.x + Math.floor((bounds.width - w) / 2),
+        y: bounds.y + Math.floor((bounds.height - h) / 2),
+        title: 'Imprezja Admin',
+        webPreferences: { nodeIntegration: false, contextIsolation: true, preload: preloadPath }
+    });
+    adminWindow.setMenuBarVisibility(false);
+    attachWebContentsContextMenu(adminWindow.webContents);
+    adminWindow.loadURL(`http://127.0.0.1:${PORT}/admin-pwa.html`);
+    adminWindow.on('closed', () => { adminWindow = null; });
+    logToFile('✅ Panel admin otwarty');
+}
+
+/** Menu Electron – wybór monitorów */
+function buildElectronMenu() {
+    const displays = screen.getAllDisplays();
+    const cfg = loadWindowsConfig();
+    const screenSubmenu = displays.map((d, i) => ({
+        label: (d.bounds.width + '×' + d.bounds.height) + (i === 0 ? ' (główny)' : ''),
+        type: 'radio',
+        checked: cfg.screenDisplayIndex === i,
+        click: () => {
+            const c = loadWindowsConfig();
+            saveWindowsConfig({ ...c, screenDisplayIndex: i });
+            if (screenWindow && !screenWindow.isDestroyed()) {
+                const b = displays[i].bounds;
+                screenWindow.setFullScreen(false);
+                screenWindow.setBounds(b);
+                screenWindow.setFullScreen(true);
+            }
+            buildElectronMenu();
+        }
+    }));
+    const editorSubmenu = displays.map((d, i) => ({
+        label: (d.bounds.width + '×' + d.bounds.height) + (i === 0 ? ' (główny)' : ''),
+        type: 'radio',
+        checked: cfg.adminDisplayIndex === i,
+        click: () => {
+            const c = loadWindowsConfig();
+            saveWindowsConfig({ ...c, adminDisplayIndex: i });
+            if (editorWindow && !editorWindow.isDestroyed()) {
+                const b = displays[i].bounds;
+                editorWindow.setBounds({ x: b.x, y: b.y, width: editorWindow.getBounds().width, height: editorWindow.getBounds().height });
+            }
+            buildElectronMenu();
+        }
+    }));
+    const template = [
+        {
+            label: 'Imprezja',
+            submenu: [
+                { label: 'Monitor ekranu prezentacji', submenu: screenSubmenu },
+                { label: 'Monitor wyboru trybu', submenu: editorSubmenu },
+                { type: 'separator' },
+                { label: 'Otwórz panel admin', click: () => openAdminWindow() },
+                { label: 'Otwórz DevTools (ekran)', accelerator: 'F12', click: () => {
+                    const w = screenWindow || editorWindow;
+                    if (w && !w.isDestroyed()) w.webContents.openDevTools();
+                }},
+                { label: 'Otwórz wybór trybu (start)', click: () => {
+                    const w = editorWindow || screenWindow;
+                    if (w && !w.isDestroyed()) w.loadURL(`http://127.0.0.1:${PORT}/start.html`);
+                }},
+                { label: 'Otwórz edytor prezentacji', click: () => {
+                    if (editorWindow && !editorWindow.isDestroyed()) {
+                        editorWindow.loadURL(`http://127.0.0.1:${PORT}/editor-prezentacja.html`);
+                        editorWindow.focus();
+                    }
+                }},
+                { type: 'separator' },
+                { label: 'Zamknij', role: 'quit' }
+            ]
+        },
+        // Bez tego na macOS nie działa Cmd+V / prawy przycisk „Wklej” w polach (brak roli systemowej).
+        {
+            label: 'Edycja',
+            submenu: [
+                { role: 'undo' },
+                { role: 'redo' },
+                { type: 'separator' },
+                { role: 'cut' },
+                { role: 'copy' },
+                { role: 'paste' },
+                ...(process.platform === 'darwin' ? [{ role: 'pasteAndMatchStyle' }] : []),
+                { role: 'delete' },
+                { type: 'separator' },
+                { role: 'selectAll' }
+            ]
+        }
+    ];
+    Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
 function createWindow() {
     if (loadingWindow) {
         loadingWindow.close();
         loadingWindow = null;
     }
-    mainWindow = new BrowserWindow({
-        width: 1200,
-        height: 800,
-        title: 'Imprezja Quiz – Ekran TV',
-        webPreferences: {
-            nodeIntegration: false,
-            contextIsolation: true
-        },
-        show: true
-    });
-
-    Menu.setApplicationMenu(null);
-    mainWindow.loadURL(`http://127.0.0.1:${PORT}/start.html`);
-
-    mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
-        console.error('❌ Błąd ładowania strony:', errorCode, errorDescription);
-        dialog.showMessageBoxSync(mainWindow, {
-            type: 'error',
-            title: 'Imprezja Quiz – błąd',
-            message: `Nie można załadować strony.\n\nKod błędu: ${errorCode}\nOpis: ${errorDescription}\n\nSprawdź czy serwer działa na porcie ${PORT}.`
-        });
-    });
-
-    mainWindow.once('ready-to-show', () => {
-        mainWindow.focus();
-    });
-
-    mainWindow.on('closed', () => {
-        mainWindow = null;
-    });
+    const cfg = loadWindowsConfig();
+    createScreenWindow(cfg.screenDisplayIndex);
+    createEditorWindow(cfg.adminDisplayIndex);
 }
 
 function createWindowWithRetry() {
@@ -491,51 +785,53 @@ function createWindowWithRetry() {
         loadingWindow.close();
         loadingWindow = null;
     }
-    mainWindow = new BrowserWindow({
-        width: 1200,
-        height: 800,
-        title: 'Imprezja Quiz – Ekran TV',
-        webPreferences: {
-            nodeIntegration: false,
-            contextIsolation: true
-        },
-        show: true
-    });
 
-    Menu.setApplicationMenu(null);
+    const cfg = loadWindowsConfig();
+    createScreenWindow(cfg.screenDisplayIndex);
+    createEditorWindow(cfg.adminDisplayIndex);
 
-    const url = `http://127.0.0.1:${PORT}/start.html`;
+    const urlScreen = `http://127.0.0.1:${PORT}/screen-controller.html?mode=prezentacja&fullscreen=1`;
+    const urlEditor = `http://127.0.0.1:${PORT}/start.html`;
     let retryCount = 0;
     const maxRetries = 30;
 
     function tryLoad() {
-        mainWindow.loadURL(url).catch(() => {});
+        if (screenWindow && !screenWindow.isDestroyed()) screenWindow.loadURL(urlScreen).catch(() => {});
+        if (editorWindow && !editorWindow.isDestroyed()) editorWindow.loadURL(urlEditor).catch(() => {});
     }
 
-    mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL, isMainFrame) => {
-        if (mainWindow.isDestroyed() || !isMainFrame) return;
-        retryCount++;
-        if (retryCount >= maxRetries) {
-            logToFile('❌ Przekroczono limit retry ładowania strony');
-            dialog.showMessageBoxSync(mainWindow, {
-                type: 'error',
-                title: 'Imprezja Quiz – błąd',
-                message: `Serwer nie wystartował w czasie.\n\nSprawdź log: ${logFile}`
-            });
-            return;
-        }
-        logToFile(`⏳ Retry ${retryCount}/${maxRetries} ładowania strony...`);
-        setTimeout(tryLoad, 2000);
-    });
+    function onFailLoad(win, label) {
+        return (event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+            if (!win || win.isDestroyed() || !isMainFrame) return;
+            retryCount++;
+            if (retryCount >= maxRetries) {
+                logToFile('❌ Przekroczono limit retry ładowania ' + label);
+                const w = editorWindow || screenWindow;
+                if (w && !w.isDestroyed()) {
+                    dialog.showMessageBoxSync(w, {
+                        type: 'error',
+                        title: 'Imprezja Quiz – błąd',
+                        message: `Serwer nie wystartował w czasie.\n\nSprawdź log: ${logFile}`
+                    });
+                }
+                return;
+            }
+            logToFile(`⏳ Retry ${retryCount}/${maxRetries} ładowania ${label}...`);
+            setTimeout(tryLoad, 2000);
+        };
+    }
 
-    mainWindow.webContents.on('did-finish-load', () => {
-        logToFile('✅ Strona załadowana');
-        mainWindow.focus();
-    });
-
-    mainWindow.on('closed', () => {
-        mainWindow = null;
-    });
+    if (screenWindow) {
+        screenWindow.webContents.on('did-fail-load', onFailLoad(screenWindow, 'Ekran prezentacji'));
+        screenWindow.webContents.on('did-finish-load', () => logToFile('✅ Ekran prezentacji załadowany'));
+    }
+    if (editorWindow) {
+        editorWindow.webContents.on('did-fail-load', onFailLoad(editorWindow, 'Wybór trybu'));
+        editorWindow.webContents.on('did-finish-load', () => {
+            logToFile('✅ Wybór trybu załadowany');
+            if (editorWindow && !editorWindow.isDestroyed()) editorWindow.focus();
+        });
+    }
 
     tryLoad();
 }
@@ -562,10 +858,19 @@ function createWindowWithRetry() {
                 const serverAlreadyRunning = await isServerReady();
                 if (serverAlreadyRunning) {
                     logToFile('✅ Serwer już działa na porcie 3000');
+                    try {
+                        await session.defaultSession.clearStorageData({ storages: ['serviceworkers', 'cachestorage'] });
+                        logToFile('✅ Service Workers i CacheStorage wyczyszczone');
+                    } catch (e) { logToFile('⚠️ Czyszczenie SW/cache: ' + e.message); }
                     createWindow();
                 } else {
                     logToFile('🚀 Uruchamiam nowy serwer...');
                     await startServer();
+                    // SW nie jest potrzebny w Electron – czyścimy rejestracje i cache ze starej sesji
+                    try {
+                        await session.defaultSession.clearStorageData({ storages: ['serviceworkers', 'cachestorage'] });
+                        logToFile('✅ Service Workers i CacheStorage wyczyszczone');
+                    } catch (e) { logToFile('⚠️ Czyszczenie SW/cache: ' + e.message); }
                     logToFile('📺 Tworzę okno – strona załaduje się gdy serwer będzie gotowy');
                     createWindowWithRetry();
                 }
@@ -589,6 +894,9 @@ function createWindowWithRetry() {
                 // Pokaż okno z błędem
                 try {
                     if (mainWindow) mainWindow.close();
+                    if (screenWindow) screenWindow.close();
+                    if (editorWindow) editorWindow.close();
+                    if (adminWindow) adminWindow.close();
                     if (loadingWindow) loadingWindow.close();
                     const errorWindow = new BrowserWindow({
                         width: 640,
@@ -640,8 +948,9 @@ process.on('uncaughtException', (err) => {
     logToFile(`❌ UNCAUGHT EXCEPTION: ${err.message}`);
     logToFile(`Stack: ${err.stack || 'brak'}`);
     console.error('❌ Uncaught Exception:', err);
-    if (mainWindow) {
-        dialog.showMessageBoxSync(mainWindow, {
+    const win = editorWindow || adminWindow || screenWindow || mainWindow;
+    if (win && !win.isDestroyed()) {
+        dialog.showMessageBoxSync(win, {
             type: 'error',
             title: 'Imprezja Quiz – błąd krytyczny',
             message: `Wystąpił błąd: ${err.message}\n\nLogi w: ${logFile}`

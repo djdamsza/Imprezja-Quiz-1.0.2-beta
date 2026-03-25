@@ -4,10 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Whitney – Panel</title>
-    <link rel="icon" href="data:,">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico"><link rel="icon" type="image/png" sizes="32x32" href="/img/icon-32.png"><link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
     <script src="/socket.io/socket.io.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        .tile, .tile * { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+        .tile .emoji.img { pointer-events: none; }
+        .tile { touch-action: pan-y; }
         html {
             width: 100%;
             height: 100%;
@@ -105,9 +108,10 @@
         .tile.bg-playing { box-shadow: 0 0 0 4px #00bcd4, 0 0 20px rgba(0,188,212,0.5); }
         .tile { position: relative; }
         .tile .tile-bg-note { position: absolute; top: 6px; right: 6px; font-size: 1.1rem; opacity: 0.95; }
+        .tile .tile-play-icon { position: absolute; top: 6px; left: 6px; font-size: 1.1rem; opacity: 0.95; }
         .tile .emoji { font-size: 2.5rem; margin-bottom: 4px; }
         .tile .emoji.img { width: 48px; height: 48px; object-fit: contain; }
-        .tile .label { font-size: 0.85rem; font-weight: 600; text-align: center; padding: 0 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; min-width: 0; }
+        .tile .label { font-size: 0.77rem; font-weight: 600; text-align: center; padding: 0 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; min-width: 0; }
         .wait-screen {
             display: flex;
             flex-direction: column;
@@ -199,13 +203,15 @@
             tiles.innerHTML = trackList.map((t, i) => {
                 const isPlaying = playingTileId === t.id || playingBackgroundTileId === t.id;
                 const isBg = playingBackgroundTileId === t.id;
+                const icon = isPlaying ? '⏸' : '▶';
                 const emoji = t.image && (t.image.startsWith('/') || t.image.startsWith('http')) ? '' : (t.image || '');
                 const img = t.image && (t.image.startsWith('/') || t.image.startsWith('http')) ? t.image : '';
                 const spanClass = lastOdd && i === cnt - 1 ? ' tile-last-odd' : '';
                 return `
-                    <div class="tile${spanClass} ${isPlaying ? 'playing' : ''} ${isBg ? 'bg-playing' : ''}" data-id="${t.id}" style="background:${t.color || '#3498db'}" onclick="toggleTile('${t.id}')">
+                    <div class="tile${spanClass} ${isPlaying ? 'playing' : ''} ${isBg ? 'bg-playing' : ''}" data-id="${t.id}" style="background:${t.color || '#3498db'}">
+                        <span class="tile-play-icon">${icon}</span>
                         ${t.isBackground ? '<span class="tile-bg-note" title="Tło muzyczne">🎵</span>' : ''}
-                        ${img ? `<img class="emoji img" src="${img}" alt="">` : (emoji ? `<span class="emoji">${emoji}</span>` : '')}
+                        ${img ? `<img class="emoji img" src="${img}" alt="" draggable="false" loading="lazy">` : (emoji ? `<span class="emoji">${emoji}</span>` : '')}
                         <span class="label">${(t.label || '').replace(/</g,'&lt;') || '—'}</span>
                     </div>
                 `;
@@ -216,6 +222,58 @@
             if (!active) return;
             socket.emit('whitney_toggle', { tileId: id });
         }
+
+        const TILE_TAP_MAX_MOVE_PX = 22;
+        let tileTouchPan = null;
+        let tileIgnoreClicksUntil = 0;
+
+        function handleWhitneyTileTap(e) {
+            e.stopPropagation();
+            const tile = e.target.closest('.tile[data-id]');
+            if (tile && tile.dataset.id) toggleTile(tile.dataset.id);
+        }
+
+        const tilesElWhitney = document.getElementById('tiles');
+        tilesElWhitney.addEventListener('touchstart', (e) => {
+            if (e.touches.length !== 1) { tileTouchPan = null; return; }
+            const t = e.touches[0];
+            tileTouchPan = { x0: t.clientX, y0: t.clientY, moved: false };
+        }, { passive: true });
+        tilesElWhitney.addEventListener('touchmove', (e) => {
+            if (!tileTouchPan || e.touches.length !== 1) return;
+            const t = e.touches[0];
+            if (Math.hypot(t.clientX - tileTouchPan.x0, t.clientY - tileTouchPan.y0) > TILE_TAP_MAX_MOVE_PX) {
+                tileTouchPan.moved = true;
+            }
+        }, { passive: true });
+        tilesElWhitney.addEventListener('touchcancel', () => { tileTouchPan = null; }, { passive: true });
+        tilesElWhitney.addEventListener('touchend', (e) => {
+            if (!tileTouchPan || e.changedTouches.length !== 1) {
+                tileTouchPan = null;
+                return;
+            }
+            const t = e.changedTouches[0];
+            const moved = tileTouchPan.moved || Math.hypot(t.clientX - tileTouchPan.x0, t.clientY - tileTouchPan.y0) > TILE_TAP_MAX_MOVE_PX;
+            tileTouchPan = null;
+            if (moved) {
+                tileIgnoreClicksUntil = Date.now() + 450;
+                return;
+            }
+            e.preventDefault();
+            handleWhitneyTileTap(e);
+        }, { passive: false });
+        tilesElWhitney.addEventListener('click', (e) => {
+            if (Date.now() < tileIgnoreClicksUntil) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+            e.preventDefault();
+            handleWhitneyTileTap(e);
+        });
+        tilesElWhitney.addEventListener('contextmenu', (e) => {
+            if (e.target.closest('.tile')) e.preventDefault();
+        });
 
         function lockOrientationPortrait() {
             if (screen.orientation && typeof screen.orientation.lock === 'function') {

@@ -4,9 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ekran TV</title>
-    <link rel="icon" href="data:,">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico"><link rel="icon" type="image/png" sizes="32x32" href="/img/icon-32.png"><link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
     <link rel="manifest" href="/manifest.json">
     <script src="/socket.io/socket.io.js"></script>
+    <script src="/lib/audio-normalize.js"></script>
     <!-- Fonty lokalne – aplikacja działa bez internetu -->
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -54,6 +55,8 @@
             animation: bgShimmer 15s linear infinite;
             pointer-events: none;
         }
+        @keyframes hncCoinSpin { 0%{transform:rotateY(0) scale(1)} 50%{transform:rotateY(900deg) scale(1.3)} 100%{transform:rotateY(1440deg) scale(1)} }
+        #hnc-s-coin.spin { animation:hncCoinSpin 1.8s cubic-bezier(.4,0,.2,1) forwards; }
         @keyframes bgGradientFlow {
             0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
             25% { transform: translate(-8%, -5%) scale(1.08) rotate(1deg); }
@@ -1385,6 +1388,7 @@
 <body>
 
     <div id="confetti-container"></div>
+    <canvas id="podium-confetti-canvas" style="position:fixed;inset:0;pointer-events:none;z-index:9998;"></canvas>
 
     <button type="button" id="btn-fullscreen-screen" title="Pełny ekran" aria-label="Pełny ekran">⛶ PEŁNY EKRAN</button>
     <a id="btn-back-screen" href="/start.html">← COFNIJ</a>
@@ -1453,9 +1457,6 @@
         <img src="/img/logo_imprezja.png" alt="Imprezja Quiz" class="logo-imprezja-large">
         <div id="zaraz-title-main" class="intro-title zaraz-pulse-a">ZARAZ ZACZYNAMY</div>
         <div id="zaraz-quiz-title" class="intro-title zaraz-pulse-b"></div>
-        <div id="zaraz-btn-row" class="intro-btn-row" style="margin-top: 24px;">
-            <button type="button" id="btn-zakoncz-zaraz" class="intro-editor-btn intro-back-btn">Zakończ</button>
-        </div>
     </div>
 
     <!-- Ekran: QR + latające nicki zalogowanych graczy (przycisk w adminie) -->
@@ -1640,7 +1641,9 @@
         const podiumPlayer = document.getElementById('audio-podium');
         const shipsBGPlayer = document.getElementById('audio-ships-bg');
         let audioEnabled = false;
-        var lastMasterVolume = 80;
+        var quizChannelVolume = 1;
+        var masterVolume = 1;
+        function getQuizEffectiveVolume() { return Math.min(1, quizChannelVolume * masterVolume); }
         let currentPodiumStep = -1;
         let wakeLock = null;
         let lastStateType = null;
@@ -1794,7 +1797,8 @@
         // ========================
         // Minimalny cichy WAV – odtwarzany przy pierwszym kliku, żeby przeglądarka odblokowała audio (play() bez src nie odblokowuje)
         const SILENT_WAV = 'data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBIAAAABAAEAQB8AAEAfAAABAAgAAABmYWN0BAAAAAAAAABkYXRhAAAAAA==';
-        async function initAudioContext() {
+        /** Odtwarzacze HTML5 — bez requestFullscreen (używane także w iframe / Electron). */
+        function unlockAudioElements() {
             audioEnabled = true;
             function unlock(el) {
                 try {
@@ -1805,9 +1809,16 @@
             unlock(sfxPlayer);
             unlock(musicPlayer);
             unlock(clockPlayer);
-            if(podiumPlayer) unlock(podiumPlayer);
-            if(shipsBGPlayer) unlock(shipsBGPlayer);
-            try { document.documentElement.requestFullscreen().catch(()=>{}); } catch(e){}
+            if (podiumPlayer) unlock(podiumPlayer);
+            if (shipsBGPlayer) unlock(shipsBGPlayer);
+        }
+        function initAudioContext() {
+            unlockAudioElements();
+            // Pełny ekran tylko gdy Screen.html jest głównym dokumentem (nie w iframe screen-controller).
+            // W iframe requestFullscreen() na Windows/Electron często nie działa i nie zastępuje gestu użytkownika w tym dokumencie.
+            if (window.self === window.top) {
+                try { document.documentElement.requestFullscreen().catch(()=>{}); } catch(e){}
+            }
             requestWakeLock();
             // Ponów żądanie QR
             socket.emit('request_qr');
@@ -1817,6 +1828,18 @@
         }
         // Upewnij się że funkcja jest dostępna globalnie
         window.initAudioContext = initAudioContext;
+        window.unlockQuizAudioElements = unlockAudioElements;
+
+        // Quiz w iframe (np. /screen-controller.html): klik „Pełny ekran” trafia w rodzica — tu nigdy nie ma pierwszego kliknięcia w dokumencie quizu,
+        // więc audioEnabled zostaje false i cała ścieżka dźwiękowa jest wyłączona. Po połączeniu z serwerem odblokuj (Electron: autoplay-policy).
+        (function () {
+            if (window.self === window.top) return;
+            function onConnectUnlock() {
+                unlockAudioElements();
+            }
+            socket.on('connect', onConnectUnlock);
+            if (socket.connected) onConnectUnlock();
+        })();
 
         // Przywrócenie dźwięku: pierwsza interakcja (klik lub dotyk) odblokowuje dźwięk – ale nie przy linkach do admina/edytora (żeby nie włączać fullscreen zamiast otwarcia linku)
         (function() {
@@ -1845,8 +1868,6 @@
                 'btn-rozpocznij-intro',
                 'btn-zakoncz-intro',
                 'btn-cofnij-intro',
-                'btn-zakoncz-zaraz',
-                'zaraz-btn-row'
             ];
             function updateFullscreenButton() {
                 const isFs = !!document.fullscreenElement;
@@ -2009,39 +2030,39 @@
             const intro = document.getElementById('intro-screen');
             if (intro) intro.style.display = 'flex';
         });
-        document.getElementById('btn-zakoncz-zaraz')?.addEventListener('click', function() {
-            window._zarazShownLocally = false;
-            if (typeof socket !== 'undefined') socket.emit('admin_reset_game');
-            const zaraz = document.getElementById('zaraz-zaczynamy-overlay');
-            const intro = document.getElementById('intro-screen');
-            if (zaraz) zaraz.style.display = 'none';
-            if (intro) intro.style.display = 'flex';
-        });
-
         function stopAllAudio() {
             musicPlayer.pause(); musicPlayer.currentTime=0;
             sfxPlayer.pause(); sfxPlayer.currentTime=0;
             clockPlayer.pause(); clockPlayer.currentTime=0;
             if(podiumPlayer) { podiumPlayer.pause(); podiumPlayer.currentTime=0; }
             if (currentMode !== 'SHIPS' && shipsBGPlayer) { shipsBGPlayer.pause(); shipsBGPlayer.currentTime=0; }
-            if (currentMode !== 'SHIPS_SOLO') stopShipsSoloSoundtrack();
+            if (typeof _hncStopBg === 'function') _hncStopBg();
+            // Wyborczy (WYBORCZY): wybScreenBgAudio nie było tu zatrzymywane — przy IDLE/pauzie return był przed blokiem wasWybActive, muzyka grała dalej
+            if (typeof stopWyborczyQuestionMedia === 'function') stopWyborczyQuestionMedia();
+            else if (typeof stopWybBgMusic === 'function') stopWybBgMusic();
         }
-        function startShipsBG() {
+        async function startShipsBG() {
             if (!audioEnabled || !shipsBGPlayer) return;
             if (!shipsBGPlayer.paused && shipsBGPlayer.src && shipsBGPlayer.src.includes('seabattle')) return;
-            shipsBGPlayer.src = '/uploads/sfx/seabattle.mp3';
-            shipsBGPlayer.volume = 0.65;
+            const url = '/uploads/sfx/seabattle.mp3';
+            let gain = 1;
+            if (typeof window.AudioNormalize !== 'undefined') gain = await window.AudioNormalize.getNormalizedGainForUrl(url);
+            shipsBGPlayer.src = url;
+            shipsBGPlayer.volume = getQuizEffectiveVolume() * gain;
             shipsBGPlayer.loop = true;
             shipsBGPlayer.play().catch(e => console.error('Ships BG Error:', e));
         }
         function stopShipsBG() {
             if (shipsBGPlayer) { shipsBGPlayer.pause(); shipsBGPlayer.currentTime=0; }
         }
-        function playPodiumMusic() {
+        async function playPodiumMusic() {
             if(!audioEnabled || !podiumPlayer) return;
             if(!podiumPlayer.paused) return;
-            podiumPlayer.src = '/uploads/sfx/podjum.mp3';
-            podiumPlayer.volume = 0.8;
+            const url = '/uploads/sfx/podjum.mp3';
+            let gain = 1;
+            if (typeof window.AudioNormalize !== 'undefined') gain = await window.AudioNormalize.getNormalizedGainForUrl(url);
+            podiumPlayer.src = url;
+            podiumPlayer.volume = 0.8 * gain;
             podiumPlayer.play().catch(e => console.error('Podium Error:', e));
         }
         function stopPodiumMusic() {
@@ -2076,39 +2097,48 @@
         }
 
         // --- POPRAWIONE NAZWY PLIKÓW (Z PODKREŚLNIKAMI) ---
-        function playSFX(name) {
+        async function playSFX(name) {
             if(!audioEnabled)return;
-            sfxPlayer.src = `/uploads/sfx/${name}.mp3`;
-            sfxPlayer.volume = lastMasterVolume / 100;
+            const sfxUrl = `/uploads/sfx/${name}.mp3`;
+            let gain = 1;
+            if (typeof window.AudioNormalize !== 'undefined') {
+                gain = await window.AudioNormalize.getNormalizedGainForUrl(sfxUrl);
+            }
+            sfxPlayer.src = sfxUrl;
+            sfxPlayer.volume = getQuizEffectiveVolume() * gain;
             sfxPlayer.play().catch(e => console.error("SFX Error:", e));
         }
 
-        function playMusic(url) {
+        async function playMusic(url) {
             if(!audioEnabled) return;
-            
             let fullUrl = url;
             if(url && !url.startsWith('/') && !url.startsWith('http')) {
                 fullUrl = '/uploads/' + url;
             }
-            
             const currentSrc = musicPlayer.src;
             const isSameFile = currentSrc && (currentSrc.includes(url) || currentSrc.includes(fullUrl));
             if(isSameFile && !musicPlayer.paused) return;
             stopAllAudio();
-            musicPlayer.volume = Math.min(1, Math.max(0, lastMasterVolume / 100));
+            let gain = 1;
+            if (typeof window.AudioNormalize !== 'undefined' && fullUrl && (fullUrl.startsWith('/') || fullUrl.includes(window.location.host))) {
+                gain = await window.AudioNormalize.getNormalizedGainForUrl(fullUrl);
+            }
+            musicPlayer.volume = getQuizEffectiveVolume() * gain;
             musicPlayer.src = fullUrl;
             musicPlayer.play().catch((e) => {
                 console.error('❌ Błąd odtwarzania muzyki:', e, 'URL:', fullUrl);
             });
         }
 
-        function playClock() {
+        async function playClock() {
             if(!audioEnabled)return;
             if(!clockPlayer.paused)return;
             if(!sfxPlayer.paused){sfxPlayer.pause();sfxPlayer.currentTime=0;}
-            // Zegar w uploads/sfx/
-            clockPlayer.src = '/uploads/sfx/clock_loop.mp3';
-            clockPlayer.volume = 0.2;
+            const url = '/uploads/sfx/clock_loop.mp3';
+            let gain = 1;
+            if (typeof window.AudioNormalize !== 'undefined') gain = await window.AudioNormalize.getNormalizedGainForUrl(url);
+            clockPlayer.src = url;
+            clockPlayer.volume = 0.2 * gain;
             clockPlayer.play().catch(e => console.error("Clock Error:", e));
         }
 
@@ -2119,6 +2149,14 @@
         socket.on('qr_code', (url) => {
             const img = document.getElementById('qr-tunnel');
             if (img) img.src = url || '';
+            const box = document.getElementById('qr-box-tunnel');
+            const wrap = document.getElementById('qr-wrapper');
+            if (box && wrap && currentGameState && currentGameState.tunnelUrl && url) {
+                box.style.display = 'flex';
+                wrap.style.display = 'flex';
+            } else if (box && !url) {
+                box.style.display = 'none';
+            }
             const el = document.getElementById('zaraz-zaczynamy-overlay');
             if (el && el.style.display === 'flex') syncZarazQRCodes();
         });
@@ -2126,32 +2164,68 @@
         socket.on('qr_local_game', (data) => {
             const img = document.getElementById('qr-local');
             if (img) img.src = (data && data.qrCode) ? data.qrCode : '';
+            const box = document.getElementById('qr-box-local');
+            const wrap = document.getElementById('qr-wrapper');
+            if (box && wrap && currentGameState && currentGameState.showLocalGameQR && data && data.qrCode) {
+                box.style.display = 'flex';
+                wrap.style.display = 'flex';
+            } else if (box && !(data && data.qrCode)) {
+                box.style.display = 'none';
+            }
             const el = document.getElementById('zaraz-zaczynamy-overlay');
             if (el && el.style.display === 'flex') syncZarazQRCodes();
         });
 
-        socket.on('admin_play_intro_music', (data) => {
+        socket.on('admin_play_intro_music', async (data) => {
             if (!musicPlayer || !audioEnabled) return;
-            const vol = (data && data.volume != null) ? Math.min(1, Math.max(0, data.volume / 100)) : 0.7;
-            musicPlayer.volume = vol;
-            musicPlayer.loop = true;
             const introUrl = (data && data.url) ? data.url : '/uploads/sfx/intro_loop.mp3';
             if (musicPlayer.src && (musicPlayer.src.endsWith('intro_loop.mp3') || (data.url && musicPlayer.src.includes(data.url))) && !musicPlayer.paused) return;
             stopAllAudio();
-            musicPlayer.src = introUrl.startsWith('/') || introUrl.startsWith('http') ? introUrl : '/uploads/' + introUrl;
+            let gain = 1;
+            const fullUrl = introUrl.startsWith('/') || introUrl.startsWith('http') ? introUrl : '/uploads/' + introUrl;
+            if (typeof window.AudioNormalize !== 'undefined' && (fullUrl.startsWith('/') || fullUrl.includes(window.location.host))) {
+                gain = await window.AudioNormalize.getNormalizedGainForUrl(fullUrl);
+            }
+            musicPlayer.volume = getQuizEffectiveVolume() * gain;
             musicPlayer.loop = true;
+            musicPlayer.src = fullUrl;
             musicPlayer.play().catch(function(e) { console.warn('Intro muzyka:', e.message || e); });
         });
+        socket.on('master_volume', (d) => {
+            const v = (d && d.volume != null) ? Math.max(0, Math.min(1, d.volume)) : 1;
+            masterVolume = v;
+            const ev = getQuizEffectiveVolume();
+            if (musicPlayer) musicPlayer.volume = ev;
+            if (sfxPlayer) sfxPlayer.volume = ev;
+            if (typeof wybScreenBgAudio !== 'undefined' && wybScreenBgAudio) wybScreenBgAudio.volume = ev;
+            if (typeof _hncBgAudio !== 'undefined' && _hncBgAudio) _hncBgAudio.volume = ev;
+            if (shipsBGPlayer) shipsBGPlayer.volume = ev;
+        });
+        socket.on('quiz_volume', (d) => {
+            const v = (d && d.volume != null) ? Math.max(0, Math.min(1, d.volume)) : 1;
+            quizChannelVolume = v;
+            const ev = getQuizEffectiveVolume();
+            if (musicPlayer) musicPlayer.volume = ev;
+            if (sfxPlayer) sfxPlayer.volume = ev;
+            if (typeof wybScreenBgAudio !== 'undefined' && wybScreenBgAudio) wybScreenBgAudio.volume = ev;
+            if (typeof _hncBgAudio !== 'undefined' && _hncBgAudio) _hncBgAudio.volume = ev;
+            if (shipsBGPlayer) shipsBGPlayer.volume = ev;
+        });
         socket.on('admin_master_volume', (vol) => {
-            var v = parseInt(vol, 10);
-            if (isNaN(v)) v = 80;
-            lastMasterVolume = Math.min(100, Math.max(0, v));
-            if (musicPlayer) musicPlayer.volume = lastMasterVolume / 100;
-            if (sfxPlayer) sfxPlayer.volume = lastMasterVolume / 100;
+            const v = parseInt(vol, 10);
+            if (!isNaN(v)) masterVolume = Math.min(1, Math.max(0, v / 100));
+            const ev = getQuizEffectiveVolume();
+            if (musicPlayer) musicPlayer.volume = ev;
+            if (sfxPlayer) sfxPlayer.volume = ev;
+            if (typeof wybScreenBgAudio !== 'undefined' && wybScreenBgAudio) wybScreenBgAudio.volume = ev;
+            if (typeof _hncBgAudio !== 'undefined' && _hncBgAudio) _hncBgAudio.volume = ev;
+            if (shipsBGPlayer) shipsBGPlayer.volume = ev;
         });
         socket.on('admin_stop_music', () => {
             if (sfxPlayer) { sfxPlayer.pause(); sfxPlayer.currentTime = 0; }
             if (musicPlayer) { musicPlayer.pause(); musicPlayer.currentTime = 0; }
+            if (typeof stopWybBgMusic === 'function') stopWybBgMusic();
+            if (typeof _hncStopBg === 'function') _hncStopBg();
         });
 
         socket.on('qr_admin', (data) => {
@@ -2205,6 +2279,14 @@
             if (img) img.src = data && data.qrCode ? data.qrCode : '';
             const info = document.getElementById('wifi-info');
             if (info) info.innerHTML = data && data.ssid ? '<strong>' + data.ssid + '</strong>' : '<strong>Zeskanuj aby połączyć</strong>';
+            const box = document.getElementById('qr-box-wifi');
+            const wrap = document.getElementById('qr-wrapper');
+            if (box && wrap && currentGameState && currentGameState.hasWifi && data && data.qrCode) {
+                box.style.display = 'flex';
+                wrap.style.display = 'flex';
+            } else if (box && !(data && data.qrCode)) {
+                box.style.display = 'none';
+            }
             const el = document.getElementById('zaraz-zaczynamy-overlay');
             if (el && el.style.display === 'flex') syncZarazQRCodes();
         });
@@ -2277,7 +2359,7 @@
             const lb = document.getElementById('leaderboard');
             const main = document.getElementById('main-content');
             const zarazOverlay = document.getElementById('zaraz-zaczynamy-overlay');
-            if (zarazOverlay && (state.type === 'IDLE' || state.type === 'GAME' || state.type === 'GAME_STATS')) {
+            if (zarazOverlay && !state.showZarazZaczynamy && (state.type === 'IDLE' || state.type === 'GAME' || state.type === 'GAME_STATS')) {
                 zarazOverlay.style.display = 'none';
                 window._zarazShownLocally = false;
             }
@@ -2316,11 +2398,17 @@
             const qrBoxTunnel = document.getElementById('qr-box-tunnel');
             const qrBoxLteInfo = document.getElementById('qr-box-lte-info');
             const hasWifiOrLocal = state.hasWifi || state.showLocalGameQR;
+            const wifiImg = document.getElementById('qr-wifi');
+            const localImg = document.getElementById('qr-local');
+            const tunnelImg = document.getElementById('qr-tunnel');
+            const wifiHasSrc = wifiImg && wifiImg.src && wifiImg.src.length > 10;
+            const localHasSrc = localImg && localImg.src && localImg.src.length > 10;
+            const tunnelHasSrc = tunnelImg && tunnelImg.src && tunnelImg.src.length > 10;
             if (qrWrapper) qrWrapper.style.display = hasWifiOrLocal ? 'flex' : 'none';
-            if (qrBoxWifi) qrBoxWifi.style.display = state.hasWifi ? 'flex' : 'none';
-            if (qrBoxLocal) qrBoxLocal.style.display = state.showLocalGameQR ? 'flex' : 'none';
+            if (qrBoxWifi) qrBoxWifi.style.display = (state.hasWifi && wifiHasSrc) ? 'flex' : 'none';
+            if (qrBoxLocal) qrBoxLocal.style.display = (state.showLocalGameQR && localHasSrc) ? 'flex' : 'none';
             if (qrLub) qrLub.style.display = hasWifiOrLocal ? 'block' : 'none';
-            if (qrBoxTunnel) qrBoxTunnel.style.display = state.tunnelUrl ? 'flex' : 'none';
+            if (qrBoxTunnel) qrBoxTunnel.style.display = (state.tunnelUrl && tunnelHasSrc) ? 'flex' : 'none';
             if (qrBoxLteInfo) qrBoxLteInfo.style.display = (!state.tunnelUrl && hasWifiOrLocal) ? 'flex' : 'none';
             // Krótki URL i kod sesji — alternatywa dla skanera QR
             var shortUrlWrap = document.getElementById('qr-tunnel-shorturl');
@@ -2374,12 +2462,9 @@
                 const pqScreen = document.getElementById('players-qr-screen');
                 if (pqScreen) pqScreen.style.display = 'none';
                 if (typeof stopFloatingNicks === 'function') stopFloatingNicks();
-                intro.style.display='flex';
-                document.getElementById('intro-txt').innerText = state.type==='LOGIN' ? (state.quizTitle || 'Imprezja Quiz') : 'Zaraz zaczynamy';
                 pod.style.display='none';
                 lb.style.display='none';
                 main.style.display='none';
-                if (zarazOverlay) zarazOverlay.style.display='none';
                 const thanksEl2 = document.getElementById('thanks');
                 if (thanksEl2) thanksEl2.style.display='none';
                 clearInterval(timerInt);
@@ -2392,6 +2477,27 @@
                     oldTimer.style.visibility = 'hidden';
                 }
                 clockPlayer.pause();
+                // Gdy showPlayersWithQR – pokaż ekran QR + nicki (np. po wciśnięciu Quiz na adminie)
+                const playersQrScreenIdle = document.getElementById('players-qr-screen');
+                if (state.showPlayersWithQR && playersQrScreenIdle) {
+                    playersQrScreenIdle.style.display = 'flex';
+                    intro.style.display = 'none';
+                    if (zarazOverlay) zarazOverlay.style.display = 'none';
+                    if (typeof syncPlayersQRCodes === 'function') syncPlayersQRCodes(state);
+                    if (typeof updateFloatingNicks === 'function') updateFloatingNicks(state);
+                } else if (state.showZarazZaczynamy && zarazOverlay) {
+                    const zarazTitleEl = document.getElementById('zaraz-quiz-title');
+                    if (zarazTitleEl) zarazTitleEl.textContent = state.quizTitle || '';
+                    zarazOverlay.style.display = 'flex';
+                    intro.style.display = 'none';
+                    if (playersQrScreenIdle) playersQrScreenIdle.style.display = 'none';
+                    if (typeof syncZarazQRCodes === 'function') syncZarazQRCodes(state);
+                } else {
+                    intro.style.display='flex';
+                    document.getElementById('intro-txt').innerText = state.type==='LOGIN' ? (state.quizTitle || 'Imprezja Quiz') : 'Zaraz zaczynamy';
+                    if (zarazOverlay) zarazOverlay.style.display='none';
+                    if (playersQrScreenIdle) playersQrScreenIdle.style.display='none';
+                }
                 return;
             }
 
@@ -2441,6 +2547,20 @@
             const thanksEl = document.getElementById('thanks');
             if (thanksEl) thanksEl.style.display = state.showPlayersWithQR ? 'none' : (state.type==='THANKS' ? 'flex':'none');
             main.style.display = state.showPlayersWithQR ? 'none' : (state.type==='GAME' || state.type==='GAME_STATS' ? 'flex':'none');
+            // Wyborczy: zatrzymaj muzykę/overlay tylko przy przejściu „był aktywny → już nie” (nie przy każdym klatkowaniu stanu — zepsułoby muzykę podium quizu)
+            const isWybActive = state.type === 'GAME' && state.activeQuestion && state.activeQuestion.type === 'WYBORCZY';
+            if (typeof window._imprezjaLastWybScreenActive === 'undefined') window._imprezjaLastWybScreenActive = false;
+            const wasWybActive = window._imprezjaLastWybScreenActive;
+            window._imprezjaLastWybScreenActive = isWybActive;
+            if (wasWybActive && !isWybActive) {
+                if (typeof stopWyborczyQuestionMedia === 'function') stopWyborczyQuestionMedia();
+                else {
+                    const wybScr = document.getElementById('wyb-screen');
+                    if (wybScr) wybScr.style.display = 'none';
+                    if (typeof stopWybBgMusic === 'function') stopWybBgMusic();
+                    if (typeof stopPodiumMusic === 'function') stopPodiumMusic();
+                }
+            }
 
             if (state.showPlayersWithQR) return;
 
@@ -2880,7 +3000,7 @@
                                 e.style.display = '';
                             }
                         });
-                        if(currentPodiumStep!==1){if(state.type!=='PODIUM')stopAllAudio();playSFX('win_1');showConfetti(1);}
+                        if(currentPodiumStep!==1){if(state.type!=='PODIUM')stopAllAudio();playSFX('win_1');showConfetti(1);startPodiumCanvasConfetti();}
                         currentPodiumStep=1;
                         log('🏆 Step 1 - wszystkie miejsca pokazane');
                     }
@@ -3063,6 +3183,7 @@
                                     if(state.type!=='PODIUM')stopAllAudio();
                                     playSFX('win_1');
                                     showConfetti(1);
+                                    startPodiumCanvasConfetti();
                                 }
                             }
                             log('✅ Karta 1 ustawiona:', {
@@ -3194,6 +3315,39 @@
             // GAME LOGIC
             const q = state.activeQuestion;
             if (q?.type !== 'SHIPS' && currentMode === 'SHIPS') stopShipsBG();
+
+            // ─── HNC ──────────────────────────────────────────────────────────────
+            window._lastScreenQuestion = q;
+            if (q && q.type === 'HNC') {
+                // WYBORCZY/intro/ships tło nie może grać pod HNC
+                if (musicPlayer) { musicPlayer.pause(); musicPlayer.currentTime = 0; }
+                if (sfxPlayer) { sfxPlayer.pause(); sfxPlayer.currentTime = 0; }
+                if (clockPlayer) { clockPlayer.pause(); clockPlayer.currentTime = 0; }
+                if (podiumPlayer) { podiumPlayer.pause(); podiumPlayer.currentTime = 0; }
+                if (shipsBGPlayer) { shipsBGPlayer.pause(); shipsBGPlayer.currentTime = 0; }
+                if (typeof stopWybBgMusic === 'function') stopWybBgMusic();
+                renderHncQuizScreen(state);
+                return;
+            } else {
+                hideHncScreen();
+                _hncScreenConfettiAnim = null; // allow restart next time
+            }
+            // ─── /HNC ─────────────────────────────────────────────────────────────
+
+            // ─── WYBORCZY ──────────────────────────────────────────────────────────
+            if (q && q.type === 'WYBORCZY') {
+                // HNC/intro/ships tło nie może grać pod WYBORCZY
+                if (musicPlayer) { musicPlayer.pause(); musicPlayer.currentTime = 0; }
+                if (sfxPlayer) { sfxPlayer.pause(); sfxPlayer.currentTime = 0; }
+                if (clockPlayer) { clockPlayer.pause(); clockPlayer.currentTime = 0; }
+                if (podiumPlayer) { podiumPlayer.pause(); podiumPlayer.currentTime = 0; }
+                if (shipsBGPlayer) { shipsBGPlayer.pause(); shipsBGPlayer.currentTime = 0; }
+                if (typeof _hncStopBg === 'function') _hncStopBg();
+                renderWyborczyScreen(state);
+                return;
+            }
+            // ─── /WYBORCZY ─────────────────────────────────────────────────────────
+
             const qEl = document.getElementById('main-q');
             let inPlayoff = !!(state.playoff && state.playoff.active);
             const rawText = inPlayoff ? (state.playoff.word || '') : (q?.question || '');
@@ -3294,15 +3448,6 @@
             } else if(q?.type==='OPEN') {
                 currentMode='OPEN';
                 battleBar.style.display='none';
-            } else if(q?.type==='SHIPS_SOLO') {
-                currentMode='SHIPS_SOLO';
-                battleBar.style.display='none';
-                if (q.soundtrack) startShipsSoloSoundtrack(q.soundtrack);
-                renderShipsSoloBoard(q, state);
-                const grid = document.getElementById('quiz-grid');
-                grid.style.cssText = 'display: block !important; width: 100% !important; flex: 1 !important; min-height: 0 !important; overflow: auto !important;';
-                grid.className = 'quiz-grid ships-mode';
-                return;
             } else if(q?.type==='SHIPS') {
                 currentMode='SHIPS';
                 battleBar.style.display='none';
@@ -4357,6 +4502,39 @@
         // ========================
         // CONFETTI
         // ========================
+        let _podiumConfettiAnim = null;
+        function startPodiumCanvasConfetti() {
+            const canvas = document.getElementById('podium-confetti-canvas');
+            if (!canvas) return;
+            if (_podiumConfettiAnim) { cancelAnimationFrame(_podiumConfettiAnim); _podiumConfettiAnim = null; }
+            canvas.width = innerWidth; canvas.height = innerHeight;
+            const ctx = canvas.getContext('2d');
+            const colors = ['#ffd700','#ff6b35','#f9ca24','#fff','#ff4444','#44ff88','#4488ff','#ff88cc'];
+            const pts = Array.from({length:240}, () => ({
+                x: Math.random()*canvas.width, y: Math.random()*canvas.height - canvas.height,
+                s: Math.random()*10+5, c: colors[~~(Math.random()*colors.length)],
+                sp: Math.random()*3+1.5, ang: Math.random()*360, spin: (Math.random()-.5)*7
+            }));
+            let alive = true;
+            function frame() {
+                if (!alive) return;
+                ctx.clearRect(0,0,canvas.width,canvas.height);
+                pts.forEach(p => {
+                    p.y+=p.sp; p.ang+=p.spin;
+                    if (p.y>canvas.height) { p.y=-20; p.x=Math.random()*canvas.width; }
+                    ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.ang*Math.PI/180);
+                    ctx.fillStyle=p.c; ctx.fillRect(-p.s/2,-p.s/2,p.s,p.s); ctx.restore();
+                });
+                _podiumConfettiAnim = requestAnimationFrame(frame);
+            }
+            frame();
+            setTimeout(() => {
+                alive = false;
+                if (_podiumConfettiAnim) { cancelAnimationFrame(_podiumConfettiAnim); _podiumConfettiAnim = null; }
+                ctx.clearRect(0,0,canvas.width,canvas.height);
+            }, 9000);
+        }
+
         function showConfetti(place) {
             const colors = ['#FFD700','#FF6B6B','#4ECDC4','#45B7D1','#FFA07A','#98D8C8','#F7DC6F','#BB8FCE'];
             const confettiContainer = document.getElementById('confetti-container');
@@ -4388,6 +4566,71 @@
         // === GRA W STATKI ===
         let shipsGameState = null;
         let currentGameState = null; // Przechowuj aktualny stan gry
+        
+        function getShipsFleetSummary(ships, shots) {
+            const safeShips = Array.isArray(ships) ? ships : [];
+            const safeShots = shots || {};
+            const sizeCounts = {};
+            let totalMasts = 0;
+            let hitMasts = 0;
+            let sunkShips = 0;
+            for (const ship of safeShips) {
+                sizeCounts[ship.size] = (sizeCounts[ship.size] || 0) + 1;
+                let shipHit = 0;
+                for (let i = 0; i < ship.size; i++) {
+                    const r = ship.row + (ship.vertical ? i : 0);
+                    const c = ship.col + (ship.vertical ? 0 : i);
+                    totalMasts++;
+                    if (safeShots[`${r}_${c}`]?.hit) {
+                        hitMasts++;
+                        shipHit++;
+                    }
+                }
+                if (shipHit === ship.size) sunkShips++;
+            }
+            const sizeLabel = Object.keys(sizeCounts)
+                .sort((a, b) => Number(b) - Number(a))
+                .map(sz => `${sizeCounts[sz]}x${sz}`)
+                .join(' ');
+            return { shipsCount: safeShips.length, totalMasts, hitMasts, sunkShips, sizeLabel };
+        }
+
+        function buildShipsFleetHtml(ships, shots) {
+            const safeShips = Array.isArray(ships) ? [...ships] : [];
+            if (!safeShips.length) {
+                return `<div style="width:100%; padding:14px; background:rgba(0,0,0,0.45); border-radius:8px; border:2px solid #00aaff; box-sizing:border-box;">
+                    <div style="color:#00aaff; font-size:1.05em; font-weight:900; margin-bottom:6px;">⚓ Flota</div>
+                    <div style="color:rgba(255,255,255,0.55); font-size:0.95em;">Brak statków w tym pytaniu.</div>
+                </div>`;
+            }
+            const safeShots = shots || {};
+            const sortedShips = safeShips.sort((a, b) => b.size - a.size);
+            const summary = getShipsFleetSummary(sortedShips, safeShots);
+            const titleLine = summary.sunkShips > 0
+                ? `${summary.sunkShips}/${summary.shipsCount} zatopionych`
+                : `${summary.shipsCount} statków`;
+            let html = `<div style="width:100%; padding:14px; background:rgba(0,0,0,0.45); border-radius:8px; border:2px solid #00aaff; box-sizing:border-box;">`;
+            html += `<div style="color:#7dd3fc; font-size:1.1em; font-weight:900; margin-bottom:6px;">⚓ ${titleLine}</div>`;
+            html += `<div style="color:#64748b; font-size:0.96em; margin-bottom:10px; letter-spacing:.02em;">${summary.sizeLabel || '-'}</div>`;
+            html += `<div style="display:flex;flex-direction:column;gap:6px;">`;
+            for (const ship of sortedShips) {
+                const cells = [];
+                for (let i = 0; i < ship.size; i++) {
+                    const r = ship.row + (ship.vertical ? i : 0);
+                    const c = ship.col + (ship.vertical ? 0 : i);
+                    const hit = !!safeShots[`${r}_${c}`]?.hit;
+                    cells.push(hit);
+                }
+                const shipSunk = cells.length > 0 && cells.every(Boolean);
+                html += `<div style="display:flex;gap:5px;opacity:${shipSunk ? '0.45' : '1'};">`;
+                html += cells.map(hit => `<div style="width:20px;height:20px;border-radius:4px;border:2px solid ${hit ? '#4ade80' : 'rgba(14,165,233,.5)'};background:${hit ? '#15803d' : 'rgba(14,165,233,.15)'};"></div>`).join('');
+                html += `</div>`;
+            }
+            html += `</div>`;
+            html += `<div style="margin-top:10px;color:#94a3b8;font-size:0.9em;">Trafienia: <strong style="color:#4ade80">${summary.hitMasts}/${summary.totalMasts}</strong></div>`;
+            html += `</div>`;
+            return html;
+        }
 
         function renderShipsBoard(q, state) {
             if (!q || q.type !== 'SHIPS') return;
@@ -4442,6 +4685,7 @@
                     log('⚓ renderShipsBoard - zachowano istniejący shipsGameState (brak state.shipsGame)');
                 }
             }
+            const fleetSummary = getShipsFleetSummary(shipsGameState?.ships || ships, shipsGameState?.shots || {});
             
             const LETTERS = ['A','B','C','D','E','F','G','H','I','J'];
             
@@ -4627,6 +4871,7 @@
             // Tabela statystyk — zawsze widoczna gdy jest jakikolwiek stan gry
             const playerStats = shipsGameState.playerStats || {};
             const statsArray = Object.values(playerStats).sort((a, b) => (b.hits + b.misses) - (a.hits + a.misses));
+            html += buildShipsFleetHtml(shipsGameState?.ships || ships, shipsGameState?.shots || {});
             html += `<div style="width:100%; padding:16px; background:rgba(0,0,0,0.5); border-radius:8px; border:2px solid #00aaff; box-sizing:border-box;">`;
             html += `<h3 style="color:#00aaff; margin:0 0 12px 0; text-align:left; font-size:1.2em;">📊 Statystyki trafień</h3>`;
             html += `<table style="width:100%; border-collapse:collapse; table-layout:fixed; font-size:1em;">`;
@@ -4726,178 +4971,6 @@
             window.addEventListener('resize', handleShipsResize);
         }
         
-        // ═══ SHIPS SOLO – renderowanie ekranu ═══════════════════════════════════
-        let shipsSoloScreenState = null;
-        const SOLO_LETTERS_SCREEN = 'ABCDEFGHIJ';
-
-        function renderShipsSoloBoard(q, state) {
-            if (!q || q.type !== 'SHIPS_SOLO') return;
-            const grid = document.getElementById('quiz-grid');
-            if (!grid) return;
-            grid.style.cssText = 'display: block !important; width: 100% !important; flex: 1 !important; min-height: 0 !important; overflow: auto !important;';
-            grid.className = 'quiz-grid ships-mode';
-
-            const g = state.shipsSoloGame || shipsSoloScreenState;
-            if (g) shipsSoloScreenState = g;
-
-            const boardSize = q.boardSize || 8;
-            const ships = q.ships || [];
-            const shots = g ? g.shots : {};
-            const aimRow = g ? g.aimRow : null;
-            const aimCol = g ? g.aimCol : null;
-            const phase = g ? g.phase : 'row';
-
-            const availW = window.innerWidth;
-            const availH = window.innerHeight - 90;
-            const maxBoard = Math.min(availW * 0.88, availH * 0.88);
-            const headerSize = Math.max(28, Math.floor(maxBoard / (boardSize + 1) * 0.85));
-            const cellSize = Math.max(24, Math.floor(maxBoard / (boardSize + 1)));
-
-            let html = `<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px;box-sizing:border-box;position:relative;">`;
-
-            // Plansza
-            html += `<table style="border-collapse:collapse;border:3px solid #0ea5e9;background:#000;box-shadow:0 0 40px rgba(14,165,233,0.4);">`;
-            // Nagłówek kolumn
-            html += `<tr><th style="width:${headerSize}px;height:${headerSize}px;border:1px solid #0ea5e9;background:#00111f;"></th>`;
-            for (let c = 0; c < boardSize; c++) {
-                const isAimC = phase === 'col' && aimCol === c;
-                html += `<th style="width:${cellSize}px;height:${cellSize}px;border:1px solid #0ea5e9;background:${isAimC ? '#0ea5e9' : '#00111f'};color:${isAimC ? '#fff' : '#7dd3fc'};font-size:${Math.max(14,cellSize*0.42)}px;font-weight:700;transition:background .3s;">${SOLO_LETTERS_SCREEN[c]}</th>`;
-            }
-            html += `</tr>`;
-
-            for (let r = 0; r < boardSize; r++) {
-                const isAimR = aimRow === r;
-                html += `<tr>`;
-                html += `<th style="width:${headerSize}px;height:${headerSize}px;border:1px solid #0ea5e9;background:${isAimR ? '#1e3a5f' : '#00111f'};color:${isAimR ? '#7dd3fc' : '#64748b'};font-size:${Math.max(14,cellSize*0.42)}px;font-weight:700;transition:background .3s;">${r+1}</th>`;
-                for (let c = 0; c < boardSize; c++) {
-                    const key = `${r}_${c}`;
-                    const shot = shots[key];
-                    const isAimCell = isAimR && aimCol === c;
-                    const isRowHL = isAimR && phase === 'row';
-                    const isColHL = phase === 'col' && aimCol === c;
-                    let bg = '#001122', content = '', extra = '';
-                    if (shot) {
-                        bg = shot.hit ? '#15803d' : '#1e293b';
-                        content = shot.hit ? '🔥' : '<span style="color:#475569;font-size:0.8em;">●</span>';
-                        extra = shot.hit ? 'box-shadow:inset 0 0 10px rgba(74,222,128,0.4);' : '';
-                    } else if (isAimCell) {
-                        bg = '#f59e0b';
-                        extra = 'box-shadow:0 0 20px rgba(251,191,36,0.8);';
-                    } else if (isRowHL || isColHL) {
-                        bg = 'rgba(14,165,233,0.18)';
-                    }
-                    html += `<td style="width:${cellSize}px;height:${cellSize}px;border:1px solid #0d3a5c;background:${bg};text-align:center;font-size:${Math.max(16,cellSize*0.48)}px;${extra}transition:background .2s;">${content}</td>`;
-                }
-                html += `</tr>`;
-            }
-            html += `</table>`;
-
-            // Instrukcja fazy
-            if (!g || !g.gameEnded) {
-                const phaseMsg = phase === 'row'
-                    ? (aimRow !== null ? `Rząd <strong style="color:#f59e0b;font-size:1.4em;">${aimRow+1}</strong> – czekaj na zatwierdzenie…` : 'Wybór rzędu…')
-                    : `Rząd <strong style="color:#7dd3fc;">${aimRow+1}</strong> → Wybór kolumny…`;
-                html += `<div style="margin-top:16px;color:#94a3b8;font-size:clamp(14px,2vw,22px);text-align:center;">${phaseMsg}</div>`;
-            } else {
-                html += `<div style="margin-top:16px;color:#7dd3fc;font-size:clamp(16px,2.2vw,28px);font-weight:700;">🏁 Koniec gry!</div>`;
-            }
-
-            html += `</div>`;
-            grid.innerHTML = html;
-        }
-
-        // Aktualizacja celu podczas celowania (bez pełnego re-renderu – tylko highlight)
-        socket.on('ships_solo_aim_update', (data) => {
-            if (currentMode !== 'SHIPS_SOLO') return;
-            if (!shipsSoloScreenState) shipsSoloScreenState = {};
-            shipsSoloScreenState.aimRow = data.aimRow;
-            shipsSoloScreenState.aimCol = data.aimCol;
-            shipsSoloScreenState.phase = data.phase;
-            const q = currentGameState?.activeQuestion;
-            if (q && q.type === 'SHIPS_SOLO') renderShipsSoloBoard(q, currentGameState);
-        });
-
-        // Wynik strzału – animacja trafienia/pudła
-        socket.on('ships_solo_shot_result', (data) => {
-            if (currentMode !== 'SHIPS_SOLO' && data.hit === undefined) return;
-            if (data.shots && shipsSoloScreenState) {
-                shipsSoloScreenState.shots = data.shots;
-                shipsSoloScreenState.phase = data.phase || 'row';
-                shipsSoloScreenState.aimRow = null;
-                shipsSoloScreenState.aimCol = null;
-                shipsSoloScreenState.gameEnded = data.gameEnded || false;
-                shipsSoloScreenState.lastShot = data.row !== undefined ? { row: data.row, col: data.col, hit: data.hit, reward: data.reward } : null;
-            }
-            // Pokaż animację trafienia/pudła
-            if (data.hit !== undefined) {
-                showShotOverlay(data.hit, data.reward, data.gameEnded);
-            }
-        });
-
-        function showShotOverlay(hit, reward, gameEnded) {
-            let overlay = document.getElementById('ships-solo-overlay');
-            if (!overlay) {
-                overlay = document.createElement('div');
-                overlay.id = 'ships-solo-overlay';
-                overlay.style.cssText = 'position:fixed;inset:0;z-index:9000;display:flex;flex-direction:column;align-items:center;justify-content:center;background:transparent;pointer-events:none;';
-                document.body.appendChild(overlay);
-            }
-            if (hit) {
-                overlay.innerHTML = `
-                    <div style="animation:soloHitBg .4s ease forwards;position:absolute;inset:0;background:rgba(21,128,61,0.0);border-radius:0;"></div>
-                    <div style="position:relative;text-align:center;animation:soloHitPop .5s cubic-bezier(.34,1.56,.64,1) both;">
-                        <div style="font-size:clamp(60px,12vw,120px);line-height:1;margin-bottom:12px;">💥</div>
-                        <div style="font-size:clamp(40px,8vw,90px);font-weight:900;color:#4ade80;text-shadow:0 0 40px #4ade80,0 0 80px #4ade80;letter-spacing:2px;">TRAFIONY!</div>
-                        ${reward ? `<div style="margin-top:20px;font-size:clamp(22px,4vw,52px);font-weight:700;color:#fbbf24;text-shadow:0 0 20px #fbbf24;animation:soloRewardFade 1s .4s ease both;">🏆 ${reward}</div>` : ''}
-                        ${gameEnded ? `<div style="margin-top:16px;font-size:clamp(18px,3vw,36px);color:#7dd3fc;animation:soloRewardFade 1s .8s ease both;">🎉 Wszystkie statki zatopione!</div>` : ''}
-                    </div>`;
-                // Efekt drgania ekranu
-                document.body.style.animation = 'soloShake .4s ease';
-                setTimeout(() => { document.body.style.animation = ''; }, 420);
-                setTimeout(() => { overlay.innerHTML = ''; }, reward ? 4500 : 2800); 
-            } else {
-                overlay.innerHTML = `
-                    <div style="position:relative;text-align:center;animation:soloPudloFade .4s ease both;">
-                        <div style="font-size:clamp(30px,6vw,70px);color:#64748b;font-weight:700;text-shadow:0 0 10px rgba(0,0,0,0.8);">💧 Pudło</div>
-                    </div>`;
-                setTimeout(() => { overlay.innerHTML = ''; }, 1800);
-            }
-        }
-
-        // CSS animacje dla SHIPS_SOLO
-        (function() {
-            const s = document.createElement('style');
-            s.textContent = `
-            @keyframes soloHitPop { from { transform: scale(0.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-            @keyframes soloHitBg { 0% { background: rgba(21,128,61,0); } 30% { background: rgba(21,128,61,0.35); } 100% { background: rgba(21,128,61,0); } }
-            @keyframes soloRewardFade { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-            @keyframes soloPudloFade { from { opacity: 0; transform: scale(1.3); } to { opacity: 1; transform: scale(1); } }
-            @keyframes soloShake { 0%,100% { transform: translateX(0); } 20%,60% { transform: translateX(-8px); } 40%,80% { transform: translateX(8px); } }
-            `;
-            document.head.appendChild(s);
-        })();
-
-        // Soundtrack SHIPS_SOLO
-        let shipsSoloAudio = null;
-        function startShipsSoloSoundtrack(url) {
-            if (!audioEnabled || !url) return;
-            if (!shipsSoloAudio) {
-                shipsSoloAudio = new Audio();
-                shipsSoloAudio.loop = true;
-            }
-            const fullUrl = url.startsWith('http') ? url : `/uploads/${url}`;
-            if (shipsSoloAudio.src !== fullUrl) {
-                shipsSoloAudio.src = fullUrl;
-                shipsSoloAudio.volume = 0.65;
-            }
-            shipsSoloAudio.play().catch(() => {});
-        }
-        function stopShipsSoloSoundtrack() {
-            if (shipsSoloAudio) { shipsSoloAudio.pause(); shipsSoloAudio.currentTime = 0; }
-        }
-        socket.on('ships_solo_volume', (data) => {
-            if (shipsSoloAudio) shipsSoloAudio.volume = Math.max(0, Math.min(1, data.volume));
-        });
 
         // Funkcja obsługująca resize dla planszy statków
         let resizeTimeout;
@@ -4921,10 +4994,723 @@
             }, 200); // 200ms debounce
         }
     </script>
+    <!-- ══════════════════ HNC OVERLAY ══════════════════ -->
+    <div id="hnc-screen" style="display:none; position:fixed; inset:0; z-index:1001; background:#080816; overflow:hidden;">
+        <!-- bracket view -->
+        <div id="hnc-s-bracket" style="display:none; position:absolute; inset:0; flex-direction:column; align-items:center; padding:24px 20px 24px; overflow:hidden;">
+            <div id="hnc-s-title" style="font-size:42px; color:#ffd700; font-weight:900; text-shadow:0 0 40px rgba(255,215,0,.5); letter-spacing:3px; margin-bottom:4px; text-align:center;"></div>
+            <div id="hnc-s-subtitle" style="font-size:18px; color:#888; margin-bottom:14px; letter-spacing:2px; text-align:center;"></div>
+            <div id="hnc-s-bv" style="flex:1; width:100%; display:flex; gap:0; overflow:hidden;"></div>
+        </div>
+        <!-- match view -->
+        <div id="hnc-s-match" style="display:none; position:absolute; inset:0;">
+            <div id="hnc-s-pA" style="position:absolute; top:0; bottom:14vh; left:0; width:calc(50% - 90px); display:flex; flex-direction:column; align-items:center; justify-content:center; background:linear-gradient(to right,#1a0830,#0c0c1e); gap:0;">
+                <div style="position:absolute;top:14px;left:14px;font-size:90px;font-weight:900;opacity:.07;color:#ff5555">A</div>
+                <div style="flex:1;display:flex;align-items:center;justify-content:center;width:100%;min-height:0;padding:0 10px;"><img id="hnc-s-imgA" src="" style="max-width:100%;max-height:100%;object-fit:contain;transition:transform .8s,box-shadow .8s;"></div>
+                <div id="hnc-s-descA" style="font-size:3.2vw;color:#fff;text-align:center;padding:6px 12px 4px;font-weight:900;text-shadow:0 2px 12px rgba(0,0,0,.8);flex-shrink:0;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.2;"></div>
+            </div>
+            <div id="hnc-s-center" style="position:absolute;left:50%;transform:translateX(-50%);top:0;bottom:14vh;width:180px;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10;gap:6px;">
+                <div id="hnc-s-matchnm" style="font-size:12px;color:#888;letter-spacing:3px;text-transform:uppercase;text-align:center;"></div>
+                <div style="font-size:54px;font-weight:900;color:#fff;text-shadow:0 0 20px rgba(255,255,255,.6)">VS</div>
+                <div id="hnc-s-timer" style="width:88px;height:88px;border-radius:50%;border:4px solid #fff;display:none;align-items:center;justify-content:center;font-size:38px;font-weight:900;"></div>
+                <div id="hnc-s-vinfo" style="font-size:11px;color:#888;text-align:center;"></div>
+            </div>
+            <div id="hnc-s-pB" style="position:absolute; top:0; bottom:14vh; right:0; width:calc(50% - 90px); display:flex; flex-direction:column; align-items:center; justify-content:center; background:linear-gradient(to left,#08182e,#0c0c1e); gap:0;">
+                <div style="position:absolute;top:14px;right:14px;font-size:90px;font-weight:900;opacity:.07;color:#5588ff">B</div>
+                <div style="flex:1;display:flex;align-items:center;justify-content:center;width:100%;min-height:0;padding:0 10px;"><img id="hnc-s-imgB" src="" style="max-width:100%;max-height:100%;object-fit:contain;transition:transform .8s,box-shadow .8s;"></div>
+                <div id="hnc-s-descB" style="font-size:3.2vw;color:#fff;text-align:center;padding:6px 12px 4px;font-weight:900;text-shadow:0 2px 12px rgba(0,0,0,.8);flex-shrink:0;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.2;"></div>
+            </div>
+            <!-- battle bar -->
+            <div id="hnc-s-bar" style="position:absolute;bottom:54px;left:20px;right:20px;height:7.7vh;display:none;border-radius:40px;overflow:hidden;box-shadow:0 2px 20px rgba(0,0,0,.5);">
+                <div style="position:absolute;inset:0;background:linear-gradient(to right,#c0392b,#e74c3c);z-index:0;"></div>
+                <div id="hnc-s-bar-scoreA" style="position:absolute;left:24px;top:50%;transform:translateY(-50%);font-size:4.5vw;font-weight:900;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.8);z-index:5;">0%</div>
+                <div id="hnc-s-bar-fill" style="height:100%;width:50%;background:linear-gradient(to right,#2980b9,#3498db);transition:width .8s ease-out;position:relative;border-right:3px solid rgba(0,0,0,.25);z-index:2;"></div>
+                <div id="hnc-s-bar-scoreB" style="position:absolute;right:24px;top:50%;transform:translateY(-50%);font-size:4.5vw;font-weight:900;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.8);z-index:5;">0%</div>
+            </div>
+        </div>
+        <!-- round complete -->
+        <div id="hnc-s-round-complete" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.88);z-index:10;align-items:center;justify-content:center;flex-direction:column;gap:14px;">
+            <div id="hnc-s-rc-done" style="font-size:20px;color:#888;letter-spacing:3px;text-transform:uppercase;"></div>
+            <div id="hnc-s-rc-name" style="font-size:80px;font-weight:900;color:#ffd700;text-shadow:0 0 50px rgba(255,215,0,.7);letter-spacing:4px;"></div>
+            <div id="hnc-s-rc-next" style="font-size:22px;color:#aaa;letter-spacing:2px;"></div>
+        </div>
+        <!-- champion -->
+        <div id="hnc-s-champ" style="display:none;position:absolute;inset:0;background:linear-gradient(135deg,#06061a,#100830);align-items:center;justify-content:center;flex-direction:column;gap:14px;">
+            <canvas id="hnc-s-confetti" style="position:absolute;inset:0;pointer-events:none;"></canvas>
+            <div style="font-size:66px;color:#ffd700;font-weight:900;text-shadow:0 0 50px rgba(255,215,0,.8);letter-spacing:6px;">🏆 MISTRZ TURNIEJU</div>
+            <img id="hnc-s-champ-img" src="" style="max-width:500px;max-height:48vh;object-fit:contain;border:6px solid #ffd700;border-radius:14px;box-shadow:0 0 60px rgba(255,215,0,.4);">
+            <div id="hnc-s-champ-desc" style="font-size:5vw;font-weight:900;color:#fff;"></div>
+        </div>
+        <!-- bracket bar removed -->
+        <!-- coin flip overlay -->
+        <div id="hnc-s-coin-ov" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.92);z-index:200;align-items:center;justify-content:center;flex-direction:column;gap:20px;">
+            <div style="font-size:30px;color:#ffd700;font-weight:900;letter-spacing:3px;">🎲 RZUT MONETĄ</div>
+            <div id="hnc-s-coin" style="width:180px;height:180px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#ffe566,#cc9900);display:flex;align-items:center;justify-content:center;font-size:72px;font-weight:900;color:#5a3800;box-shadow:0 0 60px rgba(255,215,0,.6),inset 0 0 30px rgba(0,0,0,.3);">?</div>
+            <div id="hnc-s-coin-res" style="font-size:44px;font-weight:900;color:#ffd700;opacity:0;transition:opacity .6s;margin-top:10px;"></div>
+        </div>
+    </div>
+    <!-- ══════════════════ /HNC OVERLAY ══════════════════ -->
+
+    <!-- ══════════════════ WYBORCZY OVERLAY ══════════════════ -->
+    <div id="wyb-screen" style="display:none; position:fixed; inset:0; z-index:1000; background:#000; flex-direction:column; align-items:center; justify-content:center; overflow:hidden;">
+        <canvas id="wyb-confetti-canvas" style="position:absolute; inset:0; pointer-events:none; z-index:10;"></canvas>
+
+        <!-- VOTING PHASE -->
+        <div id="wyb-voting-wrap" style="display:none; width:100%; height:100%; flex-direction:column; align-items:center; justify-content:center; position:relative;">
+            <div id="wyb-voting-title" style="position:absolute; top:20px; left:0; right:0; text-align:center; font-size:clamp(1.4rem,4vw,2.8rem); font-weight:900; color:#fff; text-shadow:0 2px 12px #000; z-index:5; padding:0 20px;"></div>
+            <div id="wyb-voting-progress" style="position:absolute; top:70px; left:0; right:0; text-align:center; font-size:1.1rem; color:#aaa; z-index:5;"></div>
+            <div id="wyb-timer-badge" style="position:absolute; top:16px; right:24px; background:rgba(0,0,0,0.7); border:2px solid #ffd700; border-radius:50%; width:72px; height:72px; display:flex; align-items:center; justify-content:center; font-size:2rem; font-weight:900; color:#ffd700; z-index:6; display:none;">0</div>
+            <img id="wyb-voting-img" src="" alt="" style="max-width:90%; max-height:80vh; object-fit:contain; border-radius:12px; box-shadow:0 8px 40px rgba(0,0,0,0.8);">
+            <div id="wyb-vote-count" style="position:absolute; bottom:24px; left:0; right:0; text-align:center; font-size:1.4rem; color:#7fc; font-weight:700; z-index:5;"></div>
+        </div>
+
+        <!-- REVEAL PHASE (one photo reveal) -->
+        <div id="wyb-reveal-wrap" style="display:none; width:100%; height:100%; position:relative; align-items:center; justify-content:center; flex-direction:column;">
+            <img id="wyb-reveal-img" src="" style="max-width:92%; max-height:82vh; object-fit:contain; border-radius:12px; opacity:0; transition:opacity 1.2s; box-shadow:0 8px 40px rgba(0,0,0,0.8);">
+            <div id="wyb-reveal-badge" style="position:absolute; bottom:30px; right:30px; text-align:right; opacity:0; transition:opacity 0.5s 0.4s;">
+                <div id="wyb-reveal-place" style="font-size:clamp(3rem,8vw,7rem); font-weight:900; color:#ffd700; text-shadow:0 4px 20px rgba(0,0,0,0.8); line-height:1;"></div>
+                <div id="wyb-reveal-name" style="font-size:clamp(1.2rem,3vw,2.5rem); color:#fff; text-shadow:0 2px 10px rgba(0,0,0,0.8); margin-top:6px;"></div>
+                <div id="wyb-reveal-avg" style="font-size:clamp(1rem,2.5vw,2rem); color:#7fc; margin-top:4px;"></div>
+            </div>
+        </div>
+
+        <!-- PODIUM FULL (pillars) -->
+        <div id="wyb-podium-full-wrap" style="display:none; width:100%; height:100%; align-items:flex-end; justify-content:center; padding-bottom:40px; gap:20px; box-sizing:border-box;">
+            <div class="wyb-bar-slot" id="wyb-bar-2" style="display:flex; flex-direction:column; align-items:center;">
+                <img id="wyb-pf-img-2" style="width:120px;height:120px;object-fit:cover;border-radius:50%;border:4px solid #c0c0c0;margin-bottom:10px;" src="">
+                <div id="wyb-pf-name-2" style="color:#fff;font-weight:700;margin-bottom:8px;font-size:1.1rem;text-align:center;max-width:140px;"></div>
+                <div id="wyb-pf-avg-2" style="color:#c0c0c0;font-size:1.4rem;font-weight:900;margin-bottom:8px;"></div>
+                <div style="background:#c0c0c0; width:140px; height:160px; border-radius:8px 8px 0 0; display:flex; align-items:center; justify-content:center; font-size:4rem; font-weight:900; color:#000;">2</div>
+            </div>
+            <div class="wyb-bar-slot" id="wyb-bar-1" style="display:flex; flex-direction:column; align-items:center;">
+                <img id="wyb-pf-img-1" style="width:150px;height:150px;object-fit:cover;border-radius:50%;border:5px solid #ffd700;margin-bottom:10px;" src="">
+                <div id="wyb-pf-name-1" style="color:#fff;font-weight:700;margin-bottom:8px;font-size:1.2rem;text-align:center;max-width:160px;"></div>
+                <div id="wyb-pf-avg-1" style="color:#ffd700;font-size:1.8rem;font-weight:900;margin-bottom:8px;"></div>
+                <div style="background:#ffd700; width:160px; height:220px; border-radius:8px 8px 0 0; display:flex; align-items:center; justify-content:center; font-size:5rem; font-weight:900; color:#000;">1</div>
+            </div>
+            <div class="wyb-bar-slot" id="wyb-bar-3" style="display:flex; flex-direction:column; align-items:center;">
+                <img id="wyb-pf-img-3" style="width:100px;height:100px;object-fit:cover;border-radius:50%;border:4px solid #cd7f32;margin-bottom:10px;" src="">
+                <div id="wyb-pf-name-3" style="color:#fff;font-weight:700;margin-bottom:8px;font-size:1rem;text-align:center;max-width:120px;"></div>
+                <div id="wyb-pf-avg-3" style="color:#cd7f32;font-size:1.3rem;font-weight:900;margin-bottom:8px;"></div>
+                <div style="background:#cd7f32; width:120px; height:120px; border-radius:8px 8px 0 0; display:flex; align-items:center; justify-content:center; font-size:3.5rem; font-weight:900; color:#fff;">3</div>
+            </div>
+        </div>
+
+        <!-- STATS (all results table) -->
+        <div id="wyb-stats-wrap" style="display:none; width:100%; max-height:100vh; overflow-y:auto; padding:40px 30px; box-sizing:border-box; align-items:flex-start; justify-content:center; flex-wrap:wrap; gap:16px;"></div>
+
+        <!-- ALL VOTED overlay -->
+        <div id="wyb-all-voted" style="display:none; position:absolute; top:30px; left:50%; transform:translateX(-50%); background:rgba(30,160,30,0.93); color:#fff; font-size:clamp(1.8rem,5vw,4rem); font-weight:900; padding:20px 48px; border-radius:18px; z-index:20; text-align:center; letter-spacing:2px; box-shadow:0 4px 30px rgba(0,0,0,0.7); animation:wybAllVotedPop 0.4s cubic-bezier(.3,1.4,.5,1);">GŁOSY ODDANE</div>
+    </div>
+
+    <style>
+        @keyframes wybAllVotedPop { from{transform:translateX(-50%) scale(0.5);opacity:0;} to{transform:translateX(-50%) scale(1);opacity:1;} }
+        #wyb-screen .wyb-voting-wrap { display:flex; }
+        #wyb-voting-wrap { display:flex !important; }
+        #wyb-reveal-wrap { display:flex !important; }
+        #wyb-podium-full-wrap { display:flex !important; }
+        #wyb-stats-wrap { display:flex !important; }
+    </style>
+
     <script>
-        if ('serviceWorker' in navigator) {
+    // ═══════════════ WYBORCZY SCREEN LOGIC ═══════════════
+    let wybScreenBgAudio = null;
+    let wybConfettiAnim = null;
+    let _wybLastPhotoIndex = -99;
+    let _wybLastPhase = '';
+    let _wybBgMusicUrl = '/uploads/sfx/tlowyborcze.mp3';
+
+    function playWybBgMusic(url) {
+        if (!audioEnabled) return;
+        if (!wybScreenBgAudio) {
+            wybScreenBgAudio = new Audio();
+            wybScreenBgAudio.loop = true;
+        }
+        const vol = getQuizEffectiveVolume();
+        if (wybScreenBgAudio.src !== (new URL(url, location.href)).href) {
+            wybScreenBgAudio.src = url;
+        }
+        wybScreenBgAudio.volume = vol;
+        if (wybScreenBgAudio.paused) wybScreenBgAudio.play().catch(() => {});
+    }
+
+    function stopWybBgMusic() {
+        if (wybScreenBgAudio) {
+            wybScreenBgAudio.pause();
+            wybScreenBgAudio.currentTime = 0;
+        }
+    }
+
+    /**
+     * Kończy odtwarzanie muzyki / FX związanych z pytaniem Wyborczym, gdy nie jest już wyświetlane (inne pytanie, podium quizu, IDLE itd.).
+     * Wywoływane z update_state oraz z serwera (wyborczy_question_media_stop).
+     */
+    function stopWyborczyQuestionMedia() {
+        hideWybScreen();
+        if (typeof stopPodiumMusic === 'function') stopPodiumMusic();
+    }
+
+    function showWybScreen(showEl) {
+        const scr = document.getElementById('wyb-screen');
+        if (!scr) return;
+        scr.style.display = 'flex';
+        // Hide all sub-wraps – użyj setProperty('important') bo CSS ma display:flex !important
+        ['wyb-voting-wrap','wyb-reveal-wrap','wyb-podium-full-wrap','wyb-stats-wrap'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.setProperty('display', 'none', 'important');
+        });
+        if (showEl) {
+            const el = document.getElementById(showEl);
+            if (el) el.style.setProperty('display', 'flex', 'important');
+        }
+        const avEl = document.getElementById('wyb-all-voted');
+        if (avEl) avEl.style.display = 'none';
+    }
+
+    function hideWybScreen() {
+        const scr = document.getElementById('wyb-screen');
+        if (scr) scr.style.display = 'none';
+        stopWybConfetti();
+        stopWybBgMusic();
+        _wybLastPhotoIndex = -99;
+        _wybLastPhase = '';
+    }
+
+    function renderWyborczyScreen(state) {
+        const ws = state.wyborczyState;
+        if (!ws) { hideWybScreen(); return; }
+
+        const phase = ws.phase || 'idle';
+        const phaseChanged = phase !== _wybLastPhase;
+        _wybLastPhase = phase;
+
+        if (phase === 'idle') {
+            stopWybBgMusic();
+            if (typeof stopPodiumMusic === 'function') stopPodiumMusic();
+            showWybScreen('wyb-voting-wrap');
+            const img = document.getElementById('wyb-voting-img');
+            if (img) img.src = '';
+            const t = document.getElementById('wyb-voting-title');
+            if (t) t.textContent = state.activeQuestion ? (state.activeQuestion.question || 'Głosowanie') : 'Głosowanie';
+            const p = document.getElementById('wyb-voting-progress');
+            if (p) p.textContent = 'Oczekiwanie na start…';
+            return;
+        }
+
+        if (phase === 'voting' || phase === 'dogrywka') {
+            showWybScreen('wyb-voting-wrap');
+            const photos = ws.photos || [];
+            const ci = ws.currentIndex;
+            const photo = ci >= 0 && ci < photos.length ? photos[ci] : null;
+            const img = document.getElementById('wyb-voting-img');
+            const title = document.getElementById('wyb-voting-title');
+            const progress = document.getElementById('wyb-voting-progress');
+            const voteCount = document.getElementById('wyb-vote-count');
+            const timerBadge = document.getElementById('wyb-timer-badge');
+
+            // Nowe zdjęcie → dźwięk otwarcia pytania + wznów muzykę tła
+            if (ci !== _wybLastPhotoIndex) {
+                _wybLastPhotoIndex = ci;
+                stopPodiumMusic(); // zatrzymaj muzykę podium jeśli grała (np. dogrywka)
+                playSFX('question_open');
+                setTimeout(() => playWybBgMusic(_wybBgMusicUrl), 1200); // po dźwięku otwarcia
+            }
+
+            if (img && photo) { img.src = photo.url; img.alt = photo.label || ''; }
+            if (title) title.textContent = (state.activeQuestion ? state.activeQuestion.question || '' : '') + (phase === 'dogrywka' ? ' – DOGRYWKA' : '');
+            if (progress) progress.textContent = `Zdjęcie ${ci + 1} / ${photos.length}` + (photo && photo.label ? ` – ${photo.label}` : '');
+
+            const voterCount = ws.voterCount || 0;
+            const votedCount = ci >= 0 ? ((ws.voteSummary || []).find(v => v.index === ci) || {}).count || 0 : 0;
+            if (voteCount) voteCount.textContent = voterCount > 0 ? `${votedCount} / ${voterCount} głosów` : '';
+
+            if (timerBadge && ws.photoDuration > 0) {
+                timerBadge.style.display = 'flex';
+                timerBadge.textContent = ws.photoTimeLeft || 0;
+            } else if (timerBadge) {
+                timerBadge.style.display = 'none';
+            }
+            const avEl = document.getElementById('wyb-all-voted');
+            if (avEl) avEl.style.display = 'none';
+            return;
+        }
+
+        if (phase === 'podium') {
+            // Przejście do podium → zatrzymaj muzykę tła, włącz muzykę podium
+            if (phaseChanged) {
+                stopWybBgMusic();
+                playPodiumMusic();
+            }
+            showWybScreen('wyb-voting-wrap');
+            const img = document.getElementById('wyb-voting-img');
+            if (img) img.src = '';
+            const t = document.getElementById('wyb-voting-title');
+            if (t) t.textContent = '🏆 Wyniki głosowania';
+            const p = document.getElementById('wyb-voting-progress');
+            if (p) p.textContent = 'Oczekiwanie na ogłoszenie wyników…';
+            return;
+        }
+
+        if (phase === 'podium_full') {
+            if (phaseChanged) {
+                stopWybBgMusic();
+                playPodiumMusic();
+            }
+            showWybScreen('wyb-podium-full-wrap');
+            buildWybFullPodium(ws.ranking || []);
+            return;
+        }
+
+        if (phase === 'stats') {
+            if (phaseChanged) stopWybBgMusic();
+            showWybScreen('wyb-stats-wrap');
+            buildWybStats(ws.ranking || []);
+            return;
+        }
+    }
+
+    function buildWybFullPodium(ranking) {
+        [1,2,3].forEach(place => {
+            const r = ranking.find(x => x.place === place);
+            const img = document.getElementById('wyb-pf-img-' + place);
+            const name = document.getElementById('wyb-pf-name-' + place);
+            const avg = document.getElementById('wyb-pf-avg-' + place);
+            if (img) img.src = r ? r.url : '';
+            if (name) name.textContent = r ? (r.label || '') : '';
+            if (avg) avg.textContent = r ? ('★ ' + r.avg.toFixed(2)) : '';
+        });
+    }
+
+    function buildWybStats(ranking) {
+        const wrap = document.getElementById('wyb-stats-wrap');
+        if (!wrap) return;
+        wrap.innerHTML = '';
+        [...ranking].sort((a,b) => a.place - b.place).forEach(r => {
+            const medal = r.place === 1 ? '🥇' : r.place === 2 ? '🥈' : r.place === 3 ? '🥉' : '#' + r.place;
+            const card = document.createElement('div');
+            card.style.cssText = 'background:rgba(255,255,255,0.08);border:1px solid rgba(255,215,0,0.3);border-radius:12px;padding:16px;display:flex;align-items:center;gap:16px;min-width:300px;max-width:420px;';
+            card.innerHTML = `<img src="${r.url}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;flex-shrink:0;">
+                <div>
+                    <div style="font-size:2rem;font-weight:900;color:#ffd700;">${medal}</div>
+                    <div style="color:#fff;font-weight:700;font-size:1.1rem;">${r.label || ''}</div>
+                    <div style="color:#7fc;font-size:1.4rem;font-weight:700;">★ ${r.avg.toFixed(2)}</div>
+                    <div style="color:#aaa;font-size:0.9rem;">${r.count} głosów</div>
+                </div>`;
+            wrap.appendChild(card);
+        });
+    }
+
+    // Wyborczy timmer updates
+    socket.on('wyborczy_timer', (data) => {
+        const badge = document.getElementById('wyb-timer-badge');
+        if (badge && badge.style.display !== 'none') {
+            badge.textContent = data.timeLeft;
+            if (data.timeLeft <= 5) badge.style.color = '#ff4444';
+            else badge.style.color = '#ffd700';
+        }
+    });
+
+    socket.on('wyborczy_all_voted', () => {
+        // Dźwięk końca głosowania (taki sam jak "Statystyki" w normalnym quizie)
+        playSFX('stats_show');
+        const avEl = document.getElementById('wyb-all-voted');
+        if (avEl) {
+            avEl.style.display = 'block';
+            setTimeout(() => { if (avEl) avEl.style.display = 'none'; }, 8000);
+        }
+    });
+
+    socket.on('wyborczy_bg_music', (data) => {
+        if (!data || !data.url) return;
+        _wybBgMusicUrl = data.url;
+        // Nie odtwarzaj od razu – odtworzy się gdy pierwsze zdjęcie się pojawi
+    });
+
+    socket.on('wyborczy_question_media_stop', () => {
+        if (typeof stopWyborczyQuestionMedia === 'function') stopWyborczyQuestionMedia();
+    });
+
+    socket.on('wyborczy_podium_reveal', (data) => {
+        const place = data.place;
+        const url = data.url || '';
+        const label = data.label || '';
+        const avg = data.avg !== undefined ? Number(data.avg) : null;
+        const confetti = data.confetti !== false;
+
+        showWybScreen('wyb-reveal-wrap');
+
+        const img = document.getElementById('wyb-reveal-img');
+        const badge = document.getElementById('wyb-reveal-badge');
+        const placeEl = document.getElementById('wyb-reveal-place');
+        const nameEl = document.getElementById('wyb-reveal-name');
+        const avgEl = document.getElementById('wyb-reveal-avg');
+
+        if (img) { img.src = url; img.style.opacity = '0'; }
+        if (badge) badge.style.opacity = '0';
+        if (placeEl) placeEl.textContent = 'MIEJSCE ' + place;
+        if (nameEl) nameEl.textContent = label;
+        if (avgEl) avgEl.textContent = avg !== null ? '★ ' + avg.toFixed(2) : '';
+
+        setTimeout(() => {
+            if (badge) badge.style.opacity = '1';
+        }, 400);
+        setTimeout(() => {
+            if (img) img.style.opacity = '1';
+        }, 600);
+
+        if (confetti) startWybConfetti(place);
+        else stopWybConfetti();
+    });
+
+    socket.on('wyborczy_podium_full', () => {
+        const ws = window._wybLastState;
+        if (ws) {
+            showWybScreen('wyb-podium-full-wrap');
+            buildWybFullPodium(ws.ranking || []);
+        }
+    });
+
+    // Cache last wyborczyState for podium_full
+    const _origUpdateState = null;
+    socket.on('update_state', (state) => {
+        if (state.wyborczyState) window._wybLastState = state.wyborczyState;
+    });
+
+    // Confetti
+    function startWybConfetti(place) {
+        const canvas = document.getElementById('wyb-confetti-canvas');
+        if (!canvas) return;
+        stopWybConfetti();
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const ctx = canvas.getContext('2d');
+        const colors = place === 1
+            ? ['#ffd700','#ff6b35','#f9ca24','#fff','#ff4444','#44ff88','#4488ff','#ff88cc']
+            : place === 2 ? ['#c0c0c0','#a0a0a0','#e0e0e0','#fff']
+            : ['#cd7f32','#a0522d','#d2a679','#fff'];
+        const count = place === 1 ? 240 : place === 2 ? 120 : 80;
+        const particles = Array.from({length: count}, () => ({
+            x: Math.random() * canvas.width, y: Math.random() * canvas.height - canvas.height,
+            s: Math.random() * 10 + 5,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            sp: Math.random() * 3 + 1.5,
+            rot: Math.random() * 360, rotV: (Math.random() - 0.5) * 7
+        }));
+        let alive = true;
+        function frame() {
+            if (!alive) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(p => {
+                p.x += (Math.random() - 0.5) * 1.5; p.y += p.sp; p.rot += p.rotV;
+                if (p.y > canvas.height) { p.y = -20; p.x = Math.random() * canvas.width; }
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rot * Math.PI / 180);
+                ctx.fillStyle = p.color;
+                ctx.fillRect(-p.s/2, -p.s/2, p.s, p.s);
+                ctx.restore();
+            });
+            wybConfettiAnim = requestAnimationFrame(frame);
+        }
+        frame();
+        setTimeout(() => { alive = false; stopWybConfetti(); }, place === 1 ? 10000 : 5000);
+    }
+    function stopWybConfetti() {
+        if (wybConfettiAnim) { cancelAnimationFrame(wybConfettiAnim); wybConfettiAnim = null; }
+        const canvas = document.getElementById('wyb-confetti-canvas');
+        if (canvas) { const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, canvas.width, canvas.height); }
+    }
+    // ═══════════════ /WYBORCZY SCREEN LOGIC ═══════════════
+
+    // ═══════════════ HNC QUIZ SCREEN LOGIC ═══════════════
+    function hideHncScreen() {
+        const el = document.getElementById('hnc-screen');
+        if (el) el.style.display = 'none';
+    }
+
+    let _hncBgAudio = null;
+    let _hncLastPhase = '';
+    let _hncLastMatch = -1;
+    let _hncLastRound = -1;
+
+    function _hncPlayBg(url) {
+        if (!audioEnabled) return;
+        if (!_hncBgAudio) { _hncBgAudio = new Audio(); _hncBgAudio.loop = true; }
+        const vol = getQuizEffectiveVolume();
+        if (_hncBgAudio.src !== (new URL(url, location.href)).href) _hncBgAudio.src = url;
+        _hncBgAudio.volume = vol;
+        if (_hncBgAudio.paused) _hncBgAudio.play().catch(() => {});
+    }
+    function _hncStopBg() {
+        if (_hncBgAudio) { _hncBgAudio.pause(); _hncBgAudio.currentTime = 0; }
+    }
+
+    function renderHncQuizScreen(state) {
+        const hs = state.hncState;
+        const el = document.getElementById('hnc-screen');
+        if (!el) return;
+        // QR+nicks screen takes priority — hide HNC overlay when it's shown
+        if (state.showPlayersWithQR) { el.style.display = 'none'; return; }
+        el.style.display = 'block';
+
+        // --- HNC sounds ---
+        if (hs) {
+            const phaseKey = `${hs.phase}_${hs.currentRound}_${hs.currentMatch}`;
+            const phaseChanged = hs.phase !== _hncLastPhase;
+            const matchChanged = hs.currentMatch !== _hncLastMatch || hs.currentRound !== _hncLastRound;
+
+            if (phaseChanged || matchChanged) {
+                const bgUrl = state.activeQuestion?.bgMusic || '/uploads/sfx/tlowyborcze.mp3';
+                if (hs.phase === 'voting' && matchChanged) {
+                    playSFX('question_open');
+                    _hncPlayBg(bgUrl);
+                    clockPlayer.pause(); clockPlayer.currentTime = 0;
+                    setTimeout(() => {
+                        if (_hncLastPhase === 'voting') playClock();
+                    }, 1200);
+                } else if (hs.phase === 'match_result' && phaseChanged) {
+                    clockPlayer.pause(); clockPlayer.currentTime = 0;
+                    playSFX('stats_show');
+                    _hncStopBg();
+                } else if (hs.phase === 'round_complete' && phaseChanged) {
+                    clockPlayer.pause(); clockPlayer.currentTime = 0;
+                    playSFX('correct_answer');
+                    _hncStopBg();
+                } else if (hs.phase === 'champion' && phaseChanged) {
+                    clockPlayer.pause(); clockPlayer.currentTime = 0;
+                    _hncStopBg();
+                    playSFX('win_1');
+                } else if (hs.phase === 'ready') {
+                    clockPlayer.pause(); clockPlayer.currentTime = 0;
+                    _hncStopBg();
+                } else if (hs.phase === 'tiebreak' && phaseChanged) {
+                    clockPlayer.pause(); clockPlayer.currentTime = 0;
+                    _hncStopBg();
+                }
+                _hncLastPhase = hs.phase;
+                _hncLastMatch = hs.currentMatch;
+                _hncLastRound = hs.currentRound;
+            }
+        } else {
+            _hncStopBg();
+            _hncLastPhase = '';
+        }
+
+        ['hnc-s-bracket','hnc-s-match','hnc-s-round-complete','hnc-s-champ'].forEach(id => {
+            const e = document.getElementById(id);
+            if (e) e.style.display = 'none';
+        });
+        if (!hs) return;
+
+        const title = hs.questionText || '🏆 HOT OR NOT CHAMPION';
+
+        if (hs.phase === 'champion') {
+            document.getElementById('hnc-s-champ').style.display = 'flex';
+            const lastR = hs.bracket?.[hs.bracket.length-1];
+            const w = lastR?.[0]?.winner;
+            if (w) {
+                document.getElementById('hnc-s-champ-img').src = w.url;
+                document.getElementById('hnc-s-champ-desc').textContent = w.desc || '';
+            }
+            _hncStartScreenConfetti();
+            _hncRenderBBar(hs);
+            return;
+        }
+        if (hs.phase === 'round_complete') {
+            document.getElementById('hnc-s-bracket').style.display = 'flex';
+            document.getElementById('hnc-s-title').textContent = title;
+            document.getElementById('hnc-s-subtitle').textContent = '';
+            _hncRenderBracketVis(hs);
+            document.getElementById('hnc-s-round-complete').style.display = 'flex';
+            // Big = NEXT round name, small = what just ended
+            document.getElementById('hnc-s-rc-name').textContent = hs.matchName || '';
+            document.getElementById('hnc-s-rc-done').textContent = hs.completedRoundName ? `Koniec: ${hs.completedRoundName}` : 'KONIEC';
+            document.getElementById('hnc-s-rc-next').textContent = hs.matchName ? 'Następna runda' : '';
+            _hncRenderBBar(hs);
+            return;
+        }
+        if (hs.phase === 'setup' || hs.phase === 'ready' || !hs.match) {
+            document.getElementById('hnc-s-bracket').style.display = 'flex';
+            document.getElementById('hnc-s-title').textContent = title;
+            document.getElementById('hnc-s-subtitle').textContent = hs.phase === 'setup'
+                ? 'Oczekiwanie na konfigurację…'
+                : `Przygotowanie: ${hs.matchName} · Mecz ${hs.currentMatch+1}/${hs.matchesInRound}`;
+            _hncRenderBracketVis(hs);
+            _hncRenderBBar(hs);
+            return;
+        }
+        // voting / tiebreak / match_result
+        document.getElementById('hnc-s-match').style.display = 'block';
+        const m = hs.match;
+        document.getElementById('hnc-s-imgA').src = m.photoA?.url||'';
+        document.getElementById('hnc-s-descA').textContent = m.photoA?.desc||'';
+        document.getElementById('hnc-s-imgB').src = m.photoB?.url||'';
+        document.getElementById('hnc-s-descB').textContent = m.photoB?.desc||'';
+        document.getElementById('hnc-s-matchnm').textContent = `${hs.matchName} · ${hs.currentMatch+1}/${hs.matchesInRound}`;
+
+        const showR = hs.phase === 'match_result';
+        const total = (m.votesA||0) + (m.votesB||0);
+        const pA = total ? Math.round(m.votesA/total*100) : 50;
+        const pB = 100-pA;
+
+        const bar = document.getElementById('hnc-s-bar');
+        bar.style.display = showR ? 'block' : 'none';
+        if (showR) {
+            document.getElementById('hnc-s-bar-fill').style.width = pA+'%';
+            document.getElementById('hnc-s-bar-scoreA').textContent = pA+'%';
+            document.getElementById('hnc-s-bar-scoreB').textContent = pB+'%';
+        }
+
+        const pAEl = document.getElementById('hnc-s-pA');
+        const pBEl = document.getElementById('hnc-s-pB');
+        const winA = showR && m.winner?.id === m.photoA?.id;
+        const winB = showR && m.winner?.id === m.photoB?.id;
+        pAEl.querySelector('img').style.transform = winA ? 'scale(1.08)' : '';
+        pAEl.querySelector('img').style.boxShadow = winA ? '0 0 60px rgba(255,215,0,.7)' : '';
+        pAEl.style.opacity = (showR && m.winner && !winA) ? '0.2' : '1';
+        pBEl.querySelector('img').style.transform = winB ? 'scale(1.08)' : '';
+        pBEl.querySelector('img').style.boxShadow = winB ? '0 0 60px rgba(255,215,0,.7)' : '';
+        pBEl.style.opacity = (showR && m.winner && !winB) ? '0.2' : '1';
+
+        const timerEl = document.getElementById('hnc-s-timer');
+        timerEl.style.display = hs.phase === 'voting' ? 'flex' : 'none';
+        timerEl.textContent = hs.timeLeft;
+        timerEl.style.borderColor = hs.timeLeft <= 5 ? '#ff4444' : '#fff';
+        document.getElementById('hnc-s-vinfo').textContent = hs.phase === 'voting' ? `${hs.votedCount}/${hs.voterCount}` : '';
+        _hncRenderBBar(hs);
+    }
+
+    function _hncRoundName(ri, total) {
+        const d = total-1-ri;
+        if(d===0) return 'FINAŁ'; if(d===1) return 'PÓŁFINAŁ'; if(d===2) return 'ĆWIERĆFINAŁ'; if(d===3) return 'ELIMINACJE';
+        return `1/${Math.pow(2,d)} FINAŁU`;
+    }
+
+    function _hncRenderBracketVis(hs) {
+        if (!hs.bracket || !hs.bracket.length) return;
+        const c = document.getElementById('hnc-s-bv');
+        const total = hs.totalRounds;
+        // Scale sizes based on largest round
+        const maxM = hs.bracket.reduce((m,r) => Math.max(m,r.length), 0);
+        const imgSz = maxM >= 8 ? 24 : maxM >= 4 ? 34 : 44;
+        const fSz   = maxM >= 8 ? 11 : maxM >= 4 ? 14 : 18;
+        const pad   = maxM >= 8 ? '4px 6px' : '6px 8px';
+        const gap   = maxM >= 8 ? 2 : 4;
+        let html = '';
+        hs.bracket.forEach((round, ri) => {
+            html += `<div style="flex:1;display:flex;flex-direction:column;min-width:0;"><div style="text-align:center;font-size:10px;color:#555;letter-spacing:2px;text-transform:uppercase;padding:0 0 6px;">${_hncRoundName(ri,total)}</div><div style="flex:1;display:flex;flex-direction:column;justify-content:space-around;padding:0 4px;gap:${gap}px;overflow:hidden;">`;
+            round.forEach((m, mi) => {
+                const isActive = ri===hs.currentRound && mi===hs.currentMatch;
+                const isDone = m?.winner;
+                html += `<div style="display:flex;flex-direction:column;gap:2px;padding:${pad};background:#10121e;border:1px solid ${isActive&&!isDone?'#ffd700':isDone?'#2a3':'#1e2132'};border-radius:6px;opacity:${isDone?.6:1};">`;
+                ['photoA','photoB'].forEach(k => {
+                    const p = m?.[k]; const won = m?.winner?.id===p?.id;
+                    if(p) html += `<div style="display:flex;align-items:center;gap:6px;padding:2px 4px;border-radius:4px;${won?'background:rgba(255,215,0,.12);border:1px solid #ffd700':'border:1px solid transparent'}"><img src="${p.url}" style="width:${imgSz}px;height:${imgSz}px;object-fit:cover;border-radius:4px;flex-shrink:0"><span style="font-size:${fSz}px;font-weight:700;color:${won?'#ffd700':'#ddd'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${p.desc||''}</span></div>`;
+                    else html += `<div style="display:flex;align-items:center;gap:6px;padding:2px 4px"><div style="width:${imgSz}px;height:${imgSz}px;background:#1e2130;border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:#333">?</div><span style="font-size:${fSz}px;color:#333">TBD</span></div>`;
+                });
+                html += '</div>';
+            });
+            html += '</div></div>';
+        });
+        c.innerHTML = html;
+    }
+
+    function _hncRenderBBar(hs) {
+        const bar = document.getElementById('hnc-s-bbar');
+        if (!bar || !hs.bracket || !hs.bracket.length) return;
+        let html = '';
+        hs.bracket.forEach((round, ri) => {
+            if(ri>0) html += '<div style="width:1px;background:#2a2a3a;margin:0 5px;align-self:stretch;"></div>';
+            html += `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0"><div style="font-size:8px;color:#555;letter-spacing:1px;text-transform:uppercase;">${_hncRoundName(ri,hs.totalRounds)}</div><div style="display:flex;flex-direction:column;gap:2px;">`;
+            round.forEach((m,mi) => {
+                const isActive = ri===hs.currentRound && mi===hs.currentMatch;
+                html += '<div style="display:flex;gap:1px;">';
+                ['photoA','photoB'].forEach(k => {
+                    const p=m?.[k]; const won=m?.winner?.id===p?.id;
+                    if(p) html += `<img src="${p.url}" style="width:28px;height:28px;object-fit:cover;border-radius:3px;border:2px solid ${won?'#ffd700':isActive?'#fff':'transparent'}">`;
+                    else html += `<div style="width:28px;height:28px;background:#1e2130;border-radius:3px;border:2px solid #2a2a3a;"></div>`;
+                });
+                html += '</div>';
+            });
+            html += '</div></div>';
+        });
+        bar.innerHTML = html;
+    }
+
+    let _hncScreenConfettiAnim = null;
+    function _hncStartScreenConfetti() {
+        const c = document.getElementById('hnc-s-confetti');
+        if (!c) return;
+        if (_hncScreenConfettiAnim) return;
+        c.width = innerWidth; c.height = innerHeight;
+        const ctx = c.getContext('2d');
+        const colors = ['#ffd700','#ff6b35','#f9ca24','#fff','#ff4444','#44ff88','#4488ff'];
+        const pts = Array.from({length:220}, () => ({
+            x: Math.random()*c.width, y: Math.random()*c.height - c.height,
+            s: Math.random()*9+4, c: colors[~~(Math.random()*colors.length)],
+            sp: Math.random()*3+1.5, ang: Math.random()*360, spin: (Math.random()-.5)*6
+        }));
+        (function loop() {
+            ctx.clearRect(0,0,c.width,c.height);
+            pts.forEach(p => {
+                p.y+=p.sp; p.ang+=p.spin;
+                if(p.y>c.height){p.y=-20;p.x=Math.random()*c.width;}
+                ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.ang*Math.PI/180);
+                ctx.fillStyle=p.c;ctx.fillRect(-p.s/2,-p.s/2,p.s,p.s);ctx.restore();
+            });
+            _hncScreenConfettiAnim = requestAnimationFrame(loop);
+        })();
+    }
+
+    socket.on('hnc_state', hs => {
+        const q = window._lastScreenQuestion;
+        if (q && q.type === 'HNC') {
+            renderHncQuizScreen({ hncState: hs, activeQuestion: q });
+        }
+    });
+    socket.on('hnc_coin_result', data => {
+        const ov = document.getElementById('hnc-s-coin-ov');
+        const coin = document.getElementById('hnc-s-coin');
+        const res = document.getElementById('hnc-s-coin-res');
+        if (!ov || !coin || !res) return;
+        ov.style.display = 'flex';
+        coin.textContent = '?'; coin.className = '';
+        res.style.opacity = '0';
+        setTimeout(() => {
+            coin.className = 'spin';
+            setTimeout(() => {
+                coin.textContent = data.side;
+                const desc = data.winner?.desc || '';
+                res.textContent = desc ? `Wygrywa: ${desc}` : `Strona ${data.side} wygrywa!`;
+                res.style.opacity = '1';
+                setTimeout(() => { ov.style.display = 'none'; }, 3000);
+            }, 1800);
+        }, 100);
+    });
+    // cache last active question for hnc_state events
+    (function() {
+        const _origOnState = window._screenStateCallback;
+    })();
+    // ═══════════════ /HNC QUIZ SCREEN LOGIC ═══════════════
+    </script>
+
+    <script>
+        if ('serviceWorker' in navigator && !navigator.userAgent.includes('Electron')) {
             navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function() {});
         }
+        (function() {
+            function handleBack(e) {
+                const el = e.target.closest('a[href="/start.html"]');
+                if (!el) return;
+                e.preventDefault();
+                if (window.self !== window.top) {
+                    window.parent.postMessage({ type: 'impreja-embed-minimize' }, '*');
+                } else {
+                    window.location.href = '/start.html';
+                }
+            }
+            document.addEventListener('click', handleBack);
+        })();
     </script>
 </body>
 </html>

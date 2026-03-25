@@ -110,7 +110,12 @@
         }
         .cofnij-btn:hover { opacity: 0.95; transform: translateY(-1px); color: #1a1a2e; }
         #start-whitney-btn-top.hidden { display: none !important; }
+        html.editor-first .intro-view { display: none !important; }
+        html.editor-first .editor-section { display: block !important; }
     </style>
+    <script>
+        (function(){ if (/\beditor=1\b/.test(location.search)) document.documentElement.classList.add('editor-first'); })();
+    </script>
 </head>
 <body>
     <div class="container">
@@ -170,6 +175,8 @@
     <script>
         if (location.protocol === 'file:') {
             document.body.innerHTML = '<div class="container" style="padding:40px;text-align:center;"><h1>⚠️ Niewłaściwy sposób otwarcia</h1><p>Otwórz stronę przez serwer: <a href="http://127.0.0.1:3000/whitney/" style="color:#00bcd4;">http://127.0.0.1:3000/whitney/</a></p><p>Uruchom Imprezja Quiz (Electron) i wybierz Whitney z ekranu startowego.</p></div>';
+        } else if (!new URLSearchParams(location.search).get('editor')) {
+            location.replace(location.pathname + '?editor=1' + (location.hash || ''));
         } else {
         const socket = io();
         const TILE_COUNT = 8;
@@ -203,11 +210,12 @@
             audioEl._fadeRafId = requestAnimationFrame(step);
         }
 
+        const fromEditor = new URLSearchParams(location.search).get('editor');
         socket.emit('whitney_join_screen');
         socket.on('whitney_state', async (s) => {
             updateIntroButtonsForActive(!!s.active);
             if (s.active) { await loadQRData(); showQRMode(); }
-            else showIntroMode();
+            else (fromEditor ? showEditorMode : showIntroMode)();
         });
         socket.on('whitney_play', (payload) => {
             const data = typeof payload === 'string' ? { url: payload, volume: 1, isBackground: false, loop: false } : payload;
@@ -233,24 +241,21 @@
                 a.play().catch(e => console.warn('Audio:', e));
             }
         });
-        socket.on('whitney_stop', (payload) => {
+        const doWhitneyStop = (payload) => {
             const data = typeof payload === 'object' ? payload : {};
             const a = document.getElementById('whitney-audio');
-            if (data.fadeOut && a && !a.paused) {
-                fadeOutAndStop(a, 2000);
-            } else {
-                a.pause();
-            }
-        });
+            const bg = document.getElementById('whitney-audio-bg');
+            if (data.fadeOut && a && !a.paused) fadeOutAndStop(a, 2000);
+            else if (a) a.pause();
+            if (bg) { bg.pause(); bg.src = ''; }
+        };
+        socket.on('whitney_stop', doWhitneyStop);
+        socket.on('admin_stop_music', () => doWhitneyStop({}));
         socket.on('whitney_stop_background', (payload) => {
             const data = typeof payload === 'object' ? payload : {};
             const bg = document.getElementById('whitney-audio-bg');
-            if (data.fadeOut && bg && !bg.paused) {
-                fadeOutAndStop(bg, 2000);
-            } else {
-                bg.pause();
-                bg.src = '';
-            }
+            if (data.fadeOut && bg && !bg.paused) fadeOutAndStop(bg, 2000);
+            else if (bg) { bg.pause(); bg.src = ''; }
         });
         socket.on('whitney_volume', (v) => {
             whitneyVolume = v;
@@ -544,7 +549,7 @@
         async function stopWhitney() {
             try {
                 await fetch('/api/whitney/stop', { method: 'POST' });
-                showIntroMode();
+                (fromEditor ? showEditorMode : showIntroMode)();
             } catch (e) { console.warn('Błąd:', e.message); }
         }
 
@@ -579,7 +584,7 @@
             if (btn && btn.classList.contains('intro-btn-stop')) stopWhitney();
             else startWhitney();
         });
-        document.getElementById('btn-zamknij-editor')?.addEventListener('click', showIntroMode);
+        document.getElementById('btn-zamknij-editor')?.addEventListener('click', () => { window.location.href = '/start.html'; });
         document.getElementById('fullscreen-btn')?.addEventListener('click', toggleFullscreen);
         document.getElementById('lte-start-btn')?.addEventListener('click', () => {
             const status = document.getElementById('qr-lte-status');
@@ -590,7 +595,7 @@
         (async function init() {
             await loadConfig();
             await loadQRData();
-            showIntroMode();
+            (fromEditor ? showEditorMode : showIntroMode)();
         })();
         }
     </script>

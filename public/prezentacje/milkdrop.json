@@ -1,0 +1,14 @@
+{
+  "name": "Milkdrop",
+  "slides": [
+    {
+      "type": "visualization",
+      "preset": "milkdrop",
+      "vizOverlayClock": true,
+      "vizOverlayClockSec": false,
+      "vizOverlayCountdown": false
+    }
+  ],
+  "transition": "fade",
+  "loop": true
+}

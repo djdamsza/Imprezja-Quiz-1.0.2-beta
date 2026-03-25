@@ -4,8 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NJR Sampler – Imprezja Quiz</title>
-    <link rel="icon" href="data:,">
-    <script src="/socket.io/socket.io.js"></script>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico"><link rel="icon" type="image/png" sizes="32x32" href="/img/icon-32.png"><link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
     <style>
         :root {
             --bg: radial-gradient(circle at center, #1a1a2e, #000);
@@ -117,7 +116,13 @@
         .cofnij-btn:hover { opacity: 0.95; transform: translateY(-1px); color: #1a1a2e; }
         .bank-assign-row { display: flex; align-items: center; gap: 8px; }
         .bank-assign-row select { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border); background: rgba(0,0,0,0.4); color: #fff; min-width: 140px; }
+        /* ?editor=1 – ukryj intro od pierwszego renderu, bez migania */
+        html.editor-first .intro-view { display: none !important; }
+        html.editor-first .editor-section { display: block !important; }
     </style>
+    <script>
+        (function(){ if (/\beditor=1\b/.test(location.search)) document.documentElement.classList.add('editor-first'); })();
+    </script>
 </head>
 <body>
     <div class="container">
@@ -127,37 +132,23 @@
             <div class="section qr-box active" id="qr-section">
                 <div id="qr-choices" class="qr-choices">
                     <div id="qr-box-local" class="qr-choice-box">
-                        <div class="qr-choice-label">1. Sieć lokalna (Wi‑Fi)</div>
-                        <p class="qr-choice-desc">Telefon i komputer w tej samej sieci.</p>
+                        <div class="qr-choice-label">Wi‑Fi (sieć lokalna)</div>
+                        <p class="qr-choice-desc">Telefon i komputer w tej samej sieci. Narzędzie wielokrotnego użytku – po przerwie otwórz stronę ponownie.</p>
                         <img id="qr-img-local" class="qr-img" src="" alt="QR lokalna">
                         <p id="qr-url-local" class="qr-url" style="word-break: break-all; font-size: 0.85rem;"></p>
-                    </div>
-                    <div class="qr-lub">LUB</div>
-                    <div id="qr-box-pinggy" class="qr-choice-box">
-                        <div class="qr-choice-label">2. LTE (sieć komórkowa)</div>
-                        <p class="qr-choice-desc">Telefon przez LTE/4G. Kliknij „Sterowanie LTE” aby uruchomić tunel.</p>
-                        <p class="qr-choice-desc" style="color: rgba(255,255,255,0.6); font-size: 0.8rem;">⏱️ Tunel ok. 60 min.</p>
-                        <div id="qr-lte-start-wrap" style="margin: 12px 0;">
-                            <button type="button" class="btn btn-danger" id="lte-start-btn">🌐 Sterowanie LTE</button>
-                            <span id="qr-lte-status" style="margin-left: 10px; font-size: 0.9rem; color: rgba(255,255,255,0.7);"></span>
-                        </div>
-                        <div id="qr-lte-qr-wrap" style="display:none;">
-                            <img id="qr-img-pinggy" class="qr-img" src="" alt="QR LTE">
-                            <p id="qr-url-pinggy" class="qr-url" style="word-break: break-all; font-size: 0.85rem;"></p>
-                        </div>
                     </div>
                 </div>
             </div>
             <div class="intro-btn-row">
                 <button type="button" class="intro-btn intro-btn-editor" id="btn-editor-intro">✏️ Edytor</button>
                 <button type="button" class="intro-btn intro-btn-start" id="btn-start-stop-intro">▶️ Start</button>
-                <a href="/start.html" class="intro-btn intro-btn-back">← Wróć</a>
+                <button type="button" class="intro-btn intro-btn-back back-to-start">← Wróć</button>
             </div>
         </div>
 
         <div class="section editor-section" id="editor-section">
             <button type="button" class="btn-zamknij" id="btn-zamknij-editor">Zamknij</button>
-            <a href="/start.html" class="back-link">← Wróć do wyboru trybu</a>
+            <button type="button" class="back-link back-to-start" style="background:none;border:none;cursor:pointer;">← Wróć do wyboru trybu</button>
             <div class="config-bar" style="margin-top:12px;">
                 <label>Zestaw (konfiguracja):</label>
                 <select id="config-select">
@@ -177,7 +168,7 @@
             </div>
             <div class="bank-assignment-section" style="margin-bottom:20px; padding:16px; background:rgba(0,0,0,0.2); border-radius:10px; border:1px solid var(--border);">
                 <h3 style="color:var(--purple); font-size:1rem; margin-bottom:12px;">📋 Przypisanie banków na występ</h3>
-                <p style="color:rgba(255,255,255,0.7); font-size:0.85rem; margin-bottom:12px;">Wybierz zestawy, które będą dostępne jako Bank 1, 2, 3… na telefonie (swipe w lewo/prawo).</p>
+                <p style="color:rgba(255,255,255,0.7); font-size:0.85rem; margin-bottom:12px;">Wybierz zestawy, które będą dostępne jako Bank 1, 2, 3… na telefonie (strzałki ← →).</p>
                 <div id="bank-assignment-list" style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:10px;"></div>
                 <button type="button" class="btn" id="add-bank-assignment-btn" style="background:#2e7d32; padding:6px 12px;">➕ Dodaj bank</button>
                 <button type="button" class="btn" id="remove-bank-assignment-btn" style="background:#555; padding:6px 12px;">🗑 Usuń ostatni bank</button>
@@ -194,19 +185,33 @@
             </div>
         </div>
 
-        <a href="/start.html" class="cofnij-btn" title="Wróć do wyboru trybu">← Cofnij</a>
+        <button type="button" class="cofnij-btn back-to-start" title="Wróć do wyboru trybu">← Cofnij</button>
         <button type="button" class="fullscreen-btn" id="fullscreen-btn" title="Pełny ekran" style="display:none;">⛶ PEŁNY EKRAN</button>
     </div>
 
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/lib/audio-normalize.js"></script>
     <audio id="sampler-audio" style="display:none;"></audio>
     <audio id="sampler-audio-bg" style="display:none;"></audio>
+    <audio id="sampler-audio-imprezator" style="display:none;"></audio>
     <audio id="preview-audio" style="display:none;"></audio>
 
     <script>
         if (location.protocol === 'file:') {
             document.body.innerHTML = '<div class="container" style="padding:40px;text-align:center;"><h1>⚠️ Niewłaściwy sposób otwarcia</h1><p>Otwórz stronę przez serwer: <a href="http://127.0.0.1:3000/njr-sampler.html" style="color:#f1c40f;">http://127.0.0.1:3000/njr-sampler.html</a></p><p>Uruchom Imprezja Quiz (Electron) i wybierz NJR Sampler z ekranu startowego.</p></div>';
+        } else if (!new URLSearchParams(location.search).get('editor')) {
+            location.replace(location.pathname + '?editor=1' + (location.hash || ''));
         } else {
         const socket = io();
+        document.querySelectorAll('.back-to-start').forEach(el => {
+            el.addEventListener('click', () => {
+                if (window.self !== window.top) {
+                    window.parent.postMessage({ type: 'impreja-embed-minimize' }, '*');
+                } else {
+                    window.location.href = '/start.html';
+                }
+            });
+        });
         let config = { tileCount: 8, tiles: [] };
         let currentConfigName = 'domyslna';
         let bankAssignments = ['domyslna'];
@@ -218,87 +223,145 @@
         function applyVolumes() {
             const a = document.getElementById('sampler-audio');
             const bg = document.getElementById('sampler-audio-bg');
-            if (a) a.volume = currentTileVolume * samplerVolume;
-            if (bg) bg.volume = currentBgTileVolume * samplerVolume;
+            const ai = document.getElementById('sampler-audio-imprezator');
+            if (a) a.volume = Math.min(1, Math.max(0, currentTileVolume * samplerVolume));
+            if (bg) bg.volume = Math.min(1, Math.max(0, currentBgTileVolume * samplerVolume));
+            if (ai && !ai.paused) ai.volume = Math.min(1, samplerVolume);
         }
-        function fadeOutAndStop(audioEl, ms) {
-            if (!audioEl || audioEl.paused) return;
-            if (audioEl._fadeRafId) cancelAnimationFrame(audioEl._fadeRafId);
+        function fadeOutAndStop(audioEl, ms, onDone) {
+            if (!audioEl || audioEl.paused) {
+                if (typeof onDone === 'function') onDone();
+                return;
+            }
+            if (audioEl._fadeIntervalId) clearInterval(audioEl._fadeIntervalId);
             const startVol = audioEl.volume;
-            const start = performance.now();
-            const step = (now) => {
-                const elapsed = now - start;
+            const start = Date.now();
+            const step = () => {
+                const elapsed = Date.now() - start;
                 const t = Math.min(1, elapsed / ms);
                 audioEl.volume = startVol * (1 - t);
-                if (t < 1) audioEl._fadeRafId = requestAnimationFrame(step);
-                else {
-                    audioEl._fadeRafId = null;
+                if (t >= 1) {
+                    clearInterval(audioEl._fadeIntervalId);
+                    audioEl._fadeIntervalId = null;
                     audioEl.pause();
                     if (audioEl.id === 'sampler-audio-bg') audioEl.src = '';
+                    if (typeof onDone === 'function') onDone();
                 }
             };
-            audioEl._fadeRafId = requestAnimationFrame(step);
+            audioEl._fadeIntervalId = setInterval(step, 50);
         }
 
+        const fromEditor = new URLSearchParams(location.search).get('editor');
+        window.initAudioContext = function() {
+            const a = document.getElementById('sampler-audio');
+            const bg = document.getElementById('sampler-audio-bg');
+            if (a) { a.volume = 0; a.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='; a.play().then(() => { a.pause(); a.src = ''; a.volume = 1; }).catch(() => {}); }
+            if (bg) { bg.volume = 0; bg.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='; bg.play().then(() => { bg.pause(); bg.src = ''; bg.volume = 1; }).catch(() => {}); }
+        };
         socket.emit('njr_sampler_join_screen');
         socket.on('njr_sampler_state', async (s) => {
             updateIntroButtonsForActive(!!s.active);
             if (s.active) { await loadQRData(); showQRMode(); }
-            else showIntroMode();
+            else (fromEditor ? showEditorMode : showIntroMode)();
         });
         socket.on('njr_sampler_play', (payload) => {
             const data = typeof payload === 'string' ? { url: payload, volume: 1, isBackground: false, loop: false } : payload;
             const vol = data.volume ?? 1;
             const loop = !!data.loop;
+            const gain = (typeof data.normalizedGain === 'number' && data.normalizedGain !== 1) ? data.normalizedGain
+                : (typeof window.AudioNormalize !== 'undefined' ? window.AudioNormalize.getCachedGain(data.url) : 1);
             if (data.isBackground) {
                 const bg = document.getElementById('sampler-audio-bg');
                 if (!bg) return;
-                if (bg._fadeRafId) { cancelAnimationFrame(bg._fadeRafId); bg._fadeRafId = null; }
+                if (bg._fadeIntervalId) { clearInterval(bg._fadeIntervalId); bg._fadeIntervalId = null; }
                 currentBgTileVolume = vol;
                 bg.src = data.url;
-                bg.volume = vol * samplerVolume;
+                bg.volume = Math.min(1, Math.max(0, vol * samplerVolume * gain));
                 bg.loop = loop;
                 bg.onended = loop ? null : () => socket.emit('njr_sampler_background_ended');
-                bg.play().catch(e => console.warn('Audio bg:', e));
+                bg.play().catch(e => console.warn('bg play:', e));
             } else {
                 const a = document.getElementById('sampler-audio');
-                if (a && a._fadeRafId) { cancelAnimationFrame(a._fadeRafId); a._fadeRafId = null; }
+                if (a && a._fadeIntervalId) { clearInterval(a._fadeIntervalId); a._fadeIntervalId = null; }
                 currentTileVolume = vol;
                 a.src = data.url;
-                a.volume = vol * samplerVolume;
+                a.volume = Math.min(1, Math.max(0, vol * samplerVolume * gain));
                 a.loop = loop;
-                a.play().catch(e => console.warn('Audio:', e));
+                a.play().catch(e => console.warn('play:', e));
             }
         });
         socket.on('njr_sampler_stop', (payload) => {
             const data = typeof payload === 'object' ? payload : {};
             const a = document.getElementById('sampler-audio');
+            const thenPlay = data.thenPlay;
+            const doPlay = () => {
+                if (thenPlay && a) {
+                    currentTileVolume = thenPlay.volume ?? 1;
+                    const gain = (typeof thenPlay.normalizedGain === 'number' && thenPlay.normalizedGain !== 1) ? thenPlay.normalizedGain
+                        : (typeof window.AudioNormalize !== 'undefined' ? window.AudioNormalize.getCachedGain(thenPlay.url) : 1);
+                    a.src = thenPlay.url;
+                    a.volume = Math.min(1, Math.max(0, (thenPlay.volume ?? 1) * samplerVolume * gain));
+                    a.loop = !!thenPlay.loop;
+                    a.play().catch(e => console.warn('Audio:', e));
+                }
+            };
             if (data.fadeOut && a && !a.paused) {
-                fadeOutAndStop(a, 2000);
+                fadeOutAndStop(a, 500, doPlay);
             } else {
-                a.pause();
+                if (a) a.pause();
+                doPlay();
             }
         });
         socket.on('njr_sampler_stop_background', (payload) => {
             const data = typeof payload === 'object' ? payload : {};
             const bg = document.getElementById('sampler-audio-bg');
+            const thenPlay = data.thenPlay;
+            const doPlay = () => {
+                if (thenPlay && bg) {
+                    currentBgTileVolume = thenPlay.volume ?? 1;
+                    const gain = (typeof thenPlay.normalizedGain === 'number' && thenPlay.normalizedGain !== 1) ? thenPlay.normalizedGain
+                        : (typeof window.AudioNormalize !== 'undefined' ? window.AudioNormalize.getCachedGain(thenPlay.url) : 1);
+                    bg.src = thenPlay.url;
+                    bg.volume = Math.min(1, Math.max(0, (thenPlay.volume ?? 1) * samplerVolume * gain));
+                    bg.loop = !!thenPlay.loop;
+                    bg.onended = thenPlay.loop ? null : () => socket.emit('njr_sampler_background_ended');
+                    bg.play().catch(e => console.warn('Audio bg:', e));
+                } else if (bg) {
+                    bg.pause();
+                    bg.src = '';
+                }
+            };
             if (data.fadeOut && bg && !bg.paused) {
-                fadeOutAndStop(bg, 2000);
+                fadeOutAndStop(bg, 500, doPlay);
             } else {
-                bg.pause();
-                bg.src = '';
+                if (bg && !thenPlay) { bg.pause(); bg.src = ''; }
+                doPlay();
             }
         });
         socket.on('njr_sampler_volume', (v) => {
             samplerVolume = v;
             applyVolumes();
         });
-        socket.on('tunnel_started', async () => { await loadQRData(); });
-        socket.on('tunnel_error', (d) => {
-            const status = document.getElementById('qr-lte-status');
-            if (status) status.textContent = d.message || 'Błąd tunelu';
+        socket.on('njr_sampler_imprezator_play', (data) => {
+            const ai = document.getElementById('sampler-audio-imprezator');
+            if (!ai) return;
+            ai.src = data.url;
+            ai.volume = Math.max(0, Math.min(1, data.volume ?? 1));
+            ai.onended = () => socket.emit('njr_sampler_imprezator_ended');
+            ai.play().catch(e => console.warn('Audio imprezator (sampler):', e));
         });
-
+        socket.on('njr_sampler_imprezator_stop', () => {
+            const ai = document.getElementById('sampler-audio-imprezator');
+            if (ai) { ai.pause(); ai.src = ''; }
+        });
+        socket.on('admin_stop_music', () => {
+            const a = document.getElementById('sampler-audio');
+            const bg = document.getElementById('sampler-audio-bg');
+            const ai = document.getElementById('sampler-audio-imprezator');
+            if (a) a.pause();
+            if (bg) { bg.pause(); bg.src = ''; }
+            if (ai) { ai.pause(); ai.src = ''; }
+        });
         document.querySelectorAll('input[name="tileCount"]').forEach(r => {
             r.onchange = () => {
                 config.tileCount = parseInt(r.value);
@@ -489,11 +552,6 @@
             document.getElementById('save-bank-assignment-btn')?.addEventListener('click', saveBankAssignment);
             document.getElementById('start-sampler-btn')?.addEventListener('click', startSampler);
             document.getElementById('fullscreen-btn')?.addEventListener('click', toggleFullscreen);
-            document.getElementById('lte-start-btn')?.addEventListener('click', () => {
-                const status = document.getElementById('qr-lte-status');
-                if (status) status.textContent = 'Uruchamianie tunelu...';
-                socket.emit('admin_start_tunnel');
-            });
         }
         async function renameConfig() {
             const newName = prompt('Nowa nazwa konfiguracji:', currentConfigName);
@@ -615,6 +673,10 @@
                         <input type="text" placeholder="Szukaj w uploads..." class="audio-search" data-tile="${t.id}" style="width:120px;padding:6px;font-size:0.85rem;">
                         <span class="name">${t.audio ? t.audio.replace(/^.*\//,'') : '—'}</span>
                     </div>
+                    <div class="audio-url-row" style="margin-top:6px;display:flex;gap:6px;align-items:center;">
+                        <input type="text" placeholder="lub wklej URL (http...)" class="audio-url-input" data-tile="${t.id}" value="${(t.audio&&t.audio.startsWith('http')?t.audio:'').replace(/"/g,'&quot;')}" style="flex:1;padding:6px;font-size:0.85rem;">
+                        <button type="button" class="btn analyze-loudness-btn" data-tile="${t.id}" title="Analizuj głośność (dla linków)">📊</button>
+                    </div>
                     <div class="audio-browser" id="audio-browser-${t.id}" style="display:none;"></div>
                     <label>Głośność kafelka: <span id="vol-val-${t.id}">${t.volume ?? 100}</span>%</label>
                     <input type="range" class="tile-vol" data-tile="${t.id}" min="0" max="100" value="${t.volume ?? 100}">
@@ -627,6 +689,40 @@
                 inp.addEventListener('input', debounce(() => searchAudioForTile(inp.dataset.tile, inp.value), 300));
                 inp.addEventListener('focus', () => showAudioBrowser(inp.dataset.tile));
             });
+            document.querySelectorAll('.audio-url-input').forEach(inp => {
+                inp.addEventListener('blur', () => {
+                    const url = (inp.value || '').trim();
+                    const t = (config.tiles || []).find(x => x.id === inp.dataset.tile);
+                    if (t && url && (url.startsWith('http://') || url.startsWith('https://'))) {
+                        t.audio = url;
+                        analyzeLoudnessForTile(inp.dataset.tile);
+                    }
+                });
+            });
+            document.querySelectorAll('.analyze-loudness-btn').forEach(btn => {
+                btn.addEventListener('click', () => analyzeLoudnessForTile(btn.dataset.tile));
+            });
+        }
+
+        async function analyzeLoudnessForTile(tileId) {
+            const t = (config.tiles || []).find(x => x.id === tileId);
+            if (!t || !t.audio || !t.audio.startsWith('http')) return;
+            const btn = document.querySelector('.analyze-loudness-btn[data-tile="' + tileId + '"]');
+            if (btn) { btn.disabled = true; btn.textContent = '…'; }
+            try {
+                const r = await fetch('/api/audio/analyze-loudness', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: t.audio })
+                });
+                const d = await r.json().catch(() => ({}));
+                if (d && typeof d.gain === 'number') {
+                    t.normalizedGain = d.gain;
+                    if (btn) btn.title = 'Mnożnik: ' + d.gain.toFixed(2);
+                }
+            } catch (e) { console.warn('analyze-loudness:', e); }
+            if (btn) { btn.disabled = false; btn.textContent = '📊'; }
+            renderTiles();
         }
 
         function debounce(fn, ms) {
@@ -788,34 +884,17 @@
 
         async function loadQRData() {
             try {
-                const infoR = await fetch('/api/njr-sampler/connection-info');
-                const info = await infoR.json().catch(() => ({}));
                 const localR = await fetch('/api/njr-sampler/phone-qr?mode=local');
                 const localD = await localR.json().catch(() => ({}));
                 document.getElementById('qr-img-local').src = localD.qrCode || '';
                 document.getElementById('qr-url-local').textContent = localD.url || '';
-                document.getElementById('qr-lte-start-wrap').style.display = 'block';
-                if (info.pinggyAvailable) {
-                    const pinggyR = await fetch('/api/njr-sampler/phone-qr?mode=pinggy');
-                    const pinggyD = await pinggyR.json().catch(() => ({}));
-                    document.getElementById('qr-lte-qr-wrap').style.display = 'block';
-                    document.getElementById('qr-img-pinggy').src = pinggyD.qrCode || '';
-                    document.getElementById('qr-url-pinggy').textContent = pinggyD.url || '';
-                    document.getElementById('qr-lte-status').textContent = '';
-                } else {
-                    document.getElementById('qr-lte-qr-wrap').style.display = 'none';
-                }
             } catch (e) { console.warn('Load QR:', e); }
-            finally {
-                var wrap = document.getElementById('qr-lte-start-wrap');
-                if (wrap) wrap.style.setProperty('display', 'block', 'important');
-            }
         }
 
         async function stopSampler() {
             try {
                 await fetch('/api/njr-sampler/stop', { method: 'POST' });
-                showIntroMode();
+                (fromEditor ? showEditorMode : showIntroMode)();
             } catch (e) { alert('Błąd: ' + e.message); }
         }
 
@@ -865,12 +944,12 @@
             if (btn && btn.classList.contains('intro-btn-stop')) stopSampler();
             else startSampler();
         });
-        document.getElementById('btn-zamknij-editor')?.addEventListener('click', showIntroMode);
+        document.getElementById('btn-zamknij-editor')?.addEventListener('click', () => { window.location.href = '/start.html'; });
 
         (async function init() {
             await loadConfig();
             await loadQRData();
-            showIntroMode();
+            (fromEditor ? showEditorMode : showIntroMode)();
         })();
         }
     </script>

@@ -1,0 +1,337 @@
+{
+  "disableTimePoints": false,
+  "questions": [
+    {
+      "id": "q_1773257772704_vkmp0",
+      "type": "HNC",
+      "question": "Najlepszy kontroler to...",
+      "time": 15,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "photos": [
+        {
+          "url": "/uploads/1773253794518-HERCULES.webp",
+          "desc": "HERCULES"
+        },
+        {
+          "url": "/uploads/1773253499096-rene_one_mk2.webp",
+          "desc": "rene_one_mk2"
+        },
+        {
+          "url": "/uploads/1773253499277-reloop_mixon_8_pro.webp",
+          "desc": "reloop_mixon_8_pro"
+        },
+        {
+          "url": "/uploads/1773253502269-numar_mixstream_pro_plus.webp",
+          "desc": "numar_mixstream_pro_plus"
+        },
+        {
+          "url": "/uploads/1773253502616-xdj-r1.webp",
+          "desc": "xdj-r1"
+        },
+        {
+          "url": "/uploads/1773253502766-ddj-400.webp",
+          "desc": "ddj-400"
+        },
+        {
+          "url": "/uploads/1773253505846-ddj-flx6.webp",
+          "desc": "ddj-flx6"
+        },
+        {
+          "url": "/uploads/1773253505922-ddj-rx.webp",
+          "desc": "ddj-rx"
+        },
+        {
+          "url": "/uploads/1773253530225-denon_prime_4_.webp",
+          "desc": "denon_prime_4_"
+        },
+        {
+          "url": "/uploads/1773253530422-ddj-GRV6.webp",
+          "desc": "ddj-GRV6"
+        },
+        {
+          "url": "/uploads/1773253531688-rene_system_one.webp",
+          "desc": "rene_system_one"
+        },
+        {
+          "url": "/uploads/1773253531813-opus-quad.webp",
+          "desc": "opus-quad"
+        },
+        {
+          "url": "/uploads/1773253531892-ddj-flx4.webp",
+          "desc": "ddj-flx4"
+        },
+        {
+          "url": "/uploads/1773253533854-ddj-rev7.webp",
+          "desc": "ddj-rev7"
+        },
+        {
+          "url": "/uploads/1773253533980-xdj-az.webp",
+          "desc": "xdj-az"
+        },
+        {
+          "url": "/uploads/1773253499059-ddj1000.webp",
+          "desc": "ddj1000"
+        }
+      ],
+      "correct": -1
+    },
+    {
+      "id": "q_1773257772704_a31xp",
+      "type": "QUIZ",
+      "question": "Jaka jest stolica Francji?",
+      "time": 20,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Londyn",
+        "Berlin",
+        "Paryż",
+        "Madryt"
+      ],
+      "media": "/uploads/1773231615247-Flag_of_France.webp",
+      "image": "/uploads/1773231615247-Flag_of_France.webp",
+      "imageSmall": "/uploads/1773231615247-Flag_of_France-thumb.webp",
+      "correct": 2
+    },
+    {
+      "id": "q_1773257772704_s2177",
+      "type": "VOTE",
+      "question": "Co brzmi lepiej?",
+      "time": 25,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "MP3",
+        "FLAK"
+      ],
+      "media": "/uploads/1770811911898-1769711329319-219866978.webp",
+      "image": "/uploads/1770811911898-1769711329319-219866978.webp",
+      "imageSmall": "/uploads/1770811911898-1769711329319-219866978-thumb.webp",
+      "correct": 0
+    },
+    {
+      "id": "q_1773257772704_kjfn8",
+      "type": "QUIZ",
+      "question": "Ile to jest 7 × 8?",
+      "time": 15,
+      "speedrun": true,
+      "elimination": false,
+      "answers": [
+        "54",
+        "56",
+        "58",
+        "64"
+      ],
+      "media": "/uploads/1770811868681-1770034348737-1769711367280-834621499.webp",
+      "image": "/uploads/1770811868681-1770034348737-1769711367280-834621499.webp",
+      "imageSmall": "/uploads/1770811868681-1770034348737-1769711367280-834621499-thumb.webp",
+      "correct": 1
+    },
+    {
+      "id": "q_1773257772704_ohcqb",
+      "type": "ESTIMATION",
+      "question": "Ile utworów powinien mieć DJ weselny w swojej kolekcji?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "/uploads/1773231872364-szafy-z-plytami5.webp",
+      "image": "/uploads/1773231872364-szafy-z-plytami5.webp",
+      "imageSmall": "/uploads/1773231872364-szafy-z-plytami5-thumb.webp",
+      "correctValue": 8000,
+      "min": 1000,
+      "max": 100000
+    },
+    {
+      "id": "q_1773257772704_q7trj",
+      "type": "HOT_OR_NOT",
+      "question": "Co gramy dalej?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Opcja A",
+        "Opcja B"
+      ],
+      "media": "",
+      "imageA": "/uploads/1773237487808-1770380140351-pitbull-thumb.webp",
+      "imageB": "/uploads/1773237502081-1770811982452-1770380135995-images-thumb.webp",
+      "imageSmallA": "/uploads/1773237487808-1770380140351-pitbull-thumb-thumb.webp",
+      "imageSmallB": "/uploads/1773237502081-1770811982452-1770380135995-images-thumb-thumb.webp",
+      "correct": [
+        0,
+        1
+      ]
+    },
+    {
+      "id": "q_1773257772704_dy2s8",
+      "type": "QUIZ",
+      "question": "Kto napisał \"Mazurek Dąbrowskiego\"",
+      "time": 25,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Celin Dion",
+        "Józef Wybicki",
+        "Henryk Dąbrowski",
+        "Adami Mickiewicz"
+      ],
+      "media": "/uploads/1773231965870-Dariusz_Gajewski_Leg.2e16d0ba.fill-1600x900.format-webp.webp",
+      "image": "/uploads/1773231965870-Dariusz_Gajewski_Leg.2e16d0ba.fill-1600x900.format-webp.webp",
+      "imageSmall": "/uploads/1773231965870-Dariusz_Gajewski_Leg.2e16d0ba.fill-1600x900.format-webp-thumb.webp",
+      "correct": 1
+    },
+    {
+      "id": "q_1773257772704_evwn7",
+      "type": "OPEN",
+      "question": "Jaki utwór rozkręci każdą imprezę?",
+      "time": 45,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "/uploads/1770811726785-wynalazki.webp",
+      "image": "/uploads/1770811726785-wynalazki.webp",
+      "imageSmall": "/uploads/1770811726785-wynalazki-thumb.webp"
+    },
+    {
+      "id": "q_1773257772704_5n5mq",
+      "type": "LETTER",
+      "question": "Podaj artystę / zespól muzyczny na literę...",
+      "time": 45,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "",
+      "correct": -1
+    },
+    {
+      "id": "q_1773257772704_eteqd",
+      "type": "WYBORCZY",
+      "question": "Setup na 2026",
+      "time": 15,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "bgMusic": "/uploads/sfx/tlowyborcze.mp3",
+      "photos": [
+        {
+          "url": "/uploads/1773236768702-3296051869_bd8c5dedfb_b.webp",
+          "label": ""
+        },
+        {
+          "url": "/uploads/1773236768540-Good-DJ-Setup-Look.webp",
+          "label": ""
+        },
+        {
+          "url": "/uploads/1773236743649-AlexMason_SJ_wedding-1024x863.webp",
+          "label": ""
+        },
+        {
+          "url": "/uploads/1773236822109-M_B__401___1_d__1_.webp",
+          "label": ""
+        },
+        {
+          "url": "/uploads/1773236743452-Element-DJs.webp",
+          "label": ""
+        },
+        {
+          "url": "/uploads/1773236744783-IMG_5759-scaled.webp",
+          "label": ""
+        },
+        {
+          "url": "/uploads/1773236768888-26c1e91c7681817d233826df32471c5b.webp",
+          "label": ""
+        },
+        {
+          "url": "/uploads/1773236743992-Element_DJs_at_Hemingford_Park.webp",
+          "label": ""
+        },
+        {
+          "url": "/uploads/1773236769164-23763_102.webp",
+          "label": ""
+        },
+        {
+          "url": "/uploads/1773236794081-maxresdefault.webp",
+          "label": ""
+        }
+      ],
+      "correct": -1
+    },
+    {
+      "id": "q_1773257772704_vmx5p",
+      "type": "SHIPS",
+      "question": "Zagrajmy w statki",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "",
+      "boardSize": 8,
+      "ships": [
+        {
+          "row": 1,
+          "col": 0,
+          "size": 2,
+          "vertical": true
+        },
+        {
+          "row": 0,
+          "col": 4,
+          "size": 3,
+          "vertical": false
+        },
+        {
+          "row": 2,
+          "col": 3,
+          "size": 4,
+          "vertical": false
+        },
+        {
+          "row": 3,
+          "col": 2,
+          "size": 5,
+          "vertical": true
+        }
+      ]
+    },
+    {
+      "id": "q_1773257772704_tq4yh",
+      "type": "MUSIC",
+      "question": "Z jakiej bajki jest ta melodia?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Muminki",
+        "Smerfy",
+        "Asterix i Obelix",
+        "Sąsiedzi",
+        "Wilk i zając"
+      ],
+      "media": "/uploads/1770811411340-sasiedzi.mp3",
+      "audio": "/uploads/1770811411340-sasiedzi.mp3",
+      "correct": 3
+    },
+    {
+      "id": "q_1773257772704_6z9eq",
+      "type": "MUSIC",
+      "question": "Z jakiego serialu jest ta melodia?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Słoneczny patrol",
+        "Archiwum X",
+        "Żar tropików",
+        "Lilo i Stich",
+        "Świat według kiepskich"
+      ],
+      "media": "/uploads/1773237298451-1770813410399-zar_tropikow.mp3",
+      "audio": "/uploads/1773237298451-1770813410399-zar_tropikow.mp3",
+      "correct": 2
+    }
+  ],
+  "thanksScreen": null
+}

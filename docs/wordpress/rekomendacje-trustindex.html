@@ -1,0 +1,880 @@
+<!--
+  Blok REKOMENDACJE dla imprezja.pl – opinie z Google (Imprezja Damian Nowaczyk)
+  Bez zewnętrznych zależności – wszystko wbudowane
+-->
+<style>
+  .rekomendacje-wrap {
+    font-family: Georgia, 'Times New Roman', serif;
+    background: #1a1208;
+    color: #f5f0e8;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    max-width: 100%;
+    min-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
+    touch-action: pan-y;
+  }
+  .rekomendacje-wrap .rekomendacje-body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  .rekomendacje-sep {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    height: 6px;
+    background: linear-gradient(90deg, #1a1208 0%, #fcb424 20%, #fcb424 80%, #1a1208 100%);
+    position: relative;
+  }
+  .rekomendacje-sep-icon {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1a1208;
+    padding: 0 12px;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .rekomendacje-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #fcb424;
+  }
+  .rekomendacje-section {
+    padding: 56px 32px 48px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 100%;
+    margin: 0;
+    box-sizing: border-box;
+    overflow-x: hidden;
+    touch-action: pan-y;
+  }
+  .rekomendacje-heading {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+  .rekomendacje-eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #fcb424;
+    margin-bottom: 10px;
+    font-weight: 600;
+  }
+  .rekomendacje-title {
+    font-family: Georgia, serif;
+    font-size: 36px;
+    font-weight: 700;
+    color: #f5f0e8;
+    margin: 0 0 14px;
+    line-height: 1.15;
+  }
+  .rekomendacje-underline {
+    width: 60px;
+    height: 3px;
+    background: #fcb424;
+    margin: 0 auto;
+    border-radius: 2px;
+  }
+  .rekomendacje-rating {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 32px;
+  }
+  .rekomendacje-rating-num {
+    font-family: Georgia, serif;
+    font-size: 42px;
+    font-weight: 700;
+    color: #fcb424;
+    line-height: 1;
+  }
+  .rekomendacje-rating-detail {
+    text-align: left;
+  }
+  .rekomendacje-stars {
+    display: flex;
+    justify-content: center;
+    gap: 3px;
+    margin-bottom: 4px;
+  }
+  .rekomendacje-stars.inline {
+    justify-content: flex-start;
+  }
+  .rekomendacje-star {
+    color: #fcb424;
+    font-size: 18px;
+  }
+  .rekomendacje-rating-total {
+    font-size: 12px;
+    color: #8a7a60;
+    margin-top: 2px;
+  }
+  .rekomendacje-carousel-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 32px;
+  }
+  .rekomendacje-arrow {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    touch-action: pan-y;
+    pointer-events: auto;
+    min-width: 44px;
+    min-height: 44px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(252,180,36,0.2);
+    color: #fcb424;
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, color 0.2s, transform 0.2s;
+    z-index: 2;
+  }
+  .rekomendacje-arrow:hover {
+    background: rgba(252,180,36,0.35);
+    color: #f5f0e8;
+    transform: scale(1.05);
+  }
+  .rekomendacje-arrow:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    transform: none;
+  }
+  .rekomendacje-carousel-viewport {
+    flex: 1;
+    overflow: hidden;
+    overflow: clip;
+    scrollbar-width: none;
+    container-type: inline-size;
+    container-name: rekomendacje-viewport;
+    touch-action: pan-y;
+  }
+  .rekomendacje-carousel-viewport::-webkit-scrollbar {
+    display: none;
+  }
+  .rekomendacje-carousel-track {
+    display: flex;
+    align-items: stretch;
+    gap: 16px;
+    padding: 4px 8px;
+    min-width: min-content;
+    transition: transform 0.3s ease;
+  }
+  .rekomendacje-card {
+    flex: 0 0 calc(100% - 24px);
+    min-width: 260px;
+    box-sizing: border-box;
+    background: #26190a;
+    border: 1px solid #3a2a10;
+    border-radius: 12px;
+    padding: 22px 20px 18px;
+    position: relative;
+    transition: border-color 0.2s;
+    display: flex;
+    flex-direction: column;
+    min-height: 220px;
+  }
+  .rekomendacje-card:hover {
+    border-color: #fcb424;
+  }
+  .rekomendacje-quote {
+    font-family: Georgia, serif;
+    font-size: 52px;
+    color: #fcb424;
+    line-height: 1;
+    margin-bottom: -10px;
+    display: block;
+    opacity: 0.7;
+    flex-shrink: 0;
+  }
+  .rekomendacje-text-wrap {
+    flex: 1;
+    min-height: 0;
+    margin-bottom: 8px;
+  }
+  .rekomendacje-text {
+    font-size: 14.5px;
+    line-height: 1.7;
+    color: #d9cfc0;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+    overflow: hidden;
+    transition: -webkit-line-clamp 0.2s;
+  }
+  .rekomendacje-card.expanded .rekomendacje-text {
+    -webkit-line-clamp: unset;
+    overflow: visible;
+    display: block;
+  }
+  .rekomendacje-read-more {
+    display: none;
+    font-size: 13px;
+    color: #ffffff;
+    touch-action: pan-y;
+    pointer-events: auto;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 6px 0;
+    margin-top: 6px;
+    font-weight: 600;
+    text-decoration: underline;
+    font-family: inherit;
+    text-underline-offset: 3px;
+    flex-shrink: 0;
+  }
+  .rekomendacje-read-more:hover {
+    color: #fcb424;
+  }
+  .rekomendacje-card.has-more .rekomendacje-read-more,
+  .rekomendacje-card.expanded .rekomendacje-read-more {
+    display: inline-block;
+  }
+  .rekomendacje-reviewer {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-top: 1px solid #3a2a10;
+    padding-top: 12px;
+    margin-top: auto;
+    flex-shrink: 0;
+  }
+  .rekomendacje-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: #fcb424;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 13px;
+    color: #1a1208;
+    flex-shrink: 0;
+  }
+  .rekomendacje-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #f5f0e8;
+    margin: 0;
+  }
+  .rekomendacje-meta {
+    font-size: 11px;
+    color: #8a7a60;
+    margin: 0;
+  }
+  .rekomendacje-google-badge {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    font-size: 10px;
+    background: #2e1f08;
+    border: 1px solid #3a2a10;
+    color: #8a7a60;
+    padding: 3px 8px;
+    border-radius: 20px;
+    letter-spacing: 0.06em;
+  }
+  .rekomendacje-cta {
+    background: #fcb424;
+    border-radius: 14px;
+    padding: 36px 32px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .rekomendacje-cta::before {
+    content: '';
+    position: absolute;
+    top: -30px; right: -30px;
+    width: 120px; height: 120px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+  }
+  .rekomendacje-cta::after {
+    content: '';
+    position: absolute;
+    bottom: -40px; left: -20px;
+    width: 160px; height: 160px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.06);
+  }
+  .rekomendacje-cta h3 {
+    font-family: Georgia, serif;
+    font-size: 26px;
+    font-weight: 700;
+    color: #1a1208;
+    margin: 0 0 8px;
+  }
+  .rekomendacje-cta p {
+    font-size: 15px;
+    color: #4a2e00;
+    margin: 0 0 24px;
+    line-height: 1.6;
+  }
+  .rekomendacje-cta-btn {
+    display: inline-block;
+    background: #1a1208;
+    touch-action: pan-y;
+    pointer-events: auto;
+    color: #fcb424;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 15px;
+    padding: 14px 34px;
+    border-radius: 8px;
+    text-decoration: none;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s;
+    position: relative;
+    z-index: 1;
+  }
+  .rekomendacje-cta-btn:hover {
+    background: #2d2010;
+    transform: translateY(-2px);
+    color: #fcb424;
+  }
+  .rekomendacje-trust-row {
+    display: flex;
+    justify-content: center;
+    gap: 28px;
+    margin-top: 18px;
+    flex-wrap: wrap;
+  }
+  .rekomendacje-trust-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 13px;
+    color: #4a2e00;
+    font-weight: 500;
+  }
+  .rekomendacje-trust-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+  @media (min-width: 600px) {
+    .rekomendacje-card {
+      flex: 0 0 calc(50% - 20px);
+    }
+  }
+  @media (min-width: 900px) {
+    .rekomendacje-arrow {
+      width: 44px;
+      height: 44px;
+      min-width: 44px;
+      min-height: 44px;
+    }
+  }
+  @container rekomendacje-viewport (min-width: 700px) {
+    .rekomendacje-card {
+      flex: 0 0 calc((100cqw - 32px) / 3);
+      min-width: 0;
+      width: calc((100cqw - 32px) / 3);
+    }
+  }
+  .rekomendacje-mobile-next {
+    display: none;
+  }
+  /* Mobile: 2 opinie, strzałka ↓, Czytaj dalej. Swipe przewija stronę, nie blok. */
+  @media (max-width: 768px) {
+    .rekomendacje-carousel-wrap {
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      max-width: 100%;
+      min-width: 100%;
+    }
+    .rekomendacje-carousel-wrap .rekomendacje-prev,
+    .rekomendacje-carousel-wrap .rekomendacje-next {
+      display: none;
+    }
+    .rekomendacje-mobile-next {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: pan-y;
+      pointer-events: auto;
+      width: 48px;
+      height: 48px;
+      min-width: 48px;
+      min-height: 48px;
+      border: none;
+      border-radius: 50%;
+      background: rgba(252,180,36,0.2);
+      color: #fcb424;
+      font-size: 24px;
+      font-weight: 600;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background 0.2s, color 0.2s, transform 0.2s;
+    }
+    .rekomendacje-mobile-next:hover {
+      background: rgba(252,180,36,0.35);
+      color: #f5f0e8;
+      transform: scale(1.05);
+    }
+    .rekomendacje-mobile-next:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .rekomendacje-carousel-viewport {
+      flex: 0 0 auto;
+      width: 100%;
+      overflow: hidden;
+      overflow: clip;
+      height: 520px;
+      min-width: 0;
+      -webkit-overflow-scrolling: unset;
+      scroll-snap-type: none;
+      scroll-behavior: auto;
+      container-type: normal;
+      touch-action: pan-y;
+    }
+    .rekomendacje-carousel-track {
+      flex-direction: column;
+      gap: 12px;
+      padding: 4px 4px;
+      min-width: unset;
+      transition: transform 0.3s ease;
+      touch-action: pan-y;
+    }
+    .rekomendacje-card {
+      flex: 0 0 auto;
+      height: 250px;
+      min-height: 250px;
+      min-width: unset;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      overflow: hidden;
+      overflow: clip;
+      display: flex;
+      flex-direction: column;
+      padding: 16px 14px 14px;
+      scroll-snap-align: none;
+      touch-action: pan-y;
+    }
+    .rekomendacje-card .rekomendacje-quote {
+      font-size: 28px;
+      margin-bottom: -4px;
+    }
+    .rekomendacje-card .rekomendacje-text-wrap {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      touch-action: pan-y;
+    }
+    .rekomendacje-card.expanded .rekomendacje-text-wrap {
+      overflow: visible;
+      flex: 1 1 auto;
+    }
+    .rekomendacje-card.expanded {
+      height: auto;
+      min-height: 250px;
+      overflow: visible;
+    }
+    .rekomendacje-card .rekomendacje-text {
+      -webkit-line-clamp: 6;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .rekomendacje-card .rekomendacje-read-more {
+      color: #ffffff;
+      font-size: 13px;
+      margin-top: 4px;
+    }
+    .rekomendacje-card .rekomendacje-reviewer {
+      flex-shrink: 0;
+      margin-top: auto;
+      padding-top: 10px;
+      border-top: 1px solid #3a2a10;
+    }
+    .rekomendacje-card .rekomendacje-avatar {
+      width: 30px;
+      height: 30px;
+      font-size: 11px;
+    }
+    .rekomendacje-card .rekomendacje-name,
+    .rekomendacje-card .rekomendacje-meta {
+      font-size: 12px;
+    }
+  }
+  @media (max-width: 480px) {
+    .rekomendacje-mobile-next {
+      width: 44px;
+      height: 44px;
+      min-width: 44px;
+      min-height: 44px;
+      font-size: 22px;
+    }
+    .rekomendacje-section {
+      padding: 40px 8px 36px;
+    }
+    .rekomendacje-carousel-viewport {
+      height: 480px;
+    }
+    .rekomendacje-card {
+      height: 230px;
+      min-height: 230px;
+    }
+    .rekomendacje-card.expanded {
+      min-height: 230px;
+    }
+    .rekomendacje-card .rekomendacje-text {
+      -webkit-line-clamp: 5;
+    }
+  }
+</style>
+
+<div class="rekomendacje-wrap">
+  <div class="rekomendacje-sep">
+    <div class="rekomendacje-sep-icon">
+      <div class="rekomendacje-dot"></div>
+      <div class="rekomendacje-dot"></div>
+      <div class="rekomendacje-dot"></div>
+    </div>
+  </div>
+
+  <div class="rekomendacje-section rekomendacje-body">
+    <div class="rekomendacje-heading">
+      <p class="rekomendacje-eyebrow">Opinie klientów</p>
+      <h2 class="rekomendacje-title">Co Mówią o mnie moi klienci?</h2>
+      <div class="rekomendacje-underline"></div>
+    </div>
+
+    <div class="rekomendacje-rating">
+      <div class="rekomendacje-rating-num">5.0</div>
+      <div class="rekomendacje-rating-detail">
+        <div class="rekomendacje-stars inline">
+          <span class="rekomendacje-star">&#9733;</span>
+          <span class="rekomendacje-star">&#9733;</span>
+          <span class="rekomendacje-star">&#9733;</span>
+          <span class="rekomendacje-star">&#9733;</span>
+          <span class="rekomendacje-star">&#9733;</span>
+        </div>
+        <div class="rekomendacje-rating-total">29 opinii · Wesele z klasą</div>
+      </div>
+    </div>
+
+    <div class="rekomendacje-carousel-wrap">
+      <button type="button" class="rekomendacje-arrow rekomendacje-prev" aria-label="Poprzednie opinie"><span class="rekomendacje-arrow-icon">‹</span></button>
+      <div class="rekomendacje-carousel-viewport" id="rekomendacje-viewport">
+        <div class="rekomendacje-carousel-track">
+      <div class="rekomendacje-card">
+        <span class="rekomendacje-google-badge">Wesele z klasą</span>
+        <span class="rekomendacje-quote">&ldquo;</span>
+        <div class="rekomendacje-text-wrap">
+          <p class="rekomendacje-text">Rewelacyjny DJ i świetna muzyka! Parkiet był pełny przez cały czas, a utwory idealnie dopasowane do klimatu imprezy. Profesjonalizm, świetne wyczucie gości i niesamowita energia. Zdecydowanie polecam każdemu, kto chce mieć gwarancję udanej imprezy!</p>
+          <button type="button" class="rekomendacje-read-more">Czytaj dalej</button>
+        </div>
+        <div class="rekomendacje-reviewer">
+          <div class="rekomendacje-avatar">D</div>
+          <div>
+            <p class="rekomendacje-name">Dominika</p>
+            <p class="rekomendacje-meta">Wesele z klasą · Przygodzice</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="rekomendacje-card">
+        <span class="rekomendacje-google-badge">Wesele z klasą</span>
+        <span class="rekomendacje-quote">&ldquo;</span>
+        <div class="rekomendacje-text-wrap">
+          <p class="rekomendacje-text">Jeśli ktoś szuka DJ-a, który nie tylko zna się na muzyce, ale też potrafi rozkręcić imprezę tak, że nawet wujek który nie lubi tańczyć przebalował całą noc – to właśnie znaleźliście! DJ Damian poprowadził nasze wesele absolutnie genialnie – słuchał naszych próśb, wyczuł klimat gości i sprawił, że parkiet był pełny do samego rana. Każdy utwór trafiony w punkt, zero nudy. Dziękujemy za cudowną atmosferę, świetną zabawę i ogromną dawkę pozytywnej energii! Gdybyśmy mogli, to bralibyśmy ślub jeszcze raz – byle z tym samym DJ-em!</p>
+          <button type="button" class="rekomendacje-read-more">Czytaj dalej</button>
+        </div>
+        <div class="rekomendacje-reviewer">
+          <div class="rekomendacje-avatar">N</div>
+          <div>
+            <p class="rekomendacje-name">Natalia</p>
+            <p class="rekomendacje-meta">Wesele z klasą · Kalisz</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="rekomendacje-card">
+        <span class="rekomendacje-google-badge">Wesele z klasą</span>
+        <span class="rekomendacje-quote">&ldquo;</span>
+        <div class="rekomendacje-text-wrap">
+          <p class="rekomendacje-text">Świetne Wesele to TYLKO z Damianem – moje własne Wesele. Nie mieliśmy żadnego problemu w trakcie przygotowań – plan, szczegóły zabaw, dobór muzyki, zwłaszcza cudowne mixowanie w trakcie całej zabawy. Jak się dogadaliśmy, tak wszystko zostało spełnione. Widać że Damian pracuje z prawdziwą pasją i zaangażowaniem. Dla nas był to idealny wybór – jeśli tylko będziemy mieć okazję wybrać jeszcze raz, to nie ma się nad czym zastanawiać. Porównanie ceny do jakości? Jakość przewyższa wszelkie granice – jest idealnie!</p>
+          <button type="button" class="rekomendacje-read-more">Czytaj dalej</button>
+        </div>
+        <div class="rekomendacje-reviewer">
+          <div class="rekomendacje-avatar">FK</div>
+          <div>
+            <p class="rekomendacje-name">Filip K.</p>
+            <p class="rekomendacje-meta">Wesele z klasą · Szczecinek</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="rekomendacje-card">
+        <span class="rekomendacje-google-badge">Wesele z klasą</span>
+        <span class="rekomendacje-quote">&ldquo;</span>
+        <div class="rekomendacje-text-wrap">
+          <p class="rekomendacje-text">Damian stworzył niesamowitą atmosferę na naszym weselu, mimo iż było małe – każdy z gości przez całą imprezę chwalił muzykę, zaangażowanie, konkursy, zabawy. Dzięki Damianowi zamiast się stresować mogłam naprawdę bawić się na swoim weselu! Polecam z całego serca!</p>
+          <button type="button" class="rekomendacje-read-more">Czytaj dalej</button>
+        </div>
+        <div class="rekomendacje-reviewer">
+          <div class="rekomendacje-avatar">K</div>
+          <div>
+            <p class="rekomendacje-name">Klaudia</p>
+            <p class="rekomendacje-meta">Wesele z klasą · Kaczory</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="rekomendacje-card">
+        <span class="rekomendacje-google-badge">Wesele z klasą</span>
+        <span class="rekomendacje-quote">&ldquo;</span>
+        <div class="rekomendacje-text-wrap">
+          <p class="rekomendacje-text">Super wodzirej i DJ weselny w jednej osobie – Damian sprawił, że nasza impreza była naprawdę niezapomniana! Zalet było mnóstwo: świetnie poprowadzone zabawy, idealnie dobrana muzyka na każdą część wieczoru, profesjonalne podejście i ciepły kontakt z gośćmi. Widać, że kocha to, co robi – ta pasja udzielała się wszystkim na parkiecie. Jesteśmy ogromnie zadowoleni, że wybraliśmy właśnie jego ofertę. Polecamy każdemu, kto szuka DJ-a z duszą!</p>
+          <button type="button" class="rekomendacje-read-more">Czytaj dalej</button>
+        </div>
+        <div class="rekomendacje-reviewer">
+          <div class="rekomendacje-avatar">K</div>
+          <div>
+            <p class="rekomendacje-name">Konrad</p>
+            <p class="rekomendacje-meta">Wesele z klasą · Szczyrk</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="rekomendacje-card">
+        <span class="rekomendacje-google-badge">Wesele z klasą</span>
+        <span class="rekomendacje-quote">&ldquo;</span>
+        <div class="rekomendacje-text-wrap">
+          <p class="rekomendacje-text">Bardzo polecamy! Damian świetnie prowadził nasze wesele, goście super się bawili. Muzyka dopasowana do tego, przy czym najchętniej bawili się goście. Świetne zabawy, które były super uzupełnieniem wesela. Oczywiście uzupełnieniem wszystkiego był polonez na rozpoczęcie wesela – który był strzałem w 10!</p>
+          <button type="button" class="rekomendacje-read-more">Czytaj dalej</button>
+        </div>
+        <div class="rekomendacje-reviewer">
+          <div class="rekomendacje-avatar">K</div>
+          <div>
+            <p class="rekomendacje-name">Kinga</p>
+            <p class="rekomendacje-meta">Wesele z klasą · Ostrów Wielkopolski</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="rekomendacje-card">
+        <span class="rekomendacje-google-badge">Wesele z klasą</span>
+        <span class="rekomendacje-quote">&ldquo;</span>
+        <div class="rekomendacje-text-wrap">
+          <p class="rekomendacje-text">Współpraca z Wodzirejem Damianem to gwarancja dobrze poprowadzonego wesela i wielu uśmiechów gości. Imprezja trzyma wysoki poziom aż do samego końca imprezy. Świetne wyczucie towarzystwa oraz naprawdę duży wybór zabaw – tych klasycznych i bardziej ambitnych. Wodzirej słucha preferencji, podpowiada i sugeruje rozwiązania. Jest również niezwykle pomocny na etapie przygotowań. Z całego serca polecamy Damiana Nowaczyka z ekipą!</p>
+          <button type="button" class="rekomendacje-read-more">Czytaj dalej</button>
+        </div>
+        <div class="rekomendacje-reviewer">
+          <div class="rekomendacje-avatar">D</div>
+          <div>
+            <p class="rekomendacje-name">Daria</p>
+            <p class="rekomendacje-meta">Wesele z klasą · Stargard</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="rekomendacje-card">
+        <span class="rekomendacje-google-badge">Wesele z klasą</span>
+        <span class="rekomendacje-quote">&ldquo;</span>
+        <div class="rekomendacje-text-wrap">
+          <p class="rekomendacje-text">Gorąco polecamy Pana Damiana! Pełne zaangażowanie w swoją pracę, potrafi zachęcić wszystkich do zabawy. Polecamy!</p>
+          <button type="button" class="rekomendacje-read-more">Czytaj dalej</button>
+        </div>
+        <div class="rekomendacje-reviewer">
+          <div class="rekomendacje-avatar">JŁ</div>
+          <div>
+            <p class="rekomendacje-name">Justyna i Łukasz</p>
+            <p class="rekomendacje-meta">Wesele z klasą · Stawiszyn</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="rekomendacje-card">
+        <span class="rekomendacje-google-badge">Wesele z klasą</span>
+        <span class="rekomendacje-quote">&ldquo;</span>
+        <div class="rekomendacje-text-wrap">
+          <p class="rekomendacje-text">Wybrałem Damiana na własne wesele i byłem mega zadowolony. Świetne animacje, gry i zabawy. Idealnie dobrana muzyka, profesjonalizm w każdej sytuacji. Gdybym brał ślub drugi raz – zgłosiłbym się do Damiana. Dzięki niemu moje wesele było magiczne i radosne tak jak sobie wymarzyłem.</p>
+          <button type="button" class="rekomendacje-read-more">Czytaj dalej</button>
+        </div>
+        <div class="rekomendacje-reviewer">
+          <div class="rekomendacje-avatar">DP</div>
+          <div>
+            <p class="rekomendacje-name">D. P.</p>
+            <p class="rekomendacje-meta">Wesele z klasą</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="rekomendacje-card">
+        <span class="rekomendacje-google-badge">Wesele z klasą</span>
+        <span class="rekomendacje-quote">&ldquo;</span>
+        <div class="rekomendacje-text-wrap">
+          <p class="rekomendacje-text">Samo otwarcie szabelką szampana już świetnie zapowiadało imprezę – a potem było tylko lepiej! Damian ma wyjątkowy dar do angażowania gości i tworzenia radosnej atmosfery. Kontakt z młodą parą i gośćmi na najwyższym poziomie – każdy czuł się mile widziany. Zalet oferty nie sposób wymienić w kilku zdaniach: profesjonalizm, kreatywne zabawy, idealna muzyka i prawdziwa radość z imprezowania. Żałuję, że noc jest taka krótka – najchętniej przetestowałbym wszystkie atrakcje. Cieszę się, że skorzystałem z tej oferty!</p>
+          <button type="button" class="rekomendacje-read-more">Czytaj dalej</button>
+        </div>
+        <div class="rekomendacje-reviewer">
+          <div class="rekomendacje-avatar">DP</div>
+          <div>
+            <p class="rekomendacje-name">D. P.</p>
+            <p class="rekomendacje-meta">Wesele z klasą</p>
+          </div>
+        </div>
+      </div>
+        </div>
+      </div>
+      <button type="button" class="rekomendacje-arrow rekomendacje-next" aria-label="Następne opinie"><span class="rekomendacje-arrow-icon">›</span></button>
+      <button type="button" class="rekomendacje-mobile-next" aria-label="Następne opinie"><span class="rekomendacje-arrow-icon">↓</span></button>
+    </div>
+
+    <div class="rekomendacje-cta">
+      <h3>Dołącz do zadowolonych klientów</h3>
+      <p>Wyślij zapytanie — bezpłatna wycena w ciągu 24 godzin, bez zobowiązań.</p>
+      <a href="https://imprezja.pl/imprezja-damian-nowaczyk-dj-i-wodzirej/#form" class="rekomendacje-cta-btn">Zapytaj o wycenę ↗</a>
+      <div class="rekomendacje-trust-row">
+        <span class="rekomendacje-trust-item">
+          <svg class="rekomendacje-trust-icon" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#4a2e00" stroke-width="1.5"/><path d="M5 8l2 2 4-4" stroke="#4a2e00" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Bezpłatna wycena
+        </span>
+        <span class="rekomendacje-trust-item">
+          <svg class="rekomendacje-trust-icon" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#4a2e00" stroke-width="1.5"/><path d="M5 8l2 2 4-4" stroke="#4a2e00" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Odpowiedź do 24h
+        </span>
+        <span class="rekomendacje-trust-item">
+          <svg class="rekomendacje-trust-icon" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#4a2e00" stroke-width="1.5"/><path d="M5 8l2 2 4-4" stroke="#4a2e00" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Bez zobowiązań
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="rekomendacje-sep">
+    <div class="rekomendacje-sep-icon">
+      <div class="rekomendacje-dot"></div>
+      <div class="rekomendacje-dot"></div>
+      <div class="rekomendacje-dot"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  function init(){
+    var vp=document.getElementById('rekomendacje-viewport');
+    if(!vp)return;
+    var wrap=vp.closest('.rekomendacje-carousel-wrap');
+    var track=vp.querySelector('.rekomendacje-carousel-track');
+    var prev=wrap?wrap.querySelector('.rekomendacje-prev'):null;
+    var next=wrap?wrap.querySelector('.rekomendacje-next'):null;
+    var mobileNext=wrap?wrap.querySelector('.rekomendacje-mobile-next'):null;
+    var mobilePage=0;
+    var desktopPage=0;
+    function isMobile(){return window.innerWidth<=768;}
+    function getMobilePageHeight(){
+      if(!track)return 520;
+      var cards=track.querySelectorAll('.rekomendacje-card');
+      if(cards.length<2)return 520;
+      var cardH=cards[0].offsetHeight;
+      if(!cardH)return window.innerWidth<=480?480:520;
+      return cardH*2+24;
+    }
+    function getMaxMobilePage(){
+      if(!track)return 0;
+      var cards=track.querySelectorAll('.rekomendacje-card');
+      return Math.max(0,Math.ceil(cards.length/2)-1);
+    }
+    function getMaxDesktopPage(){
+      if(!vp||!track)return 0;
+      var maxScroll=Math.max(0,track.offsetWidth-vp.offsetWidth);
+      return Math.floor(maxScroll/Math.max(1,vp.offsetWidth));
+    }
+    function scroll(d){
+      if(isMobile()){
+        if(!track)return;
+        var maxPage=getMaxMobilePage();
+        mobilePage=Math.max(0,Math.min(maxPage,mobilePage+d));
+        var pageH=getMobilePageHeight();
+        track.style.transform='translateY('+(-mobilePage*pageH)+'px)';
+        updateArrows();
+      }else{
+        if(!vp||!track)return;
+        var maxPage=getMaxDesktopPage();
+        desktopPage=Math.max(0,Math.min(maxPage,desktopPage+d));
+        track.style.transform='translateX('+(-desktopPage*vp.offsetWidth)+'px)';
+        updateArrows();
+      }
+    }
+    function updateArrows(){
+      if(isMobile()){
+        var maxPage=getMaxMobilePage();
+        if(mobileNext){mobileNext.disabled=mobilePage>=maxPage;}
+      }else{
+        var maxPage=getMaxDesktopPage();
+        if(prev){prev.disabled=desktopPage<=0;}
+        if(next){next.disabled=desktopPage>=maxPage;}
+      }
+    }
+    if(prev){prev.onclick=function(){scroll(-1);};}
+    if(next){next.onclick=function(){scroll(1);};}
+    if(mobileNext){mobileNext.onclick=function(){scroll(1);};}
+    window.addEventListener('resize',function(){
+      mobilePage=0;
+      desktopPage=0;
+      if(track){
+        if(isMobile()){
+          track.style.transform='translateY(0)';
+        }else{
+          track.style.transform='translateX(0)';
+        }
+      }
+      updateArrows();
+    });
+    updateArrows();
+  }
+  if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',init);}
+  else{init();}
+})();
+
+(function(){
+  document.querySelectorAll('.rekomendacje-card').forEach(function(card){
+    var text=card.querySelector('.rekomendacje-text');
+    var btn=card.querySelector('.rekomendacje-read-more');
+    if(!text||!btn)return;
+    function checkOverflow(){
+      if(card.classList.contains('expanded'))return;
+      var overflow=text.scrollHeight>text.clientHeight;
+      card.classList.toggle('has-more',overflow);
+    }
+    btn.onclick=function(){
+      card.classList.toggle('expanded');
+      btn.textContent=card.classList.contains('expanded')?'Zwiń':'Czytaj dalej';
+      if(card.classList.contains('expanded')){
+        setTimeout(function(){card.scrollIntoView({behavior:'smooth',block:'nearest'});},50);
+      }
+    };
+    checkOverflow();
+    window.addEventListener('resize',checkOverflow);
+  });
+})();
+</script>

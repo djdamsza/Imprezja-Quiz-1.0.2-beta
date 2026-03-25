@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Imprezator – Imprezja Quiz</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico"><link rel="icon" type="image/png" sizes="32x32" href="/img/icon-32.png"><link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/lib/audio-normalize.js"></script>
+    <style>
+        :root {
+            --bg: radial-gradient(circle at center, #1a1a2e, #000);
+            --glass: rgba(255,255,255,0.08);
+            --border: rgba(255,255,255,0.15);
+            --accent: #10b981;
+            --accent2: #3498db;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); min-height: 100vh; color: #fff; padding: 24px; }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 { color: var(--accent); margin-bottom: 24px; font-size: 1.8rem; }
+        .section { background: var(--glass); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; backdrop-filter: blur(10px); }
+        .section h2 { color: var(--accent2); font-size: 1.1rem; margin-bottom: 16px; }
+        .config-bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 20px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px; }
+        .config-bar select { padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: #fff; min-width: 140px; }
+        .btn { padding: 10px 18px; font-size: 0.95rem; font-weight: 600; border-radius: 8px; border: none; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-success { background: #2ecc71; color: #000; }
+        .btn-danger { background: #c0392b; color: #fff; }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        .back-link { display: inline-block; margin-bottom: 20px; color: var(--accent); text-decoration: none; font-weight: 600; }
+        .back-link:hover { text-decoration: underline; }
+        .intro-view { display: flex; flex-direction: column; align-items: center; padding: 20px 0; }
+        .intro-view.hidden { display: none !important; }
+        .editor-section { display: none; }
+        .editor-section.visible { display: block; }
+        .intro-btn-row { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; align-items: center; margin-top: 24px; }
+        .intro-btn { padding: 14px 24px; font-size: 1rem; font-weight: 600; border-radius: 10px; border: none; cursor: pointer; text-decoration: none; transition: all 0.2s; }
+        .intro-btn:hover { transform: scale(1.05); }
+        .intro-btn-editor { background: #3498db; color: #fff; }
+        .intro-btn-editor:hover { background: #2980b9; }
+        .intro-btn-start { background: #2ecc71; color: #000; }
+        .intro-btn-start:hover { background: #27ae60; color: #fff; }
+        .intro-btn-back { background: #f1c40f; color: #000; }
+        .intro-btn-stop { background: #e74c3c; color: #fff; }
+        .intro-btn-stop:hover { background: #c0392b; }
+        .intro-title { font-size: 1.8rem; color: var(--accent); margin-bottom: 8px; }
+        .editor-section .btn-zamknij { margin-bottom: 16px; background: #555; color: #fff; padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; }
+        .editor-section .btn-zamknij:hover { background: #666; }
+        .qr-box { display: none; text-align: center; padding: 12px; max-height: calc(100vh - 180px); overflow-y: auto; }
+        .qr-box.active { display: block; }
+        .qr-box img, .qr-img { width: clamp(140px, 14vw, 200px); height: clamp(140px, 14vw, 200px); object-fit: contain; background: #fff; padding: 8px; border-radius: 10px; margin: 8px 0; }
+        .qr-box p, .qr-url { color: rgba(255,255,255,0.8); margin: 6px 0; font-size: 0.8rem; }
+        .qr-choices { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; align-items: flex-start; max-width: 100%; }
+        .qr-choice-box { flex: 1 1 240px; min-width: 200px; max-width: 340px; text-align: center; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 12px; border: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; }
+        .qr-choice-label { font-weight: 700; color: var(--accent); margin-bottom: 4px; font-size: 0.95rem; }
+        .qr-choice-desc { font-size: 0.75rem; color: rgba(255,255,255,0.7); margin-bottom: 8px; line-height: 1.3; }
+        .track-list { display: flex; flex-direction: column; gap: 12px; }
+        .track-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 12px; background: rgba(0,0,0,0.3); border-radius: 8px; border: 1px solid var(--border); }
+        .track-row .display-name { flex: 1; min-width: 160px; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); background: rgba(0,0,0,0.4); color: #fff; font-size: 1rem; }
+        .track-row .audio-info { font-size: 0.8rem; color: rgba(255,255,255,0.6); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .track-row .audio-browser-wrap { width: 100%; flex-basis: 100%; }
+        .track-row .remove-btn { padding: 6px 10px; font-size: 0.85rem; background: #555; color: #fff; border: none; border-radius: 6px; cursor: pointer; }
+        .track-row .remove-btn:hover { background: #c0392b; }
+        .track-row .order-btn { padding: 6px 10px; font-size: 0.9rem; background: #444; color: #fff; border: none; border-radius: 6px; cursor: pointer; }
+        .track-row .order-btn:hover { background: var(--accent2); }
+        .track-row .order-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .track-row .preview-btn { padding: 6px 10px; font-size: 0.9rem; }
+        .audio-browser { max-height: 100px; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+        .audio-browser .audio-chip { padding: 6px 10px; font-size: 0.8rem; background: var(--accent2); border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+        .audio-browser .audio-chip:hover { background: #2980b9; }
+        .add-track-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 12px; }
+        .cofnij-btn {
+            position: fixed; bottom: 20px; left: 20px; z-index: 1000;
+            padding: 10px 20px; border-radius: 8px; border: none;
+            background: linear-gradient(135deg, #10b981, #059669); color: #fff;
+            font-size: 0.95rem; font-weight: 700; font-family: inherit;
+            text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.35); cursor: pointer;
+            transition: opacity 0.2s, transform 0.2s;
+        }
+        .cofnij-btn:hover { opacity: 0.95; transform: translateY(-1px); color: #fff; }
+        #save-as-wrap { display: none; align-items: center; gap: 8px; }
+        #save-as-wrap.visible { display: inline-flex; }
+        .current-title { font-size: 1.2rem; font-weight: 600; color: var(--accent); padding: 12px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 12px; min-height: 48px; }
+        .current-title.empty { color: rgba(255,255,255,0.5); }
+        #lte-start-btn { padding: 14px 24px; font-size: 1rem; background: #e74c3c !important; }
+        html.editor-first .intro-view { display: none !important; }
+        html.editor-first .editor-section { display: block !important; }
+    </style>
+    <script>
+        (function(){ if (/\beditor=1\b/.test(location.search)) document.documentElement.classList.add('editor-first'); })();
+    </script>
+</head>
+<body>
+    <div class="container">
+        <div class="intro-view" id="intro-view">
+            <div class="intro-title">🎵 Imprezator</div>
+            <p style="color: rgba(255,255,255,0.7); font-size: 0.95rem; margin-bottom: 16px;">Panel na telefonie: muzyka do tańca, regulacja głośności. Animator na parkiecie – odpal zdalnie, wyreguluj, poprowadź taniec.</p>
+            <div class="section qr-box active" id="qr-section">
+                <div id="qr-choices" class="qr-choices">
+                    <div id="qr-box-local" class="qr-choice-box">
+                        <div class="qr-choice-label">Wi‑Fi (sieć lokalna)</div>
+                        <p class="qr-choice-desc">Telefon i komputer w tej samej sieci. Narzędzie wielokrotnego użytku – po przerwie otwórz stronę ponownie.</p>
+                        <img id="qr-img-local" class="qr-img" src="" alt="QR lokalna">
+                        <p id="qr-url-local" class="qr-url" style="word-break: break-all; font-size: 0.85rem;"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="intro-btn-row">
+                <button type="button" class="intro-btn intro-btn-editor" id="btn-editor-intro">✏️ Edytor</button>
+                <button type="button" class="intro-btn intro-btn-start" id="btn-start-stop-intro">▶️ Start</button>
+                <a href="/start.html" class="intro-btn intro-btn-back">← Wróć</a>
+            </div>
+        </div>
+
+        <div class="section editor-section" id="editor-section">
+            <button type="button" class="btn-zamknij" id="btn-zamknij-editor">Zamknij</button>
+            <a href="/start.html" class="back-link">← Wróć do wyboru trybu</a>
+            <div class="config-bar" style="margin-top:12px;">
+                <label>Lista:</label>
+                <select id="config-select"><option value="domyslna">domyślna</option></select>
+                <button type="button" class="btn" id="config-new-btn" style="background:#2e7d32;">➕ NOWA</button>
+                <button type="button" class="btn btn-primary" id="config-load-btn">📂 Załaduj</button>
+                <button type="button" class="btn btn-primary" id="config-save-btn">💾 Zapisz</button>
+                <button type="button" class="btn" id="config-save-as-btn" style="background:#555;">Zapisz jako...</button>
+                <button type="button" class="btn" id="config-rename-btn" style="background:#444;">✏️ Edytuj nazwę</button>
+                <button type="button" class="btn btn-danger" id="config-delete-btn">🗑 Usuń</button>
+                <span id="save-as-wrap">
+                    <input type="text" id="save-as-name" placeholder="Nazwa listy">
+                    <button type="button" class="btn btn-primary" id="save-as-confirm">Zapisz</button>
+                    <button type="button" class="btn" id="save-as-cancel">Anuluj</button>
+                </span>
+            </div>
+            <h2>Utwory do tańca</h2>
+            <p style="color:rgba(255,255,255,0.7); font-size:0.9rem; margin-bottom:8px;">📁 Dodaj plik – wybór jednego z folderu. 📁 Dodaj folder – wszystkie utwory z folderu. Pliki pozostają na dysku – JSON zapisuje tylko odwołania.</p>
+            <p id="native-dialog-hint" style="display:none; color:#fbbf24; font-size:0.85rem; margin-bottom:8px; padding:10px; background:rgba(251,191,36,0.15); border-radius:8px;">⚠️ W przeglądarce okno się pojawi, ale ścieżki nie zostaną zapisane. Dla pełnej funkcjonalności uruchom <code>npm run electron</code> i otwórz Imprezator z ekranu startowego.</p>
+            <p style="color:rgba(255,255,255,0.5); font-size:0.8rem; margin-bottom:12px;">⚠️ Usuwanie usuwa tylko rekord z listy, nie usuwa plików z dysku.</p>
+            <div class="track-list" id="track-list"></div>
+            <div class="add-track-row">
+                <button type="button" class="btn btn-success" id="add-file-btn">📁 Dodaj plik</button>
+                <button type="button" class="btn" id="add-folder-btn" style="background:#0ea5e9; color:#fff;">📁 Dodaj folder</button>
+            </div>
+            <div class="actions" style="margin-top:20px;">
+                <button type="button" class="btn btn-success" id="start-btn">▶️ Włącz Imprezator</button>
+            </div>
+        </div>
+
+        <div class="section qr-box" id="active-section" style="display:none;">
+            <div class="current-title empty" id="current-title">—</div>
+            <p style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">Aktualnie odtwarzany utwór (ten sam tytuł na admin i telefonie). Zgaszenie ekranu telefonu nie przerywa muzyki.</p>
+        </div>
+
+        <button type="button" class="cofnij-btn back-to-start" title="Wróć do wyboru trybu">← Cofnij</button>
+    </div>
+
+    <audio id="imprezator-audio" style="display:none;"></audio>
+    <audio id="preview-audio" style="display:none;"></audio>
+
+    <script>
+        if (location.protocol === 'file:') {
+            document.body.innerHTML = '<div class="container" style="padding:40px;text-align:center;"><h1>⚠️ Otwórz przez serwer</h1><p><a href="http://127.0.0.1:3000/imprezator.html" style="color:#10b981;">http://127.0.0.1:3000/imprezator.html</a></p></div>';
+        } else if (!new URLSearchParams(location.search).get('editor')) {
+            location.replace(location.pathname + '?editor=1' + (location.hash || ''));
+        } else {
+        const socket = io();
+        document.querySelectorAll('.back-to-start').forEach(el => {
+            el.addEventListener('click', () => {
+                if (window.self !== window.top) {
+                    window.parent.postMessage({ type: 'impreja-embed-minimize' }, '*');
+                } else {
+                    window.location.href = '/start.html';
+                }
+            });
+        });
+        let config = { banks: [] };
+        let currentConfigName = 'domyslna';
+        let currentBankIndex = 0;
+        function ensureBanks() {
+            if (!config.banks || !config.banks.length) {
+                const oldTracks = config.tracks || [];
+                config.banks = [{ id: 'b1', name: 'Lista', tracks: Array.isArray(oldTracks) ? oldTracks : [] }];
+                delete config.tracks;
+            }
+        }
+        function getCurrentBank() { ensureBanks(); return config.banks[currentBankIndex] || config.banks[0]; }
+        function getCurrentTracks() { const b = getCurrentBank(); return b ? (b.tracks || []) : []; }
+
+        function showIntroMode() {
+            document.getElementById('intro-view').classList.remove('hidden');
+            document.getElementById('editor-section').classList.remove('visible');
+            document.getElementById('editor-section').classList.add('hidden');
+            document.getElementById('active-section').style.display = 'none';
+            updateIntroButtonsForActive(false);
+        }
+        function updateIntroButtonsForActive(active) {
+            const btn = document.getElementById('btn-start-stop-intro');
+            if (!btn) return;
+            btn.textContent = active ? '⏹️ Stop' : '▶️ Start';
+            btn.className = 'intro-btn ' + (active ? 'intro-btn-stop' : 'intro-btn-start');
+            btn.style.display = '';
+        }
+        function showEditorMode() {
+            document.getElementById('intro-view').classList.add('hidden');
+            document.getElementById('editor-section').classList.remove('hidden');
+            document.getElementById('editor-section').classList.add('visible');
+        }
+        function showQRMode() {
+            document.getElementById('intro-view').classList.remove('hidden');
+            document.getElementById('editor-section').classList.remove('visible');
+            document.getElementById('editor-section').classList.add('hidden');
+            document.getElementById('active-section').style.display = 'block';
+            updateIntroButtonsForActive(true);
+        }
+
+        async function loadQRData() {
+            try {
+                const r = await fetch('/api/imprezator/phone-qr?mode=local');
+                const d = await r.json();
+                if (d.qrCode) document.getElementById('qr-img-local').src = d.qrCode;
+                if (d.url) document.getElementById('qr-url-local').textContent = d.url;
+            } catch (e) { console.warn('QR:', e); }
+        }
+
+        const fromEditor = new URLSearchParams(location.search).get('editor');
+        socket.emit('imprezator_join_screen');
+        socket.on('imprezator_state', (s) => {
+            updateIntroButtonsForActive(!!s.active);
+            if (s.active) { loadQRData(); showQRMode(); document.getElementById('active-section').style.display = 'block'; }
+            else { (fromEditor ? showEditorMode : showIntroMode)(); document.getElementById('active-section').style.display = 'none'; }
+        });
+        let imprezatorCurrentTrackId = null;
+        let imprezatorCurrentTrackGain = 1;
+        let imprezatorGainNode = null;
+
+        function ensureImprezatorAudioGraph() {
+            return null; // Web Audio API powoduje brak dźwięku w buildzie Electron – używamy HTMLAudioElement.volume
+        }
+
+        function fadeOutAndStop(audioEl, ms, onDone) {
+            if (!audioEl || audioEl.paused) {
+                if (typeof onDone === 'function') onDone();
+                return;
+            }
+            if (audioEl._fadeIntervalId) clearInterval(audioEl._fadeIntervalId);
+            const startVol = audioEl.volume;
+            const start = Date.now();
+            const step = () => {
+                const elapsed = Date.now() - start;
+                const t = Math.min(1, elapsed / ms);
+                audioEl.volume = startVol * (1 - t);
+                if (t >= 1) {
+                    clearInterval(audioEl._fadeIntervalId);
+                    audioEl._fadeIntervalId = null;
+                    audioEl.pause();
+                    if (typeof onDone === 'function') onDone();
+                }
+            };
+            audioEl._fadeIntervalId = setInterval(step, 50);
+        }
+
+        socket.on('imprezator_play', async (payload) => {
+            const data = typeof payload === 'object' ? payload : { url: payload, volume: 1, trackId: null, displayName: '' };
+            const a = document.getElementById('imprezator-audio');
+            if (!a) return;
+            ensureImprezatorAudioGraph();
+            imprezatorCurrentTrackId = data.trackId || null;
+            const titleEl = document.getElementById('current-title');
+            if (titleEl) {
+                titleEl.textContent = data.displayName || '—';
+                titleEl.classList.remove('empty');
+            }
+            let gain = typeof data.normalizedGain === 'number' ? data.normalizedGain : 1;
+            if (gain === 1 && typeof window.AudioNormalize !== 'undefined' && data.url && (data.url.startsWith('/') || data.url.includes(window.location.host))) {
+                gain = await window.AudioNormalize.getNormalizedGainForUrl(data.url);
+            }
+            imprezatorCurrentTrackGain = gain;
+            const vol = Math.min(1, (data.volume ?? 1) * gain);
+            if (a._fadeIntervalId) { clearInterval(a._fadeIntervalId); a._fadeIntervalId = null; }
+            a.src = data.url;
+            if (imprezatorGainNode) imprezatorGainNode.gain.value = vol;
+            else a.volume = vol;
+            a.onended = () => {
+                if (imprezatorCurrentTrackId) socket.emit('imprezator_ended', { trackId: imprezatorCurrentTrackId });
+                imprezatorCurrentTrackId = null;
+                imprezatorCurrentTrackGain = 1;
+                if (titleEl) { titleEl.textContent = '—'; titleEl.classList.add('empty'); }
+            };
+            a.play().catch(e => console.warn('Audio:', e));
+        });
+        function doImprezatorStop() {
+            const a = document.getElementById('imprezator-audio');
+            const trackId = imprezatorCurrentTrackId;
+            if (!a || a.paused) {
+                if (trackId) socket.emit('imprezator_ended', { trackId });
+                imprezatorCurrentTrackId = null;
+                imprezatorCurrentTrackGain = 1;
+                const titleEl = document.getElementById('current-title');
+                if (titleEl) { titleEl.textContent = '—'; titleEl.classList.add('empty'); }
+                return;
+            }
+            imprezatorCurrentTrackId = null;
+            imprezatorCurrentTrackGain = 1;
+            const titleEl = document.getElementById('current-title');
+            if (titleEl) { titleEl.textContent = '—'; titleEl.classList.add('empty'); }
+            fadeOutAndStop(a, 500, () => {
+                if (trackId) socket.emit('imprezator_ended', { trackId });
+            });
+        }
+        socket.on('imprezator_stop', doImprezatorStop);
+        socket.on('admin_stop_music', doImprezatorStop);
+        socket.on('imprezator_volume', (v) => {
+            const vol = Math.min(1, Math.max(0, v) * imprezatorCurrentTrackGain);
+            if (imprezatorGainNode) imprezatorGainNode.gain.value = vol;
+            else {
+                const a = document.getElementById('imprezator-audio');
+                if (a) a.volume = vol;
+            }
+        });
+
+        async function loadConfigList() {
+            try {
+                const r = await fetch('/api/imprezator/configs');
+                const d = await r.json();
+                const sel = document.getElementById('config-select');
+                const configs = (d.configs && d.configs.length) ? d.configs : ['domyslna'];
+                sel.innerHTML = configs.map(c => `<option value="${c}" ${c === (d.current||'domyslna') ? 'selected' : ''}>${c}</option>`).join('');
+                currentConfigName = d.current || 'domyslna';
+            } catch (e) { console.warn('Load config list:', e); }
+        }
+
+        async function loadConfigByName(name) {
+            try {
+                const r = await fetch('/api/imprezator/config' + (name ? '?name=' + encodeURIComponent(name) : ''));
+                const d = await r.json();
+                config = d.config || {};
+                ensureBanks();
+                currentConfigName = name || 'domyslna';
+                renderTracks();
+            } catch (e) { console.warn('Load config:', e); }
+        }
+
+        async function loadConfig() {
+            await loadConfigList();
+            await loadConfigByName(currentConfigName);
+        }
+
+        function newConfig() {
+            const hasContent = (config.banks && config.banks.some(b => (b.tracks || []).length > 0)) || (config.tracks && config.tracks.length);
+            if (hasContent && !confirm('Utworzyć nową pustą listę? Niezapisane zmiany zostaną utracone.')) return;
+            config = { banks: [{ id: uid(), name: 'Lista', tracks: [] }] };
+            currentBankIndex = 0;
+            currentConfigName = 'nowy';
+            const sel = document.getElementById('config-select');
+            if (sel && !sel.querySelector('option[value="nowy"]')) {
+                const opt = document.createElement('option');
+                opt.value = 'nowy';
+                opt.textContent = 'nowy';
+                sel.insertBefore(opt, sel.firstChild);
+            }
+            if (sel) sel.value = 'nowy';
+            renderTracks();
+        }
+
+        async function saveConfig() {
+            if (currentConfigName === 'nowy') { showSaveAs(); return; }
+            try {
+                await fetch('/api/imprezator/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ config, name: currentConfigName })
+                });
+                alert('Zapisano.');
+                await loadConfigList();
+            } catch (e) { alert('Błąd: ' + e.message); }
+        }
+
+        function showSaveAs() {
+            document.getElementById('save-as-wrap').classList.add('visible');
+            document.getElementById('save-as-name').value = currentConfigName === 'nowy' ? 'moja_lista' : currentConfigName + '_kopia';
+            document.getElementById('save-as-name').focus();
+        }
+        function hideSaveAs() {
+            document.getElementById('save-as-wrap').classList.remove('visible');
+        }
+
+        async function saveConfigAs() {
+            const name = document.getElementById('save-as-name').value.trim().replace(/[^a-zA-Z0-9_\-\sąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/g, '').replace(/\s+/g, '_') || 'lista';
+            if (!name) { alert('Podaj nazwę.'); return; }
+            try {
+                await fetch('/api/imprezator/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ config, name })
+                });
+                hideSaveAs();
+                await loadConfigList();
+                document.getElementById('config-select').value = name;
+                currentConfigName = name;
+                alert('Zapisano jako: ' + name);
+            } catch (e) { alert('Błąd: ' + e.message); }
+        }
+
+        async function renameConfig() {
+            const newName = prompt('Nowa nazwa listy:', currentConfigName);
+            if (!newName || !newName.trim()) return;
+            const trimmed = newName.trim().replace(/[^a-zA-Z0-9_\-\sąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/g, '').replace(/\s+/g, '_') || 'lista';
+            if (trimmed === currentConfigName) return;
+            try {
+                const r = await fetch('/api/imprezator/config', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ oldName: currentConfigName, newName: trimmed, config })
+                });
+                if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.error || 'Błąd'); return; }
+                await loadConfigList();
+                currentConfigName = trimmed;
+                alert('Zmieniono nazwę na: ' + trimmed);
+            } catch (e) { alert('Błąd: ' + e.message); }
+        }
+
+        async function deleteConfig() {
+            if (currentConfigName === 'domyslna') { alert('Nie można usunąć listy domyślnej.'); return; }
+            if (!confirm('Usunąć listę „' + currentConfigName + '”?')) return;
+            try {
+                const r = await fetch('/api/imprezator/config?name=' + encodeURIComponent(currentConfigName), { method: 'DELETE' });
+                if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.error || 'Błąd'); return; }
+                currentConfigName = 'domyslna';
+                await loadConfigList();
+                await loadConfigByName('domyslna');
+                alert('Usunięto.');
+            } catch (e) { alert('Błąd: ' + e.message); }
+        }
+
+        function uid() {
+            return 't' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+        }
+
+        function showFilePickerModal(files, title) {
+            return new Promise((resolve) => {
+                const overlay = document.createElement('div');
+                overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;flex-direction:column;align-items:center;padding:24px;overflow:auto;';
+                const box = document.createElement('div');
+                box.style.cssText = 'background:var(--glass);border:1px solid var(--border);border-radius:12px;padding:20px;max-width:500px;width:100%;max-height:70vh;overflow:auto;';
+                box.innerHTML = `<h3 style="margin-bottom:12px;">${title}</h3><input type="text" id="picker-search" placeholder="Szukaj..." style="width:100%;padding:8px;margin-bottom:12px;border-radius:6px;border:1px solid var(--border);background:rgba(0,0,0,0.4);color:#fff;"><div id="picker-files" style="display:flex;flex-wrap:wrap;gap:8px;"></div><button type="button" class="btn" style="margin-top:12px;" id="picker-cancel">Anuluj</button>`;
+                overlay.appendChild(box);
+                document.body.appendChild(overlay);
+                function render(list) {
+                    const div = box.querySelector('#picker-files');
+                    div.innerHTML = list.map(f => `<span class="audio-chip" data-path="${(f.path||'').replace(/"/g,'&quot;')}" data-name="${(f.name||'').replace(/"/g,'&quot;')}" style="cursor:pointer;">${(f.name||'').replace(/</g,'&lt;')}</span>`).join('');
+                    div.querySelectorAll('.audio-chip').forEach(chip => {
+                        chip.addEventListener('click', () => {
+                            document.body.removeChild(overlay);
+                            resolve({ path: chip.dataset.path, name: chip.dataset.name });
+                        });
+                    });
+                }
+                render(files);
+                box.querySelector('#picker-search').addEventListener('input', (e) => {
+                    const q = (e.target.value || '').toLowerCase();
+                    render(q ? files.filter(f => (f.name||'').toLowerCase().includes(q) || (f.path||'').toLowerCase().includes(q)) : files);
+                });
+                overlay.addEventListener('click', (e) => { if (e.target === overlay) { document.body.removeChild(overlay); resolve(null); } });
+                box.querySelector('#picker-cancel').addEventListener('click', () => { document.body.removeChild(overlay); resolve(null); });
+            });
+        }
+
+        function removeTrack(id) {
+            const bank = getCurrentBank();
+            if (bank.tracks) bank.tracks = bank.tracks.filter(t => t.id !== id);
+            renderTracks();
+        }
+
+        function moveTrack(id, direction) {
+            const bank = getCurrentBank();
+            const tracks = bank.tracks || [];
+            const idx = tracks.findIndex(t => t.id === id);
+            if (idx < 0) return;
+            const newIdx = direction === 'up' ? idx - 1 : idx + 1;
+            if (newIdx < 0 || newIdx >= tracks.length) return;
+            [tracks[idx], tracks[newIdx]] = [tracks[newIdx], tracks[idx]];
+            renderTracks();
+        }
+
+        function updateTrack(id, key, val) {
+            const t = getCurrentTracks().find(x => x.id === id);
+            if (t) t[key] = val;
+        }
+
+        let currentPreviewTrackId = null;
+
+        function syncPreviewIcons() {
+            document.querySelectorAll('.preview-btn').forEach(btn => {
+                btn.textContent = btn.dataset.track === currentPreviewTrackId ? '⏸' : '▶';
+            });
+        }
+
+        const _previewAudio = document.getElementById('preview-audio');
+        if (_previewAudio) {
+            // Ikona resetuje się gdy utwór dobiegnie końca lub zostanie przerwany przez użytkownika.
+            // Nie reagujemy na event 'pause' bo a.load() też go wywołuje (fałszywy sygnał).
+            _previewAudio.addEventListener('ended', () => { currentPreviewTrackId = null; syncPreviewIcons(); });
+        }
+
+        function renderTracks() {
+            const list = document.getElementById('track-list');
+            const tracks = getCurrentTracks();
+            list.innerHTML = tracks.map((t, i) => {
+                const fileName = t.audio ? t.audio.replace(/^.*[/\\]/, '') : '—';
+                const displayVal = (t.displayName || '').replace(/"/g, '&quot;');
+                return `
+                    <div class="track-row" data-id="${t.id}">
+                        <button type="button" class="order-btn" data-track="${t.id}" data-dir="up" title="Przesuń w górę" ${i === 0 ? 'disabled' : ''}>↑</button>
+                        <button type="button" class="order-btn" data-track="${t.id}" data-dir="down" title="Przesuń w dół" ${i === tracks.length - 1 ? 'disabled' : ''}>↓</button>
+                        <input type="text" class="display-name" placeholder="Nazwa wyświetlana" value="${displayVal}" data-track="${t.id}" data-field="displayName">
+                        <span class="audio-info" title="${(t.audio||'').replace(/"/g,'&quot;')}">${fileName.replace(/</g,'&lt;')}</span>
+                        <button type="button" class="btn preview-btn" data-track="${t.id}" title="Odsłuchaj">▶</button>
+                        <button type="button" class="remove-btn" data-track="${t.id}">✕</button>
+                    </div>
+                `;
+            }).join('');
+
+            list.querySelectorAll('.display-name').forEach(inp => {
+                inp.addEventListener('input', (e) => updateTrack(e.target.dataset.track, 'displayName', e.target.value));
+            });
+            list.querySelectorAll('.remove-btn').forEach(btn => {
+                btn.addEventListener('click', () => removeTrack(btn.dataset.track));
+            });
+            list.querySelectorAll('.order-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    if (!btn.disabled) moveTrack(btn.dataset.track, btn.dataset.dir);
+                });
+            });
+            list.querySelectorAll('.preview-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const t = getCurrentTracks().find(x => x.id === btn.dataset.track);
+                    if (!t || !t.audio) { alert('Przypisz plik audio.'); return; }
+                    const a = document.getElementById('preview-audio');
+                    if (!a) return;
+                    let url;
+                    if (t.audio.startsWith('http')) url = t.audio;
+                    else url = location.origin + '/api/imprezator/stream?path=' + encodeURIComponent(t.audio);
+                    if (currentPreviewTrackId === t.id && !a.paused) {
+                        a.pause();
+                        currentPreviewTrackId = null;
+                        syncPreviewIcons();
+                        return;
+                    }
+                    currentPreviewTrackId = t.id;
+                    syncPreviewIcons();
+                    a.src = url;
+                    a.volume = 1;
+                    a.load();
+                    a.play().catch(err => { alert('Nie można odtworzyć: ' + (err.message || err)); currentPreviewTrackId = null; syncPreviewIcons(); });
+                });
+            });
+            // Przywróć aktualną ikonę po przebudowie listy (np. sortowanie)
+            syncPreviewIcons();
+        }
+
+        async function startImprezator() {
+            ensureBanks();
+            const hasTracks = config.banks.some(b => (b.tracks || []).length > 0);
+            if (!hasTracks) {
+                alert('Dodaj co najmniej jeden utwór (Dodaj plik lub Dodaj folder).');
+                return;
+            }
+            try {
+                await fetch('/api/imprezator/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ config, name: currentConfigName })
+                });
+                await fetch('/api/imprezator/start', { method: 'POST' });
+                showQRMode();
+                loadQRData();
+                document.getElementById('active-section').style.display = 'block';
+            } catch (e) { alert('Błąd: ' + e.message); }
+        }
+
+        async function stopImprezator() {
+            await fetch('/api/imprezator/stop', { method: 'POST' });
+            (fromEditor ? showEditorMode : showIntroMode)();
+        }
+
+        document.getElementById('config-select').addEventListener('change', (e) => loadConfigByName(e.target.value));
+        document.getElementById('config-new-btn').addEventListener('click', newConfig);
+        document.getElementById('config-load-btn').addEventListener('click', () => loadConfigByName(document.getElementById('config-select').value));
+        document.getElementById('config-save-btn').addEventListener('click', saveConfig);
+        document.getElementById('config-save-as-btn').addEventListener('click', showSaveAs);
+        document.getElementById('save-as-confirm').addEventListener('click', saveConfigAs);
+        document.getElementById('save-as-cancel').addEventListener('click', hideSaveAs);
+        document.getElementById('config-rename-btn').addEventListener('click', renameConfig);
+        document.getElementById('config-delete-btn').addEventListener('click', deleteConfig);
+        async function nativeOpenFile() {
+            if (window.imprezatorNative?.showOpenFile) return window.imprezatorNative.showOpenFile();
+            try {
+                const r = await fetch('/api/imprezator/native-open-file', { method: 'POST' });
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                const d = await r.json();
+                if (d.error) throw new Error(d.error);
+                return d.filePath || null;
+            } catch (e) {
+                alert('Nie można otworzyć dialogu pliku:\n' + e.message + '\n\nUpewnij się, że aplikacja działa jako Electron.');
+                return null;
+            }
+        }
+        async function nativeOpenDirectory() {
+            if (window.imprezatorNative?.showOpenDirectory) return window.imprezatorNative.showOpenDirectory();
+            try {
+                const r = await fetch('/api/imprezator/native-open-directory', { method: 'POST' });
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                const d = await r.json();
+                if (d.error) throw new Error(d.error);
+                return d.dirPath || null;
+            } catch (e) {
+                alert('Nie można otworzyć dialogu folderu:\n' + e.message + '\n\nUpewnij się, że aplikacja działa jako Electron.');
+                return null;
+            }
+        }
+        document.getElementById('add-file-btn').addEventListener('click', async () => {
+            const btn = document.getElementById('add-file-btn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Otwieranie...';
+            try {
+                const filePath = await nativeOpenFile();
+                if (filePath) {
+                    const bank = getCurrentBank();
+                    if (!bank.tracks) bank.tracks = [];
+                    const name = filePath.replace(/^.*[/\\]/, '').replace(/\.[^.]+$/, '');
+                    bank.tracks.push({ id: uid(), audio: filePath, displayName: name });
+                    renderTracks();
+                }
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '+ Dodaj plik';
+            }
+        });
+        document.getElementById('add-folder-btn').addEventListener('click', async () => {
+            const btn = document.getElementById('add-folder-btn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Otwieranie...';
+            let folderPath;
+            try {
+                folderPath = await nativeOpenDirectory();
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '+ Dodaj folder';
+            }
+            if (!folderPath) return;
+            fetch('/api/imprezator/audio-files?folder=' + encodeURIComponent(folderPath))
+                .then(r => r.ok ? r.json() : Promise.reject(new Error(r.statusText)))
+                .then(d => {
+                    const files = (d.files || []).slice(0, 300);
+                    if (!files.length) { alert('Brak plików audio w tym folderze.'); return; }
+                    const bank = getCurrentBank();
+                    if (!bank.tracks) bank.tracks = [];
+                    for (const f of files) {
+                        bank.tracks.push({ id: uid(), audio: f.path, displayName: (f.name || '').replace(/\.[^.]+$/, '') });
+                    }
+                    renderTracks();
+                    alert('Dodano ' + files.length + ' utworów.');
+                })
+                .catch(e => alert('Błąd: ' + (e.message || e)));
+        });
+        document.getElementById('start-btn').addEventListener('click', startImprezator);
+        document.getElementById('btn-editor-intro').addEventListener('click', showEditorMode);
+        document.getElementById('btn-start-stop-intro').addEventListener('click', () => {
+            const btn = document.getElementById('btn-start-stop-intro');
+            if (btn && btn.classList.contains('intro-btn-stop')) stopImprezator();
+            else startImprezator();
+        });
+        document.getElementById('btn-zamknij-editor').addEventListener('click', () => { window.location.href = '/start.html'; });
+
+        (function updateNativeDialogHint() {
+            const hint = document.getElementById('native-dialog-hint');
+            if (hint && !window.imprezatorNative?.showOpenFile) hint.style.display = 'block';
+        })();
+        (async function init() {
+            await loadConfig();
+            await loadQRData();
+            (fromEditor ? showEditorMode : showIntroMode)();
+        })();
+        }
+    </script>
+</body>
+</html>

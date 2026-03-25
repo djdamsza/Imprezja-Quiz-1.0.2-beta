@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Imprezator – Panel</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico"><link rel="icon" type="image/png" sizes="32x32" href="/img/icon-32.png"><link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        html { width: 100%; height: 100%; -webkit-text-size-adjust: 100%; overflow-x: hidden; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0d0d14;
+            min-height: 100vh;
+            min-height: 100dvh;
+            color: #fff;
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+            padding-top: calc(52px + env(safe-area-inset-top));
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: 100vw;
+            overflow-x: hidden;
+        }
+        .volume-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            padding: 12px 16px;
+            padding-top: max(12px, env(safe-area-inset-top));
+            background: #0d0d14;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            flex-shrink: 0;
+        }
+        .volume-bar input[type="range"] {
+            width: 100%;
+            height: 8px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: rgba(255,255,255,0.2);
+            border-radius: 4px;
+            outline: none;
+        }
+        .volume-bar input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 24px;
+            height: 24px;
+            background: #10b981;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .tracks-scroll {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-y;
+            padding: 16px;
+        }
+        .track-item {
+            padding: 20px 16px;
+            margin-bottom: 12px;
+            border-radius: 12px;
+            border: 2px solid rgba(255,255,255,0.15);
+            cursor: pointer;
+            transition: transform 0.1s;
+            font-size: 1.12rem;
+            font-weight: 600;
+            line-height: 1.3;
+            text-align: center;
+            background: rgba(255,255,255,0.05);
+        }
+        .track-item:active { transform: scale(0.98); }
+        .track-item.playing {
+            border-color: #10b981;
+            box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.5);
+            background: rgba(16, 185, 129, 0.15);
+        }
+        .track-item .track-icon { font-size: 1.2rem; margin-right: 8px; opacity: 0.9; }
+        .wait-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 60vh;
+            padding: 24px;
+            text-align: center;
+        }
+        .wait-screen p { color: rgba(255,255,255,0.7); margin-top: 12px; }
+        .fullscreen-btn {
+            position: fixed; bottom: max(16px, env(safe-area-inset-bottom)); right: max(16px, env(safe-area-inset-right));
+            width: 48px; height: 48px; border-radius: 50%;
+            background: rgba(16, 185, 129, 0.9); border: 2px solid rgba(255,255,255,0.3);
+            color: #fff; font-size: 1.3rem; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1000; box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+        }
+        .fullscreen-btn:hover, .fullscreen-btn:active { background: rgba(16, 185, 129, 1); }
+    </style>
+</head>
+<body>
+    <div class="volume-bar">
+        <input type="range" id="volume" min="0" max="100" value="100" title="Głośność">
+    </div>
+
+    <div class="wait-screen" id="wait-screen">
+        <p>Ładowanie...</p>
+    </div>
+
+    <div class="tracks-scroll" id="tracks" style="display: none;"></div>
+
+    <button type="button" class="fullscreen-btn" id="fullscreen-btn" title="Pełny ekran">⛶</button>
+
+    <script>
+        const socket = io();
+        let config = { banks: [] };
+        let active = false;
+        let currentBankIndex = 0;
+        let playingTrackId = null;
+        let justStoppedId = null;
+
+        function ensureBanks() {
+            if (!config.banks || !config.banks.length) {
+                const oldTracks = config.tracks || [];
+                config.banks = [{ id: 'b1', name: 'Lista', tracks: Array.isArray(oldTracks) ? oldTracks : [] }];
+            }
+        }
+        function getCurrentTracks() {
+            ensureBanks();
+            const b = config.banks[currentBankIndex];
+            return b ? (b.tracks || []) : [];
+        }
+
+        function rejoin() {
+            socket.emit('imprezator_join_phone');
+        }
+        function fetchStateViaREST() {
+            fetch('/api/imprezator/config').then(r => r.json()).then(d => {
+                if (d && (d.config || d.active !== undefined)) {
+                    active = !!d.active;
+                    if (d.config) config = d.config;
+                    ensureBanks();
+                    currentBankIndex = Math.min(currentBankIndex, (config.banks || []).length - 1);
+                    if (currentBankIndex < 0) currentBankIndex = 0;
+                    render();
+                }
+            }).catch(() => {});
+        }
+        socket.on('connect', rejoin);
+        let autoStartDone = false;
+        socket.on('imprezator_state', (s) => {
+            active = s.active;
+            if (s.config) config = s.config;
+            ensureBanks();
+            currentBankIndex = Math.min(currentBankIndex, config.banks.length - 1);
+            if (currentBankIndex < 0) currentBankIndex = 0;
+            if (!s.active && !autoStartDone) {
+                autoStartDone = true;
+                fetch('/api/imprezator/start', { method: 'POST' }).catch(() => {});
+            }
+            render();
+        });
+        socket.on('imprezator_volume_sync', (v) => {
+            const vol = Math.max(0, Math.min(1, v));
+            const slider = document.getElementById('volume');
+            if (slider) slider.value = Math.round(vol * 100);
+        });
+        socket.on('imprezator_ended', (payload) => {
+            if (payload && payload.trackId) {
+                playingTrackId = null;
+                render();
+            }
+        });
+
+        document.getElementById('volume').addEventListener('input', (e) => {
+            const v = e.target.value / 100;
+            socket.emit('imprezator_volume', v);
+        });
+
+        function render() {
+            const wait = document.getElementById('wait-screen');
+            const tracks = document.getElementById('tracks');
+            const trackList = getCurrentTracks();
+            const hasBanks = config.banks && config.banks.length > 0;
+            if (!active || !hasBanks) {
+                wait.style.display = 'flex';
+                tracks.style.display = 'none';
+                wait.querySelector('p').textContent = active ? 'Brak utworów.' : 'Imprezator nie jest włączony. Włącz na komputerze.';
+                return;
+            }
+            wait.style.display = 'none';
+            tracks.style.display = 'block';
+            const emptyMsg = trackList.length === 0 ? '<p style="text-align:center;color:rgba(255,255,255,0.6);font-size:1rem;padding:24px;">Brak utworów</p>' : '';
+            tracks.innerHTML = emptyMsg + trackList.map((t) => {
+                const label = (t.displayName || t.audio?.replace(/^.*\//, '').replace(/\.[^.]+$/, '') || 'Utwór').replace(/</g, '&lt;');
+                const isPlaying = playingTrackId === t.id;
+                const icon = isPlaying ? '⏸' : '▶';
+                return `
+                    <div class="track-item ${isPlaying ? 'playing' : ''}" data-id="${t.id}" onclick="handleTrackClick('${t.id}')">
+                        <span class="track-icon">${icon}</span> ${label}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function handleTrackClick(id) {
+            if (!active) return;
+            if (justStoppedId === id) return;
+            if (playingTrackId === id) {
+                socket.emit('imprezator_stop', id);
+                playingTrackId = null;
+                justStoppedId = id;
+                setTimeout(() => { justStoppedId = null; }, 2000);
+                render();
+            } else {
+                playingTrackId = id;
+                render();
+                socket.emit('imprezator_play', id);
+            }
+        }
+
+        function toggleFullscreen() {
+            const el = document.documentElement;
+            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                const enterFs = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+                enterFs?.call(el)?.catch(() => {});
+            } else {
+                (document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen)?.call(document);
+            }
+        }
+        document.getElementById('fullscreen-btn').addEventListener('click', toggleFullscreen);
+
+        if ('wakeLock' in navigator) {
+            let lock = null;
+            async function requestWakeLock() {
+                try { lock = await navigator.wakeLock.request('screen'); } catch (e) {}
+            }
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') {
+                    requestWakeLock();
+                    if (socket.connected) rejoin();
+                    else fetchStateViaREST();
+                }
+            });
+            requestWakeLock();
+        }
+        setInterval(() => {
+            if (document.visibilityState === 'visible' && !socket.connected) fetchStateViaREST();
+        }, 5000);
+    </script>
+</body>
+</html>

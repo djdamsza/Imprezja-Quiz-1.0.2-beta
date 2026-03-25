@@ -4,6 +4,35 @@ SMTP nie działa na Render (blokada portów). Resend używa API HTTPS – dział
 
 ---
 
+## Panel Resend (nowe menu) — co musisz „wypełnić”, a co pominąć
+
+Po zalogowaniu widzisz m.in.: **Emails**, **Broadcasts**, **Templates**, **Audience**, **Metrics**, **Domains**, **Logs**, **API Keys**, **Webhooks**, **Settings**.
+
+| Sekcja | Czy musisz coś ustawiać? | Krótko |
+|--------|---------------------------|--------|
+| **Emails** | Nie na start | Lista pojedynczych wysyłek z API — **uzupełni się sama**, gdy aplikacja lub n8n wyśle maila. |
+| **Broadcasts** | Zwykle **nie** | Masowe maile marketingowe — **pomijasz**, jeśli tylko transakcyjne maile (klucz licencji, odpowiedzi z automatu). |
+| **Templates** | **Opcjonalnie** | Możesz trzymać HTML w kodzie (Stripe-shop, n8n) — **nie jest wymagane** wypełnianie szablonów w panelu. |
+| **Audience** | Zwykle **nie** | Lista odbiorców pod broadcasty — **pomijasz** przy zwykłym `to:` z API. |
+| **Metrics** | Tylko podgląd | Statystyki — **nic nie wpisujesz**, tylko czytasz. |
+| **Domains** | **TAK (produkcja)** | **Dodaj domenę** (`imprezja.pl` / `nowajakoscrozrywki.pl`), wklej rekordy DNS u operatora, **Verify**. Bez tego nie wyślesz z `biuro@…` / `licencje@…` — tylko test z `onboarding@resend.dev`. |
+| **Logs** | Tylko diagnostyka | Gdy mail nie dochodzi: tu widać błędy / status. |
+| **API Keys** | **TAK** | **Create API Key** → uprawnienia **Sending** → skopiuj `re_…` **raz** → wklej w Render (**Environment**) jako `RESEND_API_KEY` lub w n8n jako **Header Auth** (`Authorization: Bearer re_…`). **Nie udostępniaj klucza** (czat, zrzuty ekranu, Git). |
+| **Webhooks** | **Opcjonalnie** | Zdarzenia (bounce, delivered) — **pomijasz**, dopóki nie potrzebujesz automatów na podstawie statusu. |
+| **Settings** | Minimalnie | Profil konta, ewentualnie billing — bez tego wysyłka przez API działa po kluczu + domenie. |
+
+### Ekran „Send your first email” / Onboarding
+
+To jest **szybki test**: pokazuje przykład z **`onboarding@resend.dev`** i kluczem. **Nie musisz** tam nic „wypełniać” na stałe — ważniejsze jest:
+
+1. **API Keys** — własny klucz (po ujawnieniu w czacie **unieważnij stary** i wygeneruj nowy).
+2. **Domains** — Twoja domena **Verified**.
+3. W **Render** → **Environment** — `RESEND_API_KEY` + `LICENSE_EMAIL_FROM` (adres z **zweryfikowanej** domeny).
+
+Test z kodu Node (`Resend('re_…')`) jest równoważny wysyłce z Twojej aplikacji — **nie zapisuj klucza w repozytorium**, tylko w zmiennych środowiska.
+
+---
+
 ## Domena: CyberFolks + dhosting
 
 - **CyberFolks** – rejestracja domeny, w panelu masz pola **dns1** i **dns2** (nameservery)
@@ -144,8 +173,32 @@ Musi być z Twojej zweryfikowanej domeny. Przykłady:
 
 ---
 
+## n8n + Resend (workflow **automail** na Renderze)
+
+Klucz **`RESEND_API_KEY`** (sam `re_…`, **bez** słowa `Bearer`) trzymasz w **Environment** serwisu **n8n** na Renderze. W node’ach **HTTP Request** do Resend nagłówek to zwykle:
+
+`Authorization` = `={{ 'Bearer ' + $env.RESEND_API_KEY }}`
+
+Wtedy w node **HTTP Request** ustaw **Authentication → None** (żeby n8n nie czekał na osobny credential i nie mieszał dwóch sposobów logowania).
+
+**Pełna instrukcja importu, `$env`, Google Calendar, OAuth:** [`n8n-workflows/IMPORT_AUTOMAIL_RESEND_ENV.md`](./n8n-workflows/IMPORT_AUTOMAIL_RESEND_ENV.md) oraz [`n8n-workflows/README.md`](./n8n-workflows/README.md).
+
+### Test workflowu „kręci się” i nie kończy
+
+1. **Executions** — otwórz ostatnie wykonanie i zobacz, **na którym** node’ie stoi czas. Często to **Perplexity_Analyze** (bywa **20–60 s**), a nie Kalendarz ani Resend.
+2. **Nie uruchamiaj samego `Google_Calendar_EventsForColorCheck`** („Execute step”) bez kontekstu — zakres czasu jest z **`Code_BuildCalWindow`**. Testuj od **`Start_Test_FormWP`** albo cały łańcuch od początku.
+3. **Google Calendar** — w node musi być **Resource: Calendar**, **Operation: Availability** (free/busy). Po imporcie JSON czasem brakuje `operation` w pliku — ustaw w UI i zapisz workflow (w eksporcie powinno być `"operation": "availability"`).
+4. **OAuth „Connection successful”** — to tylko zapis credentialu Google w n8n; **nie** oznacza automatycznie ukończenia całego workflowu — znów patrz **Executions**.
+5. **`N8N_BLOCK_ENV_ACCESS_IN_NODE`** — jeśli `true`, wyrażenia z **`$env`** w node’ach (Resend, opcjonalnie strefa w Code) nie zadziałają; usuń zmienną lub ustaw `false` na Renderze (**Save and deploy**).
+
+Szczegółowa checklista (w tym OAuth Google, **Test users**): [`N8N_GOOGLE_OAUTH_KONSOLA.md`](./N8N_GOOGLE_OAUTH_KONSOLA.md).
+
+---
+
 ## Gdy coś nie działa
 
 - **Domena nie weryfikuje się** – poczekaj na propagację DNS (do 24 h), sprawdź czy rekordy są dokładnie jak w Resend
-- **Błąd „Unauthorized”** – sprawdź czy `RESEND_API_KEY` jest poprawny, bez spacji
+- **Błąd „Unauthorized” / `401` „API key is invalid” (aplikacja na Renderze)** – sprawdź czy `RESEND_API_KEY` jest poprawny, bez spacji i bez cudzysłowów w wartości zmiennej
+- **Ten sam błąd w n8n (Header Auth)** – pełna checklista: [`N8N_RESEND_SETUP_IMPREZJA.md`](./N8N_RESEND_SETUP_IMPREZJA.md) → sekcja *Checklista credentialu* (`Authorization` + `Bearer re_…`, bez zduplikowanego `Bearer`, nie mylić z kluczem Perplexity)
+- **n8n + `$env` / test automail „wisi”** – sekcja **„n8n + Resend (workflow automail)”** powyżej oraz [`IMPORT_AUTOMAIL_RESEND_ENV.md`](./n8n-workflows/IMPORT_AUTOMAIL_RESEND_ENV.md)
 - **E-mail nie przychodzi** – sprawdź spam, folder Oferty; w Resend → **Logs** zobaczysz status wysyłki

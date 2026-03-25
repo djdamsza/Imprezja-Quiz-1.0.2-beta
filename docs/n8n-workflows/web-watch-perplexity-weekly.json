@@ -1,0 +1,364 @@
+{
+  "name": "web-watch-perplexity-weekly",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "pplx-m-001",
+      "name": "Manual_Test",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1,
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "id": "pplx-s-002",
+      "name": "Schedule_Weekly",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        480
+      ],
+      "notesInFlow": true,
+      "notes": "Ustaw dzień/godzinę w UI. Strefa = serwer n8n."
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * SITES: url + keywords = zwykłe frazy dla Perplexity (nie RegExp).\n * maxHtmlChars: ile znaków HTML wysłać do API (domyślnie 18k).\n */\nconst SITES = [\n  {\n    id: 'oszs_zawody',\n    name: 'OSZS — ZAWODY 2025/2026',\n    url: 'https://www.oszs.info/5146-2',\n    maxHtmlChars: 18000,\n    keywords: [\n      'szachy',\n      'szach',\n      'turniej',\n      'zawody',\n      'młodzież',\n      'dzieci',\n      'szkoła',\n      'OSZS',\n      'Ostrów',\n      'Kalisz',\n    ],\n  },\n  {\n    id: 'wzszach_home',\n    name: 'WZ Szach Poznań — start',\n    url: 'https://wzszach.poznan.pl/',\n    maxHtmlChars: 18000,\n    keywords: ['Ostrów', 'Kalisz', 'szachy', 'turniej', 'młodzież', 'junior'],\n  },\n  {\n    id: 'chessarbiter_list',\n    name: 'Chessarbiter — lista turniejów',\n    url: 'https://www.chessarbiter.com/turnieje.php',\n    maxHtmlChars: 18000,\n    keywords: ['Ostrów', 'Kalisz', 'szachy', 'dzieci', 'młodzież', 'turniej'],\n  },\n];\n\nreturn SITES.map((s) => ({ json: s }));"
+      },
+      "id": "pplx-c-003",
+      "name": "Code_WebWatchConfig",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        380
+      ],
+      "notesInFlow": true,
+      "notes": "Edytuj SITES — frazy keywords trafiają do promptu Perplexity."
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {
+          "timeout": 60000,
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true,
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "pplx-h-004",
+      "name": "HTTP_FetchPage",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        760,
+        380
+      ],
+      "notesInFlow": true,
+      "notes": "GET HTML (text). neverError — przy błędzie i tak idziemy dalej."
+    },
+    {
+      "parameters": {
+        "jsCode": "const sites = $('Code_WebWatchConfig').all();\nconst i = typeof $itemIndex === 'number' ? $itemIndex : 0;\nconst site = sites[i] && sites[i].json ? sites[i].json : {};\nconst raw = $json;\nlet html = '';\nif (typeof raw === 'string') html = raw;\nelse if (raw && typeof raw.data === 'string') html = raw.data;\nelse if (raw && typeof raw.body === 'string') html = raw.body;\nelse if (raw && typeof raw.text === 'string') html = raw.text;\nelse if (raw && typeof raw.content === 'string') html = raw.content;\nelse html = JSON.stringify(raw || {});\n\nconst maxChars = Math.min(Math.max(Number(site.maxHtmlChars) || 18000, 4000), 24000);\nconst htmlTrim = html.length > maxChars ? html.slice(0, maxChars) + '\\n\\n[... HTML obciety ...]' : html;\nconst kws = Array.isArray(site.keywords) ? site.keywords : [];\nconst keywordsLine = kws.map((k) => String(k).trim()).filter(Boolean).join(', ');\n\nconst pplx_system = \"Jesteś ekstraktorem informacji o turniejach i zawodach szachowych (w tym młodzieżowych, szkolnych, rejonowych) z surowego HTML stron.\\n\\nZwróć WYŁĄCZNIE jeden obiekt JSON — surowy, bez markdown, bez bloku kodu, bez komentarzy.\\n\\nStruktura:\\n{\\n  \\\"source_id\\\": \\\"string — musi być taka sama jak w wiadomości użytkownika\\\",\\n  \\\"items\\\": [\\n    {\\n      \\\"title\\\": \\\"string|null\\\",\\n      \\\"summary_pl\\\": \\\"1–4 zdania po polsku\\\",\\n      \\\"link\\\": \\\"string|null — pełny URL tylko jeśli wynika wyraźnie z HTML (atrybut href lub tekst)\\\",\\n      \\\"date_text\\\": \\\"string|null — termin lub data jak na stronie\\\",\\n      \\\"relevance\\\": \\\"high|medium|low\\\",\\n      \\\"matched_terms\\\": [\\\"opcjonalnie: które hasła z listy użytkownika pasują\\\"]\\n    }\\n  ]\\n}\\n\\nZasady:\\n- Uwzględniaj treści związane ze szachy, turniejami, zawodami, rankingiem, dziećmi, młodzieżą, szkołą, OSZS, regionem — zgodnie z listą haseł od użytkownika (dopasowuj odmiany, synonimy).\\n- Jeśli nic nie pasuje: zwróć \\\"items\\\": [].\\n- Nie wymyślaj linków, dat ani nazw turniejów — opieraj się na HTML. Przy wątpliwościach: relevance \\\"low\\\" lub pomiń pozycję.\\n- Jedna pozycja w \\\"items\\\" = jeden turniej, komunikat, wiersz tabeli lub wyraźny blok treści.\";\n\nconst pplx_user =\n  'Źródło: ' +\n  String(site.name || '') +\n  ' (' +\n  String(site.url || '') +\n  ')\\n' +\n  'source_id: ' +\n  String(site.id || '') +\n  '\\n\\n' +\n  'Szukaj treści powiązanych z hasłami (dowolne formy, odmiany): ' +\n  (keywordsLine || '(brak listy)') +\n  '\\n\\n' +\n  'Poniżej surowy HTML strony (fragment). Wyciągnij tylko to, co pasuje do kryteriów:\\n\\n' +\n  htmlTrim;\n\nreturn [\n  {\n    json: {\n      site_id: site.id,\n      site_name: site.name,\n      site_url: site.url,\n      fetched_ok: html.length > 80,\n      html_length: html.length,\n      pplx_system,\n      pplx_user,\n    },\n  },\n];"
+      },
+      "id": "pplx-c-005",
+      "name": "Code_PrepareForAi",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        380
+      ],
+      "notesInFlow": true,
+      "notes": "Łączy HTML z Code_WebWatchConfig (po indeksie). Buduje pplx_system + pplx_user."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.perplexity.ai/chat/completions",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($env.PERPLEXITY_API_KEY || $env.PPLX_API_KEY || '') }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'sonar', temperature: 0.15, max_tokens: 3500, messages: [{ role: 'system', content: $json.pplx_system }, { role: 'user', content: $json.pplx_user }] }) }}",
+        "options": {}
+      },
+      "id": "pplx-h-006",
+      "name": "HTTP_Perplexity",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1240,
+        380
+      ],
+      "notesInFlow": true,
+      "notes": "Klucz: env PERPLEXITY_API_KEY lub PPLX_API_KEY, albo Credential Header Auth (usuń nagłówek z wyrażenia i dodaj Bearer w credential). Bez response_format: json_object."
+    },
+    {
+      "parameters": {
+        "jsCode": "const prepAll = $('Code_PrepareForAi').all();\nconst idx = typeof $itemIndex === 'number' ? $itemIndex : 0;\nconst prep = prepAll[idx] && prepAll[idx].json ? prepAll[idx].json : {};\nconst root = $json;\nconst body = root.body && typeof root.body === 'object' ? root.body : root;\nconst raw = body.choices && body.choices[0] && body.choices[0].message ? body.choices[0].message.content : '{}';\nlet text = typeof raw === 'string' ? raw.trim() : JSON.stringify(raw);\ntext = text.replace(/^\\u0060\\u0060\\u0060(?:json)?\\s*/i, '').replace(/\\u0060\\u0060\\u0060\\s*$/, '').trim();\nlet data;\ntry {\n  data = JSON.parse(text);\n} catch (e) {\n  data = {\n    source_id: prep.site_id,\n    items: [],\n    parse_error: true,\n    raw_snippet: text.slice(0, 600),\n  };\n}\nconst items = Array.isArray(data.items) ? data.items : [];\nreturn [\n  {\n    json: {\n      site_id: prep.site_id,\n      site_name: prep.site_name,\n      site_url: prep.site_url,\n      perplexity_items: items,\n      parse_error: data.parse_error === true,\n      raw_snippet: data.raw_snippet || '',\n    },\n  },\n];"
+      },
+      "id": "pplx-c-007",
+      "name": "Code_ParsePerplexity",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1480,
+        380
+      ],
+      "notesInFlow": true,
+      "notes": "JSON.parse treści choices[0].message.content; scala z metadanymi strony."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "function quickHash(s) {\n  let h = 2166136261;\n  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);\n  return ('0000000000000000' + (h >>> 0).toString(16)).slice(-16) + '_' + s.length;\n}\n\nconst blocks = $input.all().map((x) => x.json);\nconst lines = [];\nlines.push('web-watch (Perplexity) — szachy / turnieje / zawody');\nlines.push('Wygenerowano (UTC): ' + new Date().toISOString());\nlines.push('Model: sonar (Perplexity). Treść z HTML + ekstrakcja AI — sprawdź linki ręcznie.');\nlines.push('');\n\nlet total = 0;\nlet sitesWithHits = 0;\nfor (const b of blocks) {\n  const items = b.perplexity_items || [];\n  lines.push('════════════════════════════════════════');\n  lines.push(String(b.site_name || b.site_id || '?'));\n  lines.push('URL: ' + String(b.site_url || ''));\n  lines.push('');\n  if (b.parse_error) {\n    lines.push('(!) Błąd parsowania JSON z API — fragment odpowiedzi:');\n    lines.push(String(b.raw_snippet || '').slice(0, 400));\n    lines.push('');\n    continue;\n  }\n  if (!items.length) {\n    lines.push('— Brak pozycji spełniających kryteria (wg AI).');\n    lines.push('');\n    continue;\n  }\n  sitesWithHits++;\n  for (const it of items) {\n    total++;\n    const rel = it.relevance || 'medium';\n    lines.push('• [' + rel + '] ' + (it.title || '(bez tytułu)'));\n    if (it.date_text) lines.push('  Termin / data: ' + it.date_text);\n    if (it.summary_pl) lines.push('  ' + String(it.summary_pl).replace(/\\n/g, ' '));\n    if (it.link) lines.push('  Link: ' + it.link);\n    if (it.matched_terms && it.matched_terms.length) lines.push('  Hasła: ' + it.matched_terms.join(', '));\n    lines.push('');\n  }\n}\n\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.webWatchPplxDedup) staticData.webWatchPplxDedup = {};\nconst digestPlain = lines.join('\\n');\nconst digestHash = quickHash(digestPlain);\nconst prev = staticData.webWatchPplxDedup.lastDigestHash;\nconst hasContent = total > 0;\nconst anyParseErr = blocks.some((b) => b.parse_error);\nconst unchanged = prev === digestHash && hasContent;\nif (hasContent && !unchanged) {\n  staticData.webWatchPplxDedup.lastDigestHash = digestHash;\n  staticData.webWatchPplxDedup.lastRunAt = new Date().toISOString();\n}\n\nconst DIGEST_TO = 'nowaczykdamian@gmail.com';\nconst DIGEST_FROM = 'Biuro Imprezja <biuro@imprezja.pl>';\n\nconst digest_subject =\n  '[web-watch AI] Szachy: ' +\n  total +\n  ' pozycji' +\n  (sitesWithHits ? ' (' + sitesWithHits + ' stron)' : '') +\n  (anyParseErr && !total ? ' - blad parsowania' : '');\n\nfunction escapeHtml(s) {\n  return String(s || '')\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;');\n}\n\nconst resend_payload = {\n  from: DIGEST_FROM,\n  to: DIGEST_TO,\n  subject: digest_subject,\n  html:\n    '<pre style=\"font-family:ui-monospace,monospace;font-size:13px;white-space:pre-wrap\">' +\n    escapeHtml(digestPlain) +\n    '</pre>',\n};\n\nreturn [\n  {\n    json: {\n      has_hits: hasContent || anyParseErr,\n      skip_duplicate_week: unchanged,\n      digest_plain: digestPlain,\n      digest_subject,\n      digest_to: DIGEST_TO,\n      digest_from: DIGEST_FROM,\n      hit_count: sitesWithHits,\n      digest_event_count: total,\n      had_parse_error: anyParseErr,\n      resend_payload,\n    },\n  },\n];"
+      },
+      "id": "pplx-c-008",
+      "name": "Code_AggregateDigest",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1720,
+        380
+      ],
+      "notesInFlow": true,
+      "notes": "Jeden digest + deduplikacja tygodnia (webWatchPplxDedup). Ustaw DIGEST_TO w kodzie."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.has_hits && !$json.skip_duplicate_week }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "pplx-i-009",
+      "name": "If_HasHits",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1960,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($env.RESEND_API_KEY || $env.RESENDAPIKEY || '') }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.resend_payload) }}",
+        "options": {}
+      },
+      "id": "pplx-h-010",
+      "name": "HTTP_Resend_Digest",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2200,
+        280
+      ],
+      "notesInFlow": true,
+      "notes": "RESEND_API_KEY / RESENDAPIKEY — jak web-watch-weekly."
+    },
+    {
+      "parameters": {},
+      "id": "pplx-n-011",
+      "name": "NoOp_NoMail",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2200,
+        480
+      ],
+      "notesInFlow": true,
+      "notes": "Brak trafień / błąd / ten sam hash co poprzednio."
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual_Test": {
+      "main": [
+        [
+          {
+            "node": "Code_WebWatchConfig",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule_Weekly": {
+      "main": [
+        [
+          {
+            "node": "Code_WebWatchConfig",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code_WebWatchConfig": {
+      "main": [
+        [
+          {
+            "node": "HTTP_FetchPage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP_FetchPage": {
+      "main": [
+        [
+          {
+            "node": "Code_PrepareForAi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code_PrepareForAi": {
+      "main": [
+        [
+          {
+            "node": "HTTP_Perplexity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP_Perplexity": {
+      "main": [
+        [
+          {
+            "node": "Code_ParsePerplexity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code_ParsePerplexity": {
+      "main": [
+        [
+          {
+            "node": "Code_AggregateDigest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code_AggregateDigest": {
+      "main": [
+        [
+          {
+            "node": "If_HasHits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If_HasHits": {
+      "main": [
+        [
+          {
+            "node": "HTTP_Resend_Digest",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "NoOp_NoMail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f7a8b9c0-1234-5678-9abc-def012345678",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "id": "f7a8b9c0-1234-5678-9abc-def012345678",
+  "tags": []
+}

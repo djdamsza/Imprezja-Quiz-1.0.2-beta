@@ -1,0 +1,168 @@
+{
+  "name": "FB Groups DJ Monitor Safe",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 2
+            }
+          ]
+        }
+      },
+      "id": "1a2b3c4d-5e6f-7g8h-9i0j-112233445566",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.airtop.ai/v1/facebook/group-posts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.AIRTOP_TOKEN }}"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "groupIds",
+              "value": "TUTAJ_WPISZ_ID_GRUPY"
+            },
+            {
+              "name": "limit",
+              "value": "20"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2b3c4d5e-6f7g-8h9i-0j1k-223344556677",
+      "name": "Airtop FB Fetch",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "abc-123-def",
+              "leftValue": "={{ $json.message || '' }}",
+              "rightValue": "polec dj|dj na wesele|szukam dj|dj ostrów|dj kalisz|wodzirej",
+              "operator": {
+                "type": "string",
+                "operation": "regex"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "3c4d5e6f-7g8h-9i0j-1k2l-334455667788",
+      "name": "Filter DJ Keywords",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const post = $input.first().json;\n\nconst readyReply = `Cześć! Mogę polecić siebie z Imprezja.pl 😊\\nOd 20 lat prowadzę wesela i imprezy w rejonie Ostrowa/Kalisza.\\n\\nMuzyka dopasowana do gości, nowoczesne quizy, zero żenujących zabaw.\\nDostępne też atrakcje: ciężki dym, fotobudka, fontanny iskier.\\n\\nOferta: imprezja.pl\\nTel: 503 836 965`;\n\nreturn [{\n  json: {\n    postId: post.id || \"Brak ID\",\n    postUrl: post.permalink || `https://facebook.com/${post.id}`,\n    groupName: post.groupName || \"Lokalna Grupa FB\",\n    postText: (post.message || \"\").slice(0, 300),\n    authorName: post.from?.name || \"Nieznany użytkownik\",\n    readyReply: readyReply\n  }\n}];"
+      },
+      "id": "4d5e6f7g-8h9i-0j1k-2l3m-445566778899",
+      "name": "Format Mail",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [860, 280]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.RESENDAPIKEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"from\": \"biuro@imprezja.pl\",\n  \"to\": \"nowaczykdamian@gmail.com\",\n  \"subject\": \"🚨 Ktoś szuka DJa na grupie: {{ $json.groupName }}\",\n  \"html\": \"<h3>Nowy post na grupie: {{ $json.groupName }}</h3><p><b>Autor:</b> {{ $json.authorName }}</p><blockquote>{{ $json.postText }}</blockquote><p><b>Link do posta (kliknij, by odpowiedzieć):</b> <br><a href='{{ $json.postUrl }}'>{{ $json.postUrl }}</a></p><hr><p><b>Gotowy tekst do wklejenia (skopiuj):</b></p><div style='background:#f4f4f4; padding:15px; border-radius:5px; font-family:monospace; white-space:pre-wrap;'>{{ $json.readyReply }}</div>\"\n}",
+        "options": {}
+      },
+      "id": "5e6f7g8h-9i0j-1k2l-3m4n-556677889900",
+      "name": "Send Alert (Resend)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1080, 280]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Airtop FB Fetch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Airtop FB Fetch": {
+      "main": [
+        [
+          {
+            "node": "Filter DJ Keywords",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter DJ Keywords": {
+      "main": [
+        [
+          {
+            "node": "Format Mail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Mail": {
+      "main": [
+        [
+          {
+            "node": "Send Alert (Resend)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

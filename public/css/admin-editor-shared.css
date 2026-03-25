@@ -1,0 +1,296 @@
+/**
+ * Wspólne style dla paneli admin i edytorów – Imprezja Quiz
+ * Jednolity wygląd: czcionki, przyciski, karty, formularze
+ */
+
+:root {
+    /* Tło */
+    --imp-bg: #1a1a2e;
+    --imp-bg-gradient: radial-gradient(circle at center, #1a1a2e, #000);
+    --imp-bg-dark: #0d0d14;
+
+    /* Szkło / karty */
+    --imp-glass: rgba(255, 255, 255, 0.08);
+    --imp-glass-hover: rgba(255, 255, 255, 0.12);
+    --imp-border: rgba(255, 255, 255, 0.15);
+    --imp-border-light: rgba(255, 255, 255, 0.2);
+
+    /* Akcenty */
+    --imp-accent: #f1c40f;
+    --imp-accent-hover: #f39c12;
+    --imp-accent-orange: #e67e22;
+    --imp-accent-dim: rgba(241, 196, 15, 0.25);
+
+    /* Tekst */
+    --imp-text: #ffffff;
+    --imp-text-muted: rgba(255, 255, 255, 0.75);
+    --imp-text-dim: rgba(255, 255, 255, 0.6);
+
+    /* Przyciski – kolory akcji */
+    --imp-success: #2ecc71;
+    --imp-success-hover: #27ae60;
+    --imp-danger: #e74c3c;
+    --imp-danger-hover: #c0392b;
+    --imp-info: #3498db;
+    --imp-info-hover: #2980b9;
+
+    /* Czcionka */
+    --imp-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+    /* Zaokrąglenia */
+    --imp-radius: 8px;
+    --imp-radius-lg: 12px;
+
+    /* Aliasy dla kompatybilności wstecznej */
+    --bg-dark: var(--imp-bg-gradient);
+    --glass-bg: var(--imp-glass);
+    --glass-border: var(--imp-border);
+    --accent-gold: var(--imp-accent);
+    --accent-orange: var(--imp-accent-orange);
+    --text-white: var(--imp-text);
+    --text-muted: var(--imp-text-muted);
+}
+
+/* Reset i baza */
+.imp-admin-editor,
+.imp-admin-editor * {
+    box-sizing: border-box;
+}
+
+.imp-admin-editor {
+    font-family: var(--imp-font);
+    background: var(--imp-bg-gradient);
+    color: var(--imp-text);
+    min-height: 100vh;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Nagłówki */
+.imp-admin-editor h1 {
+    color: var(--imp-accent);
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 20px;
+}
+
+.imp-admin-editor h2 {
+    color: var(--imp-accent);
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+
+.imp-admin-editor h3 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--imp-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 10px;
+}
+
+/* Link powrotu */
+.imp-admin-editor .imp-back-link {
+    display: inline-block;
+    margin-bottom: 20px;
+    color: var(--imp-accent);
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.imp-admin-editor .imp-back-link:hover {
+    text-decoration: underline;
+}
+
+/* Sekcje / karty */
+.imp-admin-editor .imp-section {
+    background: var(--imp-glass);
+    border: 1px solid var(--imp-border);
+    border-radius: var(--imp-radius-lg);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.imp-admin-editor .imp-control-panel {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--imp-border);
+    border-radius: var(--imp-radius-lg);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+/* Przyciski – baza */
+.imp-admin-editor .imp-btn {
+    padding: 10px 18px;
+    border-radius: var(--imp-radius);
+    font-family: var(--imp-font);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.imp-admin-editor .imp-btn:hover:not(:disabled) {
+    opacity: 0.95;
+}
+
+.imp-admin-editor .imp-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Warianty przycisków */
+.imp-admin-editor .imp-btn-primary {
+    background: linear-gradient(135deg, var(--imp-accent), var(--imp-accent-orange));
+    color: #000;
+}
+
+.imp-admin-editor .imp-btn-primary:hover:not(:disabled) {
+    box-shadow: 0 4px 16px rgba(241, 196, 15, 0.35);
+}
+
+.imp-admin-editor .imp-btn-secondary {
+    background: var(--imp-glass);
+    color: var(--imp-text);
+    border: 1px solid var(--imp-border);
+}
+
+.imp-admin-editor .imp-btn-secondary:hover:not(:disabled) {
+    background: var(--imp-glass-hover);
+    border-color: var(--imp-accent);
+}
+
+.imp-admin-editor .imp-btn-success {
+    background: var(--imp-success);
+    color: #000;
+}
+
+.imp-admin-editor .imp-btn-success:hover:not(:disabled) {
+    background: var(--imp-success-hover);
+}
+
+.imp-admin-editor .imp-btn-danger {
+    background: var(--imp-danger);
+    color: #fff;
+}
+
+.imp-admin-editor .imp-btn-danger:hover:not(:disabled) {
+    background: var(--imp-danger-hover);
+}
+
+.imp-admin-editor .imp-btn-info {
+    background: var(--imp-info);
+    color: #fff;
+}
+
+.imp-admin-editor .imp-btn-info:hover:not(:disabled) {
+    background: var(--imp-info-hover);
+}
+
+.imp-admin-editor .imp-btn-dark {
+    background: rgba(0, 0, 0, 0.5);
+    color: var(--imp-text);
+    border: 1px solid var(--imp-border);
+}
+
+/* Formularze */
+.imp-admin-editor .imp-form-group {
+    margin-bottom: 14px;
+}
+
+.imp-admin-editor .imp-form-group label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--imp-text-muted);
+    margin-bottom: 6px;
+}
+
+.imp-admin-editor input[type="text"],
+.imp-admin-editor input[type="number"],
+.imp-admin-editor input[type="email"],
+.imp-admin-editor input[type="url"],
+.imp-admin-editor select,
+.imp-admin-editor textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--imp-border);
+    border-radius: var(--imp-radius);
+    background: rgba(0, 0, 0, 0.3);
+    color: var(--imp-text);
+    font-family: var(--imp-font);
+    font-size: 0.95rem;
+}
+
+.imp-admin-editor input::placeholder,
+.imp-admin-editor textarea::placeholder {
+    color: var(--imp-text-dim);
+}
+
+.imp-admin-editor input:focus,
+.imp-admin-editor select:focus,
+.imp-admin-editor textarea:focus {
+    outline: none;
+    border-color: var(--imp-accent);
+}
+
+/* Checkbox w wierszu */
+.imp-admin-editor .imp-checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.imp-admin-editor .imp-checkbox-row input {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+}
+
+/* Kafelek trybu (np. Quiz, Familiada) */
+.imp-admin-editor .imp-mode-tile {
+    padding: 16px;
+    border-radius: var(--imp-radius-lg);
+    border: 2px solid var(--imp-border-light);
+    background: var(--imp-glass);
+    color: var(--imp-text);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.imp-admin-editor .imp-mode-tile:hover {
+    background: var(--imp-accent-dim);
+    border-color: var(--imp-accent);
+}
+
+.imp-admin-editor .imp-mode-tile.active {
+    background: var(--imp-accent-dim);
+    border-color: var(--imp-accent);
+}
+
+/* === Aliasy dla kompatybilności (btn, section, back-link itd.) === */
+.imp-admin-editor .btn,
+.imp-admin-editor button.btn { padding: 10px 18px; border-radius: var(--imp-radius); font-family: var(--imp-font); font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.2s; border: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.imp-admin-editor .btn-primary { background: linear-gradient(135deg, var(--imp-accent), var(--imp-accent-orange)); color: #000; }
+.imp-admin-editor .btn-secondary { background: var(--imp-glass); color: var(--imp-text); border: 1px solid var(--imp-border); }
+.imp-admin-editor .btn-success { background: var(--imp-success); color: #000; }
+.imp-admin-editor .btn-danger { background: var(--imp-danger); color: #fff; }
+.imp-admin-editor .btn-info { background: var(--imp-info); color: #fff; }
+.imp-admin-editor .btn-warning { background: var(--imp-accent); color: #000; }
+.imp-admin-editor .btn-dark { background: rgba(0,0,0,0.5); color: var(--imp-text); border: 1px solid var(--imp-border); }
+.imp-admin-editor .btn:hover { opacity: 0.95; }
+.imp-admin-editor .back-link { display: inline-block; margin-bottom: 20px; color: var(--imp-accent); text-decoration: none; font-weight: 600; transition: all 0.2s; }
+.imp-admin-editor .back-link:hover { text-decoration: underline; }

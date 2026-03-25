@@ -1,0 +1,39 @@
+{
+  "name": "domyslna",
+  "slides": [
+    {
+      "type": "clock",
+      "showSeconds": true
+    },
+    {
+      "type": "countdown",
+      "minutes": 5
+    },
+    {
+      "type": "visualization",
+      "preset": "equalizer",
+      "vizOverlayClock": true,
+      "vizOverlayClockSec": true,
+      "vizOverlayCountdown": false
+    },
+    {
+      "type": "visualization",
+      "preset": "winamp",
+      "winampAutoRotate": true,
+      "winampRotateInterval": 15,
+      "vizOverlayClock": true,
+      "vizOverlayClockSec": false,
+      "vizOverlayCountdown": true,
+      "vizOverlayCountdownMinutes": 3
+    },
+    {
+      "type": "text",
+      "text": "Imprezja Quiz\n\nWitamy na imprezie!",
+      "size": "large",
+      "animation": "fade",
+      "shadow": true
+    }
+  ],
+  "transition": "fade",
+  "loop": true
+}

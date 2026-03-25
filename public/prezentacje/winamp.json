@@ -1,0 +1,16 @@
+{
+  "name": "Winamp",
+  "slides": [
+    {
+      "type": "visualization",
+      "preset": "winamp",
+      "winampAutoRotate": true,
+      "winampRotateInterval": 15,
+      "vizOverlayClock": true,
+      "vizOverlayClockSec": false,
+      "vizOverlayCountdown": false
+    }
+  ],
+  "transition": "fade",
+  "loop": true
+}
