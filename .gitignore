@@ -23,6 +23,9 @@ license-private.pem
 .cursor/
 .cursorignore
 
+# Uploady z aplikacji (mp4, obrazy) — często >100 MB; GitHub odrzuca push
+public/uploads/*
+
 # Prywatna zawartość Imprezatora – TYLKO to jest prywatne i nie trafia do builda
 public/imprezator-configs/*.json
 
