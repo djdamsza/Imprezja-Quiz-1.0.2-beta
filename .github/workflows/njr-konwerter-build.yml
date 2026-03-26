@@ -4,15 +4,26 @@
 #   • Repo njr-konwerter:  editor/ + VERSION (w korzeniu)
 #   • Repo VoteBattle:    tools/vdj-database-editor + njr-konwerter-1.0/VERSION
 #
-# Uruchomienie: Actions → Run workflow
-# Release z binariami (bezpieczny tag, bez kolizji z Quiz):  git tag njr-v1.0.0 && git push origin njr-v1.0.0
+# Uruchomienie:
+#   • Po pushu na main (zmiany w editor/, workflow lub VERSION) — build + artefakty
+#   • Ręcznie: Actions → Run workflow
+#   • Tag njr-v* — build + GitHub Release z binariami
+# Uwaga: sam „verify” (inny workflow) przy pushu NIE buduje — to tylko ten plik.
 name: Build NJR Konwerter (VoteBattle)
 
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
+      - master
     tags:
       - 'njr-v*'
+    paths:
+      - 'editor/**'
+      - 'tools/vdj-database-editor/**'
+      - 'njr-konwerter-1.0/VERSION'
+      - '.github/workflows/njr-konwerter-build.yml'
 
 permissions:
   contents: read
