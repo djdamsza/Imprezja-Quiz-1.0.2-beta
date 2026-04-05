@@ -19,6 +19,10 @@ const app = express();
 const PORT = process.env.PORT || process.env.STRIPE_PORT || 4242;
 const YOUR_DOMAIN = process.env.STRIPE_DOMAIN || `http://localhost:${PORT}`;
 const SUCCESS_PAGE_URL = process.env.SUCCESS_PAGE_URL || (YOUR_DOMAIN + '/success.html');
+/** Strona sklepu gdy nie uda się zbudować linku do Stripe Customer Portal */
+const STRIPE_SHOP_PRODUCT_URL = process.env.STRIPE_SHOP_PRODUCT_URL || 'https://nowajakoscrozrywki.pl/produkt/imprezja-quiz/';
+/** Dokąd wraca klient po zamknięciu portalu Stripe (ustawienia subskrypcji / karta) */
+const STRIPE_PORTAL_RETURN_URL = (process.env.STRIPE_PORTAL_RETURN_URL || SUCCESS_PAGE_URL || YOUR_DOMAIN).replace(/\/$/, '');
 
 /** Buduje HTML e-maila w spójnym szablonie */
 function buildEmail({ title, body, accentColor = '#3b82f6' }) {
@@ -49,6 +53,51 @@ async function sendEmail({ to, subject, html, text }) {
         await transporter.sendMail({ from, to, subject, text: text || html, html });
     } else {
         throw new Error('E-mail nie skonfigurowany (RESEND_API_KEY lub SMTP_HOST)');
+    }
+}
+
+function stripeCustomerId(raw) {
+    if (!raw) return null;
+    if (typeof raw === 'string' && raw.startsWith('cus_')) return raw;
+    if (typeof raw === 'object' && raw.id) return String(raw.id);
+    return null;
+}
+
+/** Jednorazowy URL Stripe Customer Portal (anulowanie, karta, faktury). Wymaga włączonego portalu w Stripe Dashboard. */
+async function createCustomerPortalUrl(customerRaw) {
+    const customerId = stripeCustomerId(customerRaw);
+    if (!customerId || !process.env.STRIPE_SECRET_KEY) return null;
+    try {
+        const portalSession = await stripe.billingPortal.sessions.create({
+            customer: customerId,
+            return_url: STRIPE_PORTAL_RETURN_URL
+        });
+        return portalSession.url;
+    } catch (err) {
+        console.error('⚠️ Nie udało się utworzyć sesji Customer Portal:', err.message);
+        return null;
+    }
+}
+
+/** Czy wysyłać maile typu „problem z płatnością” / dunning z naszej aplikacji */
+function subscriptionAllowsBillingEmailsSync(sub) {
+    if (!sub || typeof sub !== 'object') return true;
+    if (sub.status === 'canceled') return false;
+    if (sub.cancel_at_period_end === true) return false;
+    if (sub.metadata && String(sub.metadata.imprezja_suppress_billing_emails).toLowerCase() === 'true') return false;
+    return true;
+}
+
+async function subscriptionAllowsBillingEmails(subscriptionId) {
+    if (!subscriptionId) return true;
+    const id = typeof subscriptionId === 'string' ? subscriptionId : subscriptionId.id;
+    if (!id) return true;
+    try {
+        const sub = await stripe.subscriptions.retrieve(id);
+        return subscriptionAllowsBillingEmailsSync(sub);
+    } catch (err) {
+        console.warn('⚠️ subscriptionAllowsBillingEmails:', err.message);
+        return true;
     }
 }
 
@@ -104,9 +153,30 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
         case 'customer.subscription.created':
             console.log('📅 Subskrypcja utworzona:', event.data.object.id);
             break;
-        case 'customer.subscription.updated':
-            console.log('📅 Subskrypcja zaktualizowana:', event.data.object.id);
+        case 'customer.subscription.updated': {
+            const sub = event.data.object;
+            console.log('📅 Subskrypcja zaktualizowana:', sub.id, 'status:', sub.status, 'cancel_at_period_end:', sub.cancel_at_period_end);
+            // Po rezygnacji klienta: nie wysyłaj już maili o nieudanych płatnościach z tego serwera; cron też pomija.
+            const shouldFlag =
+                sub.status === 'canceled' ||
+                sub.cancel_at_period_end === true ||
+                (sub.canceled_at != null && sub.canceled_at > 0);
+            if (shouldFlag && sub.metadata?.imprezja_suppress_billing_emails !== 'true') {
+                try {
+                    await stripe.subscriptions.update(sub.id, {
+                        metadata: {
+                            ...(sub.metadata || {}),
+                            imprezja_suppress_billing_emails: 'true',
+                            imprezja_suppress_billing_emails_at: String(Math.floor(Date.now() / 1000))
+                        }
+                    });
+                    console.log('📌 Subskrypcja — ustawiono imprezja_suppress_billing_emails (rezygnacja / koniec okresu):', sub.id);
+                } catch (err) {
+                    console.warn('⚠️ Nie udało się ustawić metadata przy rezygnacji:', err.message);
+                }
+            }
             break;
+        }
         case 'customer.subscription.deleted': {
             const sub = event.data.object;
             console.log('❌ Subskrypcja anulowana:', sub.id);
@@ -114,7 +184,7 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
                 const customer = await stripe.customers.retrieve(sub.customer);
                 const email = customer.email;
                 if (email && (process.env.RESEND_API_KEY || process.env.SMTP_HOST)) {
-                    const renewUrl = 'https://nowajakoscrozrywki.pl/produkt/imprezja-quiz/';
+                    const renewUrl = STRIPE_SHOP_PRODUCT_URL;
                     const html = buildEmail({
                         title: 'Twoja subskrypcja Imprezja Quiz wygasła',
                         accentColor: '#64748b',
@@ -144,7 +214,7 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
                         const nextDate = invoice.period_end
                             ? new Date(invoice.period_end * 1000).toLocaleDateString('pl-PL', { year: 'numeric', month: 'long', day: 'numeric' })
                             : '–';
-                        const portalUrl = 'https://nowajakoscrozrywki.pl/produkt/imprezja-quiz/';
+                        const portalUrl = (await createCustomerPortalUrl(invoice.customer)) || STRIPE_SHOP_PRODUCT_URL;
                         const html = buildEmail({
                             title: 'Subskrypcja Imprezja Quiz odnowiona',
                             accentColor: '#27ae60',
@@ -155,7 +225,7 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
 </table>
 <p style="margin:0 0 8px;text-align:center;"><a href="${portalUrl}" style="display:inline-block;padding:12px 24px;background:#f1f5f9;color:#1e293b;text-decoration:none;border-radius:8px;font-size:14px;">Zarządzaj subskrypcją</a></p>`,
                         });
-                        const text = `Twoja subskrypcja Imprezja Quiz została odnowiona.\nKwota: ${amount} ${currency}\nKolejne odnowienie: ${nextDate}`;
+                        const text = `Twoja subskrypcja Imprezja Quiz została odnowiona.\nKwota: ${amount} ${currency}\nKolejne odnowienie: ${nextDate}\n\nZarządzanie subskrypcją (anulowanie, karta): ${portalUrl}`;
                         await sendEmail({ to: email, subject: 'Imprezja Quiz – subskrypcja odnowiona', html, text });
                         console.log('📧 Potwierdzenie odnowienia wysłane:', email);
                     }
@@ -167,11 +237,16 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
         }
         case 'invoice.payment_failed': {
             const invoice = event.data.object;
-            console.log('⚠️ Płatność nieudana:', invoice.id);
+            console.log('⚠️ Płatność nieudana:', invoice.id, 'subscription:', invoice.subscription || '—');
             try {
+                const allowMail = await subscriptionAllowsBillingEmails(invoice.subscription);
+                if (!allowMail) {
+                    console.log('⏭️ Pominięto e-mail o nieudanej płatności (subskrypcja wypisana / koniec okresu / flaga imprezja_suppress_billing_emails)');
+                    break;
+                }
                 const email = invoice.customer_email;
                 if (email && (process.env.RESEND_API_KEY || process.env.SMTP_HOST)) {
-                    const portalUrl = 'https://nowajakoscrozrywki.pl/produkt/imprezja-quiz/';
+                    const portalUrl = (await createCustomerPortalUrl(invoice.customer)) || STRIPE_SHOP_PRODUCT_URL;
                     const html = buildEmail({
                         title: '⚠️ Nie udało się odnowić subskrypcji',
                         accentColor: '#ef4444',
@@ -395,7 +470,7 @@ app.post('/create-portal-session', async (req, res) => {
     try {
         const portalSession = await stripe.billingPortal.sessions.create({
             customer: customer_id,
-            return_url: return_url || YOUR_DOMAIN
+            return_url: (return_url || STRIPE_PORTAL_RETURN_URL || YOUR_DOMAIN).replace(/\/$/, '')
         });
         res.json({ url: portalSession.url });
     } catch (err) {
@@ -613,9 +688,13 @@ app.get('/api/cron/reminders', async (req, res) => {
             if (piId) {
                 trackerObj = await stripe.paymentIntents.retrieve(piId);
                 trackerType = 'paymentIntent';
-            } else if (subId) {
+            } else             if (subId) {
                 trackerObj = await stripe.subscriptions.retrieve(subId);
                 trackerType = 'subscription';
+                if (!subscriptionAllowsBillingEmailsSync(trackerObj)) {
+                    skipped.push({ session: session.id, reason: 'subscription_cancelled_no_onboarding' });
+                    continue;
+                }
             }
             const meta = trackerObj?.metadata || {};
 
