@@ -45,6 +45,13 @@ Integracja z [Stripe Billing](https://docs.stripe.com/billing/quickstart) dla mo
    - `invoice.payment_failed`
 4. Skopiuj **Signing secret** (whsec_...) do `.env` jako `STRIPE_WEBHOOK_SECRET`
 
+### Rezygnacja z subskrypcji — maile z `stripe-shop` i powiadomienia Revolut Pay
+
+- **Ten serwer**: przy `customer.subscription.updated`, gdy klient zrezygnował (anulowanie na koniec okresu) lub subskrypcja jest w stanie `canceled`, dopisywane jest metadata **`imprezja_suppress_billing_emails=true`**. Wtedy pomijamy wysyłkę e-maila z webhooka **`invoice.payment_failed`** oraz przypomnienia crona (`/api/cron/reminders`) dla tej subskrypcyjnej sesji Checkout.
+- **Revolut (push „chce płatność”)**: to wynik **prób obciążenia** z inicjatywy **Stripe** przy odnowieniu / ponowieniu. Żeby je uciąć, subskrypcja musi być rzeczywiście zakończona w **Stripe** (Customer Portal lub Dashboard). Nasz kod nie wyłącza aplikacji Revolut u klienta.
+- **Maile systemowe Stripe** (Szablonowe powiadomienia dla nieudanej płatności itd.): reguluje się w **Stripe Dashboard → Ustawienia → Powiadomienia biznesowe / Billing** (dokładna nazwa zależy od wersji konta) — warto je zweryfikować niezależnie od Resend.
+- **Ręcznie**: przy wybranej subskrypcji w Dashboard można w **Metadata** ustawić `imprezja_suppress_billing_emails` = `true`, jeśli trzeba wyciszyć nasze maile billingowe bez typowej ścieżki.
+
 ---
 
 ## 2. Instalacja i uruchomienie
@@ -140,7 +147,18 @@ case 'checkout.session.completed': {
 
 ## 6. Customer Portal (zarządzanie subskrypcją)
 
-Klient może anulować subskrypcję lub zmienić kartę przez Stripe Customer Portal:
+W **Stripe Dashboard** włącz portal: **Settings → Billing → Customer portal** (lub **Customer management**) — zaznacz m.in. anulowanie subskrypcji i aktualizację metody płatności. Bez tego API `billingPortal.sessions.create` zwróci błąd.
+
+Zmienne opcjonalne w **stripe-shop**:
+
+| Zmienna | Znaczenie |
+|---------|-----------|
+| `STRIPE_PORTAL_RETURN_URL` | Adres, na który wraca klient po zamknięciu portalu (domyślnie jak `SUCCESS_PAGE_URL`). |
+| `STRIPE_SHOP_PRODUCT_URL` | Link zapasowy w mailu, gdy nie uda się wygenerować sesji portalu (domyślnie strona produktu WooCommerce). |
+
+E-maile wysyłane przez webhooki **`invoice.paid`** (odnowienie) i **`invoice.payment_failed`** wstawiają **prawdziwy link do Customer Portal** (sesja jednorazowa), a nie tylko stronę sklepu.
+
+Klient może też anulować subskrypcję lub zmienić kartę przez Stripe Customer Portal (np. z frontu sklepu):
 
 ```javascript
 // Wymaga customer_id z Checkout Session
