@@ -101,6 +101,24 @@ async function subscriptionAllowsBillingEmails(subscriptionId) {
     }
 }
 
+/** Czy klient ma inną subskrypcję nadal „żywą” w Stripe (nie ta, która właśnie została usunięta) */
+async function customerHasOtherLiveSubscription(customerRaw, excludeSubscriptionId) {
+    const customerId = stripeCustomerId(customerRaw);
+    if (!customerId) return false;
+    const statuses = ['active', 'trialing', 'past_due'];
+    for (const status of statuses) {
+        try {
+            const { data } = await stripe.subscriptions.list({ customer: customerId, status, limit: 20 });
+            for (const s of data) {
+                if (s.id !== excludeSubscriptionId) return true;
+            }
+        } catch (err) {
+            console.warn('⚠️ customerHasOtherLiveSubscription:', status, err.message);
+        }
+    }
+    return false;
+}
+
 // Webhook MUSI mieć raw body – rejestruj przed express.json()
 app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
     const sig = req.headers['stripe-signature'];
@@ -157,10 +175,11 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
             const sub = event.data.object;
             console.log('📅 Subskrypcja zaktualizowana:', sub.id, 'status:', sub.status, 'cancel_at_period_end:', sub.cancel_at_period_end);
             // Po rezygnacji klienta: nie wysyłaj już maili o nieudanych płatnościach z tego serwera; cron też pomija.
+            // Uwaga: canceled_at bywa ustawiane także przy „anuluj na koniec okresu” — nie używamy samego canceled_at jako warunku,
+            // żeby nie ustawiać flagi suppress zbyt wcześnie przy nietypowych aktualizacjach z API.
             const shouldFlag =
                 sub.status === 'canceled' ||
-                sub.cancel_at_period_end === true ||
-                (sub.canceled_at != null && sub.canceled_at > 0);
+                sub.cancel_at_period_end === true;
             if (shouldFlag && sub.metadata?.imprezja_suppress_billing_emails !== 'true') {
                 try {
                     await stripe.subscriptions.update(sub.id, {
@@ -181,6 +200,11 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
             const sub = event.data.object;
             console.log('❌ Subskrypcja anulowana:', sub.id);
             try {
+                const otherLive = await customerHasOtherLiveSubscription(sub.customer, sub.id);
+                if (otherLive) {
+                    console.log('⏭️ Pominięto e-mail „subskrypcja wygasła” — klient ma inną aktywną / trwającą subskrypcję (np. zmiana planu lub drugi zakup).');
+                    break;
+                }
                 const customer = await stripe.customers.retrieve(sub.customer);
                 const email = customer.email;
                 if (email && (process.env.RESEND_API_KEY || process.env.SMTP_HOST)) {
