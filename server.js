@@ -22,6 +22,7 @@ const https = require('https'); // Potrzebne do importu z URL
 const crypto = require('crypto');
 const license = require('./license.js');
 const { spawn } = require('child_process');
+const trash = require('trash');
 
 // Sharp - opcjonalne (jeśli się nie załaduje, użyjemy jimp jako fallback)
 let sharp = null;
@@ -188,11 +189,33 @@ function devSyncWriteData(projectRelPath, data) {
         console.log('🔄 Dev-sync +', projectRelPath);
     } catch (e) { console.warn('⚠️ Dev-sync write error:', e.message); }
 }
-function devSyncDelete(projectRelPath) {
+/** Przenosi pliki lub katalogi do Kosza systemowego (odzyskiwalne). Przy błędzie — twarde usunięcie. */
+async function moveUserPathsToTrash(absPaths) {
+    const list = (Array.isArray(absPaths) ? absPaths : [absPaths]).filter((p) => typeof p === 'string' && p.length && fs.existsSync(p));
+    if (!list.length) return;
+    try {
+        await trash(list);
+        console.log('🗑️ Przeniesiono do Kosza:', list.map((p) => path.basename(p)).join(', '));
+    } catch (e) {
+        console.warn('⚠️ Kosz niedostępny, usuwam na stałe:', e.message);
+        for (const p of list) {
+            try {
+                const st = fs.lstatSync(p);
+                if (st.isDirectory()) fs.rmSync(p, { recursive: true });
+                else fs.unlinkSync(p);
+            } catch (_) {}
+        }
+    }
+}
+
+async function devSyncDelete(projectRelPath) {
     if (!devProjectRoot) return;
     try {
         const dst = path.join(devProjectRoot, projectRelPath);
-        if (fs.existsSync(dst)) { fs.unlinkSync(dst); console.log('🔄 Dev-sync -', projectRelPath); }
+        if (fs.existsSync(dst)) {
+            await moveUserPathsToTrash(dst);
+            console.log('🔄 Dev-sync → Kosz:', projectRelPath);
+        }
     } catch (e) { console.warn('⚠️ Dev-sync delete error:', e.message); }
 }
 function devSyncRename(oldRel, newRel) {
@@ -295,6 +318,14 @@ let prezentacjaPlaying = false;
 let prezentacjaLoop = true;
 const PREZENTACJE_LAST_FILE = path.join(path.dirname(quizzesDir), 'prezentacje-last.json');
 
+// Sufit liniowy sygnału do ekranów audio (headroom cyfrowy — ↓ przester przy pełnym kanał×master + normalizacja).
+const DIGITAL_OUTPUT_LINEAR_CAP = 0.85;
+function digitalOutputClamp(linear) {
+    const x = Number(linear);
+    if (!isFinite(x) || x <= 0) return 0;
+    return Math.min(DIGITAL_OUTPUT_LINEAR_CAP, x);
+}
+
 // Model miksera: Master (globalny mnożnik) + kanały (per-tryb). Wyjście = kanał × master.
 // Kanały zapamiętywane – ostatnie ustawienie przywracane przy starcie trybu.
 let masterVolume = 1;
@@ -339,7 +370,7 @@ function broadcastEffectiveVolumes() {
     io.to('familiada').emit('familiada_volume', familiadaVolume);
     io.emit('ships_solo_volume', { volume: statkiVolume });
     io.emit('prezentacja_volume', { volume: prezentacjaVolume });
-    const eff = (ch) => Math.min(1, ch * masterVolume);
+    const eff = (ch) => digitalOutputClamp(ch * masterVolume);
     io.to('njr_sampler_screen').emit('njr_sampler_volume', eff(njrSamplerVolume));
     io.to('njr_sampler_phone').emit('njr_sampler_volume_sync', njrSamplerVolume);
     io.to('whitney_screen').emit('whitney_volume', eff(whitneyVolume));
@@ -360,6 +391,8 @@ let familiadaTeam1Score = 0;
 let familiadaTeam2Score = 0;
 let familiadaTeam1Name = 'Niebiescy';
 let familiadaTeam2Name = 'Czerwoni';
+/** Tylko wygląd TV: zamiana stron niebieski/czerwony (nazwy i punkty team1/team2 bez zmian). */
+let familiadaColorSidesSwapped = false;
 let familiadaRoundAwardedTo = null;
 let familiadaShowStartScreenOnConnect = false;
 let familiadaButtonUsedThisRound = false;
@@ -368,6 +401,7 @@ let familiadaCurrentQuestionIndex = null;
 let familiadaCurrentGoldenIndex = null;
 const FAMILIADA_DATA_FILE = 'familiada-data.json';
 const familiadaDataPath = path.join(path.dirname(quizzesDir), FAMILIADA_DATA_FILE);
+const familiadaScreenPrefsPath = path.join(path.dirname(familiadaDataPath), 'familiada-screen-prefs.json');
 const familiadaDir = path.join(path.dirname(quizzesDir), 'familiada');
 const FAMILIADA_GOLDEN_FILE = 'familiada-golden.json';
 const familiadaGoldenPath = path.join(familiadaDir, FAMILIADA_GOLDEN_FILE);
@@ -430,6 +464,25 @@ function loadFamiliadaData() {
 }
 loadFamiliadaData();
 
+function loadFamiliadaScreenPrefs() {
+    try {
+        if (fs.existsSync(familiadaScreenPrefsPath)) {
+            const j = JSON.parse(fs.readFileSync(familiadaScreenPrefsPath, 'utf8'));
+            if (j && typeof j.colorSidesSwapped === 'boolean') familiadaColorSidesSwapped = j.colorSidesSwapped;
+        }
+    } catch (err) {
+        console.warn('⚠️ Familiada screen prefs:', err.message);
+    }
+}
+function saveFamiliadaScreenPrefs() {
+    try {
+        fs.writeFileSync(familiadaScreenPrefsPath, JSON.stringify({ colorSidesSwapped: familiadaColorSidesSwapped }, null, 2), 'utf8');
+    } catch (err) {
+        console.warn('⚠️ Familiada screen prefs zapis:', err.message);
+    }
+}
+loadFamiliadaScreenPrefs();
+
 // NJR Sampler i Śpiewaj Dalej – konfiguracje
 const NJR_SAMPLER_CONFIGS_DIR = path.join(path.dirname(quizzesDir), 'njr-sampler-configs');
 const NJR_SAMPLER_LAST_FILE = path.join(path.dirname(quizzesDir), 'njr-sampler-last.json');
@@ -444,13 +497,12 @@ const IMPREZATOR_SETTINGS_FILE = path.join(path.dirname(quizzesDir), 'imprezator
 const PREZENTACJE_CONFIGS_DIR = path.join(path.dirname(quizzesDir), 'prezentacje');
 let njrSamplerConfig = { tileCount: 8, tiles: [] };
 let njrSamplerActive = false;
-let njrSamplerPlayingTile = null; // one-shot (oklaski itd.)
-let njrSamplerPlayingBankIndex = null; // bank aktualnie granego kafelka foreground
-let njrSamplerPlayingBackgroundTile = null; // tło muzyczne – gra do wyłączenia lub końca
-let njrSamplerPlayingBackgroundBankIndex = null; // bank aktualnie granego kafelka background
-let njrSamplerPlayingImprezatorTrack = null; // imprezator track odtwarzany przez sampler
+let njrSamplerPlayingTile = null; // jedyny aktywny kafelek Samplera (jeden strumień audio)
+let njrSamplerPlayingBankIndex = null;
+let njrSamplerPlayingImprezatorTrack = null; // utwór z banku Imprezator w samplerze
 let njrSamplerVolume = 1; // 0–1, master z telefonu
 let imprezatorCurrentlyPlaying = false;    // standalone imprezator odtwarza utwór
+let imprezatorCurrentTrackId = null;     // jaki utwór gra na ekranie Imprezatora (telefon → ekran)
 let audioMonitorLast = null;               // ostatnio odtwarzane: { type, ...data } – dla play-last
 
 // ===== DODATEK WYBORCZY – stan sesji =====
@@ -647,7 +699,7 @@ function getWyborczyTies(ranking) {
 // ===== /DODATEK WYBORCZY =====
 
 function emitAudioMonitorState() {
-    const isPlaying = !!(njrSamplerPlayingTile || njrSamplerPlayingBackgroundTile || njrSamplerPlayingImprezatorTrack || imprezatorCurrentlyPlaying);
+    const isPlaying = !!(njrSamplerPlayingTile || njrSamplerPlayingImprezatorTrack || imprezatorCurrentlyPlaying || whitneyPlayingTile || spiewajDalejScreenTrackId || bitwaWokalnaScreenTrackId);
     io.to('audio_monitor').emit('audio_monitor_state', { isPlaying, hasLast: !!audioMonitorLast });
 }
 
@@ -814,7 +866,6 @@ const WHITNEY_DEFAULT_PATH = path.join(appRootForDefaults, 'public', 'njr-sample
 let whitneyConfig = { tileCount: 8, tiles: [] };
 let whitneyActive = false;
 let whitneyPlayingTile = null;
-let whitneyPlayingBackgroundTile = null;
 let whitneyVolume = 1;
 
 function loadWhitneyConfig() {
@@ -912,12 +963,10 @@ if (dataDir) {
             for (const name of appFiles) {
                 const src = path.join(appSpiewajDalej, name);
                 const dest = path.join(SPIEWAJ_DALEJ_CONFIGS_DIR, name);
-                const missing = !fs.existsSync(dest);
-                const refillEmpty = shouldSyncConfigsFromApp && spiewajConfigFileIsEffectivelyEmpty(dest);
-                if (missing || refillEmpty) {
+                if (!fs.existsSync(dest)) {
                     try {
                         fs.copyFileSync(src, dest);
-                        console.log(missing ? '   📋 Skopiowano listę Śpiewaj Dalej (nowy plik):' : '   📋 Uzupełniono pustą konfigurację Śpiewaj Dalej z builda:', name);
+                        console.log('   📋 Skopiowano listę Śpiewaj Dalej (nowy plik):', name);
                     } catch (e) {
                         console.warn('   ⚠️ Śpiewaj Dalej – nie skopiowano', name, e.message);
                     }
@@ -1122,7 +1171,7 @@ function getAllFilesReferencedByQuizzes(excludeFilename) {
 }
 
 // DELETE /api/upload/:filename — usuwa plik z uploads jeśli nie jest referencjonowany przez żaden quiz
-app.delete('/api/upload/:filename', (req, res) => {
+app.delete('/api/upload/:filename', async (req, res) => {
     try {
         const filename = req.params.filename;
         if (!filename || filename.includes('..') || filename.includes('/')) {
@@ -1136,21 +1185,21 @@ app.delete('/api/upload/:filename', (req, res) => {
         if (usedFiles.has(filename)) {
             return res.json({ deleted: false, reason: 'in_use', usedBy: 'quiz' });
         }
-        fs.unlinkSync(filePath);
+        await moveUserPathsToTrash(filePath);
         removeFileFromIndex(filename);
-        devSyncDelete(`public/uploads/${filename}`);
+        await devSyncDelete(`public/uploads/${filename}`);
         // Usuń też thumbnail jeśli istnieje i nie jest używany
         const thumbName = _getThumbnailPath(filename);
         if (thumbName && !usedFiles.has(thumbName)) {
             const thumbPath = path.join(uploadsDir, thumbName);
             if (fs.existsSync(thumbPath)) {
-                fs.unlinkSync(thumbPath);
+                await moveUserPathsToTrash(thumbPath);
                 removeFileFromIndex(thumbName);
-                devSyncDelete(`public/uploads/${thumbName}`);
+                await devSyncDelete(`public/uploads/${thumbName}`);
             }
         }
-        console.log(`🗑️ Usunięto plik z uploads: ${filename}`);
-        res.json({ deleted: true, filename, thumbDeleted: !!(thumbName && !usedFiles.has(thumbName)) });
+        console.log(`🗑️ Plik z uploads przeniesiony do Kosza: ${filename}`);
+        res.json({ deleted: true, filename, trashed: true, thumbDeleted: !!(thumbName && !usedFiles.has(thumbName)) });
     } catch (err) {
         console.error('❌ Błąd usuwania pliku:', err);
         res.status(500).json({ error: err.message });
@@ -1176,7 +1225,7 @@ app.get('/api/uploads/orphans', (req, res) => {
 });
 
 // DELETE /api/uploads/orphans — usuwa wszystkie osierocone pliki
-app.delete('/api/uploads/orphans', (req, res) => {
+app.delete('/api/uploads/orphans', async (req, res) => {
     try {
         const usedFiles = getAllFilesReferencedByQuizzes();
         const allFiles = fs.readdirSync(uploadsDir).filter(f => {
@@ -1187,14 +1236,14 @@ app.delete('/api/uploads/orphans', (req, res) => {
         let deleted = [], errors = [];
         for (const f of orphans) {
             try {
-                fs.unlinkSync(path.join(uploadsDir, f));
+                await moveUserPathsToTrash(path.join(uploadsDir, f));
                 removeFileFromIndex(f);
-                devSyncDelete(`public/uploads/${f}`);
+                await devSyncDelete(`public/uploads/${f}`);
                 deleted.push(f);
             } catch (e) { errors.push(f); }
         }
-        console.log(`🗑️ Usunięto ${deleted.length} osieroconych plików`);
-        res.json({ deleted: deleted.length, errors: errors.length, files: deleted });
+        console.log(`🗑️ Przeniesiono do Kosza ${deleted.length} osieroconych plików`);
+        res.json({ deleted: deleted.length, errors: errors.length, files: deleted, trashed: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -1355,14 +1404,14 @@ app.patch('/api/njr-sampler/config', (req, res) => {
     }
 });
 
-app.delete('/api/njr-sampler/config', (req, res) => {
+app.delete('/api/njr-sampler/config', async (req, res) => {
     const name = req.query.name;
     if (!name) return res.status(400).json({ error: 'Brak nazwy' });
     const cfgPath = getNjrSamplerConfigPath(name);
     if (fs.existsSync(cfgPath)) {
         try {
-            fs.unlinkSync(cfgPath);
-            devSyncDelete(`public/njr-sampler-configs/${safeConfigName(name)}.json`);
+            await moveUserPathsToTrash(cfgPath);
+            await devSyncDelete(`public/njr-sampler-configs/${safeConfigName(name)}.json`);
             let current = 'domyslna';
             if (fs.existsSync(NJR_SAMPLER_LAST_FILE)) {
                 try {
@@ -1373,7 +1422,7 @@ app.delete('/api/njr-sampler/config', (req, res) => {
                     }
                 } catch (_) {}
             }
-            res.json({ success: true });
+            res.json({ success: true, trashed: true });
         } catch (err) {
             res.status(500).json({ error: err.message });
         }
@@ -1416,24 +1465,25 @@ function stopOtherMusicGames(except) {
     if (except !== 'whitney' && whitneyActive) {
         whitneyActive = false;
         whitneyPlayingTile = null;
-        whitneyPlayingBackgroundTile = null;
         io.to('whitney_screen').emit('whitney_state', { active: false });
         io.to('whitney_phone').emit('whitney_state', { active: false });
-        io.to('whitney_screen').emit('whitney_stop');
+        io.to('whitney_screen').emit('whitney_stop', { immediate: true });
     }
     if (except !== 'spiewaj' && spiewajDalejActive) {
         spiewajDalejActive = false;
         spiewajDalejUsedIds.clear();
+        spiewajDalejScreenTrackId = null;
         io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_state', { active: false });
         io.to('spiewaj_dalej_phone').emit('spiewaj_dalej_state', { active: false });
-        io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_stop');
+        io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_stop', { immediate: true });
     }
     if (except !== 'bitwa' && bitwaWokalnaActive) {
         bitwaWokalnaActive = false;
         bitwaWokalnaUsedIds.clear();
+        bitwaWokalnaScreenTrackId = null;
         io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_state', { active: false });
         io.to('bitwa_wokalna_phone').emit('bitwa_wokalna_state', { active: false });
-        io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_stop');
+        io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_stop', { immediate: true });
     }
 }
 
@@ -1457,8 +1507,6 @@ app.post('/api/njr-sampler/start', (req, res) => {
     njrSamplerActive = true;
     njrSamplerPlayingTile = null;
     njrSamplerPlayingBankIndex = null;
-    njrSamplerPlayingBackgroundTile = null;
-    njrSamplerPlayingBackgroundBankIndex = null;
     njrSamplerPlayingImprezatorTrack = null;
     io.to('njr_sampler_screen').emit('njr_sampler_state', { active: true, config: njrSamplerConfig });
     io.to('njr_sampler_phone').emit('njr_sampler_state', { active: true, config: buildNjrSamplerStateForPhone() });
@@ -1468,11 +1516,12 @@ app.post('/api/njr-sampler/stop', (req, res) => {
     njrSamplerActive = false;
     njrSamplerPlayingTile = null;
     njrSamplerPlayingBankIndex = null;
-    njrSamplerPlayingBackgroundTile = null;
-    njrSamplerPlayingBackgroundBankIndex = null;
+    njrSamplerPlayingImprezatorTrack = null;
     io.to('njr_sampler_screen').emit('njr_sampler_state', { active: false });
+    io.to('njr_sampler_screen').emit('njr_sampler_imprezator_stop', { immediate: true });
     io.to('njr_sampler_phone').emit('njr_sampler_state', { active: false });
-    io.to('njr_sampler_screen').emit('njr_sampler_stop');
+    io.to('njr_sampler_screen').emit('njr_sampler_stop', { immediate: true });
+    io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: null, bankIndex: null });
     res.json({ success: true });
 });
 app.get('/api/njr-sampler/phone-qr', async (req, res) => {
@@ -1560,7 +1609,6 @@ app.post('/api/whitney/start', (req, res) => {
     stopOtherMusicGames('whitney');
     whitneyActive = true;
     whitneyPlayingTile = null;
-    whitneyPlayingBackgroundTile = null;
     io.to('whitney_screen').emit('whitney_state', { active: true, config: whitneyConfig });
     io.to('whitney_phone').emit('whitney_state', { active: true, config: whitneyConfig });
     res.json({ success: true });
@@ -1568,10 +1616,9 @@ app.post('/api/whitney/start', (req, res) => {
 app.post('/api/whitney/stop', (req, res) => {
     whitneyActive = false;
     whitneyPlayingTile = null;
-    whitneyPlayingBackgroundTile = null;
     io.to('whitney_screen').emit('whitney_state', { active: false });
     io.to('whitney_phone').emit('whitney_state', { active: false });
-    io.to('whitney_screen').emit('whitney_stop');
+    io.to('whitney_screen').emit('whitney_stop', { immediate: true });
     res.json({ success: true });
 });
 app.get('/api/whitney/screen-graphic', (req, res) => {
@@ -1647,25 +1694,34 @@ let spiewajDalejConfig = { tracks: [] };
 let spiewajDalejActive = false;
 let spiewajDalejVolume = 1;
 let spiewajDalejUsedIds = new Set();
-
-/** Czy plik konfiguracji Śpiewaj Dalej nie zawiera żadnych utworów (pusty bank / uszkodzony JSON). */
-function spiewajConfigFileIsEffectivelyEmpty(filePath) {
-    try {
-        if (!fs.existsSync(filePath)) return true;
-        if (fs.statSync(filePath).size < 30) return true;
-        const d = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-        if (d.banks && Array.isArray(d.banks)) {
-            const n = d.banks.reduce((acc, b) => acc + (Array.isArray(b.tracks) ? b.tracks.length : 0), 0);
-            return n === 0;
-        }
-        return !Array.isArray(d.tracks) || d.tracks.length === 0;
-    } catch (_) {
-        return true;
-    }
-}
+let spiewajDalejScreenTrackId = null;
 
 function getSpiewajDalejConfigPath(name) {
     return path.join(SPIEWAJ_DALEJ_CONFIGS_DIR, safeConfigName(name) + '.json');
+}
+
+/** Wczytanie ostatniej listy z dysku do pamięci serwera (telefon/ekran od razu widzą banki – jak NJR Sampler). */
+function loadSpiewajDalejConfigFromDisk() {
+    try {
+        if (!fs.existsSync(SPIEWAJ_DALEJ_CONFIGS_DIR)) fs.mkdirSync(SPIEWAJ_DALEJ_CONFIGS_DIR, { recursive: true });
+        let name = 'domyslna';
+        if (fs.existsSync(SPIEWAJ_DALEJ_LAST_FILE)) {
+            try {
+                const last = JSON.parse(fs.readFileSync(SPIEWAJ_DALEJ_LAST_FILE, 'utf8'));
+                if (last && last.name) name = safeConfigName(last.name);
+            } catch (_) {}
+        }
+        let cfgPath = getSpiewajDalejConfigPath(name);
+        if (!fs.existsSync(cfgPath)) {
+            cfgPath = getSpiewajDalejConfigPath('domyslna');
+        }
+        if (fs.existsSync(cfgPath)) {
+            const data = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+            spiewajDalejConfig = data.banks ? data : { tracks: data.tracks || [], screenGraphic: data.screenGraphic };
+        }
+    } catch (e) {
+        console.warn('⚠️ Śpiewaj Dalej – błąd wczytania list przy starcie:', e.message);
+    }
 }
 
 app.get('/api/spiewaj-dalej/configs', (req, res) => {
@@ -1764,9 +1820,10 @@ app.post('/api/spiewaj-dalej/start', (req, res) => {
 app.post('/api/spiewaj-dalej/stop', (req, res) => {
     spiewajDalejActive = false;
     spiewajDalejUsedIds.clear();
+    spiewajDalejScreenTrackId = null;
     io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_state', { active: false });
     io.to('spiewaj_dalej_phone').emit('spiewaj_dalej_state', { active: false });
-    io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_stop');
+    io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_stop', { immediate: true });
     res.json({ success: true });
 });
 
@@ -1849,14 +1906,14 @@ app.patch('/api/spiewaj-dalej/screen-graphic', (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
-app.delete('/api/spiewaj-dalej/config', (req, res) => {
+app.delete('/api/spiewaj-dalej/config', async (req, res) => {
     const name = req.query.name;
     if (!name) return res.status(400).json({ error: 'Brak nazwy' });
     try {
         const cfgPath = getSpiewajDalejConfigPath(name);
         if (fs.existsSync(cfgPath)) {
-            fs.unlinkSync(cfgPath);
-            devSyncDelete(`public/spiewaj-dalej-configs/${safeConfigName(name)}.json`);
+            await moveUserPathsToTrash(cfgPath);
+            await devSyncDelete(`public/spiewaj-dalej-configs/${safeConfigName(name)}.json`);
             try {
                 const last = JSON.parse(fs.readFileSync(SPIEWAJ_DALEJ_LAST_FILE, 'utf8'));
                 if (last && last.name === safeConfigName(name)) {
@@ -1865,7 +1922,7 @@ app.delete('/api/spiewaj-dalej/config', (req, res) => {
                 }
             } catch (_) {}
         }
-        res.json({ success: true });
+        res.json({ success: true, trashed: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -1876,9 +1933,40 @@ let bitwaWokalnaConfig = { tracks: [] };
 let bitwaWokalnaActive = false;
 let bitwaWokalnaVolume = 1;
 let bitwaWokalnaUsedIds = new Set();
+let bitwaWokalnaScreenTrackId = null;
 
 function getBitwaWokalnaConfigPath(name) {
     return path.join(BITWA_WOKALNA_CONFIGS_DIR, safeConfigName(name) + '.json');
+}
+
+function loadBitwaWokalnaConfigFromDisk() {
+    try {
+        if (!fs.existsSync(BITWA_WOKALNA_CONFIGS_DIR)) fs.mkdirSync(BITWA_WOKALNA_CONFIGS_DIR, { recursive: true });
+        const tryLoad = (n) => {
+            const p = getBitwaWokalnaConfigPath(n);
+            if (!fs.existsSync(p)) return false;
+            const data = JSON.parse(fs.readFileSync(p, 'utf8'));
+            bitwaWokalnaConfig = data.banks ? data : { tracks: data.tracks || [], screenGraphic: data.screenGraphic };
+            return true;
+        };
+        let name = null;
+        if (fs.existsSync(BITWA_WOKALNA_LAST_FILE)) {
+            try {
+                const last = JSON.parse(fs.readFileSync(BITWA_WOKALNA_LAST_FILE, 'utf8'));
+                if (last && last.name) name = safeConfigName(last.name);
+            } catch (_) {}
+        }
+        if (name && tryLoad(name)) return;
+        if (tryLoad('Panie_VS_Panowie')) return;
+        if (tryLoad('domyslna')) return;
+        let files = [];
+        try {
+            files = fs.readdirSync(BITWA_WOKALNA_CONFIGS_DIR).filter(f => f.endsWith('.json'));
+        } catch (_) {}
+        if (files.length) tryLoad(files[0].replace(/\.json$/, ''));
+    } catch (e) {
+        console.warn('⚠️ Bitwa wokalna – błąd wczytania list przy starcie:', e.message);
+    }
 }
 
 app.get('/api/bitwa-wokalna/configs', (req, res) => {
@@ -2023,9 +2111,10 @@ app.post('/api/bitwa-wokalna/start', (req, res) => {
 app.post('/api/bitwa-wokalna/stop', (req, res) => {
     bitwaWokalnaActive = false;
     bitwaWokalnaUsedIds.clear();
+    bitwaWokalnaScreenTrackId = null;
     io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_state', { active: false });
     io.to('bitwa_wokalna_phone').emit('bitwa_wokalna_state', { active: false });
-    io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_stop');
+    io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_stop', { immediate: true });
     res.json({ success: true });
 });
 
@@ -2084,14 +2173,14 @@ app.patch('/api/bitwa-wokalna/config', (req, res) => {
     }
 });
 
-app.delete('/api/bitwa-wokalna/config', (req, res) => {
+app.delete('/api/bitwa-wokalna/config', async (req, res) => {
     const name = req.query.name;
     if (!name) return res.status(400).json({ error: 'Brak nazwy' });
     try {
         const cfgPath = getBitwaWokalnaConfigPath(name);
         if (fs.existsSync(cfgPath)) {
-            fs.unlinkSync(cfgPath);
-            devSyncDelete(`public/bitwa-wokalna-configs/${safeConfigName(name)}.json`);
+            await moveUserPathsToTrash(cfgPath);
+            await devSyncDelete(`public/bitwa-wokalna-configs/${safeConfigName(name)}.json`);
             try {
                 const last = JSON.parse(fs.readFileSync(BITWA_WOKALNA_LAST_FILE, 'utf8'));
                 if (last && last.name === safeConfigName(name)) {
@@ -2100,7 +2189,7 @@ app.delete('/api/bitwa-wokalna/config', (req, res) => {
                 }
             } catch (_) {}
         }
-        res.json({ success: true });
+        res.json({ success: true, trashed: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -2276,10 +2365,18 @@ app.post('/api/imprezator/settings', (req, res) => {
 });
 
 app.get('/api/imprezator/stream', (req, res) => {
-    const rawPath = (req.query.path || '').trim();
+    let rawPath = (req.query.path || '').trim();
+    try { rawPath = decodeURIComponent(rawPath); } catch (_) {}
     if (!rawPath) return res.status(400).json({ error: 'Brak ścieżki' });
     let full;
-    if (path.isAbsolute(rawPath) || (process.platform === 'win32' && /^[a-zA-Z]:[\\/]/.test(rawPath))) {
+    const normWeb = rawPath.replace(/^[/\\]+/, '').replace(/\\/g, '/');
+    if (normWeb.toLowerCase().startsWith('uploads/')) {
+        const inner = normWeb.slice('uploads/'.length).split('/').filter(s => s && s !== '..').join(path.sep);
+        if (!inner) return res.status(400).json({ error: 'Brak ścieżki' });
+        full = path.join(uploadsDir, inner);
+        const relCheck = path.relative(uploadsDir, full);
+        if (relCheck.startsWith('..') || path.isAbsolute(relCheck)) return res.status(403).json({ error: 'Nieprawidłowa ścieżka' });
+    } else if (path.isAbsolute(rawPath) || (process.platform === 'win32' && /^[a-zA-Z]:[\\/]/.test(rawPath))) {
         if (!isImprezatorPathAllowed(rawPath)) return res.status(403).json({ error: 'Ścieżka niedozwolona' });
         full = path.resolve(rawPath);
     } else {
@@ -2407,24 +2504,21 @@ app.post('/api/prezentacje/save', async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
-app.delete('/api/prezentacje/config', (req, res) => {
+app.delete('/api/prezentacje/config', async (req, res) => {
     const name = req.query.name;
     if (!name) return res.status(400).json({ error: 'Brak nazwy' });
     const fp = getPrezentacjaPath(name);
     if (fs.existsSync(fp)) {
-        try { fs.unlinkSync(fp); } catch (_) {}
+        try { await moveUserPathsToTrash(fp); } catch (_) {}
     }
     const mediaDir = getPrezentacjaMediaDir(name);
     if (fs.existsSync(mediaDir) && fs.statSync(mediaDir).isDirectory()) {
         try {
-            fs.readdirSync(mediaDir).forEach(f => {
-                fs.unlinkSync(path.join(mediaDir, f));
-            });
-            fs.rmdirSync(mediaDir);
-            console.log('🗑️ Usunięto folder mediów prezentacji:', name);
-        } catch (e) { console.warn('Nie udało się usunąć folderu mediów:', e.message); }
+            await moveUserPathsToTrash(mediaDir);
+            console.log('🗑️ Folder mediów prezentacji przeniesiony do Kosza:', name);
+        } catch (e) { console.warn('Nie udało się przenieść folderu mediów do Kosza:', e.message); }
     }
-    res.json({ success: true });
+    res.json({ success: true, trashed: true });
 });
 
 const uploadPrez = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
@@ -2496,6 +2590,31 @@ app.post('/api/imprezator/native-open-directory', async (req, res) => {
     }
 });
 
+const imprezatorAudioUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 150 * 1024 * 1024 } });
+app.post('/api/imprezator/upload-audio', imprezatorAudioUpload.array('files', 80), (req, res) => {
+    try {
+        const fileList = req.files || [];
+        if (!fileList.length) return res.status(400).json({ error: 'Brak plików' });
+        const allowed = new Set(['.mp3', '.wav', '.m4a', '.ogg', '.aac', '.flac', '.vdjsample']);
+        const out = [];
+        let i = 0;
+        for (const file of fileList) {
+            const ext = path.extname(file.originalname || '').toLowerCase();
+            if (!allowed.has(ext)) continue;
+            const stamp = Date.now() + '-' + (i++) + '-' + Math.random().toString(36).slice(2, 7);
+            const sanitized = (file.originalname || 'track').replace(/[^a-zA-Z0-9.\-_]/g, '_');
+            const filename = `imprez-${stamp}-${sanitized}`;
+            fs.writeFileSync(path.join(uploadsDir, filename), file.buffer);
+            const baseName = path.basename(file.originalname || 'utwór', ext);
+            out.push({ path: '/uploads/' + filename, name: baseName });
+        }
+        if (!out.length) return res.status(400).json({ error: 'Brak obsługiwanych plików audio (mp3, wav, m4a, ogg, aac, flac, vdjsample)' });
+        res.json({ files: out });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.post('/api/imprezator/start', (req, res) => {
     stopOtherMusicGames('imprezator');
     imprezatorActive = true;
@@ -2506,9 +2625,11 @@ app.post('/api/imprezator/start', (req, res) => {
 
 app.post('/api/imprezator/stop', (req, res) => {
     imprezatorActive = false;
+    imprezatorCurrentlyPlaying = false;
+    imprezatorCurrentTrackId = null;
     io.to('imprezator_screen').emit('imprezator_state', { active: false });
     io.to('imprezator_phone').emit('imprezator_state', { active: false });
-    io.to('imprezator_screen').emit('imprezator_stop');
+    io.to('imprezator_screen').emit('imprezator_stop', { immediate: true });
     res.json({ success: true });
 });
 
@@ -2567,13 +2688,13 @@ app.patch('/api/imprezator/config', (req, res) => {
     }
 });
 
-app.delete('/api/imprezator/config', (req, res) => {
+app.delete('/api/imprezator/config', async (req, res) => {
     const name = req.query.name;
     if (!name) return res.status(400).json({ error: 'Brak nazwy' });
     try {
         const cfgPath = getImprezatorConfigPath(name);
         if (fs.existsSync(cfgPath)) {
-            fs.unlinkSync(cfgPath);
+            await moveUserPathsToTrash(cfgPath);
             try {
                 const last = JSON.parse(fs.readFileSync(IMPREZATOR_LAST_FILE, 'utf8'));
                 if (last && last.name === safeConfigName(name)) {
@@ -2582,7 +2703,7 @@ app.delete('/api/imprezator/config', (req, res) => {
                 }
             } catch (_) {}
         }
-        res.json({ success: true });
+        res.json({ success: true, trashed: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -2726,7 +2847,7 @@ app.post('/api/familiada/save', (req, res) => {
     }
 });
 
-app.delete('/api/familiada/file/:filename', (req, res) => {
+app.delete('/api/familiada/file/:filename', async (req, res) => {
     try {
         const name = decodeURIComponent(req.params.filename || '');
         if (!name || name.includes('..') || name.includes('/') || !name.toLowerCase().endsWith('.json')) {
@@ -2739,8 +2860,9 @@ app.delete('/api/familiada/file/:filename', (req, res) => {
         if (!fs.existsSync(filePath)) {
             return res.status(404).json({ error: 'Plik nie istnieje' });
         }
-        fs.unlinkSync(filePath);
-        res.json({ success: true });
+        await moveUserPathsToTrash(filePath);
+        await devSyncDelete(`public/familiada/${name}`);
+        res.json({ success: true, trashed: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -4982,7 +5104,14 @@ io.on('connection', (socket) => {
         }
         socket.emit('update_scores', { t1: familiadaTeam1Score, t2: familiadaTeam2Score, roundAwarded: familiadaRoundAwardedTo !== null, team1: familiadaTeam1Name, team2: familiadaTeam2Name });
         socket.emit('familiada_team_names', { team1: familiadaTeam1Name, team2: familiadaTeam2Name });
+        socket.emit('familiada_color_sides_swap', { swapped: familiadaColorSidesSwapped });
         io.to('familiada').emit('familiada_request_intro_state');
+    });
+    socket.on('familiada_toggle_color_sides', () => {
+        if (socket.familiadaRole !== 'admin') return;
+        familiadaColorSidesSwapped = !familiadaColorSidesSwapped;
+        saveFamiliadaScreenPrefs();
+        io.to('familiada').emit('familiada_color_sides_swap', { swapped: familiadaColorSidesSwapped });
     });
     socket.on('familiada_set_mode', () => {
         gameMode = 'familiada';
@@ -5030,7 +5159,7 @@ io.on('connection', (socket) => {
     socket.on('njr_sampler_join_screen', () => {
         socket.join('njr_sampler_screen');
         socket.emit('njr_sampler_state', { active: njrSamplerActive, config: njrSamplerConfig });
-        socket.emit('njr_sampler_volume', Math.min(1, njrSamplerVolume * masterVolume));
+        socket.emit('njr_sampler_volume', digitalOutputClamp(njrSamplerVolume * masterVolume));
     });
     socket.on('njr_sampler_join_phone', () => {
         socket.join('njr_sampler_phone');
@@ -5059,77 +5188,39 @@ io.on('connection', (socket) => {
         const vol = Math.max(0, Math.min(100, tile.volume ?? 100)) / 100;
         let audioUrl = tile.audio.startsWith('/') || tile.audio.startsWith('http') ? tile.audio : '/uploads/' + tile.audio;
         if (/\.(vdjsample|ogg)$/i.test(audioUrl)) audioUrl = '/api/audio/stream?path=' + encodeURIComponent(audioUrl);
-        const isBg = !!tile.isBackground;
         const loop = !!tile.loop;
         const normalizedGain = typeof tile.normalizedGain === 'number' ? tile.normalizedGain : undefined;
-        const playPayload = (u, v, lp, isBg) => ({ url: u, volume: v, loop: lp, isBackground: isBg, ...(normalizedGain != null && { normalizedGain }) });
-        const thenPlayPayload = (u, v, lp) => ({ url: u, volume: v, loop: lp, ...(normalizedGain != null && { normalizedGain }) });
+        const playPayload = (u, v, lp) => ({ url: u, volume: v, loop: lp, ...(normalizedGain != null && { normalizedGain }) });
 
-        if (isBg) {
-            if (njrSamplerPlayingBackgroundTile === tileId && njrSamplerPlayingBackgroundBankIndex === bankIndex) {
-                njrSamplerPlayingBackgroundTile = null;
-                njrSamplerPlayingBackgroundBankIndex = null;
-                io.to('njr_sampler_screen').emit('njr_sampler_stop_background', { fadeOut: true });
-                io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: null, bankIndex: null, isBackground: true });
-            } else {
-                const prevBgId = njrSamplerPlayingBackgroundTile;
-                const prevBgBank = njrSamplerPlayingBackgroundBankIndex != null ? banks[njrSamplerPlayingBackgroundBankIndex] : null;
-                const prevBgTile = prevBgId && prevBgBank ? (prevBgBank.tiles || []).find(t => t.id === prevBgId) : null;
-                njrSamplerPlayingBackgroundTile = tileId;
-                njrSamplerPlayingBackgroundBankIndex = bankIndex;
-                if (njrSamplerPlayingImprezatorTrack) {
-                    njrSamplerPlayingImprezatorTrack = null;
-                    io.to('njr_sampler_screen').emit('njr_sampler_imprezator_stop');
-                    io.to('njr_sampler_phone').emit('njr_sampler_imprezator_playing', null);
-                }
-                if (prevBgId && prevBgTile && !!prevBgTile.fadeOut) {
-                    io.to('njr_sampler_screen').emit('njr_sampler_stop_background', { fadeOut: true, thenPlay: thenPlayPayload(audioUrl, vol, loop) });
-                } else {
-                    if (prevBgId) io.to('njr_sampler_screen').emit('njr_sampler_stop_background', { fadeOut: false });
-                    io.to('njr_sampler_screen').emit('njr_sampler_play', playPayload(audioUrl, vol, loop, true));
-                }
-                audioMonitorLast = { type: 'sampler_tile', tileId, bankIndex, isBg: true };
-                io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId, bankIndex, isBackground: true });
-            }
+        const sameTile = njrSamplerPlayingTile === tileId && njrSamplerPlayingBankIndex === bankIndex;
+        if (sameTile) {
+            njrSamplerPlayingTile = null;
+            njrSamplerPlayingBankIndex = null;
+            io.to('njr_sampler_screen').emit('njr_sampler_stop', { fadeOut: true });
+            io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: null, bankIndex: null });
         } else {
-            if (njrSamplerPlayingTile === tileId && njrSamplerPlayingBankIndex === bankIndex) {
-                njrSamplerPlayingTile = null;
-                njrSamplerPlayingBankIndex = null;
-                io.to('njr_sampler_screen').emit('njr_sampler_stop', { fadeOut: true });
-                io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: null, bankIndex: null, isBackground: false });
-            } else {
-                const prevTileId = njrSamplerPlayingTile;
-                const prevBank = njrSamplerPlayingBankIndex != null ? banks[njrSamplerPlayingBankIndex] : null;
-                const prevTile = prevTileId && prevBank ? (prevBank.tiles || []).find(t => t.id === prevTileId) : null;
-                njrSamplerPlayingTile = tileId;
-                njrSamplerPlayingBankIndex = bankIndex;
-                if (njrSamplerPlayingImprezatorTrack) {
-                    njrSamplerPlayingImprezatorTrack = null;
-                    io.to('njr_sampler_screen').emit('njr_sampler_imprezator_stop');
-                    io.to('njr_sampler_phone').emit('njr_sampler_imprezator_playing', null);
-                }
-                if (prevTileId && prevTile && !!prevTile.fadeOut) {
-                    io.to('njr_sampler_screen').emit('njr_sampler_stop', { fadeOut: true, thenPlay: thenPlayPayload(audioUrl, vol, loop) });
-                } else {
-                    if (prevTileId) io.to('njr_sampler_screen').emit('njr_sampler_stop', { fadeOut: false });
-                    io.to('njr_sampler_screen').emit('njr_sampler_play', playPayload(audioUrl, vol, loop, false));
-                }
-                audioMonitorLast = { type: 'sampler_tile', tileId, bankIndex, isBg: false };
-                io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId, bankIndex, isBackground: false });
+            const hadTile = njrSamplerPlayingTile != null;
+            const hadImprez = njrSamplerPlayingImprezatorTrack != null;
+            if (hadImprez) {
+                njrSamplerPlayingImprezatorTrack = null;
+                io.to('njr_sampler_screen').emit('njr_sampler_imprezator_stop', { immediate: true });
+                io.to('njr_sampler_phone').emit('njr_sampler_imprezator_playing', null);
             }
+            if (hadTile) {
+                io.to('njr_sampler_screen').emit('njr_sampler_stop', { immediate: true });
+            }
+            njrSamplerPlayingTile = tileId;
+            njrSamplerPlayingBankIndex = bankIndex;
+            io.to('njr_sampler_screen').emit('njr_sampler_play', playPayload(audioUrl, vol, loop));
+            audioMonitorLast = { type: 'sampler_tile', tileId, bankIndex };
+            io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId, bankIndex });
         }
-        emitAudioMonitorState();
-    });
-    socket.on('njr_sampler_background_ended', () => {
-        njrSamplerPlayingBackgroundTile = null;
-        njrSamplerPlayingBackgroundBankIndex = null;
-        io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: null, bankIndex: null, isBackground: true });
         emitAudioMonitorState();
     });
     socket.on('njr_sampler_volume', (vol) => {
         njrSamplerVolume = Math.max(0, Math.min(1, vol));
         saveVolumes();
-        io.to('njr_sampler_screen').emit('njr_sampler_volume', Math.min(1, njrSamplerVolume * masterVolume));
+        io.to('njr_sampler_screen').emit('njr_sampler_volume', digitalOutputClamp(njrSamplerVolume * masterVolume));
         io.to('njr_sampler_phone').emit('njr_sampler_volume_sync', njrSamplerVolume);
     });
 
@@ -5148,21 +5239,24 @@ io.on('connection', (socket) => {
 
         if (njrSamplerPlayingImprezatorTrack === trackId) {
             njrSamplerPlayingImprezatorTrack = null;
-            io.to('njr_sampler_screen').emit('njr_sampler_imprezator_stop');
+            io.to('njr_sampler_screen').emit('njr_sampler_imprezator_stop', { fadeOut: true, trackId });
             io.to('njr_sampler_phone').emit('njr_sampler_imprezator_playing', null);
         } else {
             if (njrSamplerPlayingTile) {
                 njrSamplerPlayingTile = null;
                 njrSamplerPlayingBankIndex = null;
-                io.to('njr_sampler_screen').emit('njr_sampler_stop');
-                io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: null, bankIndex: null, isBackground: false });
+                io.to('njr_sampler_screen').emit('njr_sampler_stop', { immediate: true });
+                io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: null, bankIndex: null });
+            }
+            if (njrSamplerPlayingImprezatorTrack && njrSamplerPlayingImprezatorTrack !== trackId) {
+                io.to('njr_sampler_screen').emit('njr_sampler_imprezator_stop', { immediate: true });
             }
             njrSamplerPlayingImprezatorTrack = trackId;
             audioMonitorLast = { type: 'sampler_imprezator', trackId };
             const audioUrl = '/api/imprezator/stream?path=' + encodeURIComponent(track.audio);
             io.to('njr_sampler_screen').emit('njr_sampler_imprezator_play', {
                 url: audioUrl,
-                volume: njrSamplerVolume,
+                volume: digitalOutputClamp(njrSamplerVolume * masterVolume),
                 trackId
             });
             io.to('njr_sampler_phone').emit('njr_sampler_imprezator_playing', trackId);
@@ -5179,7 +5273,7 @@ io.on('connection', (socket) => {
     // Monitor audio – przycisk play/pause na ekranie głównym start.html
     socket.on('join_audio_monitor', () => {
         socket.join('audio_monitor');
-        const isPlaying = !!(njrSamplerPlayingTile || njrSamplerPlayingBackgroundTile || njrSamplerPlayingImprezatorTrack || imprezatorCurrentlyPlaying);
+        const isPlaying = !!(njrSamplerPlayingTile || njrSamplerPlayingImprezatorTrack || imprezatorCurrentlyPlaying || whitneyPlayingTile || spiewajDalejScreenTrackId || bitwaWokalnaScreenTrackId);
         socket.emit('audio_monitor_state', { isPlaying, hasLast: !!audioMonitorLast });
     });
 
@@ -5187,23 +5281,30 @@ io.on('connection', (socket) => {
         if (njrSamplerPlayingTile) {
             njrSamplerPlayingTile = null;
             njrSamplerPlayingBankIndex = null;
-            io.to('njr_sampler_screen').emit('njr_sampler_stop');
-            io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: null, bankIndex: null, isBackground: false });
-        }
-        if (njrSamplerPlayingBackgroundTile) {
-            njrSamplerPlayingBackgroundTile = null;
-            njrSamplerPlayingBackgroundBankIndex = null;
-            io.to('njr_sampler_screen').emit('njr_sampler_stop_background', { fadeOut: false });
-            io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: null, bankIndex: null, isBackground: true });
+            io.to('njr_sampler_screen').emit('njr_sampler_stop', { immediate: true });
+            io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: null, bankIndex: null });
         }
         if (njrSamplerPlayingImprezatorTrack) {
             njrSamplerPlayingImprezatorTrack = null;
-            io.to('njr_sampler_screen').emit('njr_sampler_imprezator_stop');
+            io.to('njr_sampler_screen').emit('njr_sampler_imprezator_stop', { immediate: true });
             io.to('njr_sampler_phone').emit('njr_sampler_imprezator_playing', null);
+        }
+        if (whitneyPlayingTile) {
+            whitneyPlayingTile = null;
+            io.to('whitney_screen').emit('whitney_stop', { immediate: true });
+            io.to('whitney_phone').emit('whitney_playing', { tileId: null });
+        }
+        if (spiewajDalejScreenTrackId) {
+            spiewajDalejScreenTrackId = null;
+            io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_stop', { immediate: true });
+        }
+        if (bitwaWokalnaScreenTrackId) {
+            bitwaWokalnaScreenTrackId = null;
+            io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_stop', { immediate: true });
         }
         if (imprezatorCurrentlyPlaying) {
             imprezatorCurrentlyPlaying = false;
-            io.to('imprezator_screen').emit('imprezator_stop');
+            io.to('imprezator_screen').emit('imprezator_stop', { immediate: true });
         }
         emitAudioMonitorState();
     });
@@ -5219,17 +5320,10 @@ io.on('connection', (socket) => {
             const vol = Math.max(0, Math.min(100, tile.volume ?? 100)) / 100;
             let audioUrl = tile.audio.startsWith('/') || tile.audio.startsWith('http') ? tile.audio : '/uploads/' + tile.audio;
             if (/\.(vdjsample|ogg)$/i.test(audioUrl)) audioUrl = '/api/audio/stream?path=' + encodeURIComponent(audioUrl);
-            if (last.isBg) {
-                njrSamplerPlayingBackgroundTile = last.tileId;
-                njrSamplerPlayingBackgroundBankIndex = last.bankIndex;
-                io.to('njr_sampler_screen').emit('njr_sampler_play', { url: audioUrl, volume: vol, isBackground: true, loop: !!tile.loop });
-                io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: last.tileId, bankIndex: last.bankIndex, isBackground: true });
-            } else {
-                njrSamplerPlayingTile = last.tileId;
-                njrSamplerPlayingBankIndex = last.bankIndex;
-                io.to('njr_sampler_screen').emit('njr_sampler_play', { url: audioUrl, volume: vol, isBackground: false, loop: !!tile.loop });
-                io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: last.tileId, bankIndex: last.bankIndex, isBackground: false });
-            }
+            njrSamplerPlayingTile = last.tileId;
+            njrSamplerPlayingBankIndex = last.bankIndex;
+            io.to('njr_sampler_screen').emit('njr_sampler_play', { url: audioUrl, volume: vol, loop: !!tile.loop });
+            io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId: last.tileId, bankIndex: last.bankIndex });
         } else if (last.type === 'sampler_imprezator') {
             let track = null;
             if (imprezatorConfig && imprezatorConfig.banks) {
@@ -5240,7 +5334,7 @@ io.on('connection', (socket) => {
             if (!track || !track.audio) return;
             njrSamplerPlayingImprezatorTrack = last.trackId;
             const audioUrl = '/api/imprezator/stream?path=' + encodeURIComponent(track.audio);
-            io.to('njr_sampler_screen').emit('njr_sampler_imprezator_play', { url: audioUrl, volume: njrSamplerVolume, trackId: last.trackId });
+            io.to('njr_sampler_screen').emit('njr_sampler_imprezator_play', { url: audioUrl, volume: digitalOutputClamp(njrSamplerVolume * masterVolume), trackId: last.trackId });
             io.to('njr_sampler_phone').emit('njr_sampler_imprezator_playing', last.trackId);
         } else if (last.type === 'imprezator') {
             let track = null;
@@ -5251,12 +5345,13 @@ io.on('connection', (socket) => {
             }
             if (!track || !track.audio) return;
             imprezatorCurrentlyPlaying = true;
+            imprezatorCurrentTrackId = last.trackId;
             const audioUrl = (track.audio.startsWith('http://') || track.audio.startsWith('https://'))
                 ? track.audio
                 : '/api/imprezator/stream?path=' + encodeURIComponent(track.audio);
             const displayName = track.displayName || track.audio.replace(/^.*[/\\]/, '').replace(/\.[^.]+$/, '') || 'Utwór';
             const ng = typeof track.normalizedGain === 'number' ? track.normalizedGain : undefined;
-            io.to('imprezator_screen').emit('imprezator_play', { url: audioUrl, volume: Math.min(1, imprezatorVolume * masterVolume), trackId: last.trackId, displayName, ...(ng != null && { normalizedGain: ng }) });
+            io.to('imprezator_screen').emit('imprezator_play', { url: audioUrl, volume: digitalOutputClamp(imprezatorVolume * masterVolume), trackId: last.trackId, displayName, ...(ng != null && { normalizedGain: ng }) });
         }
         emitAudioMonitorState();
     });
@@ -5265,7 +5360,7 @@ io.on('connection', (socket) => {
     socket.on('whitney_join_screen', () => {
         socket.join('whitney_screen');
         socket.emit('whitney_state', { active: whitneyActive, config: whitneyConfig });
-        socket.emit('whitney_volume', Math.min(1, whitneyVolume * masterVolume));
+        socket.emit('whitney_volume', digitalOutputClamp(whitneyVolume * masterVolume));
     });
     socket.on('whitney_join_phone', () => {
         socket.join('whitney_phone');
@@ -5274,70 +5369,45 @@ io.on('connection', (socket) => {
     });
     socket.on('whitney_toggle', (payload) => {
         if (!whitneyActive) return;
-        const tileId = (typeof payload === 'object' && payload != null && payload.tileId != null) ? payload.tileId : payload;
+        const rawId = (typeof payload === 'object' && payload != null && payload.tileId != null) ? payload.tileId : payload;
+        const tileId = rawId != null ? String(rawId).trim() : '';
+        if (!tileId) return;
         const tiles = whitneyConfig.tiles || [];
-        const tile = tiles.find(t => t.id === tileId);
+        const tile = tiles.find(t => String(t.id) === tileId);
         if (!tile || !tile.audio) return;
         let audioUrl = tile.audio.startsWith('/') || tile.audio.startsWith('http') ? tile.audio : '/uploads/' + tile.audio;
         if (/\.(vdjsample|ogg)$/i.test(audioUrl)) audioUrl = '/api/audio/stream?path=' + encodeURIComponent(audioUrl);
         const vol = Math.max(0, Math.min(100, tile.volume ?? 100)) / 100;
-        const isBg = !!tile.isBackground;
         const loop = !!tile.loop;
         const ng = typeof tile.normalizedGain === 'number' ? tile.normalizedGain : undefined;
-        const playPayload = (u, v, lp) => ({ url: u, volume: v, loop: lp, isBackground: isBg, ...(ng != null && { normalizedGain: ng }) });
-        const thenPlayPayload = (u, v, lp) => ({ url: u, volume: v, loop: lp, ...(ng != null && { normalizedGain: ng }) });
+        const playPayload = (u, v, lp) => ({ url: u, volume: v, loop: lp, ...(ng != null && { normalizedGain: ng }) });
 
-        if (isBg) {
-            if (whitneyPlayingBackgroundTile === tileId) {
-                whitneyPlayingBackgroundTile = null;
-                io.to('whitney_screen').emit('whitney_stop_background', { fadeOut: true });
-                io.to('whitney_phone').emit('whitney_playing', { tileId: null, isBackground: true });
-            } else {
-                const prevBgId = whitneyPlayingBackgroundTile;
-                const prevBgTile = prevBgId ? tiles.find(t => t.id === prevBgId) : null;
-                whitneyPlayingBackgroundTile = tileId;
-                if (prevBgId && prevBgTile && !!prevBgTile.fadeOut) {
-                    io.to('whitney_screen').emit('whitney_stop_background', { fadeOut: true, thenPlay: thenPlayPayload(audioUrl, vol, loop) });
-                } else {
-                    if (prevBgId) io.to('whitney_screen').emit('whitney_stop_background', { fadeOut: false });
-                    io.to('whitney_screen').emit('whitney_play', playPayload(audioUrl, vol, loop));
-                }
-                io.to('whitney_phone').emit('whitney_playing', { tileId, isBackground: true });
-            }
+        const playingKey = whitneyPlayingTile != null ? String(whitneyPlayingTile) : null;
+        if (playingKey === tileId) {
+            whitneyPlayingTile = null;
+            io.to('whitney_screen').emit('whitney_stop', { fadeOut: true });
+            io.to('whitney_phone').emit('whitney_playing', { tileId: null });
         } else {
-            if (whitneyPlayingTile === tileId) {
-                whitneyPlayingTile = null;
-                io.to('whitney_screen').emit('whitney_stop', { fadeOut: true });
-                io.to('whitney_phone').emit('whitney_playing', { tileId: null, isBackground: false });
-            } else {
-                const prevTileId = whitneyPlayingTile;
-                const prevTile = prevTileId ? tiles.find(t => t.id === prevTileId) : null;
-                whitneyPlayingTile = tileId;
-                if (prevTileId && prevTile && !!prevTile.fadeOut) {
-                    io.to('whitney_screen').emit('whitney_stop', { fadeOut: true, thenPlay: thenPlayPayload(audioUrl, vol, loop) });
-                } else {
-                    if (prevTileId) io.to('whitney_screen').emit('whitney_stop', { fadeOut: false });
-                    io.to('whitney_screen').emit('whitney_play', playPayload(audioUrl, vol, loop));
-                }
-                io.to('whitney_phone').emit('whitney_playing', { tileId, isBackground: false });
+            if (whitneyPlayingTile != null) {
+                io.to('whitney_screen').emit('whitney_stop', { immediate: true });
             }
+            whitneyPlayingTile = tileId;
+            io.to('whitney_screen').emit('whitney_play', playPayload(audioUrl, vol, loop));
+            io.to('whitney_phone').emit('whitney_playing', { tileId });
         }
-    });
-    socket.on('whitney_background_ended', () => {
-        whitneyPlayingBackgroundTile = null;
-        io.to('whitney_phone').emit('whitney_playing', { tileId: null, isBackground: true });
+        emitAudioMonitorState();
     });
     socket.on('whitney_volume', (vol) => {
         whitneyVolume = Math.max(0, Math.min(1, vol));
         saveVolumes();
-        io.to('whitney_screen').emit('whitney_volume', Math.min(1, whitneyVolume * masterVolume));
+        io.to('whitney_screen').emit('whitney_volume', digitalOutputClamp(whitneyVolume * masterVolume));
     });
 
     // Śpiewaj Dalej – ekran (komputer) i telefon
     socket.on('spiewaj_dalej_join_screen', () => {
         socket.join('spiewaj_dalej_screen');
         socket.emit('spiewaj_dalej_state', { active: spiewajDalejActive, config: spiewajDalejConfig });
-        socket.emit('spiewaj_dalej_volume', Math.min(1, spiewajDalejVolume * masterVolume));
+        socket.emit('spiewaj_dalej_volume', digitalOutputClamp(spiewajDalejVolume * masterVolume));
     });
     socket.on('spiewaj_dalej_join_phone', () => {
         socket.join('spiewaj_dalej_phone');
@@ -5346,45 +5416,64 @@ io.on('connection', (socket) => {
     });
     socket.on('spiewaj_dalej_play', (trackId) => {
         if (!spiewajDalejActive || !trackId) return;
+        const tid = String(trackId).trim();
+        if (!tid) return;
         let track = null;
         if (spiewajDalejConfig.banks && Array.isArray(spiewajDalejConfig.banks)) {
             for (const b of spiewajDalejConfig.banks) {
-                track = (b.tracks || []).find(t => t.id === trackId);
+                track = (b.tracks || []).find(t => String(t.id) === tid);
                 if (track) break;
             }
         } else {
-            track = (spiewajDalejConfig.tracks || []).find(t => t.id === trackId);
+            track = (spiewajDalejConfig.tracks || []).find(t => String(t.id) === tid);
         }
         if (!track || !track.audio) return;
+        const playingKey = spiewajDalejScreenTrackId != null ? String(spiewajDalejScreenTrackId) : null;
+        if (playingKey === tid) {
+            spiewajDalejScreenTrackId = null;
+            io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_stop', { trackId: tid, fadeOut: true });
+            io.to('spiewaj_dalej_phone').emit('spiewaj_dalej_ended', { trackId: tid });
+            emitAudioMonitorState();
+            return;
+        }
         let audioUrl = track.audio.startsWith('http') ? track.audio : (track.audio.startsWith('/') ? track.audio : '/uploads/' + track.audio.replace(/^\/+/, ''));
         if (/\.(vdjsample|ogg)$/i.test(audioUrl)) {
             audioUrl = '/api/audio/stream?path=' + encodeURIComponent(audioUrl);
         }
-        spiewajDalejUsedIds.add(trackId);
+        if (spiewajDalejScreenTrackId && String(spiewajDalejScreenTrackId) !== tid) {
+            io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_stop', { immediate: true });
+        }
+        spiewajDalejScreenTrackId = tid;
+        spiewajDalejUsedIds.add(tid);
         const ng = typeof track.normalizedGain === 'number' ? track.normalizedGain : undefined;
-        io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_play', { url: audioUrl, volume: spiewajDalejVolume, trackId, ...(ng != null && { normalizedGain: ng }) });
-        io.to('spiewaj_dalej_phone').emit('spiewaj_dalej_used', { trackId });
+        io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_play', { url: audioUrl, volume: digitalOutputClamp(spiewajDalejVolume * masterVolume), trackId: tid, ...(ng != null && { normalizedGain: ng }) });
+        io.to('spiewaj_dalej_phone').emit('spiewaj_dalej_used', { trackId: tid });
+        emitAudioMonitorState();
     });
     socket.on('spiewaj_dalej_stop', (trackId) => {
-        io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_stop', { trackId });
+        spiewajDalejScreenTrackId = null;
+        io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_stop', { trackId, fadeOut: true });
+        emitAudioMonitorState();
     });
     socket.on('spiewaj_dalej_progress', (data) => {
         io.to('spiewaj_dalej_phone').emit('spiewaj_dalej_progress', data);
     });
     socket.on('spiewaj_dalej_ended', (data) => {
+        if (data && data.trackId != null && spiewajDalejScreenTrackId != null && String(spiewajDalejScreenTrackId) === String(data.trackId)) spiewajDalejScreenTrackId = null;
         io.to('spiewaj_dalej_phone').emit('spiewaj_dalej_ended', data);
+        emitAudioMonitorState();
     });
     socket.on('spiewaj_dalej_volume', (vol) => {
         spiewajDalejVolume = Math.max(0, Math.min(1, vol));
         saveVolumes();
-        io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_volume', Math.min(1, spiewajDalejVolume * masterVolume));
+        io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_volume', digitalOutputClamp(spiewajDalejVolume * masterVolume));
     });
 
     // Bitwa wokalna – ekran (komputer) i telefon
     socket.on('bitwa_wokalna_join_screen', () => {
         socket.join('bitwa_wokalna_screen');
         socket.emit('bitwa_wokalna_state', { active: bitwaWokalnaActive, config: bitwaWokalnaConfig });
-        socket.emit('bitwa_wokalna_volume', Math.min(1, bitwaWokalnaVolume * masterVolume));
+        socket.emit('bitwa_wokalna_volume', digitalOutputClamp(bitwaWokalnaVolume * masterVolume));
     });
     socket.on('bitwa_wokalna_join_phone', () => {
         socket.join('bitwa_wokalna_phone');
@@ -5393,45 +5482,64 @@ io.on('connection', (socket) => {
     });
     socket.on('bitwa_wokalna_play', (trackId) => {
         if (!bitwaWokalnaActive || !trackId) return;
+        const tid = String(trackId).trim();
+        if (!tid) return;
         let track = null;
         if (bitwaWokalnaConfig.banks && Array.isArray(bitwaWokalnaConfig.banks)) {
             for (const b of bitwaWokalnaConfig.banks) {
-                track = (b.tracks || []).find(t => t.id === trackId);
+                track = (b.tracks || []).find(t => String(t.id) === tid);
                 if (track) break;
             }
         } else {
-            track = (bitwaWokalnaConfig.tracks || []).find(t => t.id === trackId);
+            track = (bitwaWokalnaConfig.tracks || []).find(t => String(t.id) === tid);
         }
         if (!track || !track.audio) return;
+        const playingKey = bitwaWokalnaScreenTrackId != null ? String(bitwaWokalnaScreenTrackId) : null;
+        if (playingKey === tid) {
+            bitwaWokalnaScreenTrackId = null;
+            io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_stop', { trackId: tid, fadeOut: true });
+            io.to('bitwa_wokalna_phone').emit('bitwa_wokalna_ended', { trackId: tid });
+            emitAudioMonitorState();
+            return;
+        }
         let audioUrl = track.audio.startsWith('http') ? track.audio : (track.audio.startsWith('/') ? track.audio : '/uploads/' + track.audio.replace(/^\/+/, ''));
         if (/\.(vdjsample|ogg)$/i.test(audioUrl)) {
             audioUrl = '/api/audio/stream?path=' + encodeURIComponent(audioUrl);
         }
-        bitwaWokalnaUsedIds.add(trackId);
+        if (bitwaWokalnaScreenTrackId && String(bitwaWokalnaScreenTrackId) !== tid) {
+            io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_stop', { immediate: true });
+        }
+        bitwaWokalnaScreenTrackId = tid;
+        bitwaWokalnaUsedIds.add(tid);
         const ng = typeof track.normalizedGain === 'number' ? track.normalizedGain : undefined;
-        io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_play', { url: audioUrl, volume: bitwaWokalnaVolume, trackId, ...(ng != null && { normalizedGain: ng }) });
-        io.to('bitwa_wokalna_phone').emit('bitwa_wokalna_used', { trackId });
+        io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_play', { url: audioUrl, volume: digitalOutputClamp(bitwaWokalnaVolume * masterVolume), trackId: tid, ...(ng != null && { normalizedGain: ng }) });
+        io.to('bitwa_wokalna_phone').emit('bitwa_wokalna_used', { trackId: tid });
+        emitAudioMonitorState();
     });
     socket.on('bitwa_wokalna_stop', (trackId) => {
-        io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_stop', { trackId });
+        bitwaWokalnaScreenTrackId = null;
+        io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_stop', { trackId, fadeOut: true });
+        emitAudioMonitorState();
     });
     socket.on('bitwa_wokalna_progress', (data) => {
         io.to('bitwa_wokalna_phone').emit('bitwa_wokalna_progress', data);
     });
     socket.on('bitwa_wokalna_ended', (data) => {
+        if (data && data.trackId != null && bitwaWokalnaScreenTrackId != null && String(bitwaWokalnaScreenTrackId) === String(data.trackId)) bitwaWokalnaScreenTrackId = null;
         io.to('bitwa_wokalna_phone').emit('bitwa_wokalna_ended', data);
+        emitAudioMonitorState();
     });
     socket.on('bitwa_wokalna_volume', (vol) => {
         bitwaWokalnaVolume = Math.max(0, Math.min(1, vol));
         saveVolumes();
-        io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_volume', Math.min(1, bitwaWokalnaVolume * masterVolume));
+        io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_volume', digitalOutputClamp(bitwaWokalnaVolume * masterVolume));
     });
 
     // Imprezator – muzyka do tańca
     socket.on('imprezator_join_screen', () => {
         socket.join('imprezator_screen');
         socket.emit('imprezator_state', { active: imprezatorActive, config: imprezatorConfig });
-        socket.emit('imprezator_volume', Math.min(1, imprezatorVolume * masterVolume));
+        socket.emit('imprezator_volume', digitalOutputClamp(imprezatorVolume * masterVolume));
     });
     socket.on('imprezator_join_phone', () => {
         socket.join('imprezator_phone');
@@ -5440,40 +5548,58 @@ io.on('connection', (socket) => {
     });
     socket.on('imprezator_play', (trackId) => {
         if (!imprezatorActive || !trackId) return;
+        const tid = String(trackId).trim();
+        if (!tid) return;
         let track = null;
         if (imprezatorConfig.banks && Array.isArray(imprezatorConfig.banks)) {
             for (const b of imprezatorConfig.banks) {
-                track = (b.tracks || []).find(t => t.id === trackId);
+                track = (b.tracks || []).find(t => String(t.id) === tid);
                 if (track) break;
             }
         } else {
-            track = (imprezatorConfig.tracks || []).find(t => t.id === trackId);
+            track = (imprezatorConfig.tracks || []).find(t => String(t.id) === tid);
         }
         if (!track || !track.audio) return;
+        const playingKey = imprezatorCurrentTrackId != null ? String(imprezatorCurrentTrackId) : null;
+        if (imprezatorCurrentlyPlaying && playingKey === tid) {
+            imprezatorCurrentlyPlaying = false;
+            imprezatorCurrentTrackId = null;
+            io.to('imprezator_screen').emit('imprezator_stop', { trackId: tid, fadeOut: true });
+            io.to('imprezator_phone').emit('imprezator_ended', { trackId: tid });
+            emitAudioMonitorState();
+            return;
+        }
         const audioUrl = (track.audio.startsWith('http://') || track.audio.startsWith('https://'))
             ? track.audio
             : '/api/imprezator/stream?path=' + encodeURIComponent(track.audio);
         const displayName = track.displayName || track.audio.replace(/^.*[/\\]/, '').replace(/\.[^.]+$/, '') || 'Utwór';
         const ng = typeof track.normalizedGain === 'number' ? track.normalizedGain : undefined;
+        if (imprezatorCurrentlyPlaying && playingKey && playingKey !== tid) {
+            io.to('imprezator_screen').emit('imprezator_stop', { immediate: true });
+        }
         imprezatorCurrentlyPlaying = true;
-        audioMonitorLast = { type: 'imprezator', trackId };
-        io.to('imprezator_screen').emit('imprezator_play', { url: audioUrl, volume: Math.min(1, imprezatorVolume * masterVolume), trackId, displayName, ...(ng != null && { normalizedGain: ng }) });
+        imprezatorCurrentTrackId = tid;
+        audioMonitorLast = { type: 'imprezator', trackId: tid };
+        io.to('imprezator_screen').emit('imprezator_play', { url: audioUrl, volume: digitalOutputClamp(imprezatorVolume * masterVolume), trackId: tid, displayName, ...(ng != null && { normalizedGain: ng }) });
         emitAudioMonitorState();
     });
-    socket.on('imprezator_stop', (trackId) => {
+    socket.on('imprezator_stop', (payload) => {
+        const trackId = typeof payload === 'object' && payload != null && payload.trackId != null ? payload.trackId : payload;
         imprezatorCurrentlyPlaying = false;
-        io.to('imprezator_screen').emit('imprezator_stop', { trackId });
+        imprezatorCurrentTrackId = null;
+        io.to('imprezator_screen').emit('imprezator_stop', { trackId, fadeOut: true });
         emitAudioMonitorState();
     });
     socket.on('imprezator_ended', (data) => {
         imprezatorCurrentlyPlaying = false;
+        imprezatorCurrentTrackId = null;
         io.to('imprezator_phone').emit('imprezator_ended', data);
         emitAudioMonitorState();
     });
     socket.on('imprezator_volume', (vol) => {
         imprezatorVolume = Math.max(0, Math.min(1, vol));
         saveVolumes();
-        io.to('imprezator_screen').emit('imprezator_volume', Math.min(1, imprezatorVolume * masterVolume));
+        io.to('imprezator_screen').emit('imprezator_volume', digitalOutputClamp(imprezatorVolume * masterVolume));
     });
 
     socket.on('select_question', (index) => {
@@ -6706,6 +6832,7 @@ io.on('connection', (socket) => {
         saveVolumes();
         io.emit('master_volume', { volume: masterVolume });
         io.emit('admin_master_volume', Math.round(v * 100)); // kompatybilność z admin.html
+        broadcastEffectiveVolumes(); // jak master_volume z PWA – odśwież eff na ekranach (Sampler, Whitney, …)
     });
 
     // === TEAM BATTLE MODE ===
@@ -6917,7 +7044,7 @@ io.on('connection', (socket) => {
 
 
     // Usuń quiz i opcjonalnie powiązane pliki
-    socket.on('editor_delete_file', (data) => {
+    socket.on('editor_delete_file', async (data) => {
         console.log('📥 Otrzymano żądanie usunięcia:', data);
         const { filename, deleteRelated } = data;
         
@@ -6946,45 +7073,42 @@ io.on('connection', (socket) => {
                 const allQuizFiles = getFilesFromQuiz(filePath);
                 const usedElsewhere = getFilesUsedByOtherQuizzes(filename);
 
-                allQuizFiles.forEach(fileName => {
+                for (const fileName of allQuizFiles) {
                     if (usedElsewhere.has(fileName)) {
-                        // Plik używany przez inne quizy – CHRONIONY, nie usuwamy
                         skippedFiles.push(fileName);
                         console.log(`🛡️ Pominięto (używany przez inny quiz): ${fileName}`);
-                        return;
+                        continue;
                     }
                     const fullPath = path.join(uploadsDir, fileName);
                     if (fs.existsSync(fullPath)) {
                         try {
-                            fs.unlinkSync(fullPath);
+                            await moveUserPathsToTrash(fullPath);
                             removeFileFromIndex(fileName);
                             deletedFiles.push(fileName);
-                            console.log(`✅ Usunięto powiązany plik: ${fileName}`);
-                            devSyncDelete(`public/uploads/${fileName}`);
+                            console.log(`✅ Powiązany plik przeniesiony do Kosza: ${fileName}`);
+                            await devSyncDelete(`public/uploads/${fileName}`);
                         } catch (err) {
                             errors.push(`Błąd usuwania ${fileName}: ${err.message}`);
                             console.error(`❌ Błąd usuwania ${fileName}:`, err);
                         }
                     }
-                });
+                }
             }
 
-            // Usuń plik JSON quizu
             try {
-                fs.unlinkSync(filePath);
+                await moveUserPathsToTrash(filePath);
                 deletedFiles.push(filename);
-                console.log(`✅ Usunięto quiz: ${filename}`);
-                devSyncDelete(`public/quizzes/${filename}`);
+                console.log(`✅ Quiz przeniesiony do Kosza: ${filename}`);
+                await devSyncDelete(`public/quizzes/${filename}`);
             } catch (err) {
                 errors.push(`Błąd usuwania ${filename}: ${err.message}`);
                 console.error(`❌ Błąd usuwania ${filename}:`, err);
             }
 
-            // Odśwież listę plików
             io.emit('files_list', getQuizFiles());
             socket.emit('editor_files_list', getQuizFiles());
 
-            let message = `Usunięto: ${filename}`;
+            let message = `Przeniesiono do Kosza: ${filename}`;
             if (deleteRelated && deletedFiles.length > 1) {
                 message += ` oraz ${deletedFiles.length - 1} plik(ów) multimedialnych`;
             }
@@ -6998,7 +7122,8 @@ io.on('connection', (socket) => {
             socket.emit('editor_delete_status', { 
                 success: errors.length === 0, 
                 message,
-                skippedFiles
+                skippedFiles,
+                trashed: true
             });
         } catch (err) {
             console.error('❌ Błąd usuwania quizu:', err);
@@ -8160,6 +8285,8 @@ function checkLicenseMiddleware(req, res, next) {
 // W trybie Electron (IMPREZJA_ELECTRON) eksportujemy startServer – serwer uruchamia proces główny w tym samym procesie (bez spawn), żeby na macOS nie pojawiał się dialog z hasłem.
 function doListen(readyCallback) {
     loadVolumes();
+    loadSpiewajDalejConfigFromDisk();
+    loadBitwaWokalnaConfigFromDisk();
     const serverInstance = server.listen(PORT, '0.0.0.0', () => {
         const address = serverInstance.address();
         console.log(`✅ Serwer HTTP uruchomiony na porcie ${PORT}`);

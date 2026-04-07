@@ -19,7 +19,7 @@
 
 | # | Test | OK |
 |---|------|-----|
-| 0.1 | Wersja w `package.json` zgodna z planowanym release (np. `1.2.1`). | [ ] |
+| 0.1 | Wersja w `package.json` zgodna z planowanym release (np. `1.2.2`). | [ ] |
 | 0.2 | `CHANGELOG.md` i ewentualnie `public/poradniki/changelog.html` zaktualizowane. | [ ] |
 | 0.3 | **Automatyczny smoke HTTP** (wymaga działającego serwera): `npm run qa:smoke-http` — wszystkie ścieżki ✅. | [ ] |
 | 0.4 | `node --check server.js` oraz `node --check electron-main.js` bez błędów. | [ ] |

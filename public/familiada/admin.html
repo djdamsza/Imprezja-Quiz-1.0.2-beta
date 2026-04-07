@@ -117,6 +117,7 @@
                 <span style="color:#888;font-size:10px;">intro/outro -10%</span>
                 <span>Max</span>
             </div>
+            <button type="button" id="btn-fam-color-swap" class="btn-audio" style="background:#34495e;width:100%;margin-top:10px;padding:12px;font-size:14px;" onclick="toggleFamiliadaColorSides()" title="Odwraca tła niebieski/czerwony na ekranie TV; nazwy drużyn i punkty bez zmian">🔄 Kolory stron (TV): normalnie</button>
         </div>
 
         <h3>😄 SUCHARY</h3>
@@ -668,6 +669,22 @@
                 }, 80);
             });
         })();
+
+        const LS_FAM_COLOR_SWAP = 'imprezjaFamiliadaColorSwap';
+        function updateFamColorSwapButton(swapped) {
+            const btn = document.getElementById('btn-fam-color-swap');
+            if (!btn) return;
+            btn.textContent = swapped
+                ? '🔄 Kolory stron (TV): odwrócone'
+                : '🔄 Kolory stron (TV): normalnie';
+            try { localStorage.setItem(LS_FAM_COLOR_SWAP, swapped ? '1' : '0'); } catch (e) { /* ignore */ }
+        }
+        function toggleFamiliadaColorSides() {
+            socket.emit('familiada_toggle_color_sides');
+        }
+        socket.on('familiada_color_sides_swap', (data) => {
+            updateFamColorSwapButton(!!(data && data.swapped));
+        });
 
         function sendError(team, count) { socket.emit('send_error', { team, count }); }
 

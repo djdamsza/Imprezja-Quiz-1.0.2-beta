@@ -1,7 +1,7 @@
 {
   "name": "votebattle",
   "description": "Imprezja Quiz – quiz i głosowanie w sieci lokalnej (działa offline)",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "author": "Damian Nowaczyk",
   "main": "electron-main.js",
   "scripts": {
@@ -10,6 +10,7 @@
     "electron:fresh": "npm run kill-port && node scripts/sleep.js 2000 && electron .",
     "electron:dev": "npm run kill-port && node scripts/sleep.js 2000 && electron .",
     "clean": "node scripts/clean.js",
+    "restore:user-data": "node scripts/restore-user-data-from-public.js",
     "clean:cache": "node scripts/clean-cache.js",
     "clean:cache:npm": "npm cache clean --force",
     "electron": "npm run kill-port && node scripts/sleep.js 2000 && electron .",
@@ -17,14 +18,14 @@
     "build": "electron-builder",
     "build:mac": "electron-builder --mac",
     "build:mac:universal": "electron-builder --mac --universal",
-    "build:mac:x64": "node scripts/clean.js && node scripts/prepare-cloudflared-for-mac-x64.js && electron-builder --mac --x64 --publish never",
+    "build:mac:x64": "node scripts/prepare-cloudflared-for-mac-x64.js && electron-builder --mac --x64 --publish never",
     "build:mac:intel": "node scripts/prepare-cloudflared-for-mac-x64.js && electron-builder --mac --x64 --publish never",
-    "build:mac:arm64": "node scripts/clean.js && node scripts/prepare-cloudflared-for-mac-arm64.js && electron-builder --mac --arm64 --publish never",
+    "build:mac:arm64": "node scripts/prepare-cloudflared-for-mac-arm64.js && electron-builder --mac --arm64 --publish never",
     "build:mac:arm64:pack": "node scripts/prepare-cloudflared-for-mac-arm64.js && electron-builder --mac --arm64 --publish never",
     "build:mac:x64:pack": "node scripts/prepare-cloudflared-for-mac-x64.js && electron-builder --mac --x64 --publish never",
-    "build:win": "node scripts/clean.js && node scripts/prepare-cloudflared-for-windows.js && node scripts/prepare-win-icon.js && cross-env NODE_OPTIONS=--max-old-space-size=8192 electron-builder --win --x64 --publish never",
+    "build:win": "node scripts/prepare-cloudflared-for-windows.js && node scripts/prepare-win-icon.js && cross-env NODE_OPTIONS=--max-old-space-size=8192 electron-builder --win --x64 --publish never",
     "build:win:pack": "node scripts/prepare-cloudflared-for-windows.js && node scripts/prepare-win-icon.js && cross-env NODE_OPTIONS=--max-old-space-size=8192 electron-builder --win --x64 --publish never",
-    "pac": "node scripts/clean.js && npm run build:mac:arm64:pack && npm run build:mac:x64:pack && npm run build:win:pack",
+    "pac": "npm run build:mac:arm64:pack && npm run build:mac:x64:pack && npm run build:win:pack",
     "publish:github": "node scripts/publish-release.js",
     "release:changelog": "node scripts/update-release-changelog.js",
     "publish:github:with-changelog": "npm run publish:github && npm run release:changelog",
@@ -32,7 +33,7 @@
     "qa:smoke-http": "node scripts/release-smoke-http.js",
     "qa:before-build": "node scripts/suggest-qa-before-build.js --short",
     "qa:before-build:full": "node scripts/suggest-qa-before-build.js",
-    "rebuild:full": "npm cache clean --force && node scripts/clean.js && rm -rf node_modules/electron/dist && npm install && npm run pac",
+    "rebuild:full": "npm cache clean --force && rm -rf node_modules/electron/dist && npm install && npm run pac",
     "build:launcher": "pkg launcher.js --targets node18-win-x64 --output dist/ImprezjaQuiz-Launcher.exe",
     "license-key": "node scripts/generate-license-key.js",
     "simulate:trial": "IMPREZJA_SIMULATE_TRIAL=1 node server.js",
@@ -59,7 +60,8 @@
     "reveal.js": "^6.0.0",
     "selfsigned": "^2.4.1",
     "sharp": "^0.34.5",
-    "socket.io": "^4.8.1"
+    "socket.io": "^4.8.1",
+    "trash": "^7.2.0"
   },
   "devDependencies": {
     "cross-env": "^7.0.3",
@@ -77,7 +79,6 @@
     },
     "files": [
       "**/*",
-      "!tools/vdj-database-editor/**",
       "!tools/image-to-webp/**",
       "!resources/njr-converter/**",
       "!public/imprezator-configs/**",

@@ -2,6 +2,16 @@
 
 ---
 
+## v1.2.2 (kwiecień 2026) — wydanie stabilne
+
+### Familiada
+- **Kolory stron (TV)** – w panelu admina (`/familiada/admin.html`), w sekcji audio obok głośności master, przycisk **„Kolory stron (TV)”** odwraca wizualnie tła niebieski↔czerwony na ekranie TV (body, panele, intro/finał, split overlay, błysk przycisku). Nazwy drużyn, punkty i logika team1/team2 bez zmian. Stan zapamiętywany na serwerze (`familiada-screen-prefs.json`) i synchronizowany z podłączonym ekranem przez Socket.IO.
+
+### Strony WordPress / linki
+- Zaktualizowane linki do pobrania v1.2.2 – m.in. `sukces.html`, `sukces-wklej.html`, `stripe-cennik.html`, `09-pobierz-1.2.2.html`, `imprezja-quiz-produkt-pelna-tresc.html`, `LINKI-1.2.2-WORDPRESS.md`, `stripe-shop/public/success.html`.
+
+---
+
 ## v1.2.1 (marzec 2026) — wydanie stabilne
 
 ### Build

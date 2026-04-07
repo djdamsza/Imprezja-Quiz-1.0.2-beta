@@ -141,6 +141,31 @@
                 #aa0022 55%, #dd2244 100%);
         }
         #split-overlay.visible { display: block; }
+        /* Zamiana tła niebieski↔czerwony na TV (team1/team2, nazwy i punkty bez zmian). */
+        body.familiada-swap-side-colors::before {
+            transform: scaleX(-1);
+            transform-origin: center center;
+        }
+        body.familiada-swap-side-colors #panel-blue {
+            background: linear-gradient(225deg, rgba(100, 0, 0, 0.3) 0%, transparent 70%);
+        }
+        body.familiada-swap-side-colors #panel-red {
+            background: linear-gradient(135deg, rgba(0, 40, 100, 0.3) 0%, transparent 70%);
+        }
+        body.familiada-swap-side-colors #split-overlay {
+            background: linear-gradient(180deg,
+                #aa0022 0%, #dd2244 45%,
+                #0066dd 55%, #0044aa 100%);
+        }
+        body.familiada-swap-side-colors #familiada-intro::before,
+        body.familiada-swap-side-colors #final-screen::before {
+            transform: scaleX(-1);
+            transform-origin: center center;
+        }
+        body.familiada-swap-side-colors #familiada-title-overlay::before {
+            transform: scaleX(-1);
+            transform-origin: center center;
+        }
         #button-flash-overlay { display: none; flex-direction: column; }
         #button-flash-overlay.visible { display: flex; }
         #button-flash-pixel-title .pixel-tile { width: 1.5vw; height: 1.5vw; }
@@ -213,6 +238,7 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="/lib/audio-normalize.js"></script>
+    <script src="/lib/digital-output-cap.js"></script>
     <script>
         const FAM_LOG = (...a) => { try { console.log('[IMPREZJA-FAMILIADA]', new Date().toISOString(), ...a); } catch (_) {} };
         const FAM_ERR = (...a) => { try { console.error('[IMPREZJA-FAMILIADA-ERR]', new Date().toISOString(), ...a); } catch (_) {} };
@@ -220,6 +246,10 @@
         window.addEventListener('unhandledrejection', e => { FAM_ERR('unhandledrejection', e.reason); });
 
         const socket = io();
+        socket.on('familiada_color_sides_swap', (data) => {
+            const swapped = !!(data && data.swapped);
+            document.body.classList.toggle('familiada-swap-side-colors', swapped);
+        });
         let currentPot = 0;
         const MAX_ROWS = 10;
 
@@ -307,9 +337,15 @@
             renderPixelTitle('button-flash-pixel-title');
             overlay.style.transition = 'none';
             overlay.style.opacity = '1';
+            const swapColors = document.body.classList.contains('familiada-swap-side-colors');
+            const team1FlashBlue = !swapColors;
             overlay.style.background = data.team === 1
-                ? 'linear-gradient(180deg, #0044aa 0%, #003380 50%, #002255 100%)'
-                : 'linear-gradient(0deg, #aa0022 0%, #800018 50%, #550010 100%)';
+                ? (team1FlashBlue
+                    ? 'linear-gradient(180deg, #0044aa 0%, #003380 50%, #002255 100%)'
+                    : 'linear-gradient(0deg, #aa0022 0%, #800018 50%, #550010 100%)')
+                : (team1FlashBlue
+                    ? 'linear-gradient(0deg, #aa0022 0%, #800018 50%, #550010 100%)'
+                    : 'linear-gradient(180deg, #0044aa 0%, #003380 50%, #002255 100%)');
             overlay.classList.add('visible');
             overlay.style.display = 'flex';
             setTimeout(() => {
@@ -347,11 +383,11 @@
         let masterVolume = 1;
 
         function applyVolumes() {
-            const eff = Math.min(1, familiadaChannelVolume * masterVolume);
+            const eff = clampDigitalOutputLinear(familiadaChannelVolume * masterVolume);
             Object.entries(audioFiles).forEach(([name, a]) => {
                 const isBg = (name === 'intro' || name === 'outro');
                 const gain = familiadaGainCache[name] ?? 1;
-                a.volume = Math.min(1, eff * (isBg ? INTRO_VOL_FACTOR : 1) * gain);
+                a.volume = clampDigitalOutputLinear(eff * (isBg ? INTRO_VOL_FACTOR : 1) * gain);
             });
         }
 
