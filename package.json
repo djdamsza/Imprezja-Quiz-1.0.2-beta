@@ -27,6 +27,7 @@
     "build:win:pack": "node scripts/prepare-cloudflared-for-windows.js && node scripts/prepare-win-icon.js && cross-env NODE_OPTIONS=--max-old-space-size=8192 electron-builder --win --x64 --publish never",
     "pac": "npm run build:mac:arm64:pack && npm run build:mac:x64:pack && npm run build:win:pack",
     "publish:github": "node scripts/publish-release.js",
+    "verify:github-release": "node scripts/verify-github-release-assets.js",
     "release:changelog": "node scripts/update-release-changelog.js",
     "publish:github:with-changelog": "npm run publish:github && npm run release:changelog",
     "embed:napraw-docs": "node scripts/embed-napraw-uninstaller-in-wordpress-docs.js",

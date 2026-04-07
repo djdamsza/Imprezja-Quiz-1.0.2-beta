@@ -50,6 +50,18 @@ if (distAssets.length === 0) {
   process.exit(1);
 }
 
+const requireAll = process.env.ALLOW_PARTIAL_PUBLISH !== '1';
+const expectedCount = distAssetDefs.length;
+if (requireAll && distAssets.length < expectedCount) {
+  const missing = distAssetDefs
+    .filter(({ local }) => !fs.existsSync(path.join(distDir, local)))
+    .map(({ local }) => local);
+  console.error('❌ Przed publikacją potrzebne są wszystkie 3 instalatory w dist/ (albo ustaw ALLOW_PARTIAL_PUBLISH=1).');
+  console.error('   Brakuje lokalnie:', missing.join(', ') || '(nieznane)');
+  console.error('   Uruchom: npm run pac');
+  process.exit(1);
+}
+
 /** @type {{ local?: string, upload: string, localFull?: string }[]} */
 const assetMap = distAssets.map(({ local, upload }) => ({ local, upload }));
 const batPath = path.join(root, 'napraw-uninstaller.bat');

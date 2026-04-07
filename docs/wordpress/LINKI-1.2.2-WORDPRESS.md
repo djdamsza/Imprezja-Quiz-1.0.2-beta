@@ -1,5 +1,19 @@
 # Linki do podmiany na WordPress – Imprezja Quiz 1.2.2
 
+## Jeśli pobieranie z GitHub daje „Not Found” (404)
+
+Adresy `…/releases/download/v1.2.2/…` są **poprawne**, o ile plik **faktycznie został wgrany** do tego release’u. Po przerwanym `publish:github` na GitHubie może zostać np. tylko `.exe`, a **`.dmg` zwrócą 404** — linki na stronie wtedy „nie działają”, choć sama ścieżka jest dobra.
+
+**Naprawa:** na maszynie z pełnym `dist/` (po `npm run pac`):
+
+```bash
+GITHUB_TOKEN=ghp_… npm run publish:github
+```
+
+**Sprawdzenie:** `npm run verify:github-release` — porównuje listę plików na GitHubie z oczekiwaną (exe + 2× dmg + opcjonalnie `napraw-uninstaller.bat`).
+
+---
+
 ## Release na GitHub
 https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/tag/v1.2.2
 
