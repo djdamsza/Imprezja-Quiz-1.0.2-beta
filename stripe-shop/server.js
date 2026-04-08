@@ -503,6 +503,29 @@ app.post('/create-portal-session', async (req, res) => {
     }
 });
 
+/**
+ * Publiczny endpoint pod stronę sukcesu (WordPress): czy sesja Checkout jest opłacona.
+ * Nie zwraca e-maila ani danych osobowych — tylko { ok, paid }.
+ */
+app.get('/api/checkout/session-status', async (req, res) => {
+    const raw = req.query && req.query.session_id;
+    const sessionId = typeof raw === 'string' ? raw.trim() : '';
+    if (!sessionId || !/^cs_(live|test)_[A-Za-z0-9]+$/.test(sessionId)) {
+        return res.status(400).json({ ok: false, paid: false, error: 'invalid_session_id' });
+    }
+    if (!process.env.STRIPE_SECRET_KEY) {
+        return res.status(503).json({ ok: false, paid: false, error: 'stripe_unconfigured' });
+    }
+    try {
+        const session = await stripe.checkout.sessions.retrieve(sessionId);
+        const paid = session.status === 'complete' && session.payment_status === 'paid';
+        res.json({ ok: true, paid });
+    } catch (err) {
+        console.warn('session-status:', sessionId.slice(0, 20) + '…', err.message);
+        res.json({ ok: true, paid: false });
+    }
+});
+
 /** Wysyłka klucza licencyjnego po płatności – wymaga Machine ID od użytkownika */
 app.post('/api/license/deliver', async (req, res) => {
     const { session_id, machine_id } = req.body || {};
