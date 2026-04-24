@@ -91,16 +91,27 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000c1a;color:#fff;f
     </div>
 </div>
 
-<button id="btn-solo-fs" onclick="document.documentElement.requestFullscreen().catch(()=>{})">⛶ Pełny ekran</button>
+<button id="btn-solo-fs" type="button" onclick="soloStatkiRequestFs()">⛶ Pełny ekran</button>
 <a id="btn-solo-back" href="/statki-solo/">← Cofnij</a>
 
 <audio id="soundtrack" loop></audio>
 
 <script src="/socket.io/socket.io.js"></script>
 <script src="/lib/audio-normalize.js"></script>
+<script src="/lib/digital-output-cap.js"></script>
 <script>
 const socket = io();
 const LETTERS = 'ABCDEFGHIJ';
+
+function soloStatkiRequestFs() {
+    const el = document.documentElement;
+    const fn = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+    if (!fn) return;
+    try {
+        const p = fn.call(el);
+        if (p && typeof p.catch === 'function') p.catch(() => {});
+    } catch (e) {}
+}
 
 // ── WakeLock — ekran TV nie gaśnie podczas gry ─────────────
 let wakeLock = null;
@@ -118,11 +129,16 @@ async function keepAwake() {
 keepAwake();
 
 // ── Fullscreen — hide nav buttons when in fullscreen ────
-document.addEventListener('fullscreenchange', () => {
-    const fs = !!document.fullscreenElement;
+function soloStatkiFsActive() {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+}
+function soloStatkiOnFsChange() {
+    const fs = soloStatkiFsActive();
     document.getElementById('btn-solo-fs').style.display = fs ? 'none' : 'flex';
     document.getElementById('btn-solo-back').style.display = fs ? 'none' : 'flex';
-});
+}
+document.addEventListener('fullscreenchange', soloStatkiOnFsChange);
+document.addEventListener('webkitfullscreenchange', soloStatkiOnFsChange);
 
 let gameState = null;
 /** Po zakończeniu gry (lub „Koniec”) nie wznawiaj muzyki przy kolejnych ships_solo_state (np. visibilitychange). */
@@ -311,7 +327,7 @@ let statkiSoundtrackGain = 1;
 let statkiChannelVolume = 1;
 let statkiMasterVolume = 1;
 function applyStatkiVolume() {
-    soundtrackEl.volume = Math.min(1, statkiChannelVolume * statkiMasterVolume) * statkiSoundtrackGain;
+    soundtrackEl.volume = clampDigitalOutputLinear(Math.min(1, statkiChannelVolume * statkiMasterVolume) * statkiSoundtrackGain);
 }
 function prepareStatkiSoundtrackForActiveGame() {
     statkiSoundtrackAllowed = true;

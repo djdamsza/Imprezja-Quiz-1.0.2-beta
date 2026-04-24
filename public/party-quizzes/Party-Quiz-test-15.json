@@ -1,0 +1,257 @@
+{
+  "gameMode": "party",
+  "defaultPoints": 10,
+  "disableTimePoints": true,
+  "welcome": {
+    "title": "Party Quiz — zestaw testowy",
+    "subtitle": "15 pytań · różne typy (na bazie pytań Dominiki i Wojtka, bez „kto na zdjęciu”)",
+    "logoUrl": "/img/logo_imprezja.png",
+    "introMusicUrl": "/uploads/sfx/intro_loop.mp3"
+  },
+  "questions": [
+    {
+      "id": "q_party_test_quiz_alcohol",
+      "type": "QUIZ",
+      "question": "Jaki alkohol Pan Młody lubi najbardziej?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": ["Wino", "Tequila", "Wódka", "Piwo"],
+      "media": "/uploads/1776837672810-jaki_alkohol_ma_najmniej_kalorii.webp",
+      "image": "/uploads/1776837672810-jaki_alkohol_ma_najmniej_kalorii.webp",
+      "imageSmall": "/uploads/1776837672810-jaki_alkohol_ma_najmniej_kalorii-thumb.webp",
+      "correct": 1
+    },
+    {
+      "id": "q_party_test_quiz_map",
+      "type": "QUIZ",
+      "question": "Z jakiej miejscowości najbardziej oddalonej stąd przyjechali goście weselni?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": ["Gdańsk", "Gdynia", "Gniezno", "Przygodzice"],
+      "media": "/uploads/1776837643386-POLSKA_mapa_woj_z_powiatami.webp",
+      "image": "/uploads/1776837643386-POLSKA_mapa_woj_z_powiatami.webp",
+      "imageSmall": "/uploads/1776837643386-POLSKA_mapa_woj_z_powiatami-thumb.webp",
+      "correct": 0
+    },
+    {
+      "id": "q_party_test_quiz_nickname",
+      "type": "QUIZ",
+      "question": "Jak zdrobniale Pan Młody mówi do Pani Młodej?",
+      "time": 25,
+      "speedrun": false,
+      "elimination": false,
+      "answers": ["Nisia", "Domi", "Mała", "Kochanie"],
+      "media": "",
+      "image": "",
+      "imageSmall": "",
+      "correct": 0
+    },
+    {
+      "id": "q_party_test_fast_facts",
+      "type": "FAST_LIST",
+      "question": "Ściąga weselna (skrót testowy)",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "fastListItems": [
+        {
+          "question": "Gdzie Państwo Młodzi zobaczyli się po raz pierwszy?",
+          "answer": "studniówka brata p. młodej"
+        },
+        {
+          "question": "Dokąd zaplanowany jest pierwszy wyjazd Państwa Młodych po ślubie?",
+          "answer": "Zakopane"
+        },
+        {
+          "question": "W którym roku Państwo Młodzi się poznali?",
+          "answer": "2014"
+        },
+        {
+          "question": "Gdzie oświadczył się Pan Młody?",
+          "answer": "Byczyna"
+        }
+      ],
+      "correct": -1,
+      "bgMusic": "/uploads/sfx/tlowyborcze.mp3"
+    },
+    {
+      "id": "q_party_test_familiada_alcohol",
+      "type": "FAMILIADA",
+      "question": "Alkohol bez litery \"W\" w nazwie",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        { "text": "Bimber", "points": 20 },
+        { "text": "Gin", "points": 17 },
+        { "text": "Rum", "points": 15 },
+        { "text": "Tequila", "points": 13 },
+        { "text": "Szampan", "points": 11 },
+        { "text": "Likier", "points": 10 },
+        { "text": "Brandy", "points": 8 },
+        { "text": "Koniak", "points": 6 }
+      ],
+      "correct": -1
+    },
+    {
+      "id": "q_party_test_estimation_year",
+      "type": "ESTIMATION",
+      "question": "W którym roku poznali się Państwo Młodzi? (odpowiedź liczbowa)",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "",
+      "image": "",
+      "imageSmall": "",
+      "correctValue": 2014,
+      "min": 1990,
+      "max": 2030
+    },
+    {
+      "id": "q_party_test_letter_city",
+      "type": "LETTER",
+      "question": "Podaj miasto w Polsce na wylosowaną literę",
+      "time": 45,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "",
+      "image": "",
+      "imageSmall": "",
+      "correct": -1
+    },
+    {
+      "id": "q_party_test_ships",
+      "type": "SHIPS",
+      "question": "Statki — krótka rozgrywka testowa",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "",
+      "image": "",
+      "imageSmall": "",
+      "pointsPerHit": 5,
+      "boardSize": 8,
+      "ships": [
+        { "row": 0, "col": 1, "size": 2, "vertical": true },
+        { "row": 3, "col": 1, "size": 3, "vertical": true },
+        { "row": 2, "col": 4, "size": 4, "vertical": false },
+        { "row": 7, "col": 3, "size": 5, "vertical": false }
+      ]
+    },
+    {
+      "id": "q_party_test_open_word",
+      "type": "OPEN",
+      "question": "Jedno słowo: co kojarzy się z dzisiejszym ślubem? (chmura słów)",
+      "time": 40,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "",
+      "image": "",
+      "imageSmall": ""
+    },
+    {
+      "id": "q_party_test_quiz_date",
+      "type": "QUIZ",
+      "question": "Gdzie odbyła się ich pierwsza randka?",
+      "time": 25,
+      "speedrun": false,
+      "elimination": false,
+      "answers": ["W kinie", "W parku", "Na strzelnicy", "W restauracji"],
+      "media": "",
+      "image": "",
+      "imageSmall": "",
+      "correct": 0
+    },
+    {
+      "id": "q_party_test_quiz_movie",
+      "type": "QUIZ",
+      "question": "Jaki jest wspólnie ulubiony film Państwa Młodych?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Władca Pierścieni: Dwie Wieże",
+        "Gwiezdny Pył",
+        "Król Lew",
+        "Incepcja"
+      ],
+      "media": "/uploads/1776837907410-img-8010-960x580.webp",
+      "image": "/uploads/1776837907410-img-8010-960x580.webp",
+      "imageSmall": "/uploads/1776837907410-img-8010-960x580-thumb.webp",
+      "correct": 0
+    },
+    {
+      "id": "q_party_test_music_intro",
+      "type": "MUSIC",
+      "question": "Co słychać? Wybierz najbardziej pasującą odpowiedź.",
+      "time": 35,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Losowy szum z mikrofonu",
+        "Fragment „La Bamba”",
+        "Pętla intro / dżingiel startowy",
+        "Cichy film"
+      ],
+      "media": "/uploads/sfx/intro_loop.mp3",
+      "audio": "/uploads/sfx/intro_loop.mp3",
+      "correct": 2
+    },
+    {
+      "id": "q_party_test_quiz_series",
+      "type": "QUIZ",
+      "question": "Jaki jest wspólnie ulubiony serial Państwa Młodych?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": ["Fringe", "Wataha", "Breaking Bad", "Przyjaciele"],
+      "media": "/uploads/1776837970063-MV5BYThlMThmOWUtZGI4Ny00NGIyLWI1MTMtYmEyNjM1ZGU1NDQzXkEyXkFqcGc_._V1_.webp",
+      "image": "/uploads/1776837970063-MV5BYThlMThmOWUtZGI4Ny00NGIyLWI1MTMtYmEyNjM1ZGU1NDQzXkEyXkFqcGc_._V1_.webp",
+      "imageSmall": "/uploads/1776837970063-MV5BYThlMThmOWUtZGI4Ny00NGIyLWI1MTMtYmEyNjM1ZGU1NDQzXkEyXkFqcGc_._V1_-thumb.webp",
+      "correct": 1
+    },
+    {
+      "id": "q_party_test_fast_on_ona",
+      "type": "FAST_LIST",
+      "question": "ON / ONA (skrót testowy)",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "fastListItems": [
+        { "question": "Kto pierwszy powiedział \"kocham Cię\"?", "answer": "ON" },
+        { "question": "Kto jest bardziej uparty?", "answer": "ONA" },
+        { "question": "Kto częściej podjada?", "answer": "ONA" },
+        { "question": "Kto szybciej zasypia?", "answer": "ON" },
+        { "question": "Kto lepiej pamięta o ważnych datach?", "answer": "ONA" },
+        { "question": "Kto jest bardziej punktualny?", "answer": "ONA" }
+      ],
+      "correct": -1,
+      "bgMusic": "/uploads/sfx/tlowyborcze.mp3"
+    },
+    {
+      "id": "q_party_test_quiz_vodka",
+      "type": "QUIZ",
+      "question": "Jaka wódka jest dziś na stołach?",
+      "time": 25,
+      "speedrun": false,
+      "elimination": false,
+      "answers": ["Biała Dama", "Biała Mewa", "Biały Bocian", "Żubrówka"],
+      "media": "/uploads/1776837672810-jaki_alkohol_ma_najmniej_kalorii.webp",
+      "image": "/uploads/1776837672810-jaki_alkohol_ma_najmniej_kalorii.webp",
+      "imageSmall": "/uploads/1776837672810-jaki_alkohol_ma_najmniej_kalorii-thumb.webp",
+      "correct": 2
+    }
+  ],
+  "thanksScreen": {
+    "text": "Koniec zestawu testowego — dzięki!",
+    "image": "/uploads/1773236822109-M_B__401___1_d__1_.webp"
+  }
+}

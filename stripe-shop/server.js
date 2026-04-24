@@ -119,6 +119,206 @@ async function customerHasOtherLiveSubscription(customerRaw, excludeSubscription
     return false;
 }
 
+/** Zapisane przy /api/license/deliver — używane przy invoice.paid do wysyłki nowego klucza */
+const IMPREZJA_MACHINE_META = 'imprezja_machine_id';
+/** Idempotencja webhooka Stripe (retry) — jedna wysyłka klucza na fakturę */
+const IMPREZJA_LAST_LICENSE_INVOICE_META = 'imprezja_last_license_invoice_id';
+
+const SUBSCRIPTION_INVOICE_LICENSE_REASONS = new Set([
+    'subscription_cycle',
+    'subscription_update',
+    'subscription_threshold'
+]);
+
+/** Zapis Machine ID przy pierwszym odbiorze klucza — odnowienia subskrypcji czytają to z metadanych */
+async function persistImprezjaMachineIdFromSession(session, machineId) {
+    try {
+        const customerId = stripeCustomerId(session.customer);
+        if (customerId) {
+            const c = await stripe.customers.retrieve(customerId);
+            if (!c.deleted) {
+                await stripe.customers.update(customerId, {
+                    metadata: { ...(c.metadata || {}), [IMPREZJA_MACHINE_META]: machineId }
+                });
+            }
+        }
+        const rawSub = session.subscription;
+        const subId = typeof rawSub === 'string' ? rawSub : rawSub && rawSub.id;
+        if (subId) {
+            const s = await stripe.subscriptions.retrieve(subId);
+            await stripe.subscriptions.update(subId, {
+                metadata: { ...(s.metadata || {}), [IMPREZJA_MACHINE_META]: machineId }
+            });
+        }
+    } catch (e) {
+        console.error('⚠️ Nie udało się zapisać Machine ID w Stripe:', e.message);
+    }
+}
+
+async function getInvoiceCustomerEmail(invoice) {
+    let email = invoice.customer_email;
+    if (!email && invoice.customer) {
+        const c = await stripe.customers.retrieve(stripeCustomerId(invoice.customer));
+        if (c && !c.deleted) email = c.email;
+    }
+    return email || null;
+}
+
+/** E-mail „tylko informacja” (kwota, kolejne odnowienie) — gdy nie wysłano klucza RSA */
+async function sendSubscriptionRenewedInfoOnlyEmail(invoice) {
+    const email = await getInvoiceCustomerEmail(invoice);
+    if (!email || !(process.env.RESEND_API_KEY || process.env.SMTP_HOST)) return;
+    const amount = ((invoice.amount_paid || 0) / 100).toFixed(2);
+    const currency = (invoice.currency || 'pln').toUpperCase();
+    const nextDate = invoice.period_end
+        ? new Date(invoice.period_end * 1000).toLocaleDateString('pl-PL', { year: 'numeric', month: 'long', day: 'numeric' })
+        : '–';
+    const portalUrl = (await createCustomerPortalUrl(invoice.customer)) || STRIPE_SHOP_PRODUCT_URL;
+    const html = buildEmail({
+        title: 'Subskrypcja Imprezja Quiz odnowiona',
+        accentColor: '#27ae60',
+        body: `<p style="margin:0 0 16px;">Twoja subskrypcja została automatycznie odnowiona. Dziękujemy!</p>
+<table style="width:100%;border-collapse:collapse;margin:0 0 24px;font-size:15px;">
+<tr><td style="padding:8px 0;color:#64748b;border-bottom:1px solid #f1f5f9;">Kwota</td><td style="padding:8px 0;font-weight:600;text-align:right;border-bottom:1px solid #f1f5f9;">${amount} ${currency}</td></tr>
+<tr><td style="padding:8px 0;color:#64748b;">Kolejne odnowienie</td><td style="padding:8px 0;font-weight:600;text-align:right;">${nextDate}</td></tr>
+</table>
+<p style="margin:0 0 8px;text-align:center;"><a href="${portalUrl}" style="display:inline-block;padding:12px 24px;background:#f1f5f9;color:#1e293b;text-decoration:none;border-radius:8px;font-size:14px;">Zarządzaj subskrypcją</a></p>`
+    });
+    const text = `Twoja subskrypcja Imprezja Quiz została odnowiona.\nKwota: ${amount} ${currency}\nKolejne odnowienie: ${nextDate}\n\nZarządzanie subskrypcją (anulowanie, karta): ${portalUrl}`;
+    await sendEmail({ to: email, subject: 'Imprezja Quiz – subskrypcja odnowiona', html, text });
+    console.log('📧 Potwierdzenie odnowienia (bez klucza RSA):', email);
+}
+
+async function sendInvoicePaidMissingMachineEmail(invoice) {
+    const email = await getInvoiceCustomerEmail(invoice);
+    if (!email || !(process.env.RESEND_API_KEY || process.env.SMTP_HOST)) return;
+    const portalUrl = (await createCustomerPortalUrl(invoice.customer)) || STRIPE_SHOP_PRODUCT_URL;
+    const html = buildEmail({
+        title: 'Imprezja Quiz – płatność zaksięgowana',
+        accentColor: '#0ea5e9',
+        body: `<p style="margin:0 0 16px;">Subskrypcja została opłacona w Stripe, ale <strong>nie mamy zapisanego ID komputera</strong> powiązanego z tą subskrypcją (pierwszy klucz nie był jeszcze odbierany z tego konta lub zmienił się komputer).</p>
+<p style="margin:0 0 16px;">Aby przedłużyć program: uruchom Imprezja Quiz → <strong>Licencja</strong> → skopiuj <strong>ID komputera</strong> (16 znaków) i napisz na <a href="mailto:biuro@imprezja.pl">biuro@imprezja.pl</a> — wyślemy klucz ręcznie.</p>
+<p style="margin:0 0 8px;text-align:center;"><a href="${portalUrl}" style="display:inline-block;padding:12px 24px;background:#f1f5f9;color:#1e293b;text-decoration:none;border-radius:8px;font-size:14px;">Zarządzaj subskrypcją</a></p>`
+    });
+    const text =
+        'Subskrypcja Imprezja Quiz została opłacona, ale brak zapisanego ID komputera w systemie.\n\n' +
+        'Uruchom program → Licencja → skopiuj ID komputera i napisz na biuro@imprezja.pl — wyślemy klucz.\n\n' +
+        `Portal: ${portalUrl}`;
+    await sendEmail({ to: email, subject: 'Imprezja Quiz – potrzebne ID komputera po odnowieniu', html, text });
+    console.log('📧 Wysłano prośbę o Machine ID (brak w metadanych Stripe):', email);
+}
+
+/**
+ * Przy odnowieniu subskrypcji: nowy klucz RSA na podstawie Machine ID z metadanych (zapisanych przy /api/license/deliver).
+ * @returns {{ keyEmailSent: boolean, shouldSendInfoFallback: boolean }}
+ */
+async function handleSubscriptionInvoicePaid(invoice) {
+    const subId = invoice.subscription;
+    const br = invoice.billing_reason;
+    const hasMail = !!(process.env.RESEND_API_KEY || process.env.SMTP_HOST);
+
+    if (!subId || !SUBSCRIPTION_INVOICE_LICENSE_REASONS.has(br)) {
+        return { keyEmailSent: false, shouldSendInfoFallback: br === 'subscription_cycle' && !!subId && hasMail };
+    }
+
+    if (!hasMail) {
+        return { keyEmailSent: false, shouldSendInfoFallback: true };
+    }
+
+    if (!process.env.IMPREZJA_LICENSE_PRIVATE_KEY) {
+        console.warn('⚠️ IMPREZJA_LICENSE_PRIVATE_KEY brak — nie wygeneruję klucza przy odnowieniu');
+        return { keyEmailSent: false, shouldSendInfoFallback: true };
+    }
+
+    const sub = await stripe.subscriptions.retrieve(subId, { expand: ['items.data.price'] });
+    if (sub.metadata?.[IMPREZJA_LAST_LICENSE_INVOICE_META] === invoice.id) {
+        console.log('⏭️ invoice.paid — klucz dla tej faktury już był wysłany:', invoice.id);
+        return { keyEmailSent: true, shouldSendInfoFallback: false };
+    }
+
+    let lookupKey = (sub.metadata && sub.metadata.lookup_key) || '';
+    const p0 = sub.items?.data?.[0]?.price;
+    if (!lookupKey && p0) {
+        const price = typeof p0 === 'string' ? await stripe.prices.retrieve(p0) : p0;
+        lookupKey = (price && price.lookup_key) || '';
+    }
+    const licenseType = LOOKUP_TO_TYPE[lookupKey];
+    if (!licenseType || String(lookupKey).includes('onetime')) {
+        console.log('⏭️ Odnowienie — brak mapowania typu licencji dla lookup_key:', lookupKey || '(pusty)');
+        return { keyEmailSent: false, shouldSendInfoFallback: true };
+    }
+
+    const custId = stripeCustomerId(sub.customer);
+    let customerObj = null;
+    if (custId) {
+        customerObj = await stripe.customers.retrieve(custId);
+        if (customerObj.deleted) customerObj = null;
+    }
+
+    let machineId = String((sub.metadata && sub.metadata[IMPREZJA_MACHINE_META]) || '').trim();
+    if ((!machineId || !/^[a-fA-F0-9]{16}$/.test(machineId)) && customerObj) {
+        machineId = String(customerObj.metadata?.[IMPREZJA_MACHINE_META] || '').trim();
+    }
+    if (!machineId || !/^[a-fA-F0-9]{16}$/.test(machineId)) {
+        await sendInvoicePaidMissingMachineEmail(invoice);
+        return { keyEmailSent: false, shouldSendInfoFallback: false };
+    }
+
+    let email = invoice.customer_email || (customerObj && customerObj.email);
+    if (!email) {
+        console.warn('⚠️ invoice.paid — brak adresu e-mail klienta');
+        return { keyEmailSent: false, shouldSendInfoFallback: true };
+    }
+
+    const licenseKey = generateLicenseKey(machineId, licenseType);
+    const amount = ((invoice.amount_paid || 0) / 100).toFixed(2);
+    const currency = (invoice.currency || 'pln').toUpperCase();
+    const nextDate = invoice.period_end
+        ? new Date(invoice.period_end * 1000).toLocaleDateString('pl-PL', { year: 'numeric', month: 'long', day: 'numeric' })
+        : '–';
+    const portalUrl = (await createCustomerPortalUrl(invoice.customer)) || STRIPE_SHOP_PRODUCT_URL;
+
+    const html = buildEmail({
+        title: 'Subskrypcja Imprezja Quiz odnowiona – nowy klucz',
+        accentColor: '#27ae60',
+        body: `<p style="margin:0 0 16px;">Płatność została zaksięgowana. Poniżej znajduje się <strong>nowy klucz licencyjny</strong> (ważny od teraz). W programie Imprezja Quiz: <strong>Ustawienia → Licencja</strong> — wklej klucz i zatwierdź (zastępuje poprzedni klucz czasowy).</p>
+<table style="width:100%;border-collapse:collapse;margin:0 0 20px;font-size:15px;">
+<tr><td style="padding:8px 0;color:#64748b;border-bottom:1px solid #f1f5f9;">Kwota</td><td style="padding:8px 0;font-weight:600;text-align:right;border-bottom:1px solid #f1f5f9;">${amount} ${currency}</td></tr>
+<tr><td style="padding:8px 0;color:#64748b;">Kolejne odnowienie</td><td style="padding:8px 0;font-weight:600;text-align:right;">${nextDate}</td></tr>
+</table>
+<p style="margin:0 0 8px;font-weight:600;">Twój klucz:</p>
+<div style="font-family:Consolas,Monaco,monospace;font-size:13px;background:#f8f9fa;padding:16px;border-radius:6px;border:1px solid #e0e0e0;word-break:break-all;margin:0 0 24px;">${licenseKey}</div>
+<p style="margin:0 0 8px;text-align:center;"><a href="${portalUrl}" style="display:inline-block;padding:12px 24px;background:#f1f5f9;color:#1e293b;text-decoration:none;border-radius:8px;font-size:14px;">Zarządzaj subskrypcją</a></p>`
+    });
+    const text = `Subskrypcja Imprezja Quiz – odnowienie i nowy klucz
+
+Płatność zaksięgowana. Wklej w programie (Ustawienia → Licencja) poniższy klucz — zastępuje poprzedni klucz czasowy.
+
+Klucz:
+${licenseKey}
+
+Kwota: ${amount} ${currency}
+Kolejne odnowienie: ${nextDate}
+
+Zarządzanie subskrypcją: ${portalUrl}`;
+
+    await sendEmail({
+        to: email,
+        subject: 'Imprezja Quiz – subskrypcja odnowiona (nowy klucz)',
+        html,
+        text
+    });
+
+    await stripe.subscriptions.update(subId, {
+        metadata: {
+            ...(sub.metadata || {}),
+            [IMPREZJA_LAST_LICENSE_INVOICE_META]: invoice.id
+        }
+    });
+    console.log('📧 Odnowienie subskrypcji: wysłano klucz RSA na', email, 'typ:', licenseType);
+    return { keyEmailSent: true, shouldSendInfoFallback: false };
+}
+
 // Webhook MUSI mieć raw body – rejestruj przed express.json()
 app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
     const sig = req.headers['stripe-signature'];
@@ -227,35 +427,14 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
         }
         case 'invoice.paid': {
             const invoice = event.data.object;
-            console.log('💰 Faktura opłacona:', invoice.id);
-            // Wysyłaj potwierdzenie tylko przy odnowieniu subskrypcji (nie przy pierwszej płatności)
-            if (invoice.billing_reason === 'subscription_cycle') {
-                try {
-                    const email = invoice.customer_email;
-                    if (email && (process.env.RESEND_API_KEY || process.env.SMTP_HOST)) {
-                        const amount = ((invoice.amount_paid || 0) / 100).toFixed(2);
-                        const currency = (invoice.currency || 'pln').toUpperCase();
-                        const nextDate = invoice.period_end
-                            ? new Date(invoice.period_end * 1000).toLocaleDateString('pl-PL', { year: 'numeric', month: 'long', day: 'numeric' })
-                            : '–';
-                        const portalUrl = (await createCustomerPortalUrl(invoice.customer)) || STRIPE_SHOP_PRODUCT_URL;
-                        const html = buildEmail({
-                            title: 'Subskrypcja Imprezja Quiz odnowiona',
-                            accentColor: '#27ae60',
-                            body: `<p style="margin:0 0 16px;">Twoja subskrypcja została automatycznie odnowiona. Dziękujemy!</p>
-<table style="width:100%;border-collapse:collapse;margin:0 0 24px;font-size:15px;">
-<tr><td style="padding:8px 0;color:#64748b;border-bottom:1px solid #f1f5f9;">Kwota</td><td style="padding:8px 0;font-weight:600;text-align:right;border-bottom:1px solid #f1f5f9;">${amount} ${currency}</td></tr>
-<tr><td style="padding:8px 0;color:#64748b;">Kolejne odnowienie</td><td style="padding:8px 0;font-weight:600;text-align:right;">${nextDate}</td></tr>
-</table>
-<p style="margin:0 0 8px;text-align:center;"><a href="${portalUrl}" style="display:inline-block;padding:12px 24px;background:#f1f5f9;color:#1e293b;text-decoration:none;border-radius:8px;font-size:14px;">Zarządzaj subskrypcją</a></p>`,
-                        });
-                        const text = `Twoja subskrypcja Imprezja Quiz została odnowiona.\nKwota: ${amount} ${currency}\nKolejne odnowienie: ${nextDate}\n\nZarządzanie subskrypcją (anulowanie, karta): ${portalUrl}`;
-                        await sendEmail({ to: email, subject: 'Imprezja Quiz – subskrypcja odnowiona', html, text });
-                        console.log('📧 Potwierdzenie odnowienia wysłane:', email);
-                    }
-                } catch (err) {
-                    console.error('⚠️ Błąd e-mailu o odnowieniu:', err.message);
+            console.log('💰 Faktura opłacona:', invoice.id, 'reason:', invoice.billing_reason, 'sub:', invoice.subscription || '—');
+            try {
+                const { keyEmailSent, shouldSendInfoFallback } = await handleSubscriptionInvoicePaid(invoice);
+                if (shouldSendInfoFallback && invoice.subscription && (process.env.RESEND_API_KEY || process.env.SMTP_HOST)) {
+                    await sendSubscriptionRenewedInfoOnlyEmail(invoice);
                 }
+            } catch (err) {
+                console.error('⚠️ Błąd obsługi invoice.paid:', err.message);
             }
             break;
         }
@@ -662,6 +841,8 @@ Ten e-mail został wysłany w odpowiedzi na Twoje zamówienie.`;
         } else {
             return res.status(500).json({ error: 'E-mail nie skonfigurowany. Ustaw RESEND_API_KEY lub SMTP_HOST. Skontaktuj się z obsługą.' });
         }
+
+        await persistImprezjaMachineIdFromSession(session, machineId);
 
         console.log('✅ Klucz wysłany:', customerEmail, 'typ:', licenseType);
         res.json({ success: true, message: 'Klucz został wysłany na adres e-mail' });

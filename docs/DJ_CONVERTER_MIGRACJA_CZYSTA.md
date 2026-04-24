@@ -10,7 +10,7 @@
 - [ ] **Zamknij RB** całkowicie (Cmd+Q, sprawdź Monitor aktywności)
 
 ### 2. Konwerter VDJ
-- [ ] Uruchom: `cd tools/vdj-database-editor && python app.py`
+- [ ] Uruchom lokalnie **NJR Konwerter** (osobne repo [njr-konwerter](https://github.com/djdamsza/njr-konwerter), katalog `editor/`): `python app.py`
 - [ ] Otwórz http://127.0.0.1:5050
 - [ ] **VDJ: plik ZIP (backup)** lub **VDJ: folder** → wybierz backup VDJ
 - [ ] Kliknij **Załaduj**

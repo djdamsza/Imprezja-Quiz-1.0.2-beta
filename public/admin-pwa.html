@@ -51,6 +51,18 @@
         }
         .screen-grid { grid-template-columns: repeat(3, 1fr); }
         .screen-tile.active { background: var(--imp-accent-dim); border-color: var(--imp-accent); }
+        .screen-tile.party-tile {
+            border-color: rgba(241, 196, 15, 0.45);
+            background: linear-gradient(135deg, rgba(52, 152, 219, 0.10) 0%, rgba(231, 76, 60, 0.10) 100%);
+        }
+        .screen-tile.party-tile:hover {
+            border-color: #f1c40f;
+            background: linear-gradient(135deg, rgba(52, 152, 219, 0.20) 0%, rgba(231, 76, 60, 0.20) 100%);
+        }
+        .screen-tile.party-tile.active {
+            border-color: #f1c40f;
+            background: linear-gradient(135deg, rgba(52, 152, 219, 0.30) 0%, rgba(231, 76, 60, 0.30) 100%);
+        }
         .setup-grid {
             display: grid;
             grid-template-columns: 1fr;
@@ -156,7 +168,23 @@
         .music-embed-header .btn-close { display: none !important; }
         .music-modes-section { display: flex; flex-direction: column; }
         .music-embed-frame .bank-tabs-wrap { display: none !important; }
+        .music-embed-frame .bank-tabs-wrap.visible {
+            display: flex !important;
+            flex: 1;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            min-width: 0;
+        }
         .music-swipe-zone { display: none !important; }
+        .music-embed-frame .music-swipe-zone.visible {
+            display: flex !important;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            background: rgba(0,0,0,0.25);
+        }
         .music-swipe-zone .swipe-arrow { font-size: 2rem; font-weight: 800; color: #f1c40f; text-shadow: 0 0 12px rgba(241,196,15,0.8); }
         .music-embed-frame .bank-tab { padding: 6px 12px; border-radius: 8px; border: 2px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.06); color: #fff; cursor: pointer; font-size: 0.85rem; }
         .music-embed-frame .bank-tab:hover { border-color: rgba(155,89,182,0.6); background: rgba(155,89,182,0.15); }
@@ -303,6 +331,10 @@
             <button type="button" class="btn-mode screen-tile" data-mode="familiada">
                 <span class="icon">🎤</span>
                 <span class="label">Familiada</span>
+            </button>
+            <button type="button" class="btn-mode screen-tile party-tile" data-mode="party">
+                <span class="icon">🥳</span>
+                <span class="label">Party Quiz</span>
             </button>
             <button type="button" class="btn-mode screen-tile" data-mode="statki">
                 <span class="icon">⚓</span>
@@ -473,6 +505,13 @@
                     <span class="label">Admin Familiada</span>
                 </div>
                 <a href="/familiada/admin.html" target="_blank" class="btn-apply" style="display:block;text-align:center;text-decoration:none;margin:12px;">Otwórz</a>
+            </div>
+            <div class="setup-card setup-card-links">
+                <div class="setup-card-header">
+                    <span class="icon">🥳</span>
+                    <span class="label">Admin Party Quiz</span>
+                </div>
+                <a href="/party-quiz/admin.html" target="_blank" class="btn-apply" style="display:block;text-align:center;text-decoration:none;margin:12px;">Otwórz</a>
             </div>
             <div class="setup-card setup-card-links">
                 <div class="setup-card-header">
@@ -714,6 +753,9 @@
                     socket.emit('familiada_stop_music');
                     return;
                 }
+                if (mode === 'party') {
+                    socket.emit('set_game_mode', 'party');
+                }
                 socket.emit('screen_switch', { mode });
                 document.querySelectorAll('.screen-tile[data-mode]').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
@@ -951,7 +993,20 @@
 
         document.getElementById('music-embed-close').onclick = () => closeMusicMode();
 
+        /** Iframe i główny panel mają osobne połączenia socket.io — postMessage ten sam origin gwarantuje zmianę banku w podglądzie samplera. */
+        function postSamplerIframe(msg) {
+            try {
+                if (activeMusicMode !== 'sampler' || !msg) return;
+                const ifr = document.getElementById('music-panel-iframe');
+                if (!ifr?.contentWindow) return;
+                ifr.contentWindow.postMessage(msg, window.location.origin);
+            } catch (_) {}
+        }
+
+        /** Źródło prawdy dla zakładek — cache'ujemy pełny config tel. kształtu, żeby przy kliknięciu banku wysłać iframe jego pełne dane (kafelki), a nie tylko index. Eliminuje to klampowanie currentBankIndex w phone.html gdy lokalny config jest stary. */
+        let _lastSamplerPhoneConfig = null;
         function renderSamplerBankTabs(config) {
+            _lastSamplerPhoneConfig = config || null;
             const wrap = document.getElementById('sampler-bank-tabs');
             const swipeZone = document.getElementById('sampler-swipe-zone');
             if (!wrap) return;
@@ -964,7 +1019,11 @@
                 return;
             }
             wrap.classList.add('visible');
-            if (swipeZone) { swipeZone.classList.add('visible'); setupSamplerSwipe(swipeZone); }
+            if (swipeZone) {
+                swipeZone.classList.add('visible');
+                setupSamplerSwipe(swipeZone);
+                setupSamplerArrowClicks(swipeZone);
+            }
             const header = document.querySelector('.music-embed-header');
             if (header) setupSamplerSwipe(header);
             wrap.innerHTML = nonImprezator.map((b, i) =>
@@ -977,8 +1036,27 @@
                     wrap.querySelectorAll('.bank-tab').forEach(t => t.classList.remove('active'));
                     btn.classList.add('active');
                     socket.emit('njr_sampler_set_bank', idx);
+                    postSamplerIframe({ type: 'njr_sampler_set_bank', index: idx });
+                    pushSamplerBootstrapToIframe({ targetTabIndex: idx });
                 };
             });
+        }
+
+        /** Push pełnego configu do iframe (z żądaniem ustawienia konkretnego tabu). Phone zrenderuje właściwy bank nawet jeśli jego lokalny config był stary. */
+        function pushSamplerBootstrapToIframe(opts) {
+            if (activeMusicMode !== 'sampler') return;
+            const ifr = document.getElementById('music-panel-iframe');
+            if (!ifr?.contentWindow) return;
+            const cfg = _lastSamplerPhoneConfig;
+            if (!cfg) return;
+            try {
+                ifr.contentWindow.postMessage({
+                    type: 'imprezja_sampler_bootstrap',
+                    config: cfg,
+                    active: true,
+                    targetTabIndex: (opts && typeof opts.targetTabIndex === 'number') ? opts.targetTabIndex : undefined
+                }, window.location.origin);
+            } catch (_) {}
         }
 
         function setupSamplerSwipe(el) {
@@ -997,7 +1075,9 @@
                 if (Math.abs(dx) > THRESHOLD && Math.abs(dx) > Math.abs(dy)) {
                     e.preventDefault();
                     e.stopPropagation();
-                    socket.emit('njr_sampler_bank_delta', dx > 0 ? -1 : 1);
+                    const d = dx > 0 ? -1 : 1;
+                    socket.emit('njr_sampler_bank_delta', d);
+                    postSamplerIframe({ type: 'njr_sampler_bank_delta', delta: d });
                     updateBankTabActive(dx > 0 ? -1 : 1);
                 }
             }, { passive: false });
@@ -1006,7 +1086,9 @@
             el.addEventListener('mouseup', (e) => {
                 const dx = e.clientX - mouseStartX;
                 if (Math.abs(dx) > THRESHOLD) {
-                    socket.emit('njr_sampler_bank_delta', dx > 0 ? -1 : 1);
+                    const d = dx > 0 ? -1 : 1;
+                    socket.emit('njr_sampler_bank_delta', d);
+                    postSamplerIframe({ type: 'njr_sampler_bank_delta', delta: d });
                     updateBankTabActive(dx > 0 ? -1 : 1);
                 }
             });
@@ -1019,6 +1101,58 @@
             const idx = active ? Array.from(tabs).indexOf(active) : 0;
             const next = Math.max(0, Math.min(tabs.length - 1, idx + delta));
             tabs.forEach((t, i) => t.classList.toggle('active', i === next));
+            pushSamplerBootstrapToIframe({ targetTabIndex: next });
+        }
+
+        function syncSamplerBankTabFromIframe(index) {
+            const wrap = document.getElementById('sampler-bank-tabs');
+            if (!wrap || !wrap.classList.contains('visible')) return;
+            const tabs = wrap.querySelectorAll('.bank-tab');
+            const idx = Math.max(0, Math.min(tabs.length - 1, Math.floor(index)));
+            tabs.forEach((t, i) => t.classList.toggle('active', i === idx));
+        }
+
+        window.addEventListener('message', (ev) => {
+            if (ev.origin !== window.location.origin) return;
+            if (!ev.data || activeMusicMode !== 'sampler') return;
+            if (ev.data.type === 'imprezja_sampler_iframe_ready') {
+                /** Iframe zarejestrował listenery — dociążamy aktualny config od razu, bez czekania na jego event load (niektóre PWA/Androidy). */
+                fetch('/api/njr-sampler/config?shape=phone&_=' + Date.now(), { cache: 'no-store' })
+                    .then(r => r.json())
+                    .then(d => {
+                        if (!d || !d.config) return;
+                        renderSamplerBankTabs(d.config);
+                        postSamplerIframe({
+                            type: 'imprezja_sampler_bootstrap',
+                            config: d.config,
+                            active: !!d.active
+                        });
+                    })
+                    .catch(() => {});
+                return;
+            }
+            if (ev.data.type === 'imprezja_sampler_bank_tab') {
+                if (typeof ev.data.index !== 'number' || !Number.isFinite(ev.data.index)) return;
+                syncSamplerBankTabFromIframe(ev.data.index);
+                return;
+            }
+        });
+
+        function setupSamplerArrowClicks(swipeZone) {
+            if (!swipeZone || swipeZone._samplerArrowClicks) return;
+            swipeZone._samplerArrowClicks = true;
+            swipeZone.querySelectorAll('.swipe-arrow').forEach((el, i) => {
+                el.style.cursor = 'pointer';
+                el.setAttribute('role', 'button');
+                el.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const dir = i === 0 ? -1 : 1;
+                    socket.emit('njr_sampler_bank_delta', dir);
+                    postSamplerIframe({ type: 'njr_sampler_bank_delta', delta: dir });
+                    updateBankTabActive(dir);
+                });
+            });
         }
 
         /** Zapobiega „zawieszeniu” iframe na tym samym URL (po zamknięciu / resecie PWA) – wymusza pełne przeładowanie phone.html. */
@@ -1034,23 +1168,46 @@
             const iframe = document.getElementById('music-panel-iframe');
             if (!iframe) return;
             const busted = musicPanelUrlWithCacheBust(path);
-            const refreshSamplerBankTabs = () => {
+            /**
+             * Samplerowy iframe wczytywał złe kafelki przy pierwszym otwarciu panelu (fixowane przez F5) — wyścig między
+             * admin `/start`, socket.io w iframe i renderem. Zamiast polegać na socketcie, pobieramy config od razu w
+             * shape'ie telefonu i wstrzykujemy do iframe przez postMessage natychmiast po jego load. Phone.html traktuje
+             * tę wiadomość jako źródło prawdy — brak wyścigu, brak „dobrego stanu dopiero po F5”.
+             */
+            const bootstrapSamplerIframe = () => {
                 if (musicMode !== 'sampler') return;
-                fetch('/api/njr-sampler/config').then(r => r.json()).then(d => {
-                    if (d && d.config) renderSamplerBankTabs(d.config);
-                }).catch(() => {});
+                fetch('/api/njr-sampler/config?shape=phone&_=' + Date.now(), { cache: 'no-store' })
+                    .then(r => r.json())
+                    .then(d => {
+                        if (!d || !d.config) return;
+                        renderSamplerBankTabs(d.config);
+                        try {
+                            if (iframe.contentWindow) {
+                                iframe.contentWindow.postMessage({
+                                    type: 'imprezja_sampler_bootstrap',
+                                    config: d.config,
+                                    active: !!d.active
+                                }, window.location.origin);
+                            }
+                        } catch (_) {}
+                    })
+                    .catch(() => {});
             };
             let finished = false;
             const finish = () => {
                 if (finished) return;
                 finished = true;
-                refreshSamplerBankTabs();
+                bootstrapSamplerIframe();
             };
             const fallbackMs = 1500;
             const t = setTimeout(finish, fallbackMs);
             iframe.addEventListener('load', () => {
                 clearTimeout(t);
                 finish();
+                if (musicMode === 'sampler') {
+                    setTimeout(bootstrapSamplerIframe, 250);
+                    setTimeout(bootstrapSamplerIframe, 900);
+                }
             }, { once: true });
             iframe.src = busted;
         }
@@ -1092,11 +1249,12 @@
                 embedFrame.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 const iframe = document.getElementById('music-panel-iframe');
                 const audioIframe = document.getElementById('music-audio-iframe');
+                /** Ustawiamy activeMusicMode PRZED loadem iframe, bo phone.html może zdążyć wysłać 'imprezja_sampler_iframe_ready' zanim uzyskamy szansę na przypisanie — a listener w tym pliku odfiltrowuje wiadomości gdy activeMusicMode !== 'sampler'. */
+                activeMusicMode = mode;
                 loadMusicPanelIframe(cfg.iframe, mode);
                 audioIframe.src = '';
                 document.querySelectorAll('.music-tile.active').forEach(t => t.classList.remove('active'));
                 document.querySelectorAll(`.music-tile[data-music-mode="${mode}"]`).forEach(t => t.classList.add('active'));
-                activeMusicMode = mode;
                 if (['spiewaj', 'bitwa', 'whitney'].includes(mode)) {
                     const api = mode === 'spiewaj' ? '/api/spiewaj-dalej' : mode === 'bitwa' ? '/api/bitwa-wokalna' : '/api/whitney';
                     fetch(api + '/screen-graphic').then(r => r.json()).then(d => {

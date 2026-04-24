@@ -703,7 +703,7 @@
             <div class="control-group">
                 <button onclick="showStats()" class="btn btn-warning" id="stats-btn">📊 Statystyki</button>
                 <button onclick="showCorrect()" class="btn btn-success" id="correct-btn">✅ Odpowiedź</button>
-                <button onclick="shipsNextTurn()" class="btn btn-info" id="ships-next-turn-btn" style="display: none;">⏭️ Następna tura</button>
+                <button onclick="shipsNextTurn()" class="btn btn-info" id="ships-next-turn-btn" style="display: none;" title="Domyślnie następna tura włącza się automatycznie (~2 s po strzałach wszystkich graczy). Klik — przyśpieszenie lub gdy ktoś zwleka ze strzałem.">⏭️ Następna tura</button>
                 <button onclick="shipsEndGame()" class="btn btn-danger" id="ships-end-btn" style="display: none;">🏁 Koniec</button>
                 <button onclick="shipsShowAnswer()" class="btn btn-success" id="ships-show-answer-btn" style="display: none;">⚓ Pokaż statki</button>
                 <button onclick="startLetterGame(1)" class="btn btn-info" id="letter-btn-1" style="display: none;">🔤 Wyślij 1 literę</button>
@@ -846,18 +846,36 @@
         const DEBUG = false;
         const log = (...a) => DEBUG && log(...a);
         const socket = io();
+        function adminFullscreenElement() {
+            return document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+        }
         function toggleFullscreenAdmin() {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(() => {});
-                document.getElementById('btn-fs-admin').style.display = 'none';
+            const el = document.documentElement;
+            if (!adminFullscreenElement()) {
+                const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+                if (req) {
+                    try {
+                        const p = req.call(el);
+                        if (p && typeof p.catch === 'function') p.catch(() => {});
+                    } catch (e) {}
+                }
             } else {
-                document.exitFullscreen();
+                const exit = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+                if (exit) {
+                    try {
+                        const p = exit.call(document);
+                        if (p && typeof p.catch === 'function') p.catch(() => {});
+                    } catch (e) {}
+                }
             }
         }
-        document.addEventListener('fullscreenchange', () => {
+        function syncFullscreenAdminBtn() {
             const btn = document.getElementById('btn-fs-admin');
-            if (btn) btn.style.display = document.fullscreenElement ? 'none' : '';
-        });
+            if (btn) btn.style.display = adminFullscreenElement() ? 'none' : '';
+        }
+        ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'].forEach(ev =>
+            document.addEventListener(ev, syncFullscreenAdminBtn));
+        syncFullscreenAdminBtn();
         let questions = [];
         let currentQuestionIndex = -1;
         let activeQuestionIndex = -1;
@@ -955,13 +973,17 @@
                 if (btn) { btn.textContent = '⏹ Stop muzyka'; btn.style.background = '#c0392b'; }
             }
         }
-        function setMasterVolume(val) {
+        function applyMasterVolumeUI(val) {
             const v = Math.max(0, Math.min(100, parseInt(val, 10)));
             const slider = document.getElementById('master-volume');
             const label = document.getElementById('master-volume-value');
             if (slider) slider.value = v;
             if (label) label.textContent = v;
             localStorage.setItem('adminMasterVolume', String(v));
+        }
+        function setMasterVolume(val) {
+            applyMasterVolumeUI(val);
+            const v = Math.max(0, Math.min(100, parseInt(val, 10)));
             if (typeof socket !== 'undefined' && socket.connected) {
                 socket.emit('admin_set_master_volume', v);
             }
@@ -975,7 +997,7 @@
                 if (typeof socket !== 'undefined' && socket.connected) socket.emit('screen_switch', { mode: 'quiz' });
             }
             const savedVol = localStorage.getItem('adminMasterVolume');
-            if (savedVol != null) setMasterVolume(savedVol);
+            if (savedVol != null) applyMasterVolumeUI(savedVol);
             var masterSlider = document.getElementById('master-volume');
             if (masterSlider) {
                 masterSlider.addEventListener('input', function() { setMasterVolume(this.value); });
@@ -1048,8 +1070,13 @@
             const banner = document.getElementById('disconnect-banner');
             if (banner) banner.style.display = 'none';
             socket.emit('admin_login', isAdminFromComputer() ? { isComputer: true } : undefined);
+            socket.emit('master_volume_request');
             const roz = document.getElementById('rozgrywka-section');
             if (roz && roz.style.display !== 'none') socket.emit('screen_switch', { mode: 'quiz' });
+        });
+        socket.on('master_volume', (d) => {
+            const pct = Math.round(((d && typeof d.volume === 'number') ? d.volume : 1) * 100);
+            applyMasterVolumeUI(pct);
         });
 
         socket.on('qr_codes_on_phones', (data) => {

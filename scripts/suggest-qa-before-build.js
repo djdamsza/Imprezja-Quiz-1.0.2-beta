@@ -132,7 +132,7 @@ const RULES = [
   { re: /^scripts\//i, tags: ['scripts-dev'], hint: 'Skrypt w scripts/ — oceń wpływ (build: cloudflared, ikona, clean; pomocnicze do serwera).' },
 
   { re: /^stripe-shop\//i, tags: ['stripe-shop'], hint: 'Sklep Stripe — osobny serwis; testy tylko jeśli zmieniasz checkout.' },
-  { re: /^tools\//i, tags: ['tools-external'], hint: 'Narzędzia zewnętrzne (np. NJR editor) — poza głównym buildem Imprezji.' },
+  { re: /^tools\//i, tags: ['tools-external'], hint: 'Narzędzia pomocnicze (np. image-to-webp) — poza głównym buildem Electron.' },
 
   { re: /^\.gitignore$/i, tags: ['repo-meta'], hint: 'Konfiguracja repozytorium — bez wpływu na runtime aplikacji.' },
   { re: /^Votebattle$/i, tags: ['repo-meta'], hint: 'Plik pomocniczy / stary zasób — oceń ręcznie czy wchodzi do builda.' },

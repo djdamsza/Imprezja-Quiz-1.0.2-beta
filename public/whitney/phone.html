@@ -151,7 +151,6 @@
         let config = { tiles: [] };
         let active = false;
         let playingTileId = null;
-        let playingBackgroundTileId = null;
 
         socket.emit('whitney_join_phone');
         let autoStartDone = false;
@@ -176,12 +175,8 @@
         });
 
         socket.on('whitney_playing', (payload) => {
-            const p = typeof payload === 'object' ? payload : { tileId: payload, isBackground: false };
-            if (p.isBackground) {
-                playingBackgroundTileId = p.tileId;
-            } else {
-                playingTileId = p.tileId;
-            }
+            const p = typeof payload === 'object' ? payload : { tileId: payload };
+            playingTileId = p.tileId != null ? String(p.tileId) : null;
             render();
         });
 
@@ -201,16 +196,14 @@
             const cnt = trackList.length;
             const lastOdd = cnt % 2 === 1;
             tiles.innerHTML = trackList.map((t, i) => {
-                const isPlaying = playingTileId === t.id || playingBackgroundTileId === t.id;
-                const isBg = playingBackgroundTileId === t.id;
+                const isPlaying = playingTileId != null && String(t.id) === playingTileId;
                 const icon = isPlaying ? '⏸' : '▶';
                 const emoji = t.image && (t.image.startsWith('/') || t.image.startsWith('http')) ? '' : (t.image || '');
                 const img = t.image && (t.image.startsWith('/') || t.image.startsWith('http')) ? t.image : '';
                 const spanClass = lastOdd && i === cnt - 1 ? ' tile-last-odd' : '';
                 return `
-                    <div class="tile${spanClass} ${isPlaying ? 'playing' : ''} ${isBg ? 'bg-playing' : ''}" data-id="${t.id}" style="background:${t.color || '#3498db'}">
+                    <div class="tile${spanClass} ${isPlaying ? 'playing' : ''}" data-id="${t.id}" style="background:${t.color || '#3498db'}">
                         <span class="tile-play-icon">${icon}</span>
-                        ${t.isBackground ? '<span class="tile-bg-note" title="Tło muzyczne">🎵</span>' : ''}
                         ${img ? `<img class="emoji img" src="${img}" alt="" draggable="false" loading="lazy">` : (emoji ? `<span class="emoji">${emoji}</span>` : '')}
                         <span class="label">${(t.label || '').replace(/</g,'&lt;') || '—'}</span>
                     </div>
@@ -220,7 +213,7 @@
 
         function toggleTile(id) {
             if (!active) return;
-            socket.emit('whitney_toggle', { tileId: id });
+            socket.emit('whitney_toggle', { tileId: id != null ? String(id) : id });
         }
 
         const TILE_TAP_MAX_MOVE_PX = 22;

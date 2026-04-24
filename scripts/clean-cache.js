@@ -5,7 +5,6 @@
  *
  * Czyści:
  * - Electron, electron-builder (~1.5 GB)
- * - PyInstaller build/dist w NJR Konwerterze (~70 MB)
  * - node_modules/.cache w projekcie
  */
 const fs = require('fs');
@@ -18,9 +17,6 @@ const home = os.homedir();
 const dirs = [
     path.join(home, 'Library', 'Caches', 'electron'),
     path.join(home, 'Library', 'Caches', 'electron-builder'),
-    path.join(root, 'tools', 'vdj-database-editor', 'build'),
-    path.join(root, 'tools', 'vdj-database-editor', 'dist'),
-    path.join(root, 'tools', 'vdj-database-editor', 'test-output'),
     path.join(root, 'node_modules', '.cache'),
 ];
 

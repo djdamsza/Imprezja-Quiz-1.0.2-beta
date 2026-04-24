@@ -67,7 +67,7 @@ Możliwe przyczyny:
 Uruchom (gdy RB jest **zamknięty**):
 
 ```bash
-cd tools/vdj-database-editor
+# W sklonowanym repo njr-konwerter (katalog editor/)
 python3 scripts/analyze_rb_db.py ~/Library/Pioneer/rekordbox/master.db
 ```
 

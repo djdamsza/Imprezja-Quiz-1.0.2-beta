@@ -49,7 +49,23 @@
         .btn-score { padding: 8px 6px; font-size: 11px; font-weight: bold; border: none; border-radius: 4px; color: #fff; cursor: pointer; }
         .btn-score.blue { background: #0055aa; border: 2px solid #00aaff; }
         .btn-score.red { background: #cc0000; border: 2px solid #ff4444; }
+        .team-mult-row { display: flex; gap: 4px; margin-top: 4px; }
+        .btn-score-mult { flex: 1; padding: 7px 4px; font-size: 11px; font-weight: 800; border: 2px solid #f1c40f; border-radius: 4px; background: #2a2610; color: #f1c40f; cursor: pointer; font-family: var(--imp-font); }
+        .btn-score-mult.blue { border-color: #66ccff; color: #9fdfff; background: #0a1a28; }
+        .btn-score-mult.red { border-color: #ff8888; color: #ffbbbb; background: #280a0a; }
         .btn-x-center { width: 100%; background: #333; padding: 8px; margin-top: 4px; font-size: 12px; }
+
+        /* Kolory stron – zamiana (zsynchronizowana z TV).
+           Semantyka team1/team2 bez zmian – przełączamy wyłącznie widoczne kolory
+           przycisków i nagłówków kolumn, tak by admin pokrywał się z ekranem. */
+        body.familiada-swap-side-colors .team-blue { color: #ff4444; border-color: #660000; }
+        body.familiada-swap-side-colors .team-red  { color: #00aaff; border-color: #003366; }
+        body.familiada-swap-side-colors .btn-x.blue { background: #aa0000; }
+        body.familiada-swap-side-colors .btn-x.red  { background: #004488; }
+        body.familiada-swap-side-colors .btn-score.blue { background: #cc0000; border-color: #ff4444; }
+        body.familiada-swap-side-colors .btn-score.red  { background: #0055aa; border-color: #00aaff; }
+        body.familiada-swap-side-colors .btn-score-mult.blue { border-color: #ff8888; color: #ffbbbb; background: #280a0a; }
+        body.familiada-swap-side-colors .btn-score-mult.red  { border-color: #66ccff; color: #9fdfff; background: #0a1a28; }
 
         .btn-next { width: 100%; padding: 14px; background: var(--imp-success); color: #fff; font-size: 0.95rem; font-weight: 600; border: none; border-radius: var(--imp-radius-lg); cursor: pointer; margin-top: 12px; font-family: var(--imp-font); transition: all 0.2s; }
         .btn-next:hover { background: var(--imp-success-hover); }
@@ -191,18 +207,36 @@
             }
         });
 
+        function adminFullscreenElement() {
+            return document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+        }
         function toggleFullscreenAdmin() {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(() => {});
-                document.getElementById('btn-fs-admin').style.display = 'none';
+            const el = document.documentElement;
+            if (!adminFullscreenElement()) {
+                const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+                if (req) {
+                    try {
+                        const p = req.call(el);
+                        if (p && typeof p.catch === 'function') p.catch(() => {});
+                    } catch (e) {}
+                }
             } else {
-                document.exitFullscreen();
+                const exit = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+                if (exit) {
+                    try {
+                        const p = exit.call(document);
+                        if (p && typeof p.catch === 'function') p.catch(() => {});
+                    } catch (e) {}
+                }
             }
         }
-        document.addEventListener('fullscreenchange', () => {
+        function syncFullscreenAdminBtn() {
             const btn = document.getElementById('btn-fs-admin');
-            if (btn) btn.style.display = document.fullscreenElement ? 'none' : '';
-        });
+            if (btn) btn.style.display = adminFullscreenElement() ? 'none' : '';
+        }
+        ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'].forEach(ev =>
+            document.addEventListener(ev, syncFullscreenAdminBtn));
+        syncFullscreenAdminBtn();
 
         let wakeLock = null;
         let noSleep = null;
@@ -317,7 +351,11 @@
                             <button class="btn-x blue" onclick="sendError(1,1)">X</button>
                             <button class="btn-x blue" onclick="sendError(1,2)">XX</button>
                             <button class="btn-x blue" onclick="sendError(1,3)">XXX</button>
-                            <button class="btn-score blue" onclick="addPoints(1)">💰 PRZEKAŻ</button>
+                            <button class="btn-score blue" onclick="addPoints(1, 1)">💰 PRZEKAŻ</button>
+                            <div class="team-mult-row">
+                                <button type="button" class="btn-score-mult blue" onclick="addPoints(1, 2)" title="Podwaja punkty z odkrytych odpowiedzi w tej rundzie">×2</button>
+                                <button type="button" class="btn-score-mult blue" onclick="addPoints(1, 3)" title="Potraja punkty z odkrytych odpowiedzi w tej rundzie">×3</button>
+                            </div>
                         </div>
                     </div>
                     <div class="team-col team-red">
@@ -326,7 +364,11 @@
                             <button class="btn-x red" onclick="sendError(2,1)">X</button>
                             <button class="btn-x red" onclick="sendError(2,2)">XX</button>
                             <button class="btn-x red" onclick="sendError(2,3)">XXX</button>
-                            <button class="btn-score red" onclick="addPoints(2)">💰 PRZEKAŻ</button>
+                            <button class="btn-score red" onclick="addPoints(2, 1)">💰 PRZEKAŻ</button>
+                            <div class="team-mult-row">
+                                <button type="button" class="btn-score-mult red" onclick="addPoints(2, 2)" title="Podwaja punkty z odkrytych odpowiedzi w tej rundzie">×2</button>
+                                <button type="button" class="btn-score-mult red" onclick="addPoints(2, 3)" title="Potraja punkty z odkrytych odpowiedzi w tej rundzie">×3</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -546,7 +588,11 @@
                             <button class="btn-x blue" onclick="sendError(1,1)">X</button>
                             <button class="btn-x blue" onclick="sendError(1,2)">XX</button>
                             <button class="btn-x blue" onclick="sendError(1,3)">XXX</button>
-                            <button class="btn-score blue" onclick="addPoints(1)">💰 PRZEKAŻ</button>
+                            <button class="btn-score blue" onclick="addPoints(1, 1)">💰 PRZEKAŻ</button>
+                            <div class="team-mult-row">
+                                <button type="button" class="btn-score-mult blue" onclick="addPoints(1, 2)" title="Podwaja punkty z odkrytych odpowiedzi w tej rundzie">×2</button>
+                                <button type="button" class="btn-score-mult blue" onclick="addPoints(1, 3)" title="Potraja punkty z odkrytych odpowiedzi w tej rundzie">×3</button>
+                            </div>
                         </div>
                     </div>
                     <div class="team-col team-red">
@@ -555,7 +601,11 @@
                             <button class="btn-x red" onclick="sendError(2,1)">X</button>
                             <button class="btn-x red" onclick="sendError(2,2)">XX</button>
                             <button class="btn-x red" onclick="sendError(2,3)">XXX</button>
-                            <button class="btn-score red" onclick="addPoints(2)">💰 PRZEKAŻ</button>
+                            <button class="btn-score red" onclick="addPoints(2, 1)">💰 PRZEKAŻ</button>
+                            <div class="team-mult-row">
+                                <button type="button" class="btn-score-mult red" onclick="addPoints(2, 2)" title="Podwaja punkty z odkrytych odpowiedzi w tej rundzie">×2</button>
+                                <button type="button" class="btn-score-mult red" onclick="addPoints(2, 3)" title="Potraja punkty z odkrytych odpowiedzi w tej rundzie">×3</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -671,30 +721,48 @@
         })();
 
         const LS_FAM_COLOR_SWAP = 'imprezjaFamiliadaColorSwap';
-        function updateFamColorSwapButton(swapped) {
+        let familiadaColorSwapped = false;
+        function applyFamiliadaColorSwap(swapped) {
+            familiadaColorSwapped = !!swapped;
+            document.body.classList.toggle('familiada-swap-side-colors', familiadaColorSwapped);
             const btn = document.getElementById('btn-fam-color-swap');
-            if (!btn) return;
-            btn.textContent = swapped
-                ? '🔄 Kolory stron (TV): odwrócone'
-                : '🔄 Kolory stron (TV): normalnie';
-            try { localStorage.setItem(LS_FAM_COLOR_SWAP, swapped ? '1' : '0'); } catch (e) { /* ignore */ }
+            if (btn) {
+                btn.textContent = familiadaColorSwapped
+                    ? '🔄 Kolory stron (TV): odwrócone'
+                    : '🔄 Kolory stron (TV): normalnie';
+            }
+            try { localStorage.setItem(LS_FAM_COLOR_SWAP, familiadaColorSwapped ? '1' : '0'); } catch (e) { /* ignore */ }
         }
+        // Backwards-compat alias
+        function updateFamColorSwapButton(swapped) { applyFamiliadaColorSwap(swapped); }
+
+        // Natychmiastowy stan z localStorage – żeby przy pierwszym renderze
+        // kolumny/przyciski od razu miały właściwe kolory, zanim przyjdzie
+        // odpowiedź serwera (serwer i tak potem nadpisze autorytatywnie).
+        try {
+            const cached = localStorage.getItem(LS_FAM_COLOR_SWAP);
+            if (cached === '1') document.body.classList.add('familiada-swap-side-colors');
+        } catch (e) { /* ignore */ }
+
         function toggleFamiliadaColorSides() {
             socket.emit('familiada_toggle_color_sides');
         }
         socket.on('familiada_color_sides_swap', (data) => {
-            updateFamColorSwapButton(!!(data && data.swapped));
+            applyFamiliadaColorSwap(!!(data && data.swapped));
         });
 
         function sendError(team, count) { socket.emit('send_error', { team, count }); }
 
-        function addPoints(team) {
+        function addPoints(team, multiplier) {
+            const mult = multiplier == null || multiplier < 1 ? 1 : multiplier;
             const ansListId = activeGoldenIdx !== null ? 'golden-ans-list' : (activeQuestionIdx !== null ? 'active-ans-list' : null);
             if (!ansListId) return;
             const revealed = document.querySelectorAll('#' + ansListId + ' .ans-item.revealed');
             const pot = Array.from(revealed).reduce((s, el) => s + parseInt(el.dataset.points || 0), 0);
+            const effective = pot * mult;
             if (pot === 0 && !confirm('Pula wynosi 0. Zatwierdzić rundę?')) return;
-            socket.emit('add_points', { team, points: pot, playSound: true });
+            if (effective <= 0) return;
+            socket.emit('add_points', { team, points: effective, playSound: true });
             roundPointsTransferred = true;
         }
 

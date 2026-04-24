@@ -1,18 +1,6 @@
 # Build Windows i Mac – stan i instrukcja
 
-## All in one (zalecane)
-
-Jeden instalator może zawierać **Imprezja Quiz** oraz **NJR Konwerter**. Python i PyInstaller **nie są wymagane na komputerze użytkownika** – binarka konwertera jest budowana na Twoim komputerze (przy buildzie) i pakowana do aplikacji.
-
-### Jak zbudować all in one
-
-| Środowisko | Polecenie | Wynik |
-|------------|-----------|--------|
-| **macOS** | `npm run build:all-in-one:mac` | Najpierw PyInstaller (NJR → `resources/njr-converter/`), potem electron-builder → DMG z wbudowanym konwerterem |
-| **Windows** | `npm run build:all-in-one:win` | Najpierw PyInstaller (NJR → `resources/njr-converter/`), potem electron-builder → instalator NSIS z wbudowanym konwerterem |
-| Dowolne | `npm run build:all-in-one` | To samo co powyżej, ale target zależny od systemu (Mac na macOS, Win na Windows) |
-
-**Wymagania na maszynie do buildu:** Python 3, w katalogu `tools/vdj-database-editor`: `pip install -r requirements.txt` i `pip install pyinstaller`. Skrypt `scripts/prepare-njr-for-electron.js` uruchamia PyInstaller i kopiuje plik `NJR-konwerter` (Mac) lub `NJR-konwerter.exe` (Windows) do `resources/njr-converter/`. Electron-builder pakuje tę folder do aplikacji i rozpakowuje (asarUnpack), więc konwerter jest w katalogu instalacji obok Imprezja Quiz.
+**NJR Konwerter** (VirtualDJ / eksporty) to **osobny produkt** i **osobne repozytorium** — nie jest częścią tego projektu. Źródła, CI i release: [github.com/djdamsza/njr-konwerter](https://github.com/djdamsza/njr-konwerter).
 
 ---
 
@@ -47,8 +35,25 @@ Jeśli instalator nowej wersji się wywala lub nie nadpisuje poprzedniej, przycz
 - Build Mac (DMG) ma sens tylko na macOS; build Windows można robić na Macu (cross) lub na Windows.
 - Katalog `dist/` jest wynikiem; w `package.json` → `build.files` wykluczone są m.in. `docs`, `*.md`, `scripts`, `*.sh`, `*.bat` – do paczki nie trafiają.
 
+### Co faktycznie wchodzi do paczki Electron (`package.json` → `build.files`)
+
+Źródło prawdy to **lista w `package.json`**: wzorzec `**/*` plus **negacje** (`!…`). Poniżej skrót w sensie biznesowym (szczegóły zawsze w pliku).
+
+| Obszar | Czy w buildzie Imprezja Quiz? | Uwagi |
+|--------|-------------------------------|--------|
+| **`docs/`** (WordPress, n8n, checklisty, MD) | **Nie** | Negacja `!docs` — cały katalog odpada z asar. |
+| **`scripts/`** | **Nie** | Negacja `!scripts`. |
+| **Pliki `*.md`** | **Nie** | Negacja `!**/*.md`. |
+| **`tools/image-to-webp/`** (konwerter WebP) | **Nie** | Jawna negacja `!tools/image-to-webp/**`. Inne podkatalogi `tools/` — obecnie praktycznie tylko ten; **cokolwiek dodasz obok bez nowej negacji, trafi do builda.** |
+| **`resources/njr-converter/**`** | **Nie** | Wykluczone; **NJR Konwerter** jako produkt to osobne repo (sekcja 2). |
+| **`public/imprezator-configs/**`** | **Nie** | Wybrane konfiguracje. |
+| **`stripe-shop/`** | **Nie** | Negacja `!stripe-shop/**` — sklep Stripe w repo nie trafia do asar (hostowanie osobno). |
+| **`public/`** (quiz, vote, Screen, uploady, quizy JSON…) | **Tak** | Rdzeń aplikacji. |
+| **Katalog główny** (`server.js`, `electron-main.js`, `license.js`, `package.json`…) | **Tak** | O ile nie pasuje do negacji (`*.bat`, itd.). |
+
 ### Aktualizacje (electron-updater)
-- Przy publikacji osobnych buildów Mac (arm64 + x64) electron-updater automatycznie wybiera właściwą architekturę. Upewnij się, że `latest-mac.yml` zawiera oba assety.
+- **GitHub Release musi zawierać `latest.yml` i `latest-mac.yml`** (powstają w `dist/` przy buildzie obok instalatorów). Skrypt `npm run publish:github` wgrywa je po poprawce nazw plików (spacje → kropki, zgodnie z assetami `.exe`/`.dmg`). Bez tych plików aplikacja zgłasza błąd kanału aktualizacji i nie zaktualizuje się automatycznie z 1.2.1 itd.
+- Przy publikacji osobnych buildów Mac (arm64 + x64) electron-updater automatycznie wybiera właściwą architekturę. Upewnij się, że `latest-mac.yml` zawiera oba assety (kolejność `pac`: jeśli plik ma tylko jedną architekturę, rozważ jeden wspólny build Mac lub ręczną edycję YAML przed publikacją).
 - **singleArchFiles** (`**/node_modules/@img/**`) – electron-builder pakuje tylko binarki sharp dla bieżącej architektury, co zmniejsza rozmiar DMG.
 - **Launcher** (`build:launcher`): domyślnie `node18-win-x64`. Dla Windows ARM64: `--targets node18-win-x64,node18-win-arm64 --output dist/ImprezjaQuiz-Launcher` (tworzy dwa pliki .exe).
 
@@ -57,28 +62,9 @@ Jeśli instalator nowej wersji się wywala lub nie nadpisuje poprzedniej, przycz
 
 ---
 
-## 2. NJR Konwerter / Edytor bazy VDJ (Python + PyInstaller)
+## 2. NJR Konwerter
 
-**Lokalizacja:** `tools/vdj-database-editor/` (`app.py`, `launcher.py`, `njr.spec`).
-
-### Konfiguracja
-- **PyInstaller** – jeden plik wykonywalny z `launcher.py` (uruchamia Flask + przeglądarkę).
-- **njr.spec** – hiddenimports (flask, vdj_parser, rb_parser, serato_parser, license_njr, mutagen, cryptography, pyrekordbox itd.), `datas=(static, static)`.
-- **build.sh** (macOS/Linux): `python3 -m PyInstaller njr.spec` → `dist/NJR-konwerter`.
-- **build.bat** (Windows): `python -m PyInstaller njr.spec` → `dist\NJR-konwerter.exe`.
-
-### Jak budować
-
-| Środowisko | Polecenie | Wynik |
-|------------|-----------|--------|
-| **macOS / Linux** | `cd tools/vdj-database-editor && ./scripts/build.sh` | `dist/NJR-konwerter` |
-| **Windows** | `cd tools\vdj-database-editor && scripts\build.bat` | `dist\NJR-konwerter.exe` |
-
-Wymagane: Python 3, `pip install -r requirements.txt`, `pip install pyinstaller`. Opcjonalnie venv.
-
-### Konflikty
-- **Brak** – `njr.spec` wskazuje `launcher.py` i `static`; `license_njr.py` istnieje; `requirements.txt` i hiddenimports są zgodne.
-- Build Pythona jest niezależny od Electronu – można budować konwerter osobno na każdej platformie.
+Nie buduje się z tego repozytorium. Zobacz README i GitHub Actions w repozytorium **njr-konwerter** (link wyżej).
 
 ---
 
@@ -86,8 +72,5 @@ Wymagane: Python 3, `pip install -r requirements.txt`, `pip install pyinstaller`
 
 | Cel | Windows | Mac | Uwagi |
 |-----|---------|-----|--------|
-| **All in one** (Quiz + Konwerter) | `npm run build:all-in-one:win` | `npm run build:all-in-one:mac` | Wymaga Pythona tylko na maszynie do buildu; użytkownik dostaje jeden instalator. |
-| **Tylko Imprezja Quiz** | `npm run build:win` | `npm run build:mac` lub `pac` | Electron; na Macu można zbudować też win (cross). |
-| **Tylko NJR Konwerter** | `scripts\build.bat` | `./scripts/build.sh` | PyInstaller; wynik w `tools/vdj-database-editor/dist/`. |
-
-Python 3 i PyInstaller są używane **wyłącznie przy budowaniu** all-in-one (skrypt `prepare-njr-for-electron.js`). W gotowym instalatorze jest tylko skompilowana binarka konwertera – użytkownik nie instaluje Pythona.
+| **Imprezja Quiz** | `npm run build:win` | `npm run build:mac` lub `pac` | Electron; na Macu można zbudować też win (cross). |
+| **NJR Konwerter** | — | — | Osobne repo; binaria w **Releases** na GitHubie. |

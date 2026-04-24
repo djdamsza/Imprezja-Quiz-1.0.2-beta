@@ -153,14 +153,12 @@
         let usedIds = new Set();
         let playingTrackId = null;
         let trackProgress = {}; // trackId -> 0..1
-        let justStoppedId = null; // blokada przed podwójnym kliknięciem (stop -> play)
-
         socket.emit('spiewaj_dalej_join_phone');
         let autoStartDone = false;
         socket.on('spiewaj_dalej_state', (s) => {
             active = s.active;
             if (s.config) config = s.config;
-            if (s.usedIds) usedIds = new Set(s.usedIds);
+            if (s.usedIds) usedIds = new Set(Array.from(s.usedIds).map(String));
             ensureBanks();
             currentBankIndex = Math.min(currentBankIndex, config.banks.length - 1);
             if (currentBankIndex < 0) currentBankIndex = 0;
@@ -176,7 +174,7 @@
             if (slider) slider.value = Math.round(vol * 100);
         });
         socket.on('spiewaj_dalej_used', (payload) => {
-            if (payload && payload.trackId) usedIds.add(payload.trackId);
+            if (payload && payload.trackId != null) usedIds.add(String(payload.trackId));
             render();
         });
         socket.on('spiewaj_dalej_progress', (payload) => {
@@ -186,9 +184,9 @@
             }
         });
         socket.on('spiewaj_dalej_ended', (payload) => {
-            if (payload && payload.trackId) {
+            if (payload && payload.trackId != null) {
                 playingTrackId = null;
-                trackProgress[payload.trackId] = 0;
+                trackProgress[String(payload.trackId)] = 0;
                 render();
             }
         });
@@ -231,8 +229,8 @@
             const emptyMsg = trackList.length === 0 ? '<p style="text-align:center;color:rgba(255,255,255,0.6);font-size:1rem;padding:24px;">Brak utworów w tym banku</p>' : '';
             tracks.innerHTML = swipeHint + emptyMsg + trackList.map((t) => {
                 const label = (t.displayName || t.audio?.replace(/^.*\//, '').replace(/\.[^.]+$/, '') || 'Utwór').replace(/</g, '&lt;');
-                const isUsed = usedIds.has(t.id);
-                const isPlaying = playingTrackId === t.id;
+                const isUsed = usedIds.has(String(t.id));
+                const isPlaying = playingTrackId != null && String(t.id) === playingTrackId;
                 const color = t.color || '#3498db';
                 const p = (isPlaying ? (trackProgress[t.id] ?? 0) : 0) * 100;
                 let bgStyle;
@@ -289,19 +287,18 @@
 
         function handleTrackClick(id) {
             if (!active) return;
-            if (justStoppedId === id) return; // ignoruj kliknięcie tuż po stop (zapobiega stop->play)
-            if (playingTrackId === id) {
-                socket.emit('spiewaj_dalej_stop', id);
+            const sid = id != null ? String(id) : '';
+            if (!sid) return;
+            if (playingTrackId === sid) {
+                socket.emit('spiewaj_dalej_stop', sid);
                 playingTrackId = null;
-                trackProgress[id] = 0;
-                justStoppedId = id;
-                setTimeout(() => { justStoppedId = null; }, 2000);
+                trackProgress[sid] = 0;
                 render();
             } else {
-                playingTrackId = id;
-                trackProgress[id] = 0;
+                playingTrackId = sid;
+                trackProgress[sid] = 0;
                 render();
-                socket.emit('spiewaj_dalej_play', id);
+                socket.emit('spiewaj_dalej_play', sid);
             }
         }
 

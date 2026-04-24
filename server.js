@@ -24,6 +24,9 @@ const license = require('./license.js');
 const { spawn } = require('child_process');
 const trash = require('trash');
 
+require(path.join(__dirname, 'public/js/letter-word-pl-en.js'));
+const letterWordPlEn = globalThis.ImprezjaLetterWord;
+
 // Sharp - opcjonalne (jeśli się nie załaduje, użyjemy jimp jako fallback)
 let sharp = null;
 let jimp = null;
@@ -155,6 +158,7 @@ function getDefaultDataDir() {
 const dataDir = process.env.IMPREZJA_DATA_DIR || getDefaultDataDir();
 const VOLUMES_FILE = path.join(dataDir, 'imprezja-volumes.json');
 const quizzesDir = path.join(dataDir, 'quizzes');
+const partyQuizzesDir = path.join(dataDir, 'party-quizzes');
 const uploadsDir = path.join(dataDir, 'uploads');
 const vdjRecordingsBank = process.platform === 'darwin'
     ? path.join(os.homedir(), 'Library', 'Application Support', 'VirtualDJ', 'Sampler', 'Recordings.bank')
@@ -383,8 +387,244 @@ function broadcastEffectiveVolumes() {
     io.to('imprezator_phone').emit('imprezator_volume_sync', imprezatorVolume);
 }
 
-// Tryb gry: null | 'quiz' | 'familiada' – gdy 'familiada', wstrzymujemy broadcast do telefonów
+// Tryb gry: null | 'quiz' | 'familiada' | 'party'
+// Party: brak telefonów; Screen.html dostaje update_state jak admin, Familiada ma osobny pipeline.
 let gameMode = null;
+
+// ═════ Stan rozgrywki Party Quiz ═════
+// Przechowuje aktualnie wczytany plik Party Quiz, aktualny indeks, stan drużyn
+// i flagę questionAwarded, która blokuje przejście dalej bez przyznania punktów.
+let partyState = {
+    activeFile: null,                    // nazwa aktywnego pliku .json
+    quiz: null,                          // { questions, options, meta } — identyczna struktura jak loadPartyQuestions
+    currentIndex: -1,                    // aktualny indeks pytania (-1 = nic nie wystartowane)
+    questionAwarded: false,              // czy aktualne pytanie zostało rozstrzygnięte (punkty przyznane lub pominięte)
+    askedIndices: [],                    // zestaw indeksów pytań, które zostały zamknięte (dla UI: szary kolor)
+    finalScreenVisible: false,           // czy na TV wyświetlony jest ekran końcowy z wynikami drużyn
+    /** Tymczasowa tablica wyników (jak Imprezja Quiz — LEADERBOARD + teamBattle) na żądanie admina. */
+    teamLeaderboardVisible: false,
+    teams: {
+        blue: { name: 'Niebiescy', score: 0 },
+        red:  { name: 'Czerwoni',  score: 0 }
+    },
+    swapped: false,                      // czy kolory stron zostały zamienione
+    // Indeks odpowiedzi wybranej przez admina dla typu QUIZ/MUSIC (0..N-1, null = brak).
+    // Wyświetlana na TV jako podświetlony kafelek, po kliknięciu "Pokaż prawidłową" walidacja kolorem.
+    selectedAnswerIndex: null,
+    // Stan dla pytań typu LETTER w Party Quiz: litera aktualnie wyświetlana na TV (wielka).
+    // Admin klika "Następna litera" → losujemy kolejną wielką literę (A-Z oraz PL). Każda trafiona
+    // odpowiedź = 10 pkt (lub q.points) dla wskazanej drużyny.
+    currentLetter: null,
+    // Stan aktywnej rundy FAMILIADA w Party Quiz.
+    // revealed[i] = true jeśli odpowiedź i jest odkryta. errors.blue/red = liczba X (0-3).
+    // Admin klika odpowiedź na liście → reveal. Admin klika X dla drużyny → +1 error.
+    // Pula = suma punktów odkrytych. Admin klika „Przyznaj pulę" drużynie → +pula do score.
+    familiada: {
+        revealed: [],                    // [bool] per odpowiedź
+        errors: { blue: 0, red: 0 },
+        pendingIndex: null               // aktualnie wybrana (pending) odpowiedź — odkrywa się przy kolejnym klik
+    },
+    // Stan dla pytań typu ESTIMATION w Party Quiz: wartość którą admin wpisał za gracza.
+    // Pokazywane na TV obok poprawnej odpowiedzi po „Pokaż prawidłową odpowiedź".
+    estimationAnswer: null,         // { value: number } lub null
+    // Stan aktywnej rundy SHIPS w Party Quiz.
+    // Admin klika komórki siatki z panelu admina; naprzemiennie strzelają drużyny
+    // (niebiescy → czerwoni → niebiescy…). Trafienie = +pointsPerHit (domyślnie 5) dla
+    // aktywnej drużyny, licznik trafień rośnie. Po każdym strzale tura przechodzi na drugą
+    // drużynę (niezależnie od hit/miss). Admin kończy rundę „Zakończ statki" (party_ships_end).
+    ships: {
+        boardSize: 8,                    // rozmiar planszy
+        ships: [],                       // rozmieszczenie statków z pytania (kopia referencyjna)
+        shots: {},                       // { "row_col": { hit: bool, shipSize?: n, team: 'blue'|'red' } }
+        currentTeam: 'blue',             // kto strzela teraz
+        hits: { blue: 0, red: 0 },       // licznik trafień per drużyna (info + do score ×pointsPerHit)
+        pointsPerHit: 5,
+        showAll: false                   // "Pokaż statki" — TV rysuje ukryte statki na zielono
+    },
+    // Fizyczne przyciski / telefon-buzzer (OPCJONALNE — rozgrywka działa bez nich).
+    // Kto pierwszy naciśnie w danym pytaniu — ten odpowiada; flaga blokuje kolejne naciśnięcia
+    // do momentu aż admin kliknie „reset przycisków" LUB przejdzie do kolejnego pytania.
+    buttonUsedThisRound: false,      // czy już ktoś nacisnął w bieżącej rundzie
+    buttonPressedBy: null,           // 'blue' | 'red' | null
+    // TV: opcjonalnie ukrywaj punkty na pasku drużyn — pokazuj przez 5 s po zmianie punktów (partyFlashScoresVisible).
+    hideTeamScoresOnTv: true,
+    teamScoresFlashUntil: 0,         // timestamp ms — do kiedy TV ma pokazać punkty przy włączonym ukryciu
+    /** Ostatnie przyznanie punktów do cofnięcia / przeniesienia (drugi klik ta sama drużyna = cofnij, inna = przenieś). */
+    revertibleAward: null,           // { kind, team, points, questionIndex } | null
+    /** Pytanie z osobnej złotej listy (`party-quiz-golden.json`) — indeks lub null gdy gra zwykłe pytanie z pliku. */
+    currentGoldenIndex: null,
+    /** Zapas gameState.questions zanim dołożymy pytanie ze złotej listy (bez mutacji wczytanego quizu). */
+    gameStateQuestionsBeforeGolden: null,
+    // Party FAST_LIST: seria krótkich pytań (prompt + odpowiedź) — indeks w fastListItems, czy TV pokazuje odpowiedź.
+    fastListIndex: 0,
+    fastListShowAnswer: false
+};
+
+/** Aktualne pytanie Party na serwerze — uwzględnia końcówkę listy dodaną dla złotej listy. */
+function getActivePartyQuestionForParty() {
+    if (gameMode !== 'party') return null;
+    if (partyState.currentGoldenIndex !== null && typeof partyState.currentGoldenIndex === 'number') {
+        const gq = partyQuizGoldenQuestions[partyState.currentGoldenIndex];
+        if (gq) return gq;
+    }
+    if (partyState.currentIndex < 0) return null;
+    const arr = gameState.questions;
+    if (!Array.isArray(arr) || !arr[partyState.currentIndex]) return null;
+    return arr[partyState.currentIndex];
+}
+
+function partyRestoreGameStateQuestionsIfExtended() {
+    if (partyState.gameStateQuestionsBeforeGolden) {
+        gameState.questions = partyState.gameStateQuestionsBeforeGolden;
+        partyState.gameStateQuestionsBeforeGolden = null;
+    }
+    partyState.currentGoldenIndex = null;
+}
+
+/** Ustawia krótki „flash" wyniku na TV (tylko gdy hideTeamScoresOnTv). */
+function partyFlashScoresVisible() {
+    if (partyState.hideTeamScoresOnTv) {
+        partyState.teamScoresFlashUntil = Date.now() + 5000;
+    }
+}
+
+function broadcastPartyState() {
+    // Wysyłamy do wszystkich – admin, Screen.html, ewentualne dodatkowe widoki.
+    // Payload JEST idempotentny i mały, bez `quiz.questions` (żeby nie dublować dużego JSON-a).
+    io.emit('party_state', buildPartyStatePayload());
+}
+
+function buildPartyStatePayload() {
+    // Dla FAMILIADA w Party Quiz załączamy aktualną rundę (tekst/punkty + revealed + errors).
+    let familiadaRound = null;
+    let shipsRound = null;
+    let fastListRound = null;
+    let activePartyQuestionType = null;
+    if (gameMode === 'party' && partyState.currentIndex >= 0) {
+        const q = getActivePartyQuestionForParty();
+        if (q) activePartyQuestionType = q.type || null;
+        if (q && q.type === 'FAMILIADA') {
+            const answers = Array.isArray(q.answers) ? q.answers : [];
+            const revealed = partyState.familiada.revealed || [];
+            const pendingIdx = (typeof partyState.familiada.pendingIndex === 'number') ? partyState.familiada.pendingIndex : null;
+            familiadaRound = {
+                question: q.question || '',
+                answers: answers.map((a, i) => ({
+                    text: (a && a.text) || '',
+                    points: (a && typeof a.points === 'number') ? a.points : 0,
+                    revealed: !!revealed[i],
+                    pending: i === pendingIdx
+                })),
+                errors: partyState.familiada.errors,
+                pendingIndex: pendingIdx,
+                pot: answers.reduce((sum, a, i) => (revealed[i] && a && typeof a.points === 'number') ? sum + a.points : sum, 0)
+            };
+        }
+        if (q && q.type === 'SHIPS') {
+            shipsRound = {
+                boardSize: partyState.ships.boardSize,
+                ships: partyState.ships.ships,             // statki są widoczne dla admina (TV ukrywa niezatrafione)
+                shots: partyState.ships.shots,             // { "r_c": { hit, shipSize, team } }
+                currentTeam: partyState.ships.currentTeam,
+                hits: partyState.ships.hits,
+                pointsPerHit: partyState.ships.pointsPerHit,
+                showAll: !!partyState.ships.showAll
+            };
+        }
+        if (q && q.type === 'FAST_LIST') {
+            const items = Array.isArray(q.fastListItems) ? q.fastListItems : [];
+            const n = items.length;
+            let idx = typeof partyState.fastListIndex === 'number' ? partyState.fastListIndex : 0;
+            if (n <= 0) idx = 0;
+            else idx = Math.max(0, Math.min(idx, n - 1));
+            const cur = items[idx] || { question: '', answer: '' };
+            fastListRound = {
+                itemIndex: idx,
+                total: n,
+                showAnswer: !!partyState.fastListShowAnswer,
+                prompt: String((cur && cur.question) || ''),
+                answer: String((cur && cur.answer) || '')
+            };
+        }
+    }
+    return {
+        active: gameMode === 'party',                              // Czy tryb party jest aktywny na serwerze (bazuje na gameMode)
+        activeFile: partyState.activeFile,
+        currentIndex: partyState.currentIndex,
+        currentGoldenIndex: (typeof partyState.currentGoldenIndex === 'number') ? partyState.currentGoldenIndex : null,
+        questionAwarded: partyState.questionAwarded,
+        teams: partyState.teams,
+        swapped: partyState.swapped,
+        selectedAnswerIndex: partyState.selectedAnswerIndex,
+        currentLetter: partyState.currentLetter,
+        estimationAnswer: partyState.estimationAnswer,
+        familiadaRound: familiadaRound,
+        shipsRound: shipsRound,
+        fastListRound: fastListRound,
+        questionCount: partyState.quiz && Array.isArray(partyState.quiz.questions) ? partyState.quiz.questions.length : 0,
+        welcome: partyState.quiz && partyState.quiz.meta ? (partyState.quiz.meta.welcome || null) : null,
+        defaultPoints: partyState.quiz && partyState.quiz.meta && typeof partyState.quiz.meta.defaultPoints === 'number' ? partyState.quiz.meta.defaultPoints : 10,
+        askedIndices: Array.isArray(partyState.askedIndices) ? partyState.askedIndices.slice() : [],
+        finalScreenVisible: !!partyState.finalScreenVisible,
+        teamLeaderboardVisible: !!partyState.teamLeaderboardVisible,
+        activePartyQuestionType,
+        buttonUsedThisRound: !!partyState.buttonUsedThisRound,
+        buttonPressedBy: partyState.buttonPressedBy || null,
+        hideTeamScoresOnTv: !!partyState.hideTeamScoresOnTv,
+        teamScoresFlashUntil: typeof partyState.teamScoresFlashUntil === 'number' ? partyState.teamScoresFlashUntil : 0,
+        revertAward: (partyState.revertibleAward && partyState.revertibleAward.questionIndex === partyState.currentIndex)
+            ? {
+                kind: partyState.revertibleAward.kind,
+                team: partyState.revertibleAward.team,
+                points: partyState.revertibleAward.points,
+                ...(typeof partyState.revertibleAward.fastListItemIndex === 'number'
+                    ? { fastListItemIndex: partyState.revertibleAward.fastListItemIndex }
+                    : {})
+            }
+            : null
+    };
+}
+
+function partyRemoveAskedIndex(idx) {
+    if (!Array.isArray(partyState.askedIndices) || idx < 0) return;
+    const i = partyState.askedIndices.indexOf(idx);
+    if (i !== -1) partyState.askedIndices.splice(i, 1);
+}
+
+/** Oznacz aktualne pytanie jako rozegrane (przyznane punkty lub pominięte) — dla szarego stylu w liście. */
+function partyMarkAsked() {
+    if (partyState.currentGoldenIndex !== null && typeof partyState.currentGoldenIndex === 'number') return;
+    if (partyState.currentIndex < 0) return;
+    if (!Array.isArray(partyState.askedIndices)) partyState.askedIndices = [];
+    if (partyState.askedIndices.indexOf(partyState.currentIndex) === -1) {
+        partyState.askedIndices.push(partyState.currentIndex);
+    }
+}
+
+function partyGetQuestionPoints(q) {
+    if (!q) return 0;
+    if (q.type === 'FAST_LIST') return 5;
+    if (q.type === 'FAMILIADA') {
+        return (Array.isArray(q.answers) ? q.answers : []).reduce((s, a) => s + (a && typeof a.points === 'number' ? a.points : 0), 0) || 0;
+    }
+    if (q.type === 'SHIPS') {
+        return (typeof q.pointsPerHit === 'number' && q.pointsPerHit > 0) ? q.pointsPerHit : 5;
+    }
+    if (typeof q.points === 'number' && q.points > 0) return q.points;
+    if (partyState.quiz && partyState.quiz.meta && typeof partyState.quiz.meta.defaultPoints === 'number') return partyState.quiz.meta.defaultPoints;
+    return 10;
+}
+
+// ═════ Party Quiz: LETTER – losowanie liter ═════
+// Pula: identyczna jak w Imprezja Quiz (LETTER mode) — bez diakrytyków i bez Q, V, X, Y.
+// Źródło 1:1: `availableLetters` w admin_start_letter_game (ok. linia 6624 tego pliku).
+// Wielkie litery (wyświetlane duże na TV).
+// Argument `exclude` pozwala uniknąć powtórzenia aktualnej litery od razu.
+const PARTY_LETTERS_POOL = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','R','S','T','U','W','Z'];
+function pickRandomPartyLetter(exclude) {
+    const pool = PARTY_LETTERS_POOL.filter(l => l !== exclude);
+    return pool[Math.floor(Math.random() * pool.length)];
+}
 // Stan Familiady
 let familiadaQuestions = [];
 let familiadaTeam1Score = 0;
@@ -394,6 +634,8 @@ let familiadaTeam2Name = 'Czerwoni';
 /** Tylko wygląd TV: zamiana stron niebieski/czerwony (nazwy i punkty team1/team2 bez zmian). */
 let familiadaColorSidesSwapped = false;
 let familiadaRoundAwardedTo = null;
+/** Kwota faktycznie przyznana w bieżącej rundzie (z mnożnikiem ×2/×3); używana przy cofaniu i przenoszeniu */
+let familiadaRoundAwardedPoints = null;
 let familiadaShowStartScreenOnConnect = false;
 let familiadaButtonUsedThisRound = false;
 let familiadaQuestionActive = false;
@@ -443,6 +685,42 @@ function loadFamiliadaGoldenData() {
     }
 }
 loadFamiliadaGoldenData();
+
+/** Złota lista Party Quiz — osobny plik od Familiady (brak kolizji z familiada-golden.json). */
+const PARTY_QUIZ_GOLDEN_FILE = 'party-quiz-golden.json';
+const partyQuizGoldenPath = path.join(partyQuizzesDir, PARTY_QUIZ_GOLDEN_FILE);
+let partyQuizGoldenQuestions = [];
+
+function loadPartyQuizGoldenData() {
+    try {
+        const appPathGolden = process.env.IMPREZJA_APP_PATH || __dirname;
+        const publicGolden = path.join(appPathGolden, 'public', 'party-quizzes', PARTY_QUIZ_GOLDEN_FILE);
+        if (fs.existsSync(partyQuizGoldenPath)) {
+            const raw = fs.readFileSync(partyQuizGoldenPath, 'utf8');
+            partyQuizGoldenQuestions = JSON.parse(raw);
+            if (!Array.isArray(partyQuizGoldenQuestions)) partyQuizGoldenQuestions = [];
+            partyQuizGoldenQuestions = partyQuizGoldenQuestions.slice(0, 10);
+            console.log(`✅ Party Quiz Złota Lista: załadowano ${partyQuizGoldenQuestions.length} pytań`);
+        } else if (fs.existsSync(publicGolden)) {
+            const raw = fs.readFileSync(publicGolden, 'utf8');
+            partyQuizGoldenQuestions = JSON.parse(raw);
+            if (!Array.isArray(partyQuizGoldenQuestions)) partyQuizGoldenQuestions = [];
+            partyQuizGoldenQuestions = partyQuizGoldenQuestions.slice(0, 10);
+            if (!fs.existsSync(partyQuizzesDir)) fs.mkdirSync(partyQuizzesDir, { recursive: true });
+            fs.writeFileSync(partyQuizGoldenPath, JSON.stringify(partyQuizGoldenQuestions, null, 2), 'utf8');
+            console.log(`✅ Party Quiz Złota Lista: skopiowano ${partyQuizGoldenQuestions.length} pytań z public/party-quizzes`);
+        } else {
+            partyQuizGoldenQuestions = [];
+            if (!fs.existsSync(partyQuizzesDir)) fs.mkdirSync(partyQuizzesDir, { recursive: true });
+            fs.writeFileSync(partyQuizGoldenPath, JSON.stringify(partyQuizGoldenQuestions, null, 2), 'utf8');
+            console.log(`✅ Party Quiz Złota Lista: utworzono pusty plik ${PARTY_QUIZ_GOLDEN_FILE}`);
+        }
+    } catch (err) {
+        console.warn('⚠️ Party Quiz Złota Lista: błąd ładowania:', err.message);
+        partyQuizGoldenQuestions = [];
+    }
+}
+loadPartyQuizGoldenData();
 
 function loadFamiliadaData() {
     try {
@@ -835,6 +1113,22 @@ function loadNjrSamplerConfigByName(name) {
     } catch (_) { return null; }
 }
 
+function isGenericNjrSamplerBankName(raw) {
+    const s = String(raw || '').trim();
+    if (!s) return true;
+    if (/^Bank\s*\d+$/i.test(s)) return true;
+    if (/^Kafelki$/i.test(s)) return true;
+    return false;
+}
+
+/** Przy wielu plikach JSON każdy ma często name „Kafelki” — etykieta z nazwy przypisania (slotu), żeby zakładki w admin PWA nie były zduplikowane. */
+function mergedNjrSamplerBankDisplayName(assignmentName, innerIndex, innerTotal, jsonBankName) {
+    const fileLabel = String(assignmentName || 'domyslna').replace(/_/g, ' ').trim() || 'Bank';
+    if (!isGenericNjrSamplerBankName(jsonBankName)) return String(jsonBankName).trim();
+    if (innerTotal > 1) return fileLabel + ' ' + (innerIndex + 1);
+    return fileLabel;
+}
+
 function buildNjrSamplerConfigFromBankAssignments(bankAssignments) {
     const banks = [];
     const tc = 8;
@@ -842,15 +1136,28 @@ function buildNjrSamplerConfigFromBankAssignments(bankAssignments) {
         const name = String(bankAssignments[i] || 'domyslna').trim() || 'domyslna';
         const cfg = loadNjrSamplerConfigByName(name);
         if (cfg && cfg.banks && cfg.banks.length > 0) {
+            const innerTotal = cfg.banks.length;
             cfg.banks.forEach((b, j) => {
-                banks.push({ id: 'b' + (banks.length + 1), name: b.name, tiles: b.tiles || [] });
+                const disp = mergedNjrSamplerBankDisplayName(name, j, innerTotal, b.name);
+                const rawTiles = b.tiles || [];
+                const tiles = JSON.parse(JSON.stringify(Array.isArray(rawTiles) ? rawTiles : []));
+                banks.push({ id: 'b' + (banks.length + 1), name: disp, tiles });
             });
         } else if (cfg && cfg.tiles) {
-            banks.push({ id: 'b' + (i + 1), name, tiles: cfg.tiles });
+            const tiles = JSON.parse(JSON.stringify(Array.isArray(cfg.tiles) ? cfg.tiles : []));
+            banks.push({
+                id: 'b' + (banks.length + 1),
+                name: mergedNjrSamplerBankDisplayName(name, 0, 1, ''),
+                tiles
+            });
         } else {
             const tiles = [];
             for (let k = 0; k < tc; k++) tiles.push({ id: 't' + k, color: '#3498db', label: '', image: '', audio: '', volume: 100, isBackground: false });
-            banks.push({ id: 'b' + (i + 1), name, tiles });
+            banks.push({
+                id: 'b' + (banks.length + 1),
+                name: mergedNjrSamplerBankDisplayName(name, 0, 1, ''),
+                tiles
+            });
         }
     }
     return { tileCount: tc, banks };
@@ -903,6 +1210,7 @@ function loadWhitneyConfig() {
 
 // Stwórz foldery jeśli nie istnieją
 if (!fs.existsSync(quizzesDir)) fs.mkdirSync(quizzesDir, { recursive: true });
+if (!fs.existsSync(partyQuizzesDir)) fs.mkdirSync(partyQuizzesDir, { recursive: true });
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 if (!fs.existsSync(familiadaDir)) fs.mkdirSync(familiadaDir, { recursive: true });
 if (!fs.existsSync(PREZENTACJE_CONFIGS_DIR)) fs.mkdirSync(PREZENTACJE_CONFIGS_DIR, { recursive: true });
@@ -951,6 +1259,22 @@ if (dataDir) {
                 if (!fs.existsSync(dest)) {
                     fs.copyFileSync(src, dest);
                     console.log('   📋 Skopiowano listę Familiady:', name);
+                }
+            }
+        }
+        const appPartyQuizzes = path.join(appPathForCopy, 'public', 'party-quizzes');
+        if (fs.existsSync(appPartyQuizzes)) {
+            const appPartyFiles = fs.readdirSync(appPartyQuizzes).filter(f => f.toLowerCase().endsWith('.json'));
+            for (const name of appPartyFiles) {
+                const src = path.join(appPartyQuizzes, name);
+                const dest = path.join(partyQuizzesDir, name);
+                if (!fs.existsSync(dest)) {
+                    try {
+                        fs.copyFileSync(src, dest);
+                        console.log('   📋 Skopiowano Party Quiz z aplikacji:', name);
+                    } catch (e) {
+                        console.warn('   ⚠️ Party Quiz – nie skopiowano', name, e.message);
+                    }
                 }
             }
         }
@@ -1022,14 +1346,22 @@ if (dataDir) {
         const appPrezentacje = path.join(appPathForCopy, 'public', 'prezentacje');
         if (fs.existsSync(appPrezentacje)) {
             if (!fs.existsSync(PREZENTACJE_CONFIGS_DIR)) fs.mkdirSync(PREZENTACJE_CONFIGS_DIR, { recursive: true });
-            const appFiles = fs.readdirSync(appPrezentacje).filter(f => f.toLowerCase().endsWith('.json'));
-            for (const name of appFiles) {
-                const src = path.join(appPrezentacje, name);
-                const dest = path.join(PREZENTACJE_CONFIGS_DIR, name);
-                if (!fs.existsSync(dest)) {
-                    fs.copyFileSync(src, dest);
-                    console.log('   📋 Skopiowano prezentację (nowy plik):', name);
+            const prezSeedMarker = path.join(PREZENTACJE_CONFIGS_DIR, '.seeded');
+            if (!fs.existsSync(prezSeedMarker)) {
+                const appFiles = fs.readdirSync(appPrezentacje).filter(f => f.toLowerCase().endsWith('.json'));
+                for (const name of appFiles) {
+                    const src = path.join(appPrezentacje, name);
+                    const dest = path.join(PREZENTACJE_CONFIGS_DIR, name);
+                    if (!fs.existsSync(dest)) {
+                        try {
+                            fs.copyFileSync(src, dest);
+                            console.log('   📋 Skopiowano prezentację (pierwszy seed):', name);
+                        } catch (e) {
+                            console.warn('   ⚠️ Prezentacje – nie skopiowano', name, e.message);
+                        }
+                    }
                 }
+                try { fs.writeFileSync(prezSeedMarker, new Date().toISOString(), 'utf8'); } catch (_) {}
             }
         }
         // Domyślna konfiguracja banków samplerów – tylko jeśli plik jeszcze nie istnieje w danych
@@ -1336,6 +1668,7 @@ app.get('/api/njr-sampler/configs', (req, res) => {
 });
 
 app.get('/api/njr-sampler/config', (req, res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     const name = req.query.name;
     if (name) {
         const cfgPath = getNjrSamplerConfigPath(name);
@@ -1357,7 +1690,9 @@ app.get('/api/njr-sampler/config', (req, res) => {
             }
         }
     }
-    res.json({ config: njrSamplerConfig, active: njrSamplerActive });
+    const wantPhoneShape = String(req.query.shape || '').toLowerCase() === 'phone';
+    const outCfg = wantPhoneShape ? buildNjrSamplerStateForPhone() : njrSamplerConfig;
+    res.json({ config: outCfg, active: njrSamplerActive });
 });
 
 app.post('/api/njr-sampler/config', (req, res) => {
@@ -2896,6 +3231,34 @@ app.post('/api/familiada/golden', (req, res) => {
     }
 });
 
+app.get('/api/party-quiz/golden', (req, res) => {
+    try {
+        loadPartyQuizGoldenData();
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.json(partyQuizGoldenQuestions);
+    } catch (err) {
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/party-quiz/golden', (req, res) => {
+    try {
+        const data = req.body;
+        if (!Array.isArray(data)) {
+            return res.status(400).json({ error: 'Oczekiwana tablica pytań' });
+        }
+        const valid = data.slice(0, 10).filter(q => q && (q.question || '').trim());
+        partyQuizGoldenQuestions = valid;
+        if (!fs.existsSync(partyQuizzesDir)) fs.mkdirSync(partyQuizzesDir, { recursive: true });
+        fs.writeFileSync(partyQuizGoldenPath, JSON.stringify(partyQuizGoldenQuestions, null, 2), 'utf8');
+        io.emit('party_golden_updated', partyQuizGoldenQuestions);
+        res.json({ success: true, count: partyQuizGoldenQuestions.length });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // ─── STATKI SOLO – zapis i odczyt konfiguracji planszy ─────────────────────
 const STATKI_SOLO_CONFIG_FILE = path.join(__dirname, 'statki-solo-config.json');
 
@@ -3216,12 +3579,31 @@ app.get('/api/audio/stream', (req, res) => {
 app.use('/uploads', express.static(uploadsDir));
 app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
 app.use('/fonts/pixelify-sans', express.static(path.join(__dirname, 'node_modules', '@fontsource', 'pixelify-sans')));
+app.use('/fonts/vt323', express.static(path.join(__dirname, 'node_modules', '@fontsource', 'vt323')));
+app.use('/fonts/press-start-2p', express.static(path.join(__dirname, 'node_modules', '@fontsource', 'press-start-2p')));
+app.use('/fonts/dotgothic16', express.static(path.join(__dirname, 'node_modules', '@fontsource', 'dotgothic16')));
+app.use('/fonts/silkscreen', express.static(path.join(__dirname, 'node_modules', '@fontsource', 'silkscreen')));
+app.use('/fonts/jersey-10', express.static(path.join(__dirname, 'node_modules', '@fontsource', 'jersey-10')));
 app.use('/reveal', express.static(path.join(__dirname, 'node_modules', 'reveal.js', 'dist')));
+app.use('/lib/butterchurn', express.static(path.join(__dirname, 'node_modules', 'butterchurn', 'lib')));
+app.use('/lib/butterchurn-presets', express.static(path.join(__dirname, 'node_modules', 'butterchurn-presets', 'lib')));
+app.use('/lib/audiomotion', express.static(path.join(__dirname, 'node_modules', 'audiomotion-analyzer', 'dist')));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Obsługa favicon.ico (aby uniknąć błędów 404)
 app.get('/favicon.ico', (req, res) => {
     res.status(204).end(); // No Content - pusty favicon
+});
+
+// === API: info o serwerze – używane m.in. przez buttons.html do auto-redirect na HTTPS
+// (Wake Lock API wymaga secure context, więc telefon musi być na HTTPS albo localhost).
+app.get('/api/server-info', (req, res) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.json({
+        http: { available: true, port: PORT },
+        https: { available: !!httpsServer, port: httpsServer ? PORT_HTTPS : null },
+        ip: IP
+    });
 });
 
 // === API: aktualna sieć WiFi (tylko nazwa – hasła nie da się pobrać) ===
@@ -4505,6 +4887,11 @@ function endQuestionAndShowStats() {
         clearTimeout(questionTimer);
         questionTimer = null;
     }
+    // Party Quiz: tablica wyników na żądanie admina ma zostać na ekranie — nie przełączaj na GAME_STATS.
+    if (gameMode === 'party' && partyState.teamLeaderboardVisible) {
+        broadcastStateImmediate();
+        return;
+    }
     gameState.timeLeft = 0;
     applySpeedrunScoring();
     applyEstimationScoring();
@@ -4615,6 +5002,54 @@ function getQuizFiles() {
     }
 }
 
+// === PARTY QUIZ — hybryda Quizu i Familiady (osobny katalog) ===
+function getPartyQuizFiles() {
+    try {
+        return fs.readdirSync(partyQuizzesDir).filter(f =>
+            f.toLowerCase().endsWith('.json') &&
+            f.toLowerCase() !== PARTY_QUIZ_GOLDEN_FILE.toLowerCase()
+        );
+    } catch (err) {
+        return [];
+    }
+}
+
+function loadPartyQuestions(filename) {
+    try {
+        const filePath = path.join(partyQuizzesDir, filename);
+        if (!fs.existsSync(filePath)) return { questions: [], options: {}, meta: {} };
+
+        const rawData = fs.readFileSync(filePath, 'utf8');
+        const data = JSON.parse(rawData);
+
+        let questions = [];
+        let options = { disableTimePoints: true };
+        let meta = { gameMode: 'party', defaultPoints: 10, thanksScreen: null, welcome: null };
+
+        if (Array.isArray(data)) {
+            questions = data;
+        } else if (data && Array.isArray(data.questions)) {
+            questions = data.questions;
+            options.disableTimePoints = data.disableTimePoints !== false;
+            if (typeof data.defaultPoints === 'number') meta.defaultPoints = data.defaultPoints;
+            if (data.thanksScreen) meta.thanksScreen = data.thanksScreen;
+            if (data.welcome && typeof data.welcome === 'object') meta.welcome = data.welcome;
+            if (data.gameMode) meta.gameMode = data.gameMode;
+        } else {
+            return { questions: [], options: {}, meta: {} };
+        }
+
+        questions.forEach((q, index) => {
+            if (!q.id) q.id = `pq_${Date.now()}_${index}`;
+        });
+
+        return { questions, options, meta };
+    } catch (err) {
+        console.error(`❌ Błąd wczytywania Party Quiz ${filename}:`, err.message);
+        return { questions: [], options: {}, meta: {} };
+    }
+}
+
 function getStateForBroadcast() {
     // Konwertuj Set na Array dla shipsGame.playersShot (jeśli istnieje)
     // Dodaj również statystyki trafień graczy
@@ -4711,18 +5146,27 @@ function getStateForBroadcast() {
             else if (player.team === 'B') teamBCount++;
         });
     }
+
+    const partyTeamLeaderboard = (gameMode === 'party' && partyState.teamLeaderboardVisible);
+    const teamsForBroadcast = partyTeamLeaderboard
+        ? {
+            A: { name: partyState.teams.blue.name || 'Niebiescy', score: Number(partyState.teams.blue.score) || 0, playerCount: 0 },
+            B: { name: partyState.teams.red.name || 'Czerwoni', score: Number(partyState.teams.red.score) || 0, playerCount: 0 }
+        }
+        : (gameState.teamBattleMode ? {
+            A: { ...gameState.teams.A, playerCount: teamACount },
+            B: { ...gameState.teams.B, playerCount: teamBCount }
+        } : gameState.teams);
     
     return { 
         ...gameState, 
+        ...(partyTeamLeaderboard ? { type: 'LEADERBOARD', teamBattleMode: true } : {}),
         eliminatedMap, 
         openCloud, 
         estimationCorrectValue, 
         estimationStats, 
         playersCount: players.size,
-        teams: gameState.teamBattleMode ? {
-            A: { ...gameState.teams.A, playerCount: teamACount },
-            B: { ...gameState.teams.B, playerCount: teamBCount }
-        } : gameState.teams,
+        teams: teamsForBroadcast,
         shipsGame: shipsGameForBroadcast,
         shipsSoloGame: gameState.shipsSoloGame || null,
         letterGame: gameState.letterGame,
@@ -4746,7 +5190,42 @@ function getStateForBroadcast() {
             ws.tiedIndices = getWyborczyTies(ws.ranking);
             return ws;
         })() : null,
-        hncState: (q && q.type === 'HNC') ? hncGetState() : null
+        hncState: (q && q.type === 'HNC') ? hncGetState() : null,
+        // Party Quiz: wyświetla na TV który kafelek A/B/C/D wybrał admin po odpowiedzi ustnej gracza.
+        // Screen.html: renderer QUIZ dodaje klasę `is-party-selected` jeśli i === partyQuizSelected.
+        partyQuizSelected: (gameMode === 'party') ? partyState.selectedAnswerIndex : null,
+        // Party Quiz: aktualnie wylosowana wielka litera dla pytań typu LETTER (wyświetlana na środku TV).
+        partyLetter: (gameMode === 'party') ? partyState.currentLetter : null,
+        // Party Quiz: odpowiedź gracza dla pytania ESTIMATION (admin wpisuje wartość zatwierdzoną).
+        partyEstimationAnswer: (gameMode === 'party' && partyState.estimationAnswer) ? partyState.estimationAnswer.value : null,
+        // Party Quiz FAST_LIST: bieżące mini-pytanie + czy pokazać odpowiedź na TV.
+        partyFastList: (gameMode === 'party' && q && q.type === 'FAST_LIST') ? (function () {
+            const items = Array.isArray(q.fastListItems) ? q.fastListItems : [];
+            const n = items.length;
+            let idx = typeof partyState.fastListIndex === 'number' ? partyState.fastListIndex : 0;
+            if (n <= 0) idx = 0;
+            else idx = Math.max(0, Math.min(idx, n - 1));
+            const cur = items[idx] || { question: '', answer: '' };
+            return {
+                itemIndex: idx,
+                total: n,
+                showAnswer: !!partyState.fastListShowAnswer,
+                prompt: String((cur && cur.question) || ''),
+                answer: String((cur && cur.answer) || '')
+            };
+        })() : null,
+        /** TV (Screen.html): tablica drużyn Party — utrzymuj widok nawet gdy wewnętrzny gameState.type jest już GAME_STATS. */
+        partyTeamLeaderboardActive: !!(gameMode === 'party' && partyState.teamLeaderboardVisible),
+        /** Logo na środku tablicy — z meta.welcome edytora lub domyślne Imprezja Quiz. */
+        partyLeaderboardLogoUrl: (gameMode === 'party' && partyState.teamLeaderboardVisible) ? (function () {
+            const w = partyState.quiz && partyState.quiz.meta && partyState.quiz.meta.welcome;
+            const raw = w && typeof w.logoUrl === 'string' ? w.logoUrl.trim() : '';
+            if (!raw) return '/img/logo_imprezja.png';
+            if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/')) return raw;
+            return '/' + raw.replace(/^\/+/, '');
+        })() : null,
+        /** Party Quiz TV: „Zamień strony” — ta sama kolejność co `#party-team-bar.swapped` na tablicy wyników. */
+        partyTeamsSidesSwapped: (gameMode === 'party') ? !!partyState.swapped : false
     };
 }
 
@@ -4773,14 +5252,20 @@ function getPhoneState(fullState) {
 }
 
 function broadcastState() {
+    // W trybie 'familiada' w ogóle nie używamy pipeline'u Screen.html (osobny screen)
     if (gameMode === 'familiada') return;
     // Admin ma priorytet – dostaje pełny update od razu (bez throttle), żeby panel się nie zawieszał
     io.to(ADMIN_ROOM).emit('update_state', getStateForBroadcast());
     if (broadcastTimer) clearTimeout(broadcastTimer);
     broadcastTimer = setTimeout(() => {
         broadcastTimer = null;
-        // Telefony dostają odchudzony payload (bez playerNicks i playerStats z shipsGame)
-        io.except(ADMIN_ROOM).emit('update_state', getPhoneState(getStateForBroadcast()));
+        if (gameMode === 'party') {
+            // Party: brak telefonów — Screen.html dostaje pełny stan, tak jak admin
+            io.except(ADMIN_ROOM).emit('update_state', getStateForBroadcast());
+        } else {
+            // Telefony dostają odchudzony payload (bez playerNicks i playerStats z shipsGame)
+            io.except(ADMIN_ROOM).emit('update_state', getPhoneState(getStateForBroadcast()));
+        }
     }, BROADCAST_DEBOUNCE_MS);
 }
 
@@ -4792,7 +5277,143 @@ function broadcastStateImmediate() {
     }
     const full = getStateForBroadcast();
     io.to(ADMIN_ROOM).emit('update_state', full);
-    io.except(ADMIN_ROOM).emit('update_state', getPhoneState(full));
+    if (gameMode === 'party') {
+        // Party: tylko admin + Screen.html (Screen.html nasłuchuje update_state na global io)
+        io.except(ADMIN_ROOM).emit('update_state', full);
+    } else {
+        io.except(ADMIN_ROOM).emit('update_state', getPhoneState(full));
+    }
+}
+
+/** Start aktywnego pytania (Quiz + delegacja Party Quiz). Nie używać socket.listeners — jest zawodne przy niektórych wersjach Socket.IO. */
+function adminStartQuestionAtIndex(index, letterCount = 1) {
+    if (typeof index !== 'number' || index < 0 || index >= gameState.questions.length) return;
+
+    if (questionTimer) {
+        clearTimeout(questionTimer);
+        questionTimer = null;
+    }
+    clearShipsQuizAutoAdvanceTimer();
+
+    applySpeedrunScoring();
+    applyEstimationScoring();
+    gameState.speedrunQueue = [];
+    gameState.playoff = null;
+
+    const question = gameState.questions[index];
+    if (gameState.activeQuestion && gameState.activeQuestion.type === 'WYBORCZY' && question.type !== 'WYBORCZY') {
+        stopWyborczyQuestionOnServer();
+    }
+    if (!question.id) question.id = `q_${Date.now()}_${index}`;
+
+    gameState.type = 'GAME';
+    gameState.showPlayersWithQR = false;
+    gameState.showZarazZaczynamy = false;
+    gameState.activeQuestionIndex = index;
+    gameState.activeQuestion = question;
+    gameState.showStats = false;
+    gameState.showCorrect = false;
+    gameState.stats = { A: 0, B: 0, C: 0, D: 0, E: 0 };
+
+    if (question.type === 'LETTER') {
+        gameState.timeLeft = 0;
+        gameState.duration = question.time || 45;
+        gameState.questionStartTime = null;
+
+        gameState.letterGame = {
+            questionId: question.id,
+            letterCount: letterCount || question.letterCount || 1,
+            playerLetters: {},
+            gameStarted: false
+        };
+        gameState.shipsGame = null;
+        console.log(`🔤 [LETTER] Przygotowanie: questionId=${question.id}, letterCount=${letterCount || question.letterCount || 1}, gameStarted=false – oczekiwanie na admin_start_letter_game (Wyślij 1/2 litery)`);
+    } else if (question.type === 'WYBORCZY') {
+        stopWyborczyPhotoTimer();
+        wyborczySession = {
+            photos: (question.photos || []).map(p => ({ url: p.url, label: p.label || '' })),
+            currentIndex: -1,
+            votes: {},
+            voterIds: {},
+            phase: 'idle'
+        };
+        wyborczyVotedThis.clear();
+        gameState.timeLeft = 0;
+        gameState.duration = question.time || 15;
+        gameState.questionStartTime = null;
+        gameState.shipsGame = null;
+        gameState.letterGame = null;
+        const bgMusic = question.bgMusic || '/uploads/sfx/tlowyborcze.mp3';
+        io.emit('wyborczy_bg_music', { url: bgMusic });
+    } else if (question.type === 'HNC') {
+        hncStopTimer();
+        hncPhotos = (question.photos || []).map((p, i) => ({ id: `hnc_${i}_${Date.now()}`, url: p.url, desc: p.desc || '' }));
+        hncMatchTime = Math.max(5, parseInt(question.time) || 15);
+        hncQuestionText = question.question || '';
+        hncBuildBracket(hncPhotos);
+        hncCurrentRound = 0;
+        hncCurrentMatch = 0;
+        hncPhase = 'ready';
+        hncVoters.clear(); hncVotedThis.clear(); hncVotesA.clear(); hncVotesB.clear();
+        players.forEach((p, sid) => { if (p.nick) hncVoters.add(sid); });
+        const firstM = hncBracket[0]?.[0];
+        if (firstM?.photoA && firstM?.photoB) {
+            io.emit('hnc_preload', [firstM.photoA.url, firstM.photoB.url]);
+        }
+        gameState.timeLeft = 0;
+        gameState.duration = 0;
+        gameState.questionStartTime = null;
+        gameState.shipsGame = null;
+        gameState.letterGame = null;
+    } else {
+        gameState.timeLeft = question.time || 30;
+        gameState.duration = question.time || 30;
+        gameState.questionStartTime = Date.now();
+
+        if (question.type === 'SHIPS') {
+            const boardSize = question.boardSize || 8;
+            const validShips = (question.ships || []).filter(s => {
+                if (!s || typeof s.size !== 'number' || s.size < 2 || s.size > 5) return false;
+                const vertical = !!s.vertical;
+                for (let i = 0; i < s.size; i++) {
+                    const r = s.row + (vertical ? i : 0);
+                    const c = s.col + (vertical ? 0 : i);
+                    if (r < 0 || r >= boardSize || c < 0 || c >= boardSize) return false;
+                }
+                return true;
+            });
+            gameState.shipsGame = {
+                questionId: question.id,
+                boardSize,
+                ships: validShips,
+                shots: {},
+                currentTurn: 0,
+                playersShot: new Set(),
+                gameEnded: false
+            };
+            console.log(`⚓ Inicjalizacja gry w statki dla pytania ${question.id}, plansza ${question.boardSize || 8}x${question.boardSize || 8}`);
+            gameState.letterGame = null;
+        } else {
+            gameState.shipsGame = null;
+            gameState.letterGame = null;
+        }
+
+        const questionTime = question.time || 30;
+        if (questionTime > 0 && !gameState.quizOptions.disableTimePoints && question.type !== 'SHIPS' && question.type !== 'HNC') {
+            questionTimer = setTimeout(() => {
+                console.log(`⏰ Czas pytania minął - automatyczne pokazanie statystyk`);
+                endQuestionAndShowStats();
+            }, questionTime * 1000);
+        } else if (question.type === 'SHIPS') {
+            console.log(`⚓ Pytanie typu SHIPS - timer wyłączony, gra kończy się ręcznie`);
+        } else if (question.type === 'HNC') {
+            console.log(`🏆 Pytanie typu HNC - timer wyłączony, turniej sterowany ręcznie`);
+        }
+    }
+
+    broadcastStateImmediate();
+    const questionTime = question.time || (question.type === 'LETTER' ? 45 : 30);
+    console.log(`❓ Pytanie ${index + 1}: ${question.question} (czas: ${questionTime}s${question.type === 'LETTER' ? ', oczekiwanie na wysłanie liter' : ''})`);
 }
 
 function updateUsersCount() {
@@ -4876,12 +5497,53 @@ function resetOrphanedGameState() {
         gameState.playoff = null;
         gameState.shipsGame = null;
         gameState.letterGame = null;
+        clearShipsQuizAutoAdvanceTimer();
         if (questionTimer) {
             clearInterval(questionTimer);
             questionTimer = null;
         }
         broadcastState();
     }
+}
+
+/** Statki (Imprezja Quiz): po strzale wszystkich graczy krótkie opóźnienie, potem następna tura – admin nadal może przyśpieszyć przyciskiem „Następna tura”. */
+let shipsQuizAutoAdvanceTimer = null;
+const SHIPS_QUIZ_AUTO_ADVANCE_MS = 2200;
+
+function clearShipsQuizAutoAdvanceTimer() {
+    if (shipsQuizAutoAdvanceTimer) {
+        clearTimeout(shipsQuizAutoAdvanceTimer);
+        shipsQuizAutoAdvanceTimer = null;
+    }
+}
+
+function performShipsQuizNextTurn(questionId, reason) {
+    if (!gameState.shipsGame || gameState.shipsGame.questionId !== questionId) return false;
+    const shipsGame = gameState.shipsGame;
+    if (shipsGame.gameEnded) return false;
+
+    const oldTurn = shipsGame.currentTurn;
+    shipsGame.currentTurn++;
+    shipsGame.playersShot.clear();
+    gameState.showStats = false;
+    gameState.showCorrect = false;
+    gameState.type = 'GAME';
+
+    const tag = reason === 'auto' ? 'auto' : 'admin';
+    console.log(`⚓ Następna tura statków (${tag}): runda ${shipsGame.currentTurn} (było ${oldTurn}), pytanie ${questionId}`);
+
+    io.emit('ships_game_update', {
+        questionId,
+        shots: shipsGame.shots,
+        currentTurn: shipsGame.currentTurn,
+        hasShotThisTurn: false,
+        gameEnded: shipsGame.gameEnded,
+        showStats: false,
+        showCorrect: false
+    });
+    if (gameState.teamBattleMode) io.emit('update_team_scores', gameState.teams);
+    broadcastState();
+    return true;
 }
 
 io.on('connection', (socket) => {
@@ -4911,7 +5573,7 @@ io.on('connection', (socket) => {
     const MUSIC_MODES_WITH_GRAPHIC = ['sampler', 'spiewaj', 'bitwa', 'whitney', 'imprezator'];
     socket.on('screen_switch', (data) => {
         const mode = (data && data.mode) || 'welcome';
-        const allowed = ['welcome', 'quiz', 'familiada', 'statki', 'prezentacja', 'camera', 'stream', 'sampler', 'spiewaj', 'bitwa', 'whitney', 'imprezator'];
+        const allowed = ['welcome', 'quiz', 'familiada', 'party', 'statki', 'prezentacja', 'camera', 'stream', 'sampler', 'spiewaj', 'bitwa', 'whitney', 'imprezator'];
         if (allowed.includes(mode)) {
             screenControllerMode = mode;
             if (!MUSIC_MODES_WITH_GRAPHIC.includes(mode)) {
@@ -4977,14 +5639,20 @@ io.on('connection', (socket) => {
             io.emit('prezentacja_loaded', { config: prezentacjaConfig, index: 0 });
         } catch (_) {}
     });
+    const VIZ_INTERNAL_CYCLE_PRESETS = new Set([
+        'winamp', 'tunnel', 'webvs', 'milkdrop',
+        'equalizer', 'equalizer-mirror', 'spectrum', 'led',
+        'reflex', 'lumi', 'radial', 'prism', 'graph', 'dual'
+    ]);
+    function isVisualizationCyclingSlide(slide) {
+        if (!slide || slide.type !== 'visualization') return false;
+        const preset = String(slide.preset || '').toLowerCase();
+        return VIZ_INTERNAL_CYCLE_PRESETS.has(preset);
+    }
     socket.on('prezentacja_next', () => {
         if (!prezentacjaConfig || !prezentacjaConfig.slides || prezentacjaConfig.slides.length === 0) return;
         const slide = prezentacjaConfig.slides[prezentacjaIndex];
-        const preset = String(slide && slide.preset || '').toLowerCase();
-        const isWinamp = slide && slide.type === 'visualization' && (preset === 'winamp' || preset === 'tunnel');
-        const isWebvs = slide && slide.type === 'visualization' && preset === 'webvs';
-        const isMilkdrop = slide && slide.type === 'visualization' && preset === 'milkdrop';
-        if (isWinamp || isWebvs || isMilkdrop) {
+        if (isVisualizationCyclingSlide(slide)) {
             io.emit('prezentacja_winamp_mode', { delta: 1 });
             return;
         }
@@ -4995,11 +5663,7 @@ io.on('connection', (socket) => {
     socket.on('prezentacja_prev', () => {
         if (!prezentacjaConfig || !prezentacjaConfig.slides || prezentacjaConfig.slides.length === 0) return;
         const slide = prezentacjaConfig.slides[prezentacjaIndex];
-        const preset = String(slide && slide.preset || '').toLowerCase();
-        const isWinamp = slide && slide.type === 'visualization' && (preset === 'winamp' || preset === 'tunnel');
-        const isWebvs = slide && slide.type === 'visualization' && preset === 'webvs';
-        const isMilkdrop = slide && slide.type === 'visualization' && preset === 'milkdrop';
-        if (isWinamp || isWebvs || isMilkdrop) {
+        if (isVisualizationCyclingSlide(slide)) {
             io.emit('prezentacja_winamp_mode', { delta: -1 });
             return;
         }
@@ -5105,7 +5769,11 @@ io.on('connection', (socket) => {
         socket.emit('update_scores', { t1: familiadaTeam1Score, t2: familiadaTeam2Score, roundAwarded: familiadaRoundAwardedTo !== null, team1: familiadaTeam1Name, team2: familiadaTeam2Name });
         socket.emit('familiada_team_names', { team1: familiadaTeam1Name, team2: familiadaTeam2Name });
         socket.emit('familiada_color_sides_swap', { swapped: familiadaColorSidesSwapped });
-        io.to('familiada').emit('familiada_request_intro_state');
+        // Nie wysyłaj do całego pokoju przy samym podłączeniu buzzerów — ekran TV (Familiada) mógłby
+        // niepotrzebnie reagować w trakcie Party Quiz; intro i tak synchronizuje admin/ekran przy ich rejestracji.
+        if (socket.familiadaRole !== 'buttons') {
+            io.to('familiada').emit('familiada_request_intro_state');
+        }
     });
     socket.on('familiada_toggle_color_sides', () => {
         if (socket.familiadaRole !== 'admin') return;
@@ -5119,6 +5787,7 @@ io.on('connection', (socket) => {
         familiadaTeam1Score = 0;
         familiadaTeam2Score = 0;
         familiadaRoundAwardedTo = null;
+        familiadaRoundAwardedPoints = null;
         io.to('familiada').emit('update_scores', { t1: 0, t2: 0, roundAwarded: false, team1: familiadaTeam1Name, team2: familiadaTeam2Name });
         socket.emit('familiada_team_names', { team1: familiadaTeam1Name, team2: familiadaTeam2Name });
     });
@@ -5127,12 +5796,29 @@ io.on('connection', (socket) => {
         if (data.team1 && data.team1.trim()) familiadaTeam1Name = data.team1.trim();
         if (data.team2 && data.team2.trim()) familiadaTeam2Name = data.team2.trim();
         const payload = { team1: familiadaTeam1Name, team2: familiadaTeam2Name };
+        // Wszyscy listener'zy (admin.html, screen.html, buttons.html) rejestrują się
+        // przez register_familiada → są w pokoju 'familiada'. Wystarczy jedna emisja.
         io.to('familiada').emit('familiada_team_names', payload);
-        io.emit('familiada_team_names', payload);
         io.to('familiada').emit('board_update', { type: 'TEAM_NAMES', ...payload });
     });
     socket.on('familiada_request_team_names', () => {
         socket.emit('familiada_team_names', { team1: familiadaTeam1Name, team2: familiadaTeam2Name });
+    });
+    // Po reconnect (szczególnie tabletu z przyciskami po restarcie serwera)
+    // klient prosi o pełny stan rundy, żeby wiedzieć czy buzzery mają być aktywne.
+    socket.on('familiada_request_state', () => {
+        socket.emit('familiada_state', {
+            team1: familiadaTeam1Name,
+            team2: familiadaTeam2Name,
+            t1: familiadaTeam1Score,
+            t2: familiadaTeam2Score,
+            questionActive: !!familiadaQuestionActive,
+            buttonUsedThisRound: !!familiadaButtonUsedThisRound,
+            currentQuestionIndex: familiadaCurrentQuestionIndex,
+            currentGoldenIndex: familiadaCurrentGoldenIndex,
+            roundAwarded: familiadaRoundAwardedTo !== null,
+            colorSidesSwapped: familiadaColorSidesSwapped
+        });
     });
     socket.on('familiada_request_qr_admin', async () => {
         const proto = httpsServer ? 'https' : 'http';
@@ -5153,6 +5839,20 @@ io.on('connection', (socket) => {
     });
     socket.on('set_game_mode', (mode) => {
         if (mode === 'quiz') gameMode = 'quiz';
+        else if (mode === 'party') {
+            partyRestoreGameStateQuestionsIfExtended();
+            gameMode = 'party';
+            // Reset listy „rozegranych" pytań przy każdej aktywacji trybu (nowa rozgrywka).
+            // Wynik drużyn też resetujemy — świeża runda startuje od 0:0.
+            partyState.askedIndices = [];
+            partyState.teams.blue.score = 0;
+            partyState.teams.red.score = 0;
+            partyState.currentIndex = -1;
+            partyState.questionAwarded = false;
+            partyState.finalScreenVisible = false;
+            // Wyślij aktualny stan Party Quiz do wszystkich (Screen.html musi wiedzieć, że ma rysować pasek drużyn)
+            broadcastPartyState();
+        }
     });
 
     // NJR Sampler – ekran (komputer) i telefon
@@ -5167,12 +5867,15 @@ io.on('connection', (socket) => {
         socket.emit('njr_sampler_state', { active: njrSamplerActive, config: phoneConfig });
         socket.emit('njr_sampler_volume_sync', njrSamplerVolume); // telefon ustawia suwak
     });
-    socket.on('njr_sampler_set_bank', (index) => {
+    socket.on('njr_sampler_set_bank', (payload) => {
         if (!njrSamplerActive) return;
-        io.to('njr_sampler_phone').emit('njr_sampler_set_bank', { index: Math.max(0, Math.floor(index)) });
+        const raw = typeof payload === 'number' ? payload : (payload && payload.index);
+        const idx = Math.max(0, Math.floor(Number(raw)) || 0);
+        io.to('njr_sampler_phone').emit('njr_sampler_set_bank', { index: idx });
     });
-    socket.on('njr_sampler_bank_delta', (delta) => {
+    socket.on('njr_sampler_bank_delta', (payload) => {
         if (!njrSamplerActive) return;
+        const delta = typeof payload === 'number' ? payload : (payload && payload.delta);
         io.to('njr_sampler_phone').emit('njr_sampler_bank_delta', { delta: delta === 1 || delta === -1 ? delta : 0 });
     });
     socket.on('njr_sampler_toggle', (payload) => {
@@ -5608,6 +6311,7 @@ io.on('connection', (socket) => {
             familiadaCurrentQuestionIndex = index;
             familiadaCurrentGoldenIndex = null;
             familiadaRoundAwardedTo = null;
+            familiadaRoundAwardedPoints = null;
             familiadaQuestionActive = true;
             familiadaButtonUsedThisRound = false;
             io.to('familiada').emit('board_update', { type: 'NEW_ROUND', data: familiadaQuestions[index], team1: familiadaTeam1Name, team2: familiadaTeam2Name });
@@ -5619,6 +6323,7 @@ io.on('connection', (socket) => {
             familiadaCurrentGoldenIndex = index;
             familiadaCurrentQuestionIndex = null;
             familiadaRoundAwardedTo = null;
+            familiadaRoundAwardedPoints = null;
             familiadaQuestionActive = true;
             familiadaButtonUsedThisRound = false;
             io.to('familiada').emit('board_update', { type: 'NEW_ROUND', data: familiadaGoldenQuestions[index], team1: familiadaTeam1Name, team2: familiadaTeam2Name });
@@ -5638,9 +6343,23 @@ io.on('connection', (socket) => {
         }
     });
     socket.on('familiada_button_press', (data) => {
-        if (!familiadaQuestionActive || familiadaButtonUsedThisRound) return;
         const team = data && (data.team === 1 || data.team === 2) ? data.team : null;
         if (!team) return;
+        // Party Quiz: fizyczne buzzery z /familiada/buttons.html mają działać opcjonalnie tak jak
+        // /party-quiz/buttons.html — bez ruszania stanu klasycznej Familiady (nie psują rozgrywki Party).
+        if (gameMode === 'party') {
+            const q = getActivePartyQuestionForParty();
+            if (q && ['FAMILIADA', 'LETTER', 'FAST_LIST'].includes(q.type)) {
+                if (partyState.buttonUsedThisRound) return;
+                const pqTeam = team === 1 ? 'blue' : 'red';
+                partyState.buttonUsedThisRound = true;
+                partyState.buttonPressedBy = pqTeam;
+                io.emit('party_button_flash', { team: pqTeam });
+                broadcastPartyState();
+            }
+            return;
+        }
+        if (!familiadaQuestionActive || familiadaButtonUsedThisRound) return;
         familiadaButtonUsedThisRound = true;
         io.to('familiada').emit('familiada_button_flash', { team });
     });
@@ -5656,27 +6375,35 @@ io.on('connection', (socket) => {
         if (socket.familiadaRole !== 'admin') return;
         const team = data.team;
         const points = Number(data.points) || 0;
-        if (points <= 0) return;
         if (familiadaRoundAwardedTo === null) {
-            // Pierwsze przyznanie – tylko wybrana drużyna dostaje punkty
+            if (points <= 0) return;
+            // Pierwsze przyznanie – tylko wybrana drużyna dostaje punkty (może być z mnożnikiem ×2/×3)
             if (team === 1) familiadaTeam1Score += points;
             else if (team === 2) familiadaTeam2Score += points;
             familiadaRoundAwardedTo = team;
+            familiadaRoundAwardedPoints = points;
             if (data.playSound) io.to('familiada').emit('play_sound_event', 'win_round');
         } else if (familiadaRoundAwardedTo === team) {
-            // Cofnięcie – ta sama drużyna, odejmujemy punkty
-            if (team === 1) familiadaTeam1Score -= points;
-            else if (team === 2) familiadaTeam2Score -= points;
+            // Cofnięcie – ta sama drużyna; odejmujemy faktycznie zapisaną kwotę (ważne przy ×2/×3)
+            const prev = familiadaRoundAwardedPoints != null ? familiadaRoundAwardedPoints : points;
+            if (team === 1) familiadaTeam1Score -= prev;
+            else if (team === 2) familiadaTeam2Score -= prev;
             familiadaRoundAwardedTo = null;
+            familiadaRoundAwardedPoints = null;
+            familiadaTeam1Score = Math.max(0, familiadaTeam1Score);
+            familiadaTeam2Score = Math.max(0, familiadaTeam2Score);
             io.to('familiada').emit('update_scores', { t1: familiadaTeam1Score, t2: familiadaTeam2Score, roundAwarded: false, team1: familiadaTeam1Name, team2: familiadaTeam2Name });
             return;
         } else {
-            // Przeniesienie – druga drużyna: odejmujemy od obecnej, dodajemy do nowej
-            if (familiadaRoundAwardedTo === 1) familiadaTeam1Score -= points;
-            else if (familiadaRoundAwardedTo === 2) familiadaTeam2Score -= points;
+            if (points <= 0) return;
+            // Przeniesienie – odejmujemy zapisaną kwotę od poprzedniej drużyny, dodajemy nową (może inny mnożnik)
+            const prev = familiadaRoundAwardedPoints != null ? familiadaRoundAwardedPoints : 0;
+            if (familiadaRoundAwardedTo === 1) familiadaTeam1Score -= prev;
+            else if (familiadaRoundAwardedTo === 2) familiadaTeam2Score -= prev;
             if (team === 1) familiadaTeam1Score += points;
             else if (team === 2) familiadaTeam2Score += points;
             familiadaRoundAwardedTo = team;
+            familiadaRoundAwardedPoints = points;
             if (data.playSound) io.to('familiada').emit('play_sound_event', 'win_round');
         }
         familiadaTeam1Score = Math.max(0, familiadaTeam1Score);
@@ -5720,6 +6447,7 @@ io.on('connection', (socket) => {
         familiadaTeam1Score = 0;
         familiadaTeam2Score = 0;
         familiadaRoundAwardedTo = null;
+        familiadaRoundAwardedPoints = null;
         familiadaQuestionActive = false;
         familiadaButtonUsedThisRound = false;
         familiadaCurrentQuestionIndex = null;
@@ -5739,6 +6467,7 @@ io.on('connection', (socket) => {
         familiadaTeam1Score = 0;
         familiadaTeam2Score = 0;
         familiadaRoundAwardedTo = null;
+        familiadaRoundAwardedPoints = null;
         familiadaQuestionActive = false;
         familiadaButtonUsedThisRound = false;
         familiadaCurrentQuestionIndex = null;
@@ -5750,6 +6479,7 @@ io.on('connection', (socket) => {
         familiadaTeam1Score = 0;
         familiadaTeam2Score = 0;
         familiadaRoundAwardedTo = null;
+        familiadaRoundAwardedPoints = null;
         familiadaQuestionActive = false;
         familiadaButtonUsedThisRound = false;
         familiadaCurrentQuestionIndex = null;
@@ -6157,157 +6887,17 @@ io.on('connection', (socket) => {
 
     // Start pytania
     socket.on('admin_start_question', (data) => {
-        // Obsługa zarówno starego formatu (tylko index) jak i nowego (obiekt z index i letterCount)
         let index, letterCount;
         if (typeof data === 'number') {
             index = data;
-            letterCount = 1; // Domyślnie 1 litera dla kompatybilności wstecznej
+            letterCount = 1;
         } else if (typeof data === 'object' && data !== null) {
             index = data.index;
             letterCount = data.letterCount || 1;
         } else {
             return;
         }
-        
-        if (index < 0 || index >= gameState.questions.length) return;
-        
-        // Wyczyść poprzedni timer jeśli istnieje
-        if (questionTimer) {
-            clearTimeout(questionTimer);
-            questionTimer = null;
-        }
-        
-        applySpeedrunScoring();
-        applyEstimationScoring();
-        gameState.speedrunQueue = [];
-        gameState.playoff = null;
-        
-        const question = gameState.questions[index];
-        if (gameState.activeQuestion && gameState.activeQuestion.type === 'WYBORCZY' && question.type !== 'WYBORCZY') {
-            stopWyborczyQuestionOnServer();
-        }
-        if (!question.id) question.id = `q_${Date.now()}_${index}`;
-        
-        gameState.type = 'GAME';
-        gameState.showPlayersWithQR = false;
-        gameState.showZarazZaczynamy = false;
-        gameState.activeQuestionIndex = index;
-        gameState.activeQuestion = question;
-        gameState.showStats = false;
-        gameState.showCorrect = false;
-        gameState.stats = { A: 0, B: 0, C: 0, D: 0, E: 0 };
-        
-        // Dla typu LETTER - nie ustawiaj timera od razu, tylko przygotuj pytanie
-        // Timer uruchomi się dopiero po wysłaniu liter do graczy
-        if (question.type === 'LETTER') {
-            gameState.timeLeft = 0; // Timer nie działa jeszcze
-            gameState.duration = question.time || 45;
-            gameState.questionStartTime = null; // Timer nie rozpoczął się jeszcze
-            
-            // Przygotuj stan gry z literami (ale jeszcze nie losuj liter - to zrobi admin)
-            gameState.letterGame = {
-                questionId: question.id,
-                letterCount: letterCount || question.letterCount || 1,
-                playerLetters: {}, // Puste - litery będą wysłane przez admina
-                gameStarted: false // Flaga czy gra już się rozpoczęła
-            };
-            gameState.shipsGame = null;
-            console.log(`🔤 [LETTER] Przygotowanie: questionId=${question.id}, letterCount=${letterCount || question.letterCount || 1}, gameStarted=false – oczekiwanie na admin_start_letter_game (Wyślij 1/2 litery)`);
-        } else if (question.type === 'WYBORCZY') {
-            stopWyborczyPhotoTimer();
-            wyborczySession = {
-                photos: (question.photos || []).map(p => ({ url: p.url, label: p.label || '' })),
-                currentIndex: -1,
-                votes: {},
-                voterIds: {},
-                phase: 'idle'
-            };
-            wyborczyVotedThis.clear();
-            gameState.timeLeft = 0;
-            gameState.duration = question.time || 15;
-            gameState.questionStartTime = null;
-            gameState.shipsGame = null;
-            gameState.letterGame = null;
-            const bgMusic = question.bgMusic || '/uploads/sfx/tlowyborcze.mp3';
-            io.emit('wyborczy_bg_music', { url: bgMusic });
-        } else if (question.type === 'HNC') {
-            // Auto-setup HNC tournament from quiz question
-            hncStopTimer();
-            hncPhotos = (question.photos || []).map((p, i) => ({ id: `hnc_${i}_${Date.now()}`, url: p.url, desc: p.desc || '' }));
-            hncMatchTime = Math.max(5, parseInt(question.time) || 15);
-            hncQuestionText = question.question || '';
-            hncBuildBracket(hncPhotos);
-            hncCurrentRound = 0;
-            hncCurrentMatch = 0;
-            hncPhase = 'ready';
-            hncVoters.clear(); hncVotedThis.clear(); hncVotesA.clear(); hncVotesB.clear();
-            // Pre-register all currently connected quiz players as voters
-            players.forEach((p, sid) => { if (p.nick) hncVoters.add(sid); });
-            // Preload first match photos on all clients
-            const firstM = hncBracket[0]?.[0];
-            if (firstM?.photoA && firstM?.photoB) {
-                io.emit('hnc_preload', [firstM.photoA.url, firstM.photoB.url]);
-            }
-            gameState.timeLeft = 0;
-            gameState.duration = 0;
-            gameState.questionStartTime = null;
-            gameState.shipsGame = null;
-            gameState.letterGame = null;
-        } else {
-            // Dla innych typów pytań - normalna logika
-            gameState.timeLeft = question.time || 30;
-            gameState.duration = question.time || 30;
-            gameState.questionStartTime = Date.now();
-
-            // Inicjalizuj stan gry w statki jeśli to pytanie typu SHIPS
-            if (question.type === 'SHIPS') {
-                const boardSize = question.boardSize || 8;
-                const validShips = (question.ships || []).filter(s => {
-                    if (!s || typeof s.size !== 'number' || s.size < 2 || s.size > 5) return false;
-                    const vertical = !!s.vertical;
-                    for (let i = 0; i < s.size; i++) {
-                        const r = s.row + (vertical ? i : 0);
-                        const c = s.col + (vertical ? 0 : i);
-                        if (r < 0 || r >= boardSize || c < 0 || c >= boardSize) return false;
-                    }
-                    return true;
-                });
-                gameState.shipsGame = {
-                    questionId: question.id,
-                    boardSize,
-                    ships: validShips,
-                    shots: {},
-                    currentTurn: 0,
-                    playersShot: new Set(),
-                    gameEnded: false
-                };
-                console.log(`⚓ Inicjalizacja gry w statki dla pytania ${question.id}, plansza ${question.boardSize || 8}x${question.boardSize || 8}`);
-                gameState.letterGame = null;
-            } else {
-                // Wyczyść stan gry w statki i literach dla innych typów pytań
-                gameState.shipsGame = null;
-                gameState.letterGame = null;
-            }
-            
-            // Ustaw timer dla automatycznego pokazania statystyk po upływie czasu
-            // Tylko jeśli pytanie ma ustawiony czas i czas nie jest wyłączony
-            // NIE ustawiaj timera dla SHIPS (ręczna kontrola) ani HNC (turniej sterowany ręcznie, może trwać wiele minut)
-            const questionTime = question.time || 30;
-            if (questionTime > 0 && !gameState.quizOptions.disableTimePoints && question.type !== 'SHIPS' && question.type !== 'HNC') {
-                questionTimer = setTimeout(() => {
-                    console.log(`⏰ Czas pytania minął - automatyczne pokazanie statystyk`);
-                    endQuestionAndShowStats();
-                }, questionTime * 1000);
-            } else if (question.type === 'SHIPS') {
-                console.log(`⚓ Pytanie typu SHIPS - timer wyłączony, gra kończy się ręcznie`);
-            } else if (question.type === 'HNC') {
-                console.log(`🏆 Pytanie typu HNC - timer wyłączony, turniej sterowany ręcznie`);
-            }
-        }
-        
-        broadcastStateImmediate(); // Admin musi od razu zobaczyć panel pytania
-        const questionTime = question.time || (question.type === 'LETTER' ? 45 : 30);
-        console.log(`❓ Pytanie ${index + 1}: ${question.question} (czas: ${questionTime}s${question.type === 'LETTER' ? ', oczekiwanie na wysłanie liter' : ''})`);
+        adminStartQuestionAtIndex(index, letterCount);
     });
     
     // Start gry z literami - wysyła litery do graczy i uruchamia timer
@@ -7134,6 +7724,868 @@ io.on('connection', (socket) => {
         }
     });
 
+    // === OBSŁUGA EDYTORA PARTY QUIZ ===
+    // Lustrzane handlery dla party-quizzes/ (hybryda Quizu i Familiady).
+    // Pliki zapisywane są w osobnym katalogu, żeby nie mieszać się z plikami Imprezja Quiz
+    // (Party Quiz wprowadza nowy typ pytania FAMILIADA, którego zwykły admin.html nie rozumie).
+    socket.on('party_editor_get_files', () => {
+        socket.emit('party_editor_files_list', getPartyQuizFiles());
+    });
+
+    socket.on('party_editor_load_file', (filename) => {
+        const { questions, options, meta } = loadPartyQuestions(filename);
+        socket.emit('party_editor_file_content', { filename, questions, options, meta });
+    });
+
+    socket.on('party_editor_save_file', (data) => {
+        let safeName = (data && data.filename ? String(data.filename) : '').trim();
+        safeName = safeName.replace(/[\/\\:*?"<>|]/g, '').replace(/\s+/g, ' ');
+        if (!safeName) {
+            socket.emit('party_editor_save_status', { success: false, message: 'Brak nazwy pliku' });
+            return;
+        }
+        if (!safeName.toLowerCase().endsWith('.json')) safeName += '.json';
+        const filePath = path.join(partyQuizzesDir, safeName);
+        const json = JSON.stringify(data.content, null, 2);
+        fs.writeFile(filePath, json, (err) => {
+            if (err) {
+                socket.emit('party_editor_save_status', { success: false, message: 'Błąd zapisu: ' + err.message });
+            } else {
+                socket.emit('party_editor_save_status', { success: true, message: `Zapisano ${safeName}` });
+                socket.emit('party_editor_files_list', getPartyQuizFiles());
+                devSyncWriteData(`public/party-quizzes/${safeName}`, json);
+            }
+        });
+    });
+
+    socket.on('party_editor_get_related_files', (filename) => {
+        try {
+            const filePath = path.join(partyQuizzesDir, filename);
+            if (!fs.existsSync(filePath)) {
+                socket.emit('party_editor_related_files', { files: [], safeFiles: [], sharedFiles: [] });
+                return;
+            }
+            const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+            const questions = Array.isArray(data) ? data : (data.questions || []);
+            const files = new Set();
+            questions.forEach(q => {
+                for (const field of ['media', 'image', 'imageSmall', 'audio']) {
+                    const fp = extractFilePath ? extractFilePath(q[field]) : (q[field] && String(q[field]).match(/\/uploads\/([^\/]+)$/) || [])[1];
+                    if (fp) files.add(fp);
+                }
+            });
+            const allFiles = Array.from(files);
+            socket.emit('party_editor_related_files', {
+                files: allFiles,
+                safeFiles: allFiles,
+                sharedFiles: []
+            });
+        } catch (err) {
+            console.error('❌ Błąd party_editor_get_related_files:', err);
+            socket.emit('party_editor_related_files', { files: [], safeFiles: [], sharedFiles: [] });
+        }
+    });
+
+    socket.on('party_editor_delete_file', async (data) => {
+        const { filename, deleteRelated } = data || {};
+        if (!filename) {
+            socket.emit('party_editor_delete_status', { success: false, message: 'Brak nazwy pliku' });
+            return;
+        }
+        try {
+            const filePath = path.join(partyQuizzesDir, filename);
+            if (!fs.existsSync(filePath)) {
+                socket.emit('party_editor_delete_status', { success: false, message: `Plik ${filename} nie istnieje` });
+                return;
+            }
+            const deletedFiles = [];
+            if (deleteRelated) {
+                try {
+                    const d = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+                    const qs = Array.isArray(d) ? d : (d.questions || []);
+                    const uploads = new Set();
+                    qs.forEach(q => {
+                        for (const field of ['media', 'image', 'imageSmall', 'audio']) {
+                            const v = q[field];
+                            if (v && typeof v === 'string') {
+                                const m = v.match(/\/uploads\/([^\/]+)$/);
+                                if (m) uploads.add(m[1]);
+                            }
+                        }
+                    });
+                    for (const name of uploads) {
+                        const fp = path.join(uploadsDir, name);
+                        if (fs.existsSync(fp)) {
+                            try { await moveUserPathsToTrash(fp); deletedFiles.push(name); }
+                            catch (_) {}
+                        }
+                    }
+                } catch (_) {}
+            }
+            await moveUserPathsToTrash(filePath);
+            deletedFiles.push(filename);
+            await devSyncDelete(`public/party-quizzes/${filename}`);
+            socket.emit('party_editor_files_list', getPartyQuizFiles());
+            socket.emit('party_editor_delete_status', {
+                success: true,
+                message: `Przeniesiono do Kosza: ${filename}`,
+                trashed: true
+            });
+        } catch (err) {
+            console.error('❌ Błąd usuwania Party Quiz:', err);
+            socket.emit('party_editor_delete_status', { success: false, message: 'Błąd usuwania: ' + err.message });
+        }
+    });
+
+    // ═════════════════════════════════════════════════════════════
+    // Party Quiz — runtime rozgrywki (load, run_question, award, teams)
+    // ═════════════════════════════════════════════════════════════
+
+    // Nowy klient — wyślij aktualny partyState (np. gdy admin PWA otwiera panel w trakcie gry)
+    socket.emit('party_state', buildPartyStatePayload());
+    socket.emit('party_golden_list', partyQuizGoldenQuestions);
+
+    // Wczytanie pliku Party Quiz jako aktywnego — kopiuje questions do gameState.questions,
+    // żeby móc delegować do istniejącego admin_start_question dla QUIZ/MUSIC/OPEN/LETTER/ESTIMATION/SHIPS.
+    socket.on('party_load_quiz', (filename) => {
+        if (!filename || typeof filename !== 'string') return;
+        const loaded = loadPartyQuestions(filename);
+        if (!loaded || !Array.isArray(loaded.questions)) {
+            socket.emit('party_load_error', { filename, message: 'Nie udało się wczytać pliku' });
+            return;
+        }
+        partyRestoreGameStateQuestionsIfExtended();
+        partyState.activeFile = filename;
+        partyState.quiz = loaded;
+        partyState.currentIndex = -1;
+        partyState.questionAwarded = false;
+        partyState.revertibleAward = null;
+        partyState.teamLeaderboardVisible = false;
+        // Podstaw pytania do gameState, aby admin_start_question działał natychmiast.
+        // Dla FAMILIADA typu pytania admin_start_question przejdzie przez else-branch (bez timera),
+        // ale render i tak robimy ręcznie przez party_familiada_round.
+        gameState.questions = loaded.questions;
+        gameState.quizOptions = Object.assign({}, gameState.quizOptions, loaded.options || {}, { disableTimePoints: true });
+        console.log(`🥳 party_load_quiz: "${filename}" (${loaded.questions.length} pytań)`);
+        broadcastPartyState();
+    });
+
+    // Rdzeń uruchomienia pytania Party (lista główna lub złota lista — bez mutacji wczytanego quizu przy złotej).
+    function runPartyQuestionCore(socket, q, index, opts) {
+        const fromGoldenFile = !!(opts && opts.fromGoldenFile);
+        partyState.teamLeaderboardVisible = false;
+        partyState.currentIndex = index;
+        partyState.questionAwarded = false;
+        partyState.selectedAnswerIndex = null;
+        partyState.currentLetter = null;
+        partyState.familiada.revealed = [];
+        partyState.familiada.errors = { blue: 0, red: 0 };
+        partyState.familiada.pendingIndex = null;
+        partyState.estimationAnswer = null;
+        partyState.buttonUsedThisRound = false;
+        partyState.buttonPressedBy = null;
+        partyState.revertibleAward = null;
+        partyState.fastListIndex = 0;
+        partyState.fastListShowAnswer = false;
+
+        gameMode = 'party';
+        if (!fromGoldenFile) {
+            partyState.currentGoldenIndex = null;
+            gameState.questions = partyState.quiz.questions;
+        }
+
+        if (q.type === 'LETTER') {
+            partyState.currentLetter = pickRandomPartyLetter(null);
+        }
+        if (q.type === 'FAMILIADA') {
+            const len = Array.isArray(q.answers) ? q.answers.length : 0;
+            partyState.familiada.revealed = new Array(len).fill(false);
+        }
+        if (q.type === 'SHIPS') {
+            const bs = (typeof q.boardSize === 'number' && q.boardSize >= 4) ? q.boardSize : 8;
+            const validShips = (q.ships || []).filter(s => {
+                if (!s || typeof s.size !== 'number' || s.size < 2 || s.size > 5) return false;
+                const vertical = !!s.vertical;
+                for (let i = 0; i < s.size; i++) {
+                    const r = s.row + (vertical ? i : 0);
+                    const c = s.col + (vertical ? 0 : i);
+                    if (r < 0 || r >= bs || c < 0 || c >= bs) return false;
+                }
+                return true;
+            }).map(s => ({ row: s.row, col: s.col, size: s.size, vertical: !!s.vertical }));
+            partyState.ships.boardSize = bs;
+            partyState.ships.ships = validShips;
+            partyState.ships.shots = {};
+            partyState.ships.currentTeam = 'blue';
+            partyState.ships.hits = { blue: 0, red: 0 };
+            partyState.ships.pointsPerHit = (typeof q.pointsPerHit === 'number' && q.pointsPerHit > 0) ? q.pointsPerHit : 5;
+            partyState.ships.showAll = false;
+        }
+
+        if (q.type === 'FAMILIADA') {
+            gameState.type = 'GAME';
+            gameState.showPlayersWithQR = false;
+            gameState.showZarazZaczynamy = false;
+            gameState.activeQuestionIndex = index;
+            gameState.activeQuestion = q;
+            gameState.showStats = false;
+            gameState.showCorrect = false;
+            gameState.stats = { A: 0, B: 0, C: 0, D: 0, E: 0 };
+            gameState.timeLeft = 0;
+            gameState.duration = 0;
+            gameState.questionStartTime = null;
+            gameState.shipsGame = null;
+            gameState.letterGame = null;
+            broadcastPartyState();
+            broadcastStateImmediate();
+            io.emit('party_familiada_round', {
+                index,
+                question: q.question || '',
+                answers: (q.answers || []).map(a => ({
+                    text: (a && a.text) || '',
+                    points: (a && typeof a.points === 'number') ? a.points : 0,
+                    revealed: false
+                }))
+            });
+            console.log(`🥳 party_run_question FAMILIADA #${index + 1}: "${q.question}"`);
+        } else if (q.type === 'FAST_LIST') {
+            gameState.type = 'GAME';
+            gameState.showPlayersWithQR = false;
+            gameState.showZarazZaczynamy = false;
+            gameState.activeQuestionIndex = index;
+            gameState.activeQuestion = q;
+            gameState.showStats = false;
+            gameState.showCorrect = false;
+            gameState.stats = { A: 0, B: 0, C: 0, D: 0, E: 0 };
+            gameState.timeLeft = 0;
+            gameState.duration = 0;
+            gameState.questionStartTime = null;
+            gameState.shipsGame = null;
+            gameState.letterGame = null;
+            broadcastPartyState();
+            broadcastStateImmediate();
+            console.log(`🥳 party_run_question FAST_LIST #${index + 1}: "${q.question}"`);
+        } else {
+            try {
+                adminStartQuestionAtIndex(index, 1);
+                console.log(`🥳 party_run_question ${q.type} #${index + 1} (adminStartQuestionAtIndex)`);
+            } catch (err) {
+                console.error('❌ party_run_question:', err);
+                socket.emit('party_run_error', { message: 'Błąd startu pytania: ' + err.message });
+            }
+        }
+        broadcastPartyState();
+        screenControllerMode = 'party';
+        io.emit('screen_switch', { mode: 'party' });
+    }
+
+    // Start pytania — routing per typ.
+    socket.on('party_run_question', (index) => {
+        if (!partyState.quiz || !Array.isArray(partyState.quiz.questions)) {
+            socket.emit('party_run_error', { message: 'Brak wczytanego pliku' });
+            return;
+        }
+        if (typeof index !== 'number' || index < 0 || index >= partyState.quiz.questions.length) {
+            socket.emit('party_run_error', { message: 'Zły indeks pytania' });
+            return;
+        }
+        partyRestoreGameStateQuestionsIfExtended();
+        const q = partyState.quiz.questions[index];
+        runPartyQuestionCore(socket, q, index, { fromGoldenFile: false });
+    });
+
+    socket.on('party_run_golden_question', (gIdx) => {
+        if (!partyState.quiz || !Array.isArray(partyState.quiz.questions)) {
+            socket.emit('party_run_error', { message: 'Wczytaj najpierw plik Party Quiz z listy głównej.' });
+            return;
+        }
+        if (typeof gIdx !== 'number' || gIdx < 0 || !partyQuizGoldenQuestions[gIdx]) {
+            socket.emit('party_run_error', { message: 'Brak pytania w złotej liście Party Quiz.' });
+            return;
+        }
+        partyRestoreGameStateQuestionsIfExtended();
+        const q = partyQuizGoldenQuestions[gIdx];
+        partyState.gameStateQuestionsBeforeGolden = gameState.questions;
+        gameState.questions = partyState.quiz.questions.concat([q]);
+        const synthIndex = gameState.questions.length - 1;
+        partyState.currentGoldenIndex = gIdx;
+        runPartyQuestionCore(socket, q, synthIndex, { fromGoldenFile: true });
+    });
+
+    // Przyznanie punktów — kwota wyliczona z pytania (bez wyboru przez admina).
+    // Payload: { team: 'blue' | 'red' }
+    socket.on('party_award_points', (data) => {
+        const team = data && data.team;
+        if (team !== 'blue' && team !== 'red') return;
+        if (!partyState.quiz) return;
+        const q = getActivePartyQuestionForParty();
+        if (!q) return;
+        const pts = partyGetQuestionPoints(q);
+        const idx = partyState.currentIndex;
+        const rev = partyState.revertibleAward;
+
+        if (rev && rev.kind === 'standard_points' && rev.questionIndex === idx && partyState.questionAwarded) {
+            if (rev.team === team) {
+                partyState.teams[team].score = Math.max(0, partyState.teams[team].score - rev.points);
+                partyState.questionAwarded = false;
+                partyRemoveAskedIndex(idx);
+                partyState.revertibleAward = null;
+                console.log(`↩️ party_award_points cofnięcie ${team} −${rev.points} (#${idx + 1})`);
+                io.emit('party_quiz_sound', 'wrong_answer');
+                partyFlashScoresVisible();
+                broadcastPartyState();
+                broadcastStateImmediate();
+                return;
+            }
+            partyState.teams[rev.team].score = Math.max(0, partyState.teams[rev.team].score - rev.points);
+            partyState.teams[team].score += rev.points;
+            partyState.revertibleAward = { kind: 'standard_points', team, points: rev.points, questionIndex: idx };
+            console.log(`🔀 party_award_points przeniesienie ${rev.team} → ${team} (${rev.points} pkt, #${idx + 1})`);
+            io.emit('party_quiz_sound', 'correct_answer');
+            partyFlashScoresVisible();
+            broadcastPartyState();
+            broadcastStateImmediate();
+            return;
+        }
+
+        partyState.teams[team].score += pts;
+        partyFlashScoresVisible();
+        partyState.questionAwarded = true;
+        partyMarkAsked();
+        partyState.revertibleAward = { kind: 'standard_points', team, points: pts, questionIndex: idx };
+        console.log(`🥳 party_award_points ${team} +${pts} (pytanie #${idx + 1}, ${q.type})`);
+        io.emit('party_quiz_sound', 'correct_answer');
+        broadcastPartyState();
+        broadcastStateImmediate();
+    });
+
+    // Ręczna korekta punktów (admin override) — payload: { team, delta: number }
+    socket.on('party_adjust_score', (data) => {
+        const team = data && data.team;
+        const delta = data && typeof data.delta === 'number' ? data.delta : 0;
+        if (team !== 'blue' && team !== 'red') return;
+        partyState.teams[team].score = Math.max(0, partyState.teams[team].score + delta);
+        partyFlashScoresVisible();
+        broadcastPartyState();
+    });
+
+    // "Pominięte" — zamyka pytanie bez przyznania punktów.
+    socket.on('party_pass_question', () => {
+        if (!partyState.quiz) return;
+        partyState.teamLeaderboardVisible = false;
+        partyState.questionAwarded = true;
+        partyState.revertibleAward = null;
+        partyMarkAsked();
+        console.log(`🥳 party_pass_question #${partyState.currentIndex + 1} (bez punktów)`);
+        io.emit('admin_stop_music');
+        broadcastPartyState();
+    });
+
+    // Zakończ aktywne pytanie (wracamy do widoku listy — ekran neutralny).
+    socket.on('party_end_question', () => {
+        partyRestoreGameStateQuestionsIfExtended();
+        partyState.teamLeaderboardVisible = false;
+        partyState.currentIndex = -1;
+        partyState.questionAwarded = false;
+        partyState.revertibleAward = null;
+        gameState.type = 'WAITING';
+        gameState.activeQuestion = null;
+        gameState.activeQuestionIndex = -1;
+        gameState.shipsGame = null;
+        gameState.letterGame = null;
+        io.emit('admin_stop_music');
+        broadcastPartyState();
+        broadcastStateImmediate();
+    });
+
+    // Swap kolorów drużyn (analogicznie do familiada_toggle_color_sides).
+    socket.on('party_swap_teams', () => {
+        partyState.swapped = !partyState.swapped;
+        broadcastPartyState();
+    });
+
+    // Zeruj wyniki.
+    socket.on('party_reset_scores', () => {
+        partyState.teams.blue.score = 0;
+        partyState.teams.red.score = 0;
+        partyState.revertibleAward = null;
+        broadcastPartyState();
+    });
+
+    // Ustaw nazwę drużyny — payload: { team, name }
+    socket.on('party_set_team_name', (data) => {
+        const team = data && data.team;
+        const raw = data && typeof data.name === 'string' ? data.name.trim().slice(0, 40) : '';
+        if (team !== 'blue' && team !== 'red') return;
+        const def = team === 'blue' ? 'Niebiescy' : 'Czerwoni';
+        partyState.teams[team].name = raw || def;
+        broadcastPartyState();
+    });
+
+    // Ukrywanie punktów na TV: gdy włączone — pasek pokazuje liczby tylko przez 5 s po zmianie punktów.
+    socket.on('party_set_hide_team_scores', (data) => {
+        if (gameMode !== 'party') return;
+        partyState.hideTeamScoresOnTv = !!(data && data.hide);
+        if (!partyState.hideTeamScoresOnTv) partyState.teamScoresFlashUntil = 0;
+        broadcastPartyState();
+    });
+
+    // Party Quiz — admin wybrał odpowiedź gracza dla pytania QUIZ/MUSIC/VOTE (typ zgodny z ABCD).
+    // Payload: { index: number } — 0..N-1 (indeks odpowiedzi) lub null żeby wyczyścić.
+    socket.on('party_quiz_select_answer', (data) => {
+        if (gameMode !== 'party') return;
+        if (!partyState.quiz || partyState.currentIndex < 0) return;
+        const q = getActivePartyQuestionForParty();
+        if (!q) return;
+        // Tylko dla typów z kafelkami A/B/C/D/E (nie FAMILIADA, nie OPEN/LETTER/SHIPS/ESTIMATION)
+        const TILE_TYPES = ['QUIZ', 'MUSIC', 'VOTE', 'VOTE_IMG', 'HOT_OR_NOT'];
+        if (!TILE_TYPES.includes(q.type)) return;
+        const idx = (data && typeof data.index === 'number') ? data.index : null;
+        const answersLen = Array.isArray(q.answers) ? q.answers.length : 0;
+        if (idx !== null && (idx < 0 || idx >= answersLen)) return;
+        partyState.selectedAnswerIndex = idx;
+        broadcastPartyState();
+        broadcastStateImmediate();
+    });
+
+    // Party Quiz — LETTER: wylosuj kolejną literę i wyświetl dużą na środku TV.
+    socket.on('party_next_letter', () => {
+        if (gameMode !== 'party') return;
+        if (!partyState.quiz || partyState.currentIndex < 0) return;
+        const q = getActivePartyQuestionForParty();
+        if (!q || q.type !== 'LETTER') return;
+        partyState.currentLetter = pickRandomPartyLetter(partyState.currentLetter);
+        partyState.buttonUsedThisRound = false;
+        partyState.buttonPressedBy = null;
+        console.log(`🔤 party_next_letter: ${partyState.currentLetter}`);
+        io.emit('party_buttons_reset');
+        broadcastPartyState();
+        broadcastStateImmediate();
+    });
+
+    // Party Quiz — FAST_LIST: następne mini-pytanie na liście (ukrywa odpowiedź do kolejnego „pokaż").
+    socket.on('party_fast_list_next', () => {
+        if (gameMode !== 'party') return;
+        if (!partyState.quiz || partyState.currentIndex < 0) return;
+        const q = getActivePartyQuestionForParty();
+        if (!q || q.type !== 'FAST_LIST') return;
+        const items = Array.isArray(q.fastListItems) ? q.fastListItems : [];
+        const maxIdx = Math.max(0, items.length - 1);
+        let idx = typeof partyState.fastListIndex === 'number' ? partyState.fastListIndex : 0;
+        if (idx < maxIdx) {
+            partyState.fastListIndex = idx + 1;
+            partyState.fastListShowAnswer = false;
+            partyState.buttonUsedThisRound = false;
+            partyState.buttonPressedBy = null;
+            io.emit('party_buttons_reset');
+        }
+        broadcastPartyState();
+        broadcastStateImmediate();
+    });
+
+    socket.on('party_fast_list_show_answer', () => {
+        if (gameMode !== 'party') return;
+        if (!partyState.quiz || partyState.currentIndex < 0) return;
+        const q = getActivePartyQuestionForParty();
+        if (!q || q.type !== 'FAST_LIST') return;
+        partyState.fastListShowAnswer = true;
+        broadcastPartyState();
+        broadcastStateImmediate();
+    });
+
+    // Party Quiz — pokaż ekran końcowy (wyniki drużyn + logo Imprezja Quiz) na TV.
+    socket.on('party_show_final', () => {
+        if (gameMode !== 'party') return;
+        partyState.teamLeaderboardVisible = false;
+        partyState.finalScreenVisible = true;
+        // Zamknij ewentualne aktywne pytanie (nie ukrywamy currentIndex, tylko informujemy TV).
+        console.log('🏁 party_show_final — wyniki: blue=' + partyState.teams.blue.score + ' red=' + partyState.teams.red.score);
+        io.emit('party_fam_sound', 'outro');
+        broadcastPartyState();
+        broadcastStateImmediate();
+    });
+    socket.on('party_hide_final', () => {
+        if (gameMode !== 'party') return;
+        partyState.finalScreenVisible = false;
+        broadcastPartyState();
+        broadcastStateImmediate();
+    });
+
+    /** Tablica wyników drużyn na TV — ten sam układ co Imprezja Quiz (LEADERBOARD / teamBattle). */
+    socket.on('party_show_team_results', () => {
+        if (gameMode !== 'party') return;
+        partyState.teamLeaderboardVisible = true;
+        if (questionTimer) {
+            clearTimeout(questionTimer);
+            questionTimer = null;
+        }
+        broadcastPartyState();
+        broadcastStateImmediate();
+        console.log('📊 Party Quiz — tablica wyników na TV');
+    });
+    socket.on('party_hide_team_results', () => {
+        if (gameMode !== 'party') return;
+        partyState.teamLeaderboardVisible = false;
+        broadcastPartyState();
+        broadcastStateImmediate();
+    });
+
+    // ─── Party Quiz — OPCJONALNE przyciski / buzzer na telefonie ──────────────────
+    // Admin prosi o QR do strony /party-quiz/buttons.html. Gracze skanują, dostają
+    // dwa buzzery (Niebieski / Czerwony). Kto pierwszy naciśnie w danej rundzie — ten
+    // odpowiada ustnie. Rozgrywka działa BEZ nich (admin może klikać bezpośrednio),
+    // przyciski są tylko pomocą dla prowadzącego.
+    socket.on('party_request_qr_buttons', async () => {
+        const proto = httpsServer ? 'https' : 'http';
+        const port = httpsServer ? PORT_HTTPS : PORT;
+        const buttonsUrl = `${proto}://${IP}:${port}/party-quiz/buttons.html`;
+        try {
+            const qr = await QRCode.toDataURL(buttonsUrl, { width: 220, margin: 2 });
+            socket.emit('party_qr_buttons', { qrCode: qr, url: buttonsUrl });
+        } catch (err) {
+            socket.emit('party_qr_buttons', { url: buttonsUrl });
+        }
+    });
+
+    // Buzzer naciśnięty przez gracza na telefonie / zewnętrznej pastylce.
+    // Payload: { team: 'blue' | 'red' }. Pierwsze naciśnięcie w rundzie „wygrywa".
+    socket.on('party_button_press', (data) => {
+        if (gameMode !== 'party') return;
+        const team = data && (data.team === 'blue' || data.team === 'red') ? data.team : null;
+        if (!team) return;
+        if (partyState.buttonUsedThisRound) return;  // już ktoś nacisnął w tej rundzie
+        partyState.buttonUsedThisRound = true;
+        partyState.buttonPressedBy = team;
+        console.log('🔔 party_button_press: ' + team + ' (pierwszy w rundzie)');
+        // Flash na wszystkich klientach (Screen.html TV, admin panel, inne telefony).
+        io.emit('party_button_flash', { team });
+        broadcastPartyState();
+    });
+
+    // Admin: „reset przycisków" — np. gdy ktoś nacisnął przez pomyłkę.
+    // Odblokowuje buzzery w bieżącej rundzie (bez zmiany pytania).
+    socket.on('party_reset_buttons', () => {
+        if (gameMode !== 'party') return;
+        partyState.buttonUsedThisRound = false;
+        partyState.buttonPressedBy = null;
+        console.log('🔄 party_reset_buttons — odblokowane dla bieżącej rundy');
+        io.emit('party_buttons_reset');
+        broadcastPartyState();
+    });
+
+    // Party Quiz — ESTIMATION: admin zatwierdza wartość podaną przez gracza.
+    // Payload: { value: number }. Pokazywana na TV obok poprawnej po „Pokaż prawidłową".
+    socket.on('party_estimation_submit', (data) => {
+        if (gameMode !== 'party') return;
+        if (!partyState.quiz || partyState.currentIndex < 0) return;
+        const q = getActivePartyQuestionForParty();
+        if (!q || q.type !== 'ESTIMATION') return;
+        const v = data && typeof data.value === 'number' && Number.isFinite(data.value) ? data.value : null;
+        if (v === null) return;
+        partyState.estimationAnswer = { value: v };
+        console.log('📐 party_estimation_submit: ' + v + ' (poprawna: ' + q.correctValue + ')');
+        // party_state PRZED update_state — Screen.html zapisuje partyRoundData / stan party z party_state,
+        // a dopiero update_state wywołuje render (inaczej widok jest o 1 zdarzenie opóźniony).
+        broadcastPartyState();
+        broadcastStateImmediate();
+    });
+
+    // Party Quiz — FAMILIADA: natychmiastowe odkrycie odpowiedzi (klik = reveal + dźwięk).
+    // Payload: { index: number }. Idempotent — drugi klik na już odkrytą nic nie zmienia.
+    function partyFamiliadaRevealImpl(data) {
+        if (gameMode !== 'party') return;
+        if (!partyState.quiz || partyState.currentIndex < 0) return;
+        const q = getActivePartyQuestionForParty();
+        if (!q || q.type !== 'FAMILIADA') return;
+        const i = data && typeof data.index === 'number' ? data.index : -1;
+        if (i < 0 || i >= (q.answers || []).length) return;
+        if (!partyState.familiada.revealed) partyState.familiada.revealed = [];
+        if (partyState.familiada.revealed[i]) return;
+        partyState.familiada.revealed[i] = true;
+        partyState.familiada.pendingIndex = null;
+        console.log(`🎯 party_familiada REVEAL #${i + 1}: "${(q.answers[i] || {}).text}"`);
+        io.emit('party_fam_sound', 'correct');
+        broadcastPartyState();
+        broadcastStateImmediate();
+    }
+    socket.on('party_familiada_reveal', partyFamiliadaRevealImpl);
+    // Legacy alias (panel mógł wysyłać nową nazwę z poprzedniej wersji UI).
+    socket.on('party_familiada_select', partyFamiliadaRevealImpl);
+
+    // Party Quiz — FAMILIADA: dodaj X (błąd) drużynie. Po 3 X admin może zdecydować co dalej.
+    // Payload: { team: 'blue' | 'red' | 'center', count?: 1|2|3 }
+    //   - 'blue'/'red' + count (domyślnie 1): ustawia errors[team] = max(errors, count)
+    //   - 'center': emituje tylko dźwięk bad (sam X nie ma powiązanej drużyny)
+    socket.on('party_familiada_error', (data) => {
+        if (gameMode !== 'party') return;
+        if (!partyState.quiz || partyState.currentIndex < 0) return;
+        const q = getActivePartyQuestionForParty();
+        if (!q || q.type !== 'FAMILIADA') return;
+        const team = data && data.team;
+        const count = (data && typeof data.count === 'number') ? Math.max(1, Math.min(3, data.count)) : 1;
+        if (team === 'center') {
+            io.emit('party_fam_sound', 'bad');
+            return;
+        }
+        if (team !== 'blue' && team !== 'red') return;
+        partyState.familiada.errors[team] = Math.max(partyState.familiada.errors[team] || 0, count);
+        console.log(`❌ party_familiada_error ${team}: ${partyState.familiada.errors[team]} X`);
+        io.emit('party_fam_sound', 'bad');
+        broadcastPartyState();
+        broadcastStateImmediate();
+    });
+
+    // Party Quiz — FAMILIADA: reset X dla obu drużyn lub jednej (np. po przejęciu).
+    // Payload: { team?: 'blue' | 'red' }. Bez payload — reset obu.
+    socket.on('party_familiada_reset_errors', (data) => {
+        if (gameMode !== 'party') return;
+        const team = data && data.team;
+        if (team === 'blue' || team === 'red') {
+            partyState.familiada.errors[team] = 0;
+        } else {
+            partyState.familiada.errors = { blue: 0, red: 0 };
+        }
+        broadcastPartyState();
+        broadcastStateImmediate();
+    });
+
+    // Party Quiz — FAMILIADA: przyznaj pulę (suma wszystkich revealed) drużynie i zamknij pytanie.
+    // Payload: { team: 'blue' | 'red' }
+    socket.on('party_familiada_award_pot', (data) => {
+        if (gameMode !== 'party') return;
+        if (!partyState.quiz || partyState.currentIndex < 0) return;
+        const q = getActivePartyQuestionForParty();
+        if (!q || q.type !== 'FAMILIADA') return;
+        const team = data && data.team;
+        if (team !== 'blue' && team !== 'red') return;
+        const answers = Array.isArray(q.answers) ? q.answers : [];
+        const revealed = partyState.familiada.revealed || [];
+        const pot = answers.reduce((sum, a, i) => (revealed[i] && a && typeof a.points === 'number') ? sum + a.points : sum, 0);
+        const idx = partyState.currentIndex;
+        const rev = partyState.revertibleAward;
+
+        if (rev && rev.kind === 'fam_pot' && rev.questionIndex === idx && partyState.questionAwarded) {
+            if (rev.team === team) {
+                partyState.teams[team].score = Math.max(0, partyState.teams[team].score - rev.points);
+                partyState.questionAwarded = false;
+                partyRemoveAskedIndex(idx);
+                partyState.revertibleAward = null;
+                console.log(`↩️ party_familiada_award_pot cofnięcie ${team} −${rev.points}`);
+                io.emit('party_fam_sound', 'bad');
+                partyFlashScoresVisible();
+                broadcastPartyState();
+                broadcastStateImmediate();
+                return;
+            }
+            partyState.teams[rev.team].score = Math.max(0, partyState.teams[rev.team].score - rev.points);
+            partyState.teams[team].score += rev.points;
+            partyState.revertibleAward = { kind: 'fam_pot', team, points: rev.points, questionIndex: idx };
+            console.log(`🔀 party_familiada_award_pot ${rev.team} → ${team} (${rev.points} pkt)`);
+            io.emit('party_fam_sound', 'win_round');
+            partyFlashScoresVisible();
+            broadcastPartyState();
+            broadcastStateImmediate();
+            return;
+        }
+
+        partyState.teams[team].score += pot;
+        partyFlashScoresVisible();
+        partyState.questionAwarded = true;
+        partyState.familiada.pendingIndex = null;
+        partyMarkAsked();
+        partyState.revertibleAward = { kind: 'fam_pot', team, points: pot, questionIndex: idx };
+        console.log(`💰 party_familiada_award_pot ${team} +${pot}`);
+        io.emit('party_fam_sound', 'win_round');
+        broadcastPartyState();
+        broadcastStateImmediate();
+    });
+
+    // Party Quiz — SHIPS: strzał admina w komórkę planszy.
+    // Naprzemiennie strzelają drużyny (blue → red → blue…). Trafienie = +pointsPerHit
+    // dla AKTUALNEJ drużyny + inkrement hits. Po każdym strzale (hit lub miss) tura
+    // przechodzi na drugą drużynę. Shots w które już strzelano są ignorowane.
+    // Payload: { row: number, col: number }
+    socket.on('party_ships_shot', (data) => {
+        if (gameMode !== 'party') return;
+        if (!partyState.quiz || partyState.currentIndex < 0) return;
+        const q = getActivePartyQuestionForParty();
+        if (!q || q.type !== 'SHIPS') return;
+        if (partyState.questionAwarded) return;
+        const row = data && typeof data.row === 'number' ? data.row : -1;
+        const col = data && typeof data.col === 'number' ? data.col : -1;
+        const bs = partyState.ships.boardSize;
+        if (row < 0 || row >= bs || col < 0 || col >= bs) return;
+        const key = row + '_' + col;
+        if (partyState.ships.shots[key]) return; // już strzelano
+        // sprawdź trafienie
+        let hit = false;
+        let shipSize = 0;
+        for (const s of partyState.ships.ships) {
+            for (let i = 0; i < s.size; i++) {
+                const sr = s.row + (s.vertical ? i : 0);
+                const sc = s.col + (s.vertical ? 0 : i);
+                if (sr === row && sc === col) { hit = true; shipSize = s.size; break; }
+            }
+            if (hit) break;
+        }
+        const team = partyState.ships.currentTeam === 'red' ? 'red' : 'blue';
+        partyState.ships.shots[key] = { hit, shipSize, team };
+        if (hit) {
+            partyState.ships.hits[team] = (partyState.ships.hits[team] || 0) + 1;
+            partyState.teams[team].score += partyState.ships.pointsPerHit;
+            partyFlashScoresVisible();
+        }
+        // zawsze przełącz turę po strzale
+        partyState.ships.currentTeam = (team === 'blue') ? 'red' : 'blue';
+        console.log('🚢 party_ships_shot ' + team + ' → [' + row + ',' + col + '] ' + (hit ? 'HIT (+' + partyState.ships.pointsPerHit + ')' : 'miss'));
+        // Dźwięk strzału — whoosh + (hit ? explosion : splash). TV odtwarza WebAudio 1:1 jak Statki Solo.
+        io.emit('party_ships_sound', { type: hit ? 'hit' : 'miss', team });
+        // Ważne: party_state PIERWSZY (zapełnia partyShipsData na TV), potem update_state.
+        broadcastPartyState();
+        broadcastStateImmediate();
+    });
+
+    // Party Quiz — SHIPS: „Pokaż statki" (admin). Ustaw flagę w partyState; TV wyświetla
+    // ukryte statki na zielono (analogicznie do trybu reveal w Statki Solo).
+    socket.on('party_ships_show', (data) => {
+        if (gameMode !== 'party') return;
+        if (!partyState.quiz || partyState.currentIndex < 0) return;
+        const q = getActivePartyQuestionForParty();
+        if (!q || q.type !== 'SHIPS') return;
+        const show = !!(data && data.show);
+        partyState.ships.showAll = show;
+        console.log('🚢 party_ships_show →', show ? 'REVEAL' : 'HIDE');
+        broadcastPartyState();
+        broadcastStateImmediate();
+    });
+
+    // Party Quiz — SHIPS: ręczne przełączenie tury (np. gdy admin się pomyli).
+    // Payload: { team?: 'blue' | 'red' } — jeśli brak, toggle.
+    socket.on('party_ships_switch_team', (data) => {
+        if (gameMode !== 'party') return;
+        if (!partyState.quiz || partyState.currentIndex < 0) return;
+        const q = getActivePartyQuestionForParty();
+        if (!q || q.type !== 'SHIPS') return;
+        const team = data && data.team;
+        if (team === 'blue' || team === 'red') partyState.ships.currentTeam = team;
+        else partyState.ships.currentTeam = (partyState.ships.currentTeam === 'blue') ? 'red' : 'blue';
+        broadcastPartyState();
+        broadcastStateImmediate();
+    });
+
+    // Party Quiz — SHIPS: zakończ rundę. Punkty są już przyznawane per trafienie,
+    // więc tu tylko oznaczamy pytanie jako rozstrzygnięte.
+    socket.on('party_ships_end', () => {
+        if (gameMode !== 'party') return;
+        if (!partyState.quiz || partyState.currentIndex < 0) return;
+        const q = getActivePartyQuestionForParty();
+        if (!q || q.type !== 'SHIPS') return;
+        partyState.questionAwarded = true;
+        partyMarkAsked();
+        console.log('🏁 party_ships_end — hits blue=' + partyState.ships.hits.blue + ' red=' + partyState.ships.hits.red);
+        broadcastPartyState();
+        broadcastStateImmediate();
+    });
+
+    // Party Quiz — LETTER: przyznaj punkty drużynie za trafioną literę.
+    // Pytanie LETTER w Party Quiz może trwać dowolnie długo — admin może wielokrotnie
+    // przyznawać punkty nie kończąc pytania. Domyślnie 10 pkt (lub q.points).
+    // Payload: { team: 'blue' | 'red' }
+    socket.on('party_award_letter', (data) => {
+        if (gameMode !== 'party') return;
+        if (!partyState.quiz || partyState.currentIndex < 0) return;
+        const q = getActivePartyQuestionForParty();
+        if (!q || q.type !== 'LETTER') return;
+        const team = data && data.team;
+        if (team !== 'blue' && team !== 'red') return;
+        const pts = (typeof q.points === 'number' && q.points > 0) ? q.points : 10;
+        const idx = partyState.currentIndex;
+        const rev = partyState.revertibleAward;
+
+        if (rev && rev.kind === 'letter_hit' && rev.questionIndex === idx) {
+            if (rev.team === team && rev.points === pts) {
+                partyState.teams[team].score = Math.max(0, partyState.teams[team].score - pts);
+                partyState.revertibleAward = null;
+                console.log(`↩️ party_award_letter cofnięcie ${team} −${pts}`);
+                io.emit('party_quiz_sound', 'wrong_answer');
+                partyFlashScoresVisible();
+                broadcastPartyState();
+                broadcastStateImmediate();
+                return;
+            }
+            if (rev.team !== team) {
+                partyState.teams[rev.team].score = Math.max(0, partyState.teams[rev.team].score - rev.points);
+                partyState.teams[team].score += rev.points;
+                partyState.revertibleAward = { kind: 'letter_hit', team, points: rev.points, questionIndex: idx };
+                console.log(`🔀 party_award_letter ${rev.team} → ${team} (${rev.points} pkt)`);
+                io.emit('party_quiz_sound', 'correct_answer');
+                partyFlashScoresVisible();
+                broadcastPartyState();
+                broadcastStateImmediate();
+                return;
+            }
+        }
+
+        partyState.teams[team].score += pts;
+        partyFlashScoresVisible();
+        partyState.revertibleAward = { kind: 'letter_hit', team, points: pts, questionIndex: idx };
+        console.log(`🔤 party_award_letter ${team} +${pts} (litera ${partyState.currentLetter})`);
+        io.emit('party_quiz_sound', 'correct_answer');
+        broadcastPartyState();
+        broadcastStateImmediate();
+    });
+
+    // Party Quiz — FAST_LIST: przyznanie punktów za bieżące mini-pytanie (opcjonalne, jak LETTER).
+    socket.on('party_award_fast_list', (data) => {
+        if (gameMode !== 'party') return;
+        if (!partyState.quiz || partyState.currentIndex < 0) return;
+        const q = getActivePartyQuestionForParty();
+        if (!q || q.type !== 'FAST_LIST') return;
+        const team = data && data.team;
+        if (team !== 'blue' && team !== 'red') return;
+        const pts = 5;
+        const items = Array.isArray(q.fastListItems) ? q.fastListItems : [];
+        let itemIdx = (data && typeof data.itemIndex === 'number') ? data.itemIndex : partyState.fastListIndex;
+        if (!Number.isFinite(itemIdx)) itemIdx = partyState.fastListIndex;
+        itemIdx = Math.floor(itemIdx);
+        if (itemIdx < 0 || itemIdx >= items.length) return;
+        const idx = partyState.currentIndex;
+        const rev = partyState.revertibleAward;
+
+        if (rev && rev.kind === 'fast_list_hit' && rev.questionIndex === idx
+            && rev.fastListItemIndex === itemIdx && rev.points === pts) {
+            if (rev.team === team) {
+                partyState.teams[team].score = Math.max(0, partyState.teams[team].score - pts);
+                partyState.revertibleAward = null;
+                console.log(`↩️ party_award_fast_list cofnięcie ${team} −${pts} (poz. ${itemIdx + 1})`);
+                io.emit('party_quiz_sound', 'wrong_answer');
+                partyFlashScoresVisible();
+                broadcastPartyState();
+                broadcastStateImmediate();
+                return;
+            }
+            if (rev.team !== team && rev.fastListItemIndex === itemIdx) {
+                partyState.teams[rev.team].score = Math.max(0, partyState.teams[rev.team].score - rev.points);
+                partyState.teams[team].score += rev.points;
+                partyState.revertibleAward = { kind: 'fast_list_hit', team, points: rev.points, questionIndex: idx, fastListItemIndex: itemIdx };
+                console.log(`🔀 party_award_fast_list ${rev.team} → ${team} (${rev.points} pkt, poz. ${itemIdx + 1})`);
+                io.emit('party_quiz_sound', 'correct_answer');
+                partyFlashScoresVisible();
+                broadcastPartyState();
+                broadcastStateImmediate();
+                return;
+            }
+        }
+
+        partyState.teams[team].score += pts;
+        partyFlashScoresVisible();
+        partyState.revertibleAward = { kind: 'fast_list_hit', team, points: pts, questionIndex: idx, fastListItemIndex: itemIdx };
+        console.log(`⚡ party_award_fast_list ${team} +${pts} (FAST_LIST #${idx + 1}, poz. ${itemIdx + 1})`);
+        io.emit('party_quiz_sound', 'correct_answer');
+        broadcastPartyState();
+        broadcastStateImmediate();
+    });
+
     // Funkcje pomocnicze zostały przeniesione wyżej (przed handlerami które ich używają)
 
     // === GRACZE ===
@@ -7160,8 +8612,20 @@ io.on('connection', (socket) => {
         
         if (existingPlayer) {
             // Przywróć gracza z poprzednimi danymi (wynik, odpowiedzi, drużyna)
+            const oldSocketId = existingPlayer.socketId;
             existingPlayer.socketId = socket.id;
             players.set(socket.id, existingPlayer);
+            // LETTER: litery były przypisane pod starym socket.id — bez migracji gracz nie widzi pól / serwer odrzuca send_answer
+            if (gameState.letterGame && gameState.letterGame.gameStarted && gameState.letterGame.playerLetters &&
+                oldSocketId && oldSocketId !== socket.id) {
+                const letters = gameState.letterGame.playerLetters[oldSocketId];
+                if (letters && letters.length) {
+                    delete gameState.letterGame.playerLetters[oldSocketId];
+                    gameState.letterGame.playerLetters[socket.id] = letters;
+                    console.log(`🔤 [LETTER] Migracja liter po reconnect (${nick}): stare id → nowe socket.id`);
+                    broadcastStateImmediate();
+                }
+            }
             console.log(`🔄 Przywrócono gracza ${nick} po reconnect (wynik: ${existingPlayer.score}, drużyna: ${existingPlayer.team})`);
             // Przywróć gracza do hncVoters tylko jeśli mecz aktywny (nie match_result — tam hnc_start_match rebuilds)
             if (hncPhase === 'voting' || hncPhase === 'ready' || hncPhase === 'tiebreak') {
@@ -7290,18 +8754,18 @@ io.on('connection', (socket) => {
                 words = [words[0], words[1]];
             }
             
-            // Walidacja: każde słowo musi zaczynać się na odpowiednią literę (case-insensitive)
+            // Walidacja: PL/EN (łacina + polskie znaki), pierwsza litera po złożeniu PL→ASCII jak wylosowana litera
             let isValid = true;
             for (let i = 0; i < words.length && i < playerLetters.length; i++) {
-                const word = words[i].toLowerCase();
-                const letter = playerLetters[i].toLowerCase();
-                if (!word.startsWith(letter)) {
+                const word = words[i];
+                const letter = playerLetters[i];
+                if (!letterWordPlEn || !letterWordPlEn.onlyPlEnLetters(word) || !letterWordPlEn.startsWithLetter(word, letter)) {
                     isValid = false;
                     break;
                 }
             }
             
-            if (!isValid) return; // Odrzuć odpowiedź jeśli nie zaczyna się na właściwą literę
+            if (!isValid) return; // Odrzuć odpowiedź jeśli niezgodna z literą lub dozwolonym alfabetem
             
             // Zapisz odpowiedź (dla 1 litery jako string, dla 2 liter jako tablica)
             player.answers[qId] = gameState.letterGame.letterCount === 1 ? words[0] : words;
@@ -7485,13 +8949,18 @@ io.on('connection', (socket) => {
             sendPlayerScore(socket, player);
         }
         
-        // Gdy wszyscy gracze strzelili w tej turze – pokaż wyniki i czekaj na admina
-        // WAŻNE: NIE inkrementuj currentTurn tutaj – robi to dopiero admin przez ships_next_turn
+        // Gdy wszyscy gracze strzelili w tej turze – krótko pokaż stan rundy, potem automatycznie następna tura (admin może przyśpieszyć przyciskiem)
         if (players.size > 0 && shipsGame.playersShot.size >= players.size) {
             gameState.showStats = true;
             gameState.showCorrect = false;
             gameState.type = 'GAME';
-            console.log(`⚓ Wszyscy strzelili w rundzie ${shipsGame.currentTurn} – czekam na admina (ships_next_turn)`);
+            console.log(`⚓ Wszyscy strzelili w rundzie ${shipsGame.currentTurn} – następna tura za ${SHIPS_QUIZ_AUTO_ADVANCE_MS} ms (lub wcześniej: admin „Następna tura")`);
+            clearShipsQuizAutoAdvanceTimer();
+            const qidAuto = shipsGame.questionId;
+            shipsQuizAutoAdvanceTimer = setTimeout(() => {
+                shipsQuizAutoAdvanceTimer = null;
+                performShipsQuizNextTurn(qidAuto, 'auto');
+            }, SHIPS_QUIZ_AUTO_ADVANCE_MS);
         }
         
         // Wyślij aktualizację stanu gry do wszystkich klientów (nie tylko graczy) - Screen.html też musi otrzymać
@@ -7524,99 +8993,17 @@ io.on('connection', (socket) => {
     });
 
     socket.on('ships_next_turn', (data) => {
-        console.log('🔄 ships_next_turn otrzymane:', data);
-        console.log('🔄 ships_next_turn - socket.id:', socket.id, 'players.size:', players.size);
-        const { questionId } = data;
-        
-        // WAŻNE: Admin nie jest w mapie players - sprawdź czy socket wysyła eventy admin_*
-        // Jeśli socket wysyła admin_* eventy, to jest adminem (używa admin.html)
-        // Sprawdź czy socket ma referencję do admina przez sprawdzenie czy może wysyłać admin_* eventy
-        // Alternatywnie: jeśli socket nie jest w players, ale wysyła admin_* eventy, to jest adminem
-        
-        // Sprawdź czy socket jest w players (może admin się zarejestrował jako gracz)
+        clearShipsQuizAutoAdvanceTimer();
+        const { questionId } = data || {};
         const player = players.get(socket.id);
-        console.log('🔄 ships_next_turn - player:', {
-            found: !!player,
-            nick: player?.nick,
-            isAdmin: player?.isAdmin,
-            socketId: socket.id
-        });
-        
-        // Jeśli gracz nie istnieje w players, ale wysyła admin_* eventy, to jest adminem
-        // Dla uproszczenia: jeśli socket nie jest w players, ale wysyła ships_next_turn, 
-        // to zakładamy że jest adminem (bo tylko admin.html ma dostęp do tego przycisku)
-        const isAdmin = player ? (player.isAdmin === true) : true; // Jeśli nie ma w players, zakładamy że to admin
-        
+        const isAdmin = player ? (player.isAdmin === true) : true;
         if (!isAdmin) {
-            console.error('❌ ships_next_turn - gracz nie jest adminem:', player?.nick, 'isAdmin:', player?.isAdmin);
+            console.error('❌ ships_next_turn - gracz nie jest adminem:', player?.nick);
             return;
         }
-        
-        console.log('🔄 ships_next_turn - sprawdzam gameState:', {
-            hasShipsGame: !!gameState.shipsGame,
-            gameQuestionId: gameState.shipsGame?.questionId,
-            requestedQuestionId: questionId,
-            activeQuestionId: gameState.activeQuestion?.id,
-            activeQuestionType: gameState.activeQuestion?.type
-        });
-        
-        if (!gameState.shipsGame || gameState.shipsGame.questionId !== questionId) {
-            console.error('❌ ships_next_turn - brak gry lub złe questionId:', {
-                hasShipsGame: !!gameState.shipsGame,
-                gameQuestionId: gameState.shipsGame?.questionId,
-                requestedQuestionId: questionId,
-                activeQuestionId: gameState.activeQuestion?.id,
-                activeQuestionType: gameState.activeQuestion?.type
-            });
-            return;
-        }
-        
-        const shipsGame = gameState.shipsGame;
-        if (shipsGame.gameEnded) {
-            console.error('❌ ships_next_turn - gra już zakończona');
-            return;
-        }
-        
-        const oldTurn = shipsGame.currentTurn;
-        shipsGame.currentTurn++;
-        shipsGame.playersShot.clear(); // Reset strzałów dla nowej tury - wszyscy mogą strzelać ponownie
-        
-        // Resetuj showStats i showCorrect aby wrócić do trybu gry (nie statystyk)
-        gameState.showStats = false;
-        gameState.showCorrect = false;
-        gameState.type = 'GAME'; // Upewnij się że jesteśmy w trybie gry, nie statystyk
-        
-        console.log(`🔄 Następna runda ${shipsGame.currentTurn} (było ${oldTurn}) dla pytania ${questionId}, graczy: ${players.size}`);
-        console.log('🔄 Stan po zmianie:', {
-            currentTurn: shipsGame.currentTurn,
-            showStats: gameState.showStats,
-            showCorrect: gameState.showCorrect,
-            type: gameState.type,
-            playersShotSize: shipsGame.playersShot.size
-        });
-        
-        // Wyślij aktualizację do wszystkich klientów (nie tylko graczy) - Screen.html też musi otrzymać
-        io.emit('ships_game_update', {
-            questionId: questionId,
-            shots: shipsGame.shots,
-            currentTurn: shipsGame.currentTurn,
-            hasShotThisTurn: false, // Wszyscy mogą strzelać w nowej rundzie
-            gameEnded: shipsGame.gameEnded,
-            showStats: false, // WAŻNE: Informuj klientów że showStats jest false (nowa runda aktywna)
-            showCorrect: false // WAŻNE: Informuj klientów że showCorrect jest false
-        });
-        
-        console.log('📤 Wysłano ships_game_update do wszystkich klientów');
-        
-        // WAŻNE: Wyślij aktualizację wyników drużyn jeśli tryb drużynowy jest włączony
-        if (gameState.teamBattleMode) {
-            io.emit('update_team_scores', gameState.teams);
-            console.log('📤 Wysłano update_team_scores po ships_next_turn');
-        }
-        
-        // Wyślij również przez broadcastState aby zaktualizować wszystkie komponenty
-        broadcastState();
-        console.log('📤 Wywołano broadcastState()');
+        if (!gameState.shipsGame || gameState.shipsGame.questionId !== questionId) return;
+        if (gameState.shipsGame.gameEnded) return;
+        performShipsQuizNextTurn(questionId, 'admin');
     });
 
     // ─── SHIPS_SOLO standalone: inicjalizacja bez pytania ───────────────────────
@@ -7817,7 +9204,8 @@ io.on('connection', (socket) => {
         if (!isAdmin) return;
         
         if (!gameState.shipsGame || gameState.shipsGame.questionId !== questionId) return;
-        
+
+        clearShipsQuizAutoAdvanceTimer();
         gameState.shipsGame.gameEnded = true;
         
         // Wyślij aktualizację do wszystkich graczy

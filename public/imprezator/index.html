@@ -7,6 +7,7 @@
     <link rel="icon" type="image/x-icon" href="/favicon.ico"><link rel="icon" type="image/png" sizes="32x32" href="/img/icon-32.png"><link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
     <script src="/socket.io/socket.io.js"></script>
     <script src="/lib/audio-normalize.js"></script>
+    <script src="/lib/digital-output-cap.js"></script>
     <style>
         :root {
             --bg: radial-gradient(circle at center, #1a1a2e, #000);
@@ -133,14 +134,16 @@
                 </span>
             </div>
             <h2>Utwory do tańca</h2>
-            <p style="color:rgba(255,255,255,0.7); font-size:0.9rem; margin-bottom:8px;">📁 Dodaj plik – wybór jednego z folderu. 📁 Dodaj folder – wszystkie utwory z folderu. Pliki pozostają na dysku – JSON zapisuje tylko odwołania.</p>
-            <p id="native-dialog-hint" style="display:none; color:#fbbf24; font-size:0.85rem; margin-bottom:8px; padding:10px; background:rgba(251,191,36,0.15); border-radius:8px;">⚠️ W przeglądarce okno się pojawi, ale ścieżki nie zostaną zapisane. Dla pełnej funkcjonalności uruchom <code>npm run electron</code> i otwórz Imprezator z ekranu startowego.</p>
+            <p style="color:rgba(255,255,255,0.7); font-size:0.9rem; margin-bottom:8px;">📁 <strong>Electron:</strong> dodajesz pliki z dysku (ścieżki w JSON). 📁 <strong>Przeglądarka / PWA:</strong> pliki są wgrywane na serwer (<code>/uploads/</code>). 📁 <strong>Dodaj folder</strong> w przeglądarce = wybór folderu (wszystkie audio z podfolderów).</p>
+            <p id="native-dialog-hint" style="display:none; color:#a7f3d0; font-size:0.85rem; margin-bottom:8px; padding:10px; background:rgba(16,185,129,0.12); border-radius:8px;">ℹ️ Tryb przeglądarki: użyj „Dodaj plik” / „Dodaj folder” — pliki trafią na serwer. Dla odsłuchu bez wgrywania uruchom <code>npm run electron</code> i otwórz Imprezator z ekranu startowego.</p>
             <p style="color:rgba(255,255,255,0.5); font-size:0.8rem; margin-bottom:12px;">⚠️ Usuwanie usuwa tylko rekord z listy, nie usuwa plików z dysku.</p>
             <div class="track-list" id="track-list"></div>
             <div class="add-track-row">
                 <button type="button" class="btn btn-success" id="add-file-btn">📁 Dodaj plik</button>
                 <button type="button" class="btn" id="add-folder-btn" style="background:#0ea5e9; color:#fff;">📁 Dodaj folder</button>
             </div>
+            <input type="file" id="browser-file-input" accept="audio/*,.vdjsample,audio/mpeg,audio/wav,audio/mp4" style="position:absolute;width:0;height:0;opacity:0;pointer-events:none" aria-hidden="true">
+            <input type="file" id="browser-folder-input" accept="audio/*,.vdjsample" multiple webkitdirectory style="position:absolute;width:0;height:0;opacity:0;pointer-events:none" aria-hidden="true">
             <div class="actions" style="margin-top:20px;">
                 <button type="button" class="btn btn-success" id="start-btn">▶️ Włącz Imprezator</button>
             </div>
@@ -232,6 +235,7 @@
         let imprezatorCurrentTrackId = null;
         let imprezatorCurrentTrackGain = 1;
         let imprezatorGainNode = null;
+        let imprezatorPlayGen = 0;
 
         function ensureImprezatorAudioGraph() {
             return null; // Web Audio API powoduje brak dźwięku w buildzie Electron – używamy HTMLAudioElement.volume
@@ -260,11 +264,12 @@
         }
 
         socket.on('imprezator_play', async (payload) => {
+            imprezatorPlayGen += 1;
+            const playGen = imprezatorPlayGen;
             const data = typeof payload === 'object' ? payload : { url: payload, volume: 1, trackId: null, displayName: '' };
             const a = document.getElementById('imprezator-audio');
             if (!a) return;
             ensureImprezatorAudioGraph();
-            imprezatorCurrentTrackId = data.trackId || null;
             const titleEl = document.getElementById('current-title');
             if (titleEl) {
                 titleEl.textContent = data.displayName || '—';
@@ -274,8 +279,13 @@
             if (gain === 1 && typeof window.AudioNormalize !== 'undefined' && data.url && (data.url.startsWith('/') || data.url.includes(window.location.host))) {
                 gain = await window.AudioNormalize.getNormalizedGainForUrl(data.url);
             }
+            if (playGen !== imprezatorPlayGen) {
+                if (titleEl) { titleEl.textContent = '—'; titleEl.classList.add('empty'); }
+                return;
+            }
+            imprezatorCurrentTrackId = data.trackId || null;
             imprezatorCurrentTrackGain = gain;
-            const vol = Math.min(1, (data.volume ?? 1) * gain);
+            const vol = clampDigitalOutputLinear((data.volume ?? 1) * gain);
             if (a._fadeIntervalId) { clearInterval(a._fadeIntervalId); a._fadeIntervalId = null; }
             a.src = data.url;
             if (imprezatorGainNode) imprezatorGainNode.gain.value = vol;
@@ -286,36 +296,69 @@
                 imprezatorCurrentTrackGain = 1;
                 if (titleEl) { titleEl.textContent = '—'; titleEl.classList.add('empty'); }
             };
-            a.play().catch(e => console.warn('Audio:', e));
+            a.play().then(() => {
+                if (playGen !== imprezatorPlayGen) hardAbortImprezatorAudio(a);
+            }).catch(e => console.warn('Audio:', e));
         });
-        function doImprezatorStop() {
+        function hardAbortImprezatorAudio(a) {
+            if (!a) return;
+            if (a._fadeIntervalId) { clearInterval(a._fadeIntervalId); a._fadeIntervalId = null; }
+            a.pause();
+            a.removeAttribute('src');
+            try { a.load(); } catch (e) {}
+            a.onended = null;
+        }
+        function hardStopImprezator() {
             const a = document.getElementById('imprezator-audio');
-            const trackId = imprezatorCurrentTrackId;
-            if (!a || a.paused) {
-                if (trackId) socket.emit('imprezator_ended', { trackId });
-                imprezatorCurrentTrackId = null;
-                imprezatorCurrentTrackGain = 1;
-                const titleEl = document.getElementById('current-title');
-                if (titleEl) { titleEl.textContent = '—'; titleEl.classList.add('empty'); }
-                return;
-            }
             imprezatorCurrentTrackId = null;
             imprezatorCurrentTrackGain = 1;
             const titleEl = document.getElementById('current-title');
             if (titleEl) { titleEl.textContent = '—'; titleEl.classList.add('empty'); }
-            fadeOutAndStop(a, 500, () => {
+            hardAbortImprezatorAudio(a);
+        }
+        function doImprezatorStop(payload) {
+            imprezatorPlayGen += 1;
+            const data = typeof payload === 'object' && payload ? payload : {};
+            const a = document.getElementById('imprezator-audio');
+            const trackId = imprezatorCurrentTrackId;
+            const wantFade = data.fadeOut !== false && !data.immediate;
+            const titleEl = document.getElementById('current-title');
+            if (data.immediate) {
+                hardStopImprezator();
+                return;
+            }
+            if (!a) {
                 if (trackId) socket.emit('imprezator_ended', { trackId });
-            });
+                imprezatorCurrentTrackId = null;
+                imprezatorCurrentTrackGain = 1;
+                if (titleEl) { titleEl.textContent = '—'; titleEl.classList.add('empty'); }
+                return;
+            }
+            if (a._fadeIntervalId) { clearInterval(a._fadeIntervalId); a._fadeIntervalId = null; }
+            if (wantFade && !a.paused) {
+                imprezatorCurrentTrackId = null;
+                imprezatorCurrentTrackGain = 1;
+                if (titleEl) { titleEl.textContent = '—'; titleEl.classList.add('empty'); }
+                fadeOutAndStop(a, 1000, () => {
+                    if (trackId) socket.emit('imprezator_ended', { trackId });
+                    hardAbortImprezatorAudio(a);
+                });
+                return;
+            }
+            if (trackId) socket.emit('imprezator_ended', { trackId });
+            imprezatorCurrentTrackId = null;
+            imprezatorCurrentTrackGain = 1;
+            if (titleEl) { titleEl.textContent = '—'; titleEl.classList.add('empty'); }
+            hardAbortImprezatorAudio(a);
         }
         socket.on('imprezator_stop', doImprezatorStop);
-        socket.on('admin_stop_music', doImprezatorStop);
+        socket.on('admin_stop_music', () => { imprezatorPlayGen += 1; hardStopImprezator(); });
         socket.on('imprezator_volume', (v) => {
-            const vol = Math.min(1, Math.max(0, v) * imprezatorCurrentTrackGain);
+            const a = document.getElementById('imprezator-audio');
+            if (a && a._fadeIntervalId) return;
+            const vol = clampDigitalOutputLinear(Math.max(0, v) * imprezatorCurrentTrackGain);
             if (imprezatorGainNode) imprezatorGainNode.gain.value = vol;
-            else {
-                const a = document.getElementById('imprezator-audio');
-                if (a) a.volume = vol;
-            }
+            else if (a) a.volume = vol;
         });
 
         async function loadConfigList() {
@@ -592,20 +635,46 @@
         document.getElementById('save-as-cancel').addEventListener('click', hideSaveAs);
         document.getElementById('config-rename-btn').addEventListener('click', renameConfig);
         document.getElementById('config-delete-btn').addEventListener('click', deleteConfig);
-        async function nativeOpenFile() {
-            if (window.imprezatorNative?.showOpenFile) return window.imprezatorNative.showOpenFile();
-            try {
-                const r = await fetch('/api/imprezator/native-open-file', { method: 'POST' });
-                if (!r.ok) throw new Error('HTTP ' + r.status);
-                const d = await r.json();
-                if (d.error) throw new Error(d.error);
-                return d.filePath || null;
-            } catch (e) {
-                alert('Nie można otworzyć dialogu pliku:\n' + e.message + '\n\nUpewnij się, że aplikacja działa jako Electron.');
-                return null;
-            }
+        async function uploadImprezatorBrowserFiles(fileList) {
+            const fd = new FormData();
+            for (const f of fileList) fd.append('files', f);
+            const r = await fetch('/api/imprezator/upload-audio', { method: 'POST', body: fd });
+            const d = await r.json().catch(() => ({}));
+            if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status));
+            return d.files || [];
         }
-        async function nativeOpenDirectory() {
+        function pickBrowserAudioFiles({ directory }) {
+            return new Promise((resolve) => {
+                const inp = document.getElementById(directory ? 'browser-folder-input' : 'browser-file-input');
+                if (!inp) return resolve(directory ? [] : []);
+                const onCh = async () => {
+                    inp.removeEventListener('change', onCh);
+                    const list = Array.from(inp.files || []);
+                    inp.value = '';
+                    if (!list.length) { resolve([]); return; }
+                    try {
+                        resolve(await uploadImprezatorBrowserFiles(list));
+                    } catch (e) {
+                        alert('Wgrywanie plików: ' + (e.message || e));
+                        resolve([]);
+                    }
+                };
+                inp.addEventListener('change', onCh);
+                inp.click();
+            });
+        }
+        async function pickOneAudioForImprezator() {
+            if (window.imprezatorNative?.showOpenFile) {
+                const p = await window.imprezatorNative.showOpenFile();
+                if (!p) return null;
+                return { path: p, label: p.replace(/^.*[/\\]/, '').replace(/\.[^.]+$/, '') };
+            }
+            const uploaded = await pickBrowserAudioFiles({ directory: false });
+            if (!uploaded.length) return null;
+            const u = uploaded[0];
+            return { path: u.path, label: (u.name || u.path || '').replace(/^.*[/\\]/, '').replace(/\.[^.]+$/, '') || 'Utwór' };
+        }
+        async function nativeOpenDirectoryElectronOrServer() {
             if (window.imprezatorNative?.showOpenDirectory) return window.imprezatorNative.showOpenDirectory();
             try {
                 const r = await fetch('/api/imprezator/native-open-directory', { method: 'POST' });
@@ -614,7 +683,6 @@
                 if (d.error) throw new Error(d.error);
                 return d.dirPath || null;
             } catch (e) {
-                alert('Nie można otworzyć dialogu folderu:\n' + e.message + '\n\nUpewnij się, że aplikacja działa jako Electron.');
                 return null;
             }
         }
@@ -623,12 +691,11 @@
             btn.disabled = true;
             btn.textContent = '⏳ Otwieranie...';
             try {
-                const filePath = await nativeOpenFile();
-                if (filePath) {
+                const picked = await pickOneAudioForImprezator();
+                if (picked) {
                     const bank = getCurrentBank();
                     if (!bank.tracks) bank.tracks = [];
-                    const name = filePath.replace(/^.*[/\\]/, '').replace(/\.[^.]+$/, '');
-                    bank.tracks.push({ id: uid(), audio: filePath, displayName: name });
+                    bank.tracks.push({ id: uid(), audio: picked.path, displayName: picked.label });
                     renderTracks();
                 }
             } finally {
@@ -640,17 +707,16 @@
             const btn = document.getElementById('add-folder-btn');
             btn.disabled = true;
             btn.textContent = '⏳ Otwieranie...';
-            let folderPath;
             try {
-                folderPath = await nativeOpenDirectory();
-            } finally {
-                btn.disabled = false;
-                btn.textContent = '+ Dodaj folder';
-            }
-            if (!folderPath) return;
-            fetch('/api/imprezator/audio-files?folder=' + encodeURIComponent(folderPath))
-                .then(r => r.ok ? r.json() : Promise.reject(new Error(r.statusText)))
-                .then(d => {
+                let folderPath = null;
+                if (window.imprezatorNative?.showOpenDirectory) {
+                    folderPath = await window.imprezatorNative.showOpenDirectory();
+                } else {
+                    folderPath = await nativeOpenDirectoryElectronOrServer();
+                }
+                if (folderPath) {
+                    const r = await fetch('/api/imprezator/audio-files?folder=' + encodeURIComponent(folderPath));
+                    const d = await (r.ok ? r.json() : Promise.reject(new Error(r.statusText)));
                     const files = (d.files || []).slice(0, 300);
                     if (!files.length) { alert('Brak plików audio w tym folderze.'); return; }
                     const bank = getCurrentBank();
@@ -660,8 +726,23 @@
                     }
                     renderTracks();
                     alert('Dodano ' + files.length + ' utworów.');
-                })
-                .catch(e => alert('Błąd: ' + (e.message || e)));
+                    return;
+                }
+                const uploaded = await pickBrowserAudioFiles({ directory: true });
+                if (!uploaded.length) return;
+                const bank = getCurrentBank();
+                if (!bank.tracks) bank.tracks = [];
+                for (const f of uploaded) {
+                    bank.tracks.push({ id: uid(), audio: f.path, displayName: (f.name || '').replace(/\.[^.]+$/, '') || (f.path || '').replace(/^.*[/\\]/, '').replace(/\.[^.]+$/, '') });
+                }
+                renderTracks();
+                alert('Dodano ' + uploaded.length + ' utworów.');
+            } catch (e) {
+                alert('Błąd: ' + (e.message || e));
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '+ Dodaj folder';
+            }
         });
         document.getElementById('start-btn').addEventListener('click', startImprezator);
         document.getElementById('btn-editor-intro').addEventListener('click', showEditorMode);

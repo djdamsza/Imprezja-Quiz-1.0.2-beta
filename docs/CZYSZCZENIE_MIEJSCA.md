@@ -5,7 +5,7 @@
 | Polecenie | Co czyści | Szac. zwolnione |
 |-----------|-----------|------------------|
 | `npm run clean` | folder `dist/` (buildy) | ~600 MB |
-| `npm run clean:cache` | Electron, electron-builder, PyInstaller (NJR), node_modules/.cache | ~2 GB |
+| `npm run clean:cache` | Electron, electron-builder, node_modules/.cache | ~2 GB |
 | `npm run clean:cache:npm` | cache npm | ~500 MB |
 
 ## Inne miejsca (ręcznie)
@@ -19,10 +19,6 @@ Jeśli nadal brakuje miejsca, sprawdź:
 - **~/Library/Developer/Xcode/DerivedData** – buildy Xcode (jeśli używasz) – często wiele GB
 - **~/.Trash** – Kosz
 - **~/Downloads** – Pobrane pliki
-
-## NJR Konwerter
-
-Po `npm run clean:cache` folder `tools/vdj-database-editor/build` i `dist` zostaną usunięte. Aby zbudować konwerter od nowa: `npm run build:njr` (wymaga Pythona i PyInstaller).
 
 ## Build bez publikacji na GitHub
 

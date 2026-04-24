@@ -8,6 +8,8 @@
 4. **Submit** → POST do stripe-shop `/api/license/deliver` z `session_id` + `machine_id`
 5. **Backend** weryfikuje płatność, generuje klucz, wysyła e-mail z kluczem
 
+**Strona sukcesu (WordPress / `success.html`)** nie powinna stać mówić „płatność zrealizowana” bez `session_id` w URL ani bez sprawdzenia Stripe. Dostępny jest endpoint `GET /api/checkout/session-status?session_id=cs_…` → `{ ok, paid }` (bez danych osobowych) — strona najpierw to wywołuje, potem pokazuje zielony nagłówek i kroki.
+
 ## Mapowanie Stripe → typ licencji
 
 | Lookup key        | Typ licencji |

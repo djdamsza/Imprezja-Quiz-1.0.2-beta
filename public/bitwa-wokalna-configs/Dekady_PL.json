@@ -1,0 +1,496 @@
+{
+  "banks": [
+    {
+      "id": "t1772652868000_ufqhij1",
+      "name": "Bank 1",
+      "tracks": [
+        {
+          "id": "t1772652902490_42kfajr",
+          "audio": "/uploads/1772652914498-Dla_Mnie_Masz_Stajla.vdjsample",
+          "displayName": "Dla Mnie Masz Stajla",
+          "color": "#ff0000"
+        },
+        {
+          "id": "t1772652983039_elvppzy",
+          "audio": "/uploads/1772653033496-Kazdy_Facet_To_Swinia.vdjsample",
+          "displayName": "Kazdy Facet To Swinia",
+          "color": "#0000ff"
+        },
+        {
+          "id": "t1772653036971_9olly8o",
+          "audio": "/uploads/1772653049318-W_aucie.vdjsample",
+          "displayName": "W aucie",
+          "color": "#ff0000"
+        },
+        {
+          "id": "t1772653083205_y81el50",
+          "audio": "/uploads/1772653097858-Mama_ostrzega__a__Radio_Edit_.vdjsample",
+          "displayName": "Mama ostrzegała (Radio Edit)",
+          "color": "#0000ff"
+        },
+        {
+          "id": "t1772653108123_2dgrg8u",
+          "audio": "/uploads/1772653119668-Rapapara__1_.vdjsample",
+          "displayName": "Rapapara ",
+          "color": "#ff0000"
+        },
+        {
+          "id": "t1772653125667_lpqyt47",
+          "audio": "/uploads/1772653135987-Och_i_ach__Radio_Edit___1_.vdjsample",
+          "displayName": "Och i ach ",
+          "color": "#0000ff"
+        },
+        {
+          "id": "t1772653220837_6s0eeed",
+          "audio": "/uploads/1772636174668-Ona_by_tak_chcia__a__Clean_Radio_Edit___1_.vdjsample",
+          "displayName": "Ona by tak chciała ",
+          "color": "#ff0000"
+        },
+        {
+          "id": "t1772653241454_m2la2ya",
+          "audio": "/uploads/1772653253223-Gdzie_ten__kto__ry_powie_mi.vdjsample",
+          "displayName": "Gdzie ten, który powie mi",
+          "color": "#0000ff"
+        },
+        {
+          "id": "t1772653288604_065ynjz",
+          "audio": "/uploads/1772635932798-A_Wszystko_To__1_.vdjsample",
+          "displayName": "A Wszystko To",
+          "color": "#ff0000"
+        },
+        {
+          "id": "t1772653306555_gizwij7",
+          "audio": "/uploads/1772636231166-Agnieszka_ju___dawno__1_.vdjsample",
+          "displayName": "Agnieszka już dawno",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1772653400603_6z0rknd",
+          "audio": "/uploads/1772653411840-Oddam_Ci_wszystko__Radio_Edit_.vdjsample",
+          "displayName": "Oddam Ci wszystko",
+          "color": "#ff0000"
+        },
+        {
+          "id": "t1772653418738_9xm3pc3",
+          "audio": "/uploads/1772653432326-Szansa__Radio_Edit___1_.vdjsample",
+          "displayName": "Szansa",
+          "color": "#0000ff"
+        },
+        {
+          "id": "t1772653440638_yd62h7q",
+          "audio": "/uploads/1772653896884-Zawsze_Z_Toba_Chcialbym_Byc...__Przez_Miesiac_______2_.vdjsample",
+          "displayName": "Zawsze Z Toba Chcialbym Byc",
+          "color": "#ff0000"
+        },
+        {
+          "id": "t1772653465621_6wkp0yg",
+          "audio": "/uploads/1772653473214-Wesele_w_Dubaju__Radio_Edit_.vdjsample",
+          "displayName": "Wesele w Dubaju (Radio Edit)",
+          "color": "#0000ff"
+        },
+        {
+          "id": "t1772653477787_ks5yxkm",
+          "audio": "/uploads/1772653489418-Highway_To_Hell__Clean___Short_Edit___1_.vdjsample",
+          "displayName": "Highway To Hell ",
+          "color": "#ff0000"
+        },
+        {
+          "id": "t1772653496904_rmr1wt6",
+          "audio": "/uploads/1772653505174-Z_Toba___na_chacie__Radio_Edit_.vdjsample",
+          "displayName": "Z Tobą na chacie ",
+          "color": "#0000ff"
+        },
+        {
+          "id": "t1772653510505_tj8aheg",
+          "audio": "/uploads/1772654128208-Mo__j_jest_ten_kawa__ek_pod__ogi__Album_Version___2_.vdjsample",
+          "displayName": "Mój jest ten kawałek podłogi ",
+          "color": "#ff0000"
+        },
+        {
+          "id": "t1772653524238_ro6rap1",
+          "audio": "/uploads/1772653609682-a_teraz_idziemy_na_jednego_2.mp3",
+          "displayName": "3 sekundy a teraz idziemy INSTRUMENTAL",
+          "color": "#008000"
+        }
+      ]
+    },
+    {
+      "id": "t1775235908463_tnwgqo6",
+      "name": "Bank 2",
+      "tracks": [
+        {
+          "id": "t1775235926013_2r2fiyr",
+          "audio": "/uploads/1775235941614-dekady_zawsze_tam_gdzie_ty.mp3",
+          "displayName": "dekady zawsze tam gdzie ty",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775235944696_0yidlmv",
+          "audio": "/uploads/1775235951513-dekady_90.mp3",
+          "displayName": "dekady 90",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775235953130_nlo7bv9",
+          "audio": "/uploads/1775235960263-dekady_zatan__czysz.mp3",
+          "displayName": "dekady zatańczysz",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775235963165_n4fas7d",
+          "audio": "/uploads/1775235967992-dekady_80.mp3",
+          "displayName": "dekady 80",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775235969595_h5t3k9o",
+          "audio": "/uploads/1775235974984-dekady_zakre__cona.mp3",
+          "displayName": "dekady zakręcona",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775235977362_r7z9ae4",
+          "audio": "/uploads/1775235951513-dekady_90.mp3",
+          "displayName": "dekady 90",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775235983163_u1m3b7q",
+          "audio": "/uploads/1775235988134-dekady_wes_nie_pytaj.mp3",
+          "displayName": "dekady wes nie pytaj",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775235991412_32gigmu",
+          "audio": "/uploads/1775235995892-dekady_10.mp3",
+          "displayName": "dekady 10",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775235996912_o2dcvse",
+          "audio": "/uploads/1775236000944-dekady_s__roda_czwartek.mp3",
+          "displayName": "dekady środa czwartek",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236002662_t7njbjn",
+          "audio": "/uploads/1775235995892-dekady_10.mp3",
+          "displayName": "dekady 10",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236008996_a8ga7ml",
+          "audio": "/uploads/1775236018745-dekady_sobie_i_wam.mp3",
+          "displayName": "dekady sobie i wam",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236021463_pph3tyi",
+          "audio": "/uploads/1775235995892-dekady_10.mp3",
+          "displayName": "dekady 10",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236029397_vj3mtzg",
+          "audio": "/uploads/1775236037603-dekady_s__owianki.mp3",
+          "displayName": "dekady słowianki",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236039778_cqw86u0",
+          "audio": "/uploads/1775235995892-dekady_10.mp3",
+          "displayName": "dekady 10",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236047080_l9kjhpk",
+          "audio": "/uploads/1775236052594-dekady_sciernisko.mp3",
+          "displayName": "dekady sciernisko",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236053695_b3j8b9v",
+          "audio": "/uploads/1775236058427-dekady_00.mp3",
+          "displayName": "dekady 00",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236060195_3733zja",
+          "audio": "/uploads/1775236067352-dekady_rowery_dwa.mp3",
+          "displayName": "dekady rowery dwa",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236069261_mxc2t99",
+          "audio": "/uploads/1775235951513-dekady_90.mp3",
+          "displayName": "dekady 90",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236075281_5ki26yd",
+          "audio": "/uploads/1775236080812-dekady_pokolenie.mp3",
+          "displayName": "dekady pokolenie",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236082812_8jxcg5c",
+          "audio": "/uploads/1775236058427-dekady_00.mp3",
+          "displayName": "dekady 00",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236088745_v5eqjue",
+          "audio": "/uploads/1775236094627-dekady_otwieram_wino.mp3",
+          "displayName": "dekady otwieram wino",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236096162_b27vtpu",
+          "audio": "/uploads/1775236058427-dekady_00.mp3",
+          "displayName": "dekady 00",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236102512_klu4d53",
+          "audio": "/uploads/1775236108453-dekady_nie_nie_nie.mp3",
+          "displayName": "dekady nie nie nie",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236110129_cr6dhwi",
+          "audio": "/uploads/1775236058427-dekady_00.mp3",
+          "displayName": "dekady 00",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236116698_lagwg0b",
+          "audio": "/uploads/1775236124457-dekady_kryzysowa.mp3",
+          "displayName": "dekady kryzysowa",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236128695_1owgru9",
+          "audio": "/uploads/1775235967992-dekady_80.mp3",
+          "displayName": "dekady 80",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236134112_gu3fqco",
+          "audio": "/uploads/1775236142608-dekady_konik2.mp3",
+          "displayName": "dekady konik2",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236144562_ytweyyt",
+          "audio": "/uploads/1775235951513-dekady_90.mp3",
+          "displayName": "dekady 90",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236149628_7eugeb4",
+          "audio": "/uploads/1775236156118-dekady_konik.mp3",
+          "displayName": "dekady andzia",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236162745_vr7ihk7",
+          "audio": "/uploads/1775235967992-dekady_80.mp3",
+          "displayName": "dekady 80",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236169312_dwwxy10",
+          "audio": "/uploads/1775236180828-dekady_kocham_cie___jak_irlandie.mp3",
+          "displayName": "dekady kocham cię jak irlandie",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236182046_j12w064",
+          "audio": "/uploads/1775235967992-dekady_80.mp3",
+          "displayName": "dekady 80",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236189278_wu9dr4e",
+          "audio": "/uploads/1775236198197-dekady_kocham_cie.mp3",
+          "displayName": "dekady hi-fi",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236203511_oyhk4b7",
+          "audio": "/uploads/1775235967992-dekady_80.mp3",
+          "displayName": "dekady 80",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236209145_ejl6zsi",
+          "audio": "/uploads/1775236214958-dekady_kobiety_sa___gora__ce.mp3",
+          "displayName": "dekady kobiety są gorące",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236216413_u6zjoid",
+          "audio": "/uploads/1775235951513-dekady_90.mp3",
+          "displayName": "dekady 90",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236223894_btbxaqn",
+          "audio": "/uploads/1775236234945-dekady_kiedy_powiem_sobie_dosc__.mp3",
+          "displayName": "dekady kiedy powiem sobie dosć",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236236494_g5s2e3h",
+          "audio": "/uploads/1775235951513-dekady_90.mp3",
+          "displayName": "dekady 90",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236241812_hsigiw2",
+          "audio": "/uploads/1775236247659-dekady_kamien___z_napisem_love.mp3",
+          "displayName": "dekady kamień z napisem love",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236249161_sjvxg3n",
+          "audio": "/uploads/1775235995892-dekady_10.mp3",
+          "displayName": "dekady 10",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236254048_vvbhqjf",
+          "audio": "/uploads/1775236259610-dekady_jolka_jolka.mp3",
+          "displayName": "dekady jolka jolka",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236261112_tsow6g6",
+          "audio": "/uploads/1775235967992-dekady_80.mp3",
+          "displayName": "dekady 80",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236266228_ioq1vq0",
+          "audio": "/uploads/1775236271560-dekady_ide_na_plaze.mp3",
+          "displayName": "dekady ide na plaze",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236272927_t93wgp8",
+          "audio": "/uploads/1775236058427-dekady_00.mp3",
+          "displayName": "dekady 00",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236278294_vm0cegk",
+          "audio": "/uploads/1775236289882-dekady_ich_jest_wie__cej.mp3",
+          "displayName": "dekady W dobrą stronę",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236298395_p0tsgs4",
+          "audio": "/uploads/1775235995892-dekady_10.mp3",
+          "displayName": "dekady 10",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236303245_8urwnei",
+          "audio": "/uploads/1775236317139-dekady_g__ucha_noc.mp3",
+          "displayName": "dekady głucha noc",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236318262_nrzyv8w",
+          "audio": "/uploads/1775236058427-dekady_00.mp3",
+          "displayName": "dekady 00",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236324079_d7p9pdk",
+          "audio": "/uploads/1775236328853-dekady_dunka_na_dwa_serca.mp3",
+          "displayName": "dekady dunka na dwa serca",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236330410_abuqp41",
+          "audio": "/uploads/1775235951513-dekady_90.mp3",
+          "displayName": "dekady 90",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236336743_bvb425p",
+          "audio": "/uploads/1775236342792-dekady_czerwone_korale.mp3",
+          "displayName": "dekady czerwone korale",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236344128_82q5lav",
+          "audio": "/uploads/1775236058427-dekady_00.mp3",
+          "displayName": "dekady 00",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236349162_lh912or",
+          "audio": "/uploads/1775236358106-dekady_bo_jo_cie_kochom.mp3",
+          "displayName": "dekady bo jo cie kochom",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236359579_bwbi2tm",
+          "audio": "/uploads/1775235967992-dekady_80.mp3",
+          "displayName": "dekady 80",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236364845_tjhqczo",
+          "audio": "/uploads/1775236369337-dekady_ba__kanica.mp3",
+          "displayName": "dekady bałkanica",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236370761_813cxbj",
+          "audio": "/uploads/1775235995892-dekady_10.mp3",
+          "displayName": "dekady 10",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236376928_61rfnq4",
+          "audio": "/uploads/1775236108453-dekady_nie_nie_nie.mp3",
+          "displayName": "dekady autobiografia",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236389562_4fgk9jb",
+          "audio": "/uploads/1775235967992-dekady_80.mp3",
+          "displayName": "dekady 80",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236394977_lcxj83u",
+          "audio": "/uploads/1775236402316-dekady_aniala_glos.mp3",
+          "displayName": "dekady aniala glos",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236403729_h3ta51w",
+          "audio": "/uploads/1775236058427-dekady_00.mp3",
+          "displayName": "dekady 00",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236409160_k7owyqb",
+          "audio": "/uploads/1775236421450-dekady_agnieszka_.mp3",
+          "displayName": "dekady agnieszka ",
+          "color": "#3498db"
+        },
+        {
+          "id": "t1775236423695_rtmvrci",
+          "audio": "/uploads/1775236058427-dekady_00.mp3",
+          "displayName": "dekady 00",
+          "color": "#3498db"
+        }
+      ]
+    }
+  ]
+}

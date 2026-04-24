@@ -3,7 +3,7 @@
   "banks": [
     {
       "id": "b1",
-      "name": "Bank 1",
+      "name": "Kafelki",
       "tiles": [
         {
           "id": "t0",
@@ -29,9 +29,9 @@
         },
         {
           "id": "t2",
-          "color": "#ffffff",
+          "color": "#ff00ff",
           "label": "HOLLY",
-          "image": "",
+          "image": "😂",
           "audio": "/uploads/1772637884600-heavenly-music-gaming-sound-effect-hd-mp3cut.mp3",
           "volume": 77,
           "isBackground": false,

@@ -358,6 +358,15 @@ function setupAutoUpdater() {
                     return { available: false, message: 'Masz najnowszą wersję.' };
                 }
                 const version = result.updateInfo.version;
+                try {
+                    const semver = require('semver');
+                    const cur = require('electron').app.getVersion();
+                    const vNew = semver.coerce(version);
+                    const vCur = semver.coerce(cur);
+                    if (vNew && vCur && !semver.gt(vNew, vCur)) {
+                        return { available: false, message: 'Masz najnowszą wersję.' };
+                    }
+                } catch (_) { /* brak semver / porównania — zostaw zachowanie domyślne */ }
                 return { available: true, version, message: `Dostępna wersja ${version}` };
             } catch (err) {
                 const msg = err && err.message ? err.message : String(err);
@@ -803,21 +812,21 @@ function createWindowWithRetry() {
     function onFailLoad(win, label) {
         return (event, errorCode, errorDescription, validatedURL, isMainFrame) => {
             if (!win || win.isDestroyed() || !isMainFrame) return;
-            retryCount++;
-            if (retryCount >= maxRetries) {
+        retryCount++;
+        if (retryCount >= maxRetries) {
                 logToFile('❌ Przekroczono limit retry ładowania ' + label);
                 const w = editorWindow || screenWindow;
                 if (w && !w.isDestroyed()) {
                     dialog.showMessageBoxSync(w, {
-                        type: 'error',
-                        title: 'Imprezja Quiz – błąd',
-                        message: `Serwer nie wystartował w czasie.\n\nSprawdź log: ${logFile}`
-                    });
+                type: 'error',
+                title: 'Imprezja Quiz – błąd',
+                message: `Serwer nie wystartował w czasie.\n\nSprawdź log: ${logFile}`
+            });
                 }
-                return;
-            }
+            return;
+        }
             logToFile(`⏳ Retry ${retryCount}/${maxRetries} ładowania ${label}...`);
-            setTimeout(tryLoad, 2000);
+        setTimeout(tryLoad, 2000);
         };
     }
 

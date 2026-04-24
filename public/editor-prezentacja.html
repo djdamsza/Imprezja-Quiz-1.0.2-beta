@@ -146,8 +146,10 @@
                     if (s.vizOverlayCountdown) extras.push('⏱');
                     if (s.vizOverlayDbmeter) extras.push('dB');
                     const extraStr = extras.length ? ' + ' + extras.join(' ') : '';
-                    content = (p === 'winamp' ? 'Winamp (5 trybów)' + (s.winampAutoRotate ? ' • auto' : '') : p === 'webvs' ? 'Webvs AVS' : p === 'milkdrop' ? 'Milkdrop (500+ presetów)' : 'Wizualizacja audio') + extraStr;
-                    thumb = '<div class="thumb" style="display:flex;align-items:center;justify-content:center;font-size:10px;color:#888;">' + (p === 'winamp' ? '📊' : p === 'webvs' ? '🌀' : p === 'milkdrop' ? '🌈' : '🎵') + '</div>';
+                    const vizLabels = { equalizer: 'Equalizer', 'equalizer-mirror': 'Equalizer (mirror)', spectrum: 'Spektrum', led: 'LED Bars', radial: 'Radialny', lumi: 'Lumi Bars', reflex: 'Reflex', graph: 'Area Graph', dual: 'Dual Stereo', prism: 'Prism Radial', winamp: 'Winamp (5 trybów)', webvs: 'Webvs AVS', milkdrop: 'Milkdrop (500+ presetów)' };
+                    const vizIcons = { equalizer: '🎵', 'equalizer-mirror': '🪞', spectrum: '🎚', led: '🔢', radial: '🌀', lumi: '✨', reflex: '💧', graph: '📈', dual: '🎧', prism: '🔮', winamp: '📊', webvs: '🌀', milkdrop: '🌈' };
+                    content = (vizLabels[p] || 'Wizualizacja audio') + (p === 'winamp' && s.winampAutoRotate ? ' • auto' : '') + extraStr;
+                    thumb = '<div class="thumb" style="display:flex;align-items:center;justify-content:center;font-size:10px;color:#888;">' + (vizIcons[p] || '🎵') + '</div>';
                 } else if (s.type === 'clock') {
                     content = 'Zegar cyfrowy' + (s.showSeconds ? ' (z sekundami)' : '');
                     thumb = '<div class="thumb" style="display:flex;align-items:center;justify-content:center;font-size:10px;color:#888;">🕐</div>';
@@ -237,8 +239,38 @@
                 const overlayCountdown = !!(s.vizOverlayCountdown);
                 const overlayCountdownMin = Math.max(1, Math.min(120, s.vizOverlayCountdownMinutes || 3));
                 const overlayDbmeter = !!(s.vizOverlayDbmeter);
+                const vizGradient = s.vizGradient || '';
+                const isAudioMotion = ['equalizer','equalizer-mirror','spectrum','led','radial','lumi','reflex','graph','dual','prism'].includes(preset);
                 content.innerHTML = `
-                    <div class="form-row"><label>Preset</label><select id="edit-preset"><option value="equalizer" ${preset==='equalizer'?'selected':''}>Equalizer (klasyczny)</option><option value="equalizer-mirror" ${preset==='equalizer-mirror'?'selected':''}>Equalizer (odbicie lustrzane)</option><option value="spectrum" ${preset==='spectrum'?'selected':''}>Spektrum</option><option value="led" ${preset==='led'?'selected':''}>LED</option><option value="winamp" ${isWinamp?'selected':''}>Winamp (5 trybów)</option><option value="webvs" ${preset==='webvs'?'selected':''}>Webvs AVS (tunel, spektrum)</option><option value="milkdrop" ${preset==='milkdrop'?'selected':''}>Milkdrop (klasyczny wizualizer)</option></select></div>
+                    <div class="form-row"><label>Preset</label><select id="edit-preset">
+                        <optgroup label="— Equalizer (AudioMotion) —">
+                            <option value="equalizer" ${preset==='equalizer'?'selected':''}>Equalizer (klasyczny)</option>
+                            <option value="equalizer-mirror" ${preset==='equalizer-mirror'?'selected':''}>Equalizer (odbicie lustrzane)</option>
+                            <option value="spectrum" ${preset==='spectrum'?'selected':''}>Spektrum (wąskie pasma)</option>
+                            <option value="led" ${preset==='led'?'selected':''}>LED Bars (klasyczny miernik)</option>
+                            <option value="reflex" ${preset==='reflex'?'selected':''}>Reflex (odbicie w wodzie)</option>
+                            <option value="lumi" ${preset==='lumi'?'selected':''}>Luminous Bars (świetliste)</option>
+                        </optgroup>
+                        <optgroup label="— Zaawansowane (AudioMotion) —">
+                            <option value="radial" ${preset==='radial'?'selected':''}>Radialny (obrotowy)</option>
+                            <option value="prism" ${preset==='prism'?'selected':''}>Prism Radial (pryzmat)</option>
+                            <option value="graph" ${preset==='graph'?'selected':''}>Area Graph (wypełniona fala)</option>
+                            <option value="dual" ${preset==='dual'?'selected':''}>Dual Stereo (L+R oddzielnie)</option>
+                        </optgroup>
+                        <optgroup label="— Klasyczne wizualizery —">
+                            <option value="winamp" ${isWinamp?'selected':''}>Winamp (5 trybów)</option>
+                            <option value="webvs" ${preset==='webvs'?'selected':''}>Webvs AVS (tunel, spektrum)</option>
+                            <option value="milkdrop" ${preset==='milkdrop'?'selected':''}>Milkdrop (500+ presetów)</option>
+                        </optgroup>
+                    </select></div>
+                    <div class="form-row" id="edit-viz-gradient-row" style="${isAudioMotion?'':'display:none'}"><label>Kolorystyka (gradient)</label><select id="edit-viz-gradient">
+                        <option value="" ${vizGradient===''?'selected':''}>Domyślna dla presetu</option>
+                        <option value="rainbow" ${vizGradient==='rainbow'?'selected':''}>Rainbow (tęcza)</option>
+                        <option value="prism" ${vizGradient==='prism'?'selected':''}>Prism</option>
+                        <option value="classic" ${vizGradient==='classic'?'selected':''}>Classic (zielony/żółty/czerwony)</option>
+                        <option value="orangered" ${vizGradient==='orangered'?'selected':''}>Orange Red</option>
+                        <option value="steelblue" ${vizGradient==='steelblue'?'selected':''}>Steel Blue</option>
+                    </select></div>
                     <div id="edit-winamp-opts" style="${isWinamp?'':'display:none'}">
                         <div class="form-row"><label class="checkbox-row"><input type="checkbox" id="edit-winamp-auto" ${winampAuto?'checked':''}> Auto zmiana wizualizacji</label></div>
                         <div class="form-row"><label>Co ile sekund (5–120)</label><input type="number" id="edit-winamp-interval" value="${winampInterval}" min="5" max="120" step="1"></div>
@@ -259,7 +291,10 @@
                     document.getElementById('edit-viz-overlay-countdown-opts').style.display = document.getElementById('edit-viz-overlay-countdown').checked ? '' : 'none';
                 };
                 document.getElementById('edit-preset').onchange = () => {
-                    document.getElementById('edit-winamp-opts').style.display = document.getElementById('edit-preset').value === 'winamp' ? '' : 'none';
+                    const v = document.getElementById('edit-preset').value;
+                    document.getElementById('edit-winamp-opts').style.display = v === 'winamp' ? '' : 'none';
+                    const amPresets = ['equalizer','equalizer-mirror','spectrum','led','radial','lumi','reflex','graph','dual','prism'];
+                    document.getElementById('edit-viz-gradient-row').style.display = amPresets.includes(v) ? '' : 'none';
                 };
             } else if (s.type === 'clock') {
                 const sec = s.showSeconds !== false;
@@ -321,6 +356,9 @@
                     const intEl = document.getElementById('edit-winamp-interval');
                     s.winampRotateInterval = intEl ? Math.max(5, Math.min(120, parseInt(intEl.value, 10) || 10)) : 10;
                 }
+                const gradEl = document.getElementById('edit-viz-gradient');
+                const gradVal = gradEl ? gradEl.value : '';
+                if (gradVal) s.vizGradient = gradVal; else delete s.vizGradient;
                 s.vizOverlayClock = document.getElementById('edit-viz-overlay-clock') ? document.getElementById('edit-viz-overlay-clock').checked : false;
                 s.vizOverlayClockSeconds = document.getElementById('edit-viz-overlay-clock-sec') ? document.getElementById('edit-viz-overlay-clock-sec').checked : true;
                 s.vizOverlayCountdown = document.getElementById('edit-viz-overlay-countdown') ? document.getElementById('edit-viz-overlay-countdown').checked : false;

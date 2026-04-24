@@ -63,7 +63,7 @@ pyrekordbox otwiera zarówno `master.db`, jak i `master.backup3.db`.
 
 **Do weryfikacji:** W Rekordbox wykonaj **File → Library → Backup Library** i zapisz plik .zip.
 
-Skrypt analizy: `tools/vdj-database-editor/scripts/analyze_rb_backup_zip.py`
+Skrypt analizy (w repozytorium **njr-konwerter**, katalog `editor/scripts/`): `analyze_rb_backup_zip.py`
 
 ```bash
 python scripts/analyze_rb_backup_zip.py ~/Downloads/rekordbox-backup.zip

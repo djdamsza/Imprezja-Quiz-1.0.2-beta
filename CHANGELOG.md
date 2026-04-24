@@ -2,6 +2,46 @@
 
 ---
 
+## v1.2.4 (kwiecień 2026) — wydanie stabilne
+
+### Sklep Stripe / licencje (stripe-shop, backend)
+- **Odnowienie subskrypcji** – po opłaceniu faktury (`invoice.paid`) dla `subscription_cycle`, `subscription_update` i `subscription_threshold` serwer generuje **nowy klucz RSA** (ten sam typ co plan) i wysyła go e-mailem; wcześniej odnowienie w Stripe nie przedłużało licencji w programie.
+- **Zapis Machine ID w Stripe** – po odebraniu klucza przez `/api/license/deliver` identyfikator jest zapisywany w metadanych **klienta** i **subskrypcji** (`imprezja_machine_id`), co umożliwia automat przy kolejnych płatnościach.
+- **Idempotencja webhooka** – pole `imprezja_last_license_invoice_id` na subskrypcji zapobiega podwójnej wysyłce przy retry Stripe.
+- **Brak Machine ID w metadanych** – dedykowany e-mail z instrukcją (np. subskrypcje sprzed wdrożenia lub zmiana komputera).
+
+### Uwaga (licencja / wiele systemów)
+- **Machine ID jest inny na Windows i na macOS** (do identyfikatora wchodzi m.in. platforma OS). Klucz trzeba zamówić / wygenerować dla ID z **tego samego systemu**, na którym uruchamiany jest program. Planowana późniejsza poprawka UX lub wspólny fingerprint sprzętowy.
+
+---
+
+## v1.2.3 (kwiecień 2026) — wydanie stabilne
+
+### Familiada
+- **Przyciski (buzzery) jako PWA** – możliwość dodania `buttons.html` jako skrótu na ekranie głównym tabletu / telefonu (osobny manifest, ikony, tryb standalone).
+- **Auto-reconnect po restarcie serwera** – przyciski automatycznie łączą się ponownie i pobierają aktualny stan rundy (widoczny wskaźnik „Łączenie…”, pełnoekranowy overlay w razie utraty łączności).
+- **Podmiana kolorów (zamiana stron niebieski/czerwony)** rozszerzona na wszystkie elementy admina (przyciski X / XX / XXX, ×2, ×3, przyznanie punktów) oraz na fizyczne buzzery – kolor „niebieski”/„czerwony” zawsze zgodny z aktualnym wyglądem TV.
+- **Oryginalna czcionka Familiada (LED)** – self-hosted, rozmieszczone kropki (naprawione nakładanie), pełny alfabet polski. Ekran renderuje napisy bez rozmyć.
+- **Redesign ekranu jako tablica z lampami** – ciemne tło, siatka „nieaktywnych” lamp, miękki blask dla zapalonych odpowiedzi, usunięta biała ramka.
+- **Dynamiczne skalowanie pytań** – JS dopasowuje rozmiar i letter-spacing pytania tak, by zawsze mieściło się w polu bez obcinania (wcześniejsze statyczne klasy zastąpione pętlą auto-fit).
+
+### Prezentacje – wizualizacje audio
+- **Milkdrop (butterchurn + ~500 presetów) w pełni offline** – zamiast CDN `esm.sh` biblioteki serwowane z `/lib/butterchurn` (`node_modules/butterchurn*`). Koniec z „Failed to fetch dynamically imported module”.
+- **Naprawione skalowanie Milkdropa** – prawidłowe proporcje na całym ekranie (także retina/HiDPI, iframe i fullscreen), dzięki uwzględnieniu `devicePixelRatio` i `ResizeObserver`. Znika problem z wizualizacją pokazywaną tylko w lewym-dolnym rogu.
+- **6 nowych trybów wizualizacji (AudioMotion)**: Radialny, Prism Radial, Luminous Bars, Reflex (odbicie w wodzie), Area Graph, Dual Stereo (L/R osobno). Łącznie 10 presetów AudioMotion cyklicznie przełączanych strzałkami.
+- **Wybór gradientu kolorystycznego** (Rainbow / Prism / Classic / Orange Red / Steel Blue) per slajd wizualizacji w edytorze.
+- **Strzałki ← / → przełączają tryb wizualizacji** we wszystkich presetach wizualnych (wcześniej tylko w Milkdrop / Webvs / Winamp). Strzałki na zdjęciach/wideo – dalej zmiana slajdu.
+
+### Edytor prezentacji
+- **Zgrupowane presety** wizualizacji w dropdownie (Equalizer / Zaawansowane / Klasyczne wizualizery) + nowe ikony i etykiety na liście slajdów.
+- **Usuwanie i zmiana nazwy prezentacji** trwale się utrzymują po restarcie serwera – nowy mechanizm markera `.seeded` w katalogu danych użytkownika (domyślne prezentacje kopiowane tylko przy pierwszym uruchomieniu, nie re-seedowane przy każdym starcie).
+
+### Biblioteki / zależności
+- Dodane: `butterchurn@^2.6.7`, `butterchurn-presets@^2.4.7`, `audiomotion-analyzer@^4.5.4`, `@fontsource/silkscreen`, `@fontsource/jersey-10`, `@fontsource/dotgothic16`.
+- Nowe trasy statyczne w serwerze: `/lib/butterchurn`, `/lib/butterchurn-presets`, `/lib/audiomotion`, `/fonts/silkscreen`, `/fonts/jersey-10`, `/fonts/dotgothic16`, `/fonts/vt323`, `/fonts/press-start-2p`.
+
+---
+
 ## v1.2.2 (kwiecień 2026) — wydanie stabilne
 
 ### Familiada

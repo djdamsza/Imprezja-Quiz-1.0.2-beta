@@ -1,0 +1,288 @@
+{
+  "disableTimePoints": false,
+  "questions": [
+    {
+      "id": "q_1775242651362_6a4ym",
+      "type": "QUIZ",
+      "question": "Co to za surowiec?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Netheryt",
+        "Ruda lazurytu",
+        "Ruda diamentu",
+        "Creeper"
+      ],
+      "media": "/uploads/1775239132127-ruda_diamentu.webp",
+      "image": "/uploads/1775239132127-ruda_diamentu.webp",
+      "imageSmall": "/uploads/1775239132127-ruda_diamentu-thumb.webp",
+      "correct": 2
+    },
+    {
+      "id": "q_1775242651362_7adsq",
+      "type": "QUIZ",
+      "question": "Pokemon - Jaki to swór?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Pikachu",
+        "Bulbasaur",
+        "Charmander",
+        "Charizard"
+      ],
+      "media": "/uploads/1775239337089-Bulbasaur.webp",
+      "image": "/uploads/1775239337089-Bulbasaur.webp",
+      "imageSmall": "/uploads/1775239337089-Bulbasaur-thumb.webp",
+      "correct": 1
+    },
+    {
+      "id": "q_1775242651362_8xfa9",
+      "type": "VOTE",
+      "question": "Do czego służy ten zeszyt?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Matematyka",
+        "Język polski"
+      ],
+      "media": "/uploads/1775239488812-trzy_linie_niebieskie.webp",
+      "image": "/uploads/1775239488812-trzy_linie_niebieskie.webp",
+      "imageSmall": "/uploads/1775239488812-trzy_linie_niebieskie-thumb.webp",
+      "correct": 1
+    },
+    {
+      "id": "q_1775242651362_m1q1b",
+      "type": "VOTE",
+      "question": "Czy Słońce to największa planeta naszegu układu słonecznego?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Tak",
+        "Nie"
+      ],
+      "media": "/uploads/1775239597101-83320514-cartoon-smiling-sun-giving-thumb-up.webp",
+      "image": "/uploads/1775239597101-83320514-cartoon-smiling-sun-giving-thumb-up.webp",
+      "imageSmall": "/uploads/1775239597101-83320514-cartoon-smiling-sun-giving-thumb-up-thumb.webp",
+      "correct": 1
+    },
+    {
+      "id": "q_1775242651362_rzs6l",
+      "type": "QUIZ",
+      "question": "Która planeta Układu Słonecznego słynie z ogromnych pierścieni? ",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Venus",
+        "Mars",
+        "Jowisz",
+        "Saturn"
+      ],
+      "media": "/uploads/1775239646742-1000_F_316550206_zCjSYiLsDuFSwJt29NEEHp59D5Cxj0fZ.webp",
+      "image": "/uploads/1775239646742-1000_F_316550206_zCjSYiLsDuFSwJt29NEEHp59D5Cxj0fZ.webp",
+      "imageSmall": "/uploads/1775239646742-1000_F_316550206_zCjSYiLsDuFSwJt29NEEHp59D5Cxj0fZ-thumb.webp",
+      "correct": 3
+    },
+    {
+      "id": "q_1775242651362_zflwp",
+      "type": "MUSIC",
+      "question": "Z jakiej gry pochodzi ten dźwięk?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Mortal Kombat",
+        "Minecraft",
+        "FortNite",
+        "Super Mario",
+        "Roblox"
+      ],
+      "media": "/uploads/1775239876656-creeper.mp3",
+      "audio": "/uploads/1775239876656-creeper.mp3",
+      "correct": 1
+    },
+    {
+      "id": "q_1775242651362_fhskp",
+      "type": "MUSIC",
+      "question": "Z jakiej bajki jest ta piosenka?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Pokemon",
+        "Roblox",
+        "Minecraft",
+        "Mała Syrenka",
+        "Myszka Micky"
+      ],
+      "media": "/uploads/1775240059507-lalala_1i920bH.mp3",
+      "audio": "/uploads/1775240059507-lalala_1i920bH.mp3",
+      "correct": 0
+    },
+    {
+      "id": "q_1775242651362_0d8t3",
+      "type": "MUSIC",
+      "question": "JakI budynek wydaje takie odgłosy?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Pizzeria",
+        "Lodziarnia",
+        "Sklep Dino",
+        "Szkoła",
+        "Fiku-Miku"
+      ],
+      "media": "/uploads/1775240143588-school-bell-ring.mp3",
+      "audio": "/uploads/1775240143588-school-bell-ring.mp3",
+      "correct": 3
+    },
+    {
+      "id": "q_1775242651362_9xpmb",
+      "type": "ESTIMATION",
+      "question": "Minecraft - Jaka jest maksymalna wysokość budowania w podstawowej wersji gry?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "/uploads/1775240390666-410034692.webp",
+      "image": "/uploads/1775240390666-410034692.webp",
+      "imageSmall": "/uploads/1775240390666-410034692-thumb.webp",
+      "correctValue": 320,
+      "min": 100,
+      "max": 1000
+    },
+    {
+      "id": "q_1775242651362_uhp7g",
+      "type": "ESTIMATION",
+      "question": " Ile dni zajmuje Ziemi pełne okrążenie Słońca?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "/uploads/1775240450936-Ky2k9lLaHR0cDovL29jZG4uZXUvaW1hZ2VzL3B1bHNjbXMvTmpZN01EQV8vZTgxOGViMzA2YzZlYjk0YTk3NjkwNDhjNTczMDgxMGEuanBnkpUDADjNA-jNAjKTBc0JYM0E7N4AAqEwB6ExBA.webp",
+      "image": "/uploads/1775240450936-Ky2k9lLaHR0cDovL29jZG4uZXUvaW1hZ2VzL3B1bHNjbXMvTmpZN01EQV8vZTgxOGViMzA2YzZlYjk0YTk3NjkwNDhjNTczMDgxMGEuanBnkpUDADjNA-jNAjKTBc0JYM0E7N4AAqEwB6ExBA.webp",
+      "imageSmall": "/uploads/1775240450936-Ky2k9lLaHR0cDovL29jZG4uZXUvaW1hZ2VzL3B1bHNjbXMvTmpZN01EQV8vZTgxOGViMzA2YzZlYjk0YTk3NjkwNDhjNTczMDgxMGEuanBnkpUDADjNA-jNAjKTBc0JYM0E7N4AAqEwB6ExBA-thumb.webp",
+      "correctValue": 365,
+      "min": 100,
+      "max": 500
+    },
+    {
+      "id": "q_1775242651362_7octo",
+      "type": "LETTER",
+      "question": "Podaj nazwę polskiego miasta na literę....",
+      "time": 45,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "",
+      "correct": -1
+    },
+    {
+      "id": "q_1775242651362_cz4t5",
+      "type": "HOT_OR_NOT",
+      "question": "Kto jest mocniejszy?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Opcja A",
+        "Opcja B"
+      ],
+      "media": "",
+      "imageA": "/uploads/1775240682488-d2b29f8c42a89b2f4b5a8597d1c0.webp",
+      "imageB": "/uploads/1775240755741-tqxp6jgx.webp",
+      "imageSmallA": "/uploads/1775240682488-d2b29f8c42a89b2f4b5a8597d1c0-thumb.webp",
+      "imageSmallB": "/uploads/1775240755741-tqxp6jgx-thumb.webp",
+      "correct": 0
+    },
+    {
+      "id": "q_1775242651362_conlc",
+      "type": "QUIZ",
+      "question": "Jak nazywa się wirtualna waluta, za którą gracze kupują ubrania, przedmioty i dodatki w grze Roblox?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Minecoins",
+        "V-Dolce",
+        "Robuxy",
+        "Tixy"
+      ],
+      "media": "/uploads/1775242649581-pln4.webp",
+      "image": "/uploads/1775242649581-pln4.webp",
+      "imageSmall": "/uploads/1775242649581-pln4-thumb.webp",
+      "correct": 2
+    },
+    {
+      "id": "q_1775242651362_a3nn0",
+      "type": "ESTIMATION",
+      "question": "Jaka jest maksymalna liczba znajomych, których możesz dodać do swojej oficjalnej listy przyjaciół na jednym koncie w Robloxie?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "/uploads/1775241334883-051ba3f70d6a2a-948-568-48-3-1391-834.webp",
+      "image": "/uploads/1775241334883-051ba3f70d6a2a-948-568-48-3-1391-834.webp",
+      "imageSmall": "/uploads/1775241334883-051ba3f70d6a2a-948-568-48-3-1391-834-thumb.webp",
+      "correctValue": 200,
+      "min": 10,
+      "max": 300
+    },
+    {
+      "id": "q_1775242651362_277ez",
+      "type": "VOTE_IMG",
+      "question": "W Brookhaven musisz bardzo długo pracować, zbierać monety i awansować na wyższe poziomy, aby odblokować podstawowe zawody takie jak policjant, lekarz czy nauczyciel.",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Tak",
+        "Nie"
+      ],
+      "media": "/uploads/1775242158393-noFilter.webp",
+      "image": "/uploads/1775242158393-noFilter.webp",
+      "imageSmall": "/uploads/1775242158393-noFilter-thumb.webp",
+      "correct": 1
+    },
+    {
+      "id": "q_1775242651362_9sc78",
+      "type": "VOTE_IMG",
+      "question": "Jeśli postawisz łóżko w mrocznym wymiarze zwanym Netherem i spróbujesz w nim zasnąć, odrodzisz się w nim po przebudzeniu.",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Tak",
+        "Nie"
+      ],
+      "media": "/uploads/1775242321769-RRSmXb3.webp",
+      "image": "/uploads/1775242321769-RRSmXb3.webp",
+      "imageSmall": "/uploads/1775242321769-RRSmXb3-thumb.webp",
+      "correct": 1
+    },
+    {
+      "id": "q_1775242651362_4t0ul",
+      "type": "ESTIMATION",
+      "question": "Z ilu dokładnie okienek (slotów) na przedmioty składa się taka podwójna skrzynia?",
+      "time": 30,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "/uploads/1775242417745-10fdd8a453238c162c74d2934e2e.webp",
+      "image": "/uploads/1775242417745-10fdd8a453238c162c74d2934e2e.webp",
+      "imageSmall": "/uploads/1775242417745-10fdd8a453238c162c74d2934e2e-thumb.webp",
+      "correctValue": 54,
+      "min": 20,
+      "max": 100
+    }
+  ],
+  "thanksScreen": {
+    "text": "Dziękujemy za zabawę",
+    "image": "/uploads/1775242473332-image_27.webp"
+  }
+}

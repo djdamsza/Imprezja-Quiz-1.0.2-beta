@@ -1,4 +1,4 @@
-<!-- Imprezja Quiz 1.2.2 – pełna treść strony produktu (ŹRÓDŁO dla sklepu). Wklej do bloku Własny HTML na początku treści. Duplikat z cennikiem: docs/wordpress/stripe-cennik.html — przy dużych zmianach zsynchronizuj oba lub skopiuj od pierwszego <hr> po sekcji „Pobier".
+<!-- Imprezja Quiz 1.2.4 — GŁÓWNE ŹRÓDŁO strony produktu / sklepu (cennik, pobieranie, pakiet w kartach, opis, filmy, linki prawne). Duplikat nazwy: imprezja-quiz-sklep-pelna-strona.html. Wklej w WordPress → Własny HTML. Zsynchronizuj cennik/pobieranie ze stripe-cennik.html przy zmianach checkout.
      SEO (title, meta description, krótki opis, OG, FAQ, JSON-LD): docs/wordpress/imprezja-quiz-SEO.md
      napraw-uninstaller.bat jest wbudowany (Base64) przy przycisku „Pobierz” — po edycji pliku w repo: node scripts/embed-napraw-uninstaller-in-wordpress-docs.js -->
 <div id="imprezja-pobierz" class="imprezja-pobierz">
@@ -9,7 +9,24 @@
 </div>
 
 <style>#iq-cennik.iq-blik .iq-grid-sub{display:none!important}#iq-cennik.iq-blik .iq-grid-once{display:flex!important}#iq-cennik.iq-blik .iq-note-sub{display:none!important}#iq-cennik.iq-blik .iq-note-once{display:block!important}#iq-cennik.iq-blik .iq-lbl-sub{background:#fff!important;color:#3b82f6!important}#iq-cennik.iq-blik .iq-lbl-once{background:#3b82f6!important;color:#fff!important}#iq-cennik .iq-btn-link{display:block;text-align:center;text-decoration:none;padding:12px 8px;border-radius:10px;font-weight:600;font-size:0.9rem;line-height:1.2}#iq-cennik .iq-btn-link:hover{opacity:.88}#iq-cennik .iq-grid-sub .iq-card{flex:0 0 calc(33.333% - 12px)!important}#iq-cennik .iq-grid-once .iq-card{flex:0 0 calc(25% - 12px)!important}@media(max-width:700px){#iq-cennik .iq-card{flex:0 0 calc(50% - 8px)!important}#iq-cennik .iq-lbl-sub,#iq-cennik .iq-lbl-once{padding:9px 14px!important;font-size:0.82rem!important}}@media(max-width:400px){#iq-cennik .iq-card{flex:0 0 100%!important}}</style>
-
+<style>
+#iq-opis-pakietu * { box-sizing: border-box; }
+#iq-opis-pakietu { max-width: 920px; margin: 0 auto 2rem; padding: 0 8px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #1e293b; line-height: 1.65; }
+#iq-opis-pakietu .iq-hero { text-align: center; margin-bottom: 2rem; padding: 1.5rem 1rem; background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%); color: #f1f5f9; border-radius: 16px; }
+#iq-opis-pakietu .iq-hero h1 { margin: 0 0 0.75rem; font-size: clamp(1.35rem, 4vw, 1.85rem); font-weight: 800; letter-spacing: -0.02em; }
+#iq-opis-pakietu .iq-hero p { margin: 0 auto; font-size: 1.02rem; opacity: 0.95; max-width: 720px; }
+#iq-opis-pakietu h2 { font-size: 1.35rem; font-weight: 700; color: #0f172a; margin: 2.25rem 0 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid #3b82f6; }
+#iq-opis-pakietu .iq-intro { font-size: 1.05rem; color: #334155; margin-bottom: 1.5rem; }
+#iq-opis-pakietu .iq-grid { display: grid; gap: 1rem; grid-template-columns: 1fr; }
+@media (min-width: 720px) { #iq-opis-pakietu .iq-grid { grid-template-columns: repeat(2, 1fr); } }
+#iq-opis-pakietu .iq-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.15rem 1.25rem; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06); }
+#iq-opis-pakietu .iq-card h3 { margin: 0 0 0.5rem; font-size: 1.05rem; font-weight: 700; color: #1e40af; display: flex; align-items: center; gap: 0.45rem; }
+#iq-opis-pakietu .iq-card p { margin: 0; font-size: 0.92rem; color: #475569; }
+#iq-opis-pakietu .iq-badge { display: inline-block; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; background: #dbeafe; color: #1d4ed8; padding: 0.2rem 0.5rem; border-radius: 6px; }
+#iq-opis-pakietu .iq-more { background: #f8fafc; border: 1px dashed #94a3b8; border-radius: 12px; padding: 1.25rem 1.35rem; margin-top: 1.5rem; }
+#iq-opis-pakietu .iq-more ul { margin: 0.5rem 0 0; padding-left: 1.2rem; color: #475569; font-size: 0.95rem; }
+#iq-opis-pakietu .iq-foot { margin-top: 2rem; padding: 1rem 1.2rem; background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; font-size: 0.9rem; color: #78350f; }
+</style>
 <div id="iq-cennik" style="max-width: 1100px; width: 100%; margin: 0 auto; background: #fff; font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; box-sizing: border-box; padding: 16px 12px 32px;">
 <div style="display: none;"><input id="iq-toggle" type="checkbox" /></div>
 <h2 style="text-align: center; margin: 0 0 8px; font-size: 1.6rem; font-weight: 600; color: #1a1a1a;">Prosty cennik</h2>
@@ -85,13 +102,13 @@
 <script data-no-optimize="1">!function(){var t=document.getElementById('iq-toggle'),c=document.getElementById('iq-cennik');if(t&&c){t.addEventListener('change',function(){c.classList.toggle('iq-blik',t.checked);});}}();</script>
 
 <div class="imprezja-pobierz" style="max-width: 660px; margin: 0 auto; font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-<div style="text-align: center; margin-bottom: 20px;"><span style="display: inline-block; background: #27ae60; color: #000; font-size: 0.78rem; font-weight: bold; padding: 3px 11px; border-radius: 20px; margin-bottom: 8px;">v1.2.2 — stabilna</span><br>
-<strong style="font-size: 1.4rem; font-weight: 800; color: #1a1a2e;">⬇️ Pobierz Imprezja Quiz 1.2.2</strong><br>
+<div style="text-align: center; margin-bottom: 20px;"><span style="display: inline-block; background: #27ae60; color: #000; font-size: 0.78rem; font-weight: bold; padding: 3px 11px; border-radius: 20px; margin-bottom: 8px;">v1.2.4 — stabilna</span><br>
+<strong style="font-size: 1.4rem; font-weight: 800; color: #1a1a2e;">⬇️ Pobierz Imprezja Quiz 1.2.4</strong><br>
 <span style="color: #555; font-size: 0.92rem;">Quiz, Familiada, Statki, NJR Sampler, Śpiewaj Dalej, Bitwa wokalna, Whitney, Imprezator, prezentacja, wizualizacje, ekran powitalny i więcej. Działa offline. <strong>14 dni trial.</strong></span></div>
 <p style="text-align: center; margin-bottom: 8px; font-size: 0.88rem; color: #555;">Po kliknięciu <strong>Pobierz</strong> zobaczysz krótką instrukcję instalacji — potem uruchomisz pobieranie pliku.</p>
-<p style="text-align: center; margin-bottom: 10px;"><a class="imp-pobierz-win" style="display: inline-block; padding: 16px 28px; background: #0078d4; color: #fff; text-decoration: none; border-radius: 8px; font-size: 1rem; font-weight: bold; min-width: 300px; max-width: 100%; line-height: 1.4; cursor: pointer;" href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.2.2/Imprezja.Quiz.Setup.1.2.2.exe">🪟 Pobierz dla Windows (.exe)<br><span style="font-size: 0.78rem; color: rgba(255,255,255,0.75); font-weight: 400;">Windows 10 / 11, 64-bit · ~236 MB</span></a></p>
-<p style="text-align: center; margin-bottom: 10px;"><a class="imp-pobierz-mac" style="display: inline-block; padding: 16px 28px; background: #0073aa; color: #fff; text-decoration: none; border-radius: 8px; font-size: 1rem; font-weight: bold; min-width: 300px; max-width: 100%; line-height: 1.4; cursor: pointer;" href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.2.2/Imprezja.Quiz-1.2.2-arm64.dmg">🍎 Pobierz dla macOS – Apple Silicon (.dmg)<br><span style="font-size: 0.78rem; color: rgba(255,255,255,0.75); font-weight: 400;">Mac M1 / M2 / M3 · ~266 MB</span></a></p>
-<p style="text-align: center; margin-bottom: 24px;"><a class="imp-pobierz-mac" style="display: inline-block; padding: 16px 28px; background: #0073aa; color: #fff; text-decoration: none; border-radius: 8px; font-size: 1rem; font-weight: bold; min-width: 300px; max-width: 100%; line-height: 1.4; cursor: pointer;" href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.2.2/Imprezja.Quiz-1.2.2.dmg">🍎 Pobierz dla macOS – Intel (.dmg)<br><span style="font-size: 0.78rem; color: rgba(255,255,255,0.75); font-weight: 400;">Mac z procesorem Intel (2019 i wcześniej) · ~272 MB</span></a></p>
+<p style="text-align: center; margin-bottom: 10px;"><a class="imp-pobierz-win" style="display: inline-block; padding: 16px 28px; background: #0078d4; color: #fff; text-decoration: none; border-radius: 8px; font-size: 1rem; font-weight: bold; min-width: 300px; max-width: 100%; line-height: 1.4; cursor: pointer;" href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.2.4/Imprezja.Quiz.Setup.1.2.4.exe">🪟 Pobierz dla Windows (.exe)<br><span style="font-size: 0.78rem; color: rgba(255,255,255,0.75); font-weight: 400;">Windows 10 / 11, 64-bit · ~221 MB</span></a></p>
+<p style="text-align: center; margin-bottom: 10px;"><a class="imp-pobierz-mac" style="display: inline-block; padding: 16px 28px; background: #0073aa; color: #fff; text-decoration: none; border-radius: 8px; font-size: 1rem; font-weight: bold; min-width: 300px; max-width: 100%; line-height: 1.4; cursor: pointer;" href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.2.4/Imprezja.Quiz-1.2.4-arm64.dmg">🍎 Pobierz dla macOS – Apple Silicon (.dmg)<br><span style="font-size: 0.78rem; color: rgba(255,255,255,0.75); font-weight: 400;">Mac M1 / M2 / M3 · ~254 MB</span></a></p>
+<p style="text-align: center; margin-bottom: 24px;"><a class="imp-pobierz-mac" style="display: inline-block; padding: 16px 28px; background: #0073aa; color: #fff; text-decoration: none; border-radius: 8px; font-size: 1rem; font-weight: bold; min-width: 300px; max-width: 100%; line-height: 1.4; cursor: pointer;" href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.2.4/Imprezja.Quiz-1.2.4.dmg">🍎 Pobierz dla macOS – Intel (.dmg)<br><span style="font-size: 0.78rem; color: rgba(255,255,255,0.75); font-weight: 400;">Mac z procesorem Intel (2019 i wcześniej) · ~260 MB</span></a></p>
 <div id="impzq-mac-modal" style="display:none;position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.55);align-items:center;justify-content:center;padding:16px;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
 <div style="background:#fff;color:#1a1a2e;max-width:540px;width:100%;border-radius:12px;padding:22px 24px;max-height:88vh;overflow-y:auto;box-shadow:0 20px 50px rgba(0,0,0,0.35);line-height:1.55;font-size:0.92rem;">
 <h3 style="margin:0 0 14px;font-size:1.15rem;color:#1a1a2e;">🍎 Instalacja na macOS (M1 / M2 / M3 lub Intel)</h3>
@@ -152,15 +169,128 @@
 <p style="margin: 12px 0 0; font-size: 0.82rem; color: #666;">Często pomaga też przy fałszywych alarmach antywirusa (np. Avast) przy instalacji — uruchom ten plik jako administrator, odczekaj chwilę i spróbuj instalatora ponownie.</p>
 </div>
 <div style="background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; font-size: 0.87rem; color: #555; line-height: 1.6;">🔑 <strong>Bez licencji</strong> możesz w pełni testować <strong>quiz z głosowaniem</strong> na telefonach. <strong>Pełna licencja</strong> odblokowuje m.in. Familiadę, Statki, gry muzyczne (NJR Sampler, Śpiewaj Dalej, Bitwa wokalna, Whitney, Imprezator), rozszerzone moduły na ekranie i PWA admina. Po zakupie otrzymasz klucz licencyjny e-mailem.</div>
-<p style="text-align: center; font-size: 0.82rem; color: #888; margin: 0;"><a style="color: #0073aa; text-decoration: none;" href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/tag/v1.2.2" target="_blank" rel="noopener">Pełne uwagi do wersji 1.2.2 na GitHub →</a></p>
+<p style="text-align: center; font-size: 0.82rem; color: #888; margin: 0;"><a style="color: #0073aa; text-decoration: none;" href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/tag/v1.2.4" target="_blank" rel="noopener">Pełne uwagi do wersji 1.2.4 na GitHub →</a></p>
 </div>
 
 <hr>
 
-<h2 id="opis-glowny">Opis główny</h2>
-<p><strong>Imprezja to nie tylko quiz.</strong> To <strong>system do prowadzenia całej zabawy</strong> z jednego komputera: łączy w sobie quizy z wieloma typami pytań, Familiadę teleturniejową, gry muzyczne z samplerem, statki, prezentację i slajdy na TV, animacje i wizualizacje (w tym pod muzykę), odliczania, ekrany z logo lub powitaniem oraz narzędzia dla DJ-a i prowadzącego — bez skakania między dziesiątkami aplikacji.</p>
-<p><strong>Co z tego masz?</strong> Mniej chaosu przy stole, szybsze przełączanie atrakcji, spójny wygląd na dużym ekranie i na telefonach gości, możliwość pracy <strong>w sieci lokalnej bez internetu</strong> (a gdy trzeba — także przez tunel/LTE). Goście wchodzą w grę przez przeglądarkę — QR, bez instalowania aplikacji.</p>
-<p>Na weselach, imprezach firmowych, urodzinach i eventach pełnisz rolę „centrum dowodzenia”: startujesz rundę, widzisz odpowiedzi na żywo, pokazujesz wyniki i podium, a potem w kilka kliknięć przechodzisz np. do Familiady lub gry muzycznej. <strong>Sterowanie masz w panelu admina — także z telefonu (PWA).</strong></p>
+<div id="iq-opis-pakietu" class="iq-opis-pakietu">
+
+  <div class="iq-hero">
+    <h1>Imprezja Quiz — co masz w jednym pakiecie?</h1>
+    <p>Jeden program na komputerze prowadzącego: <strong>quizy</strong>, <strong>Familiada</strong>, <strong>gry na telefonach</strong>, <strong>ekran dla sali</strong>, <strong>wizualizacje</strong>, <strong>prezentacje</strong>, <strong>kamera</strong>, <strong>filmy</strong> i narzędzia sceniczne — spójnie, w sieci lokalnej, bez instalowania aplikacji przez gości.</p>
+  </div>
+
+  <p class="iq-intro"><strong>Goście</strong> wchodzą przez przeglądarkę (skan QR). <strong>Ty</strong> sterujesz wszystkim z komputera, a opcjonalnie z <strong>telefonu jako panelu admina (PWA)</strong>. Poniżej lista tego, co dokładnie znajduje się w ofercie Imprezja Quiz — funkcje opisane krótko, żeby łatwo było złożyć treść na stronę lub w ofercie PDF.</p>
+
+  <h2>Co dokładnie znajduje się w pakiecie</h2>
+  <div class="iq-grid">
+
+    <div class="iq-card">
+      <h3><span aria-hidden="true">🧠</span> Quiz wielotypowy</h3>
+      <p>Pytania zamknięte, głosowania, muzyka, „Hot or Not”, szacowanie, pytanie otwarte, chmura słów, literówka, tryb <strong>statków w quizie</strong>, formuła <strong>Wyborczy</strong>, drużyny (Team Battle), speedrun i eliminacja. Ranking, podium, edytor scenariuszy, import/eksport zestawów i mediów.</p>
+    </div>
+
+    <div class="iq-card">
+      <h3><span aria-hidden="true">📺</span> Familiada</h3>
+      <p>Teleturniej drużynowy: dżingiel, rundy, punkty, odsłanianie odpowiedzi, buzzery na telefonach, ekran dla sali. Banki pytań, suchary, Złota lista, import z plików. Opcja <strong>odwrócenia kolorów stron na TV</strong> (np. pod kamerę lub kadr).</p>
+    </div>
+
+    <div class="iq-card">
+      <h3><span aria-hidden="true">🚢</span> Statki</h3>
+      <p>Klasyczne „w statki” w wersji na telefony i duży ekran: flota, strzały, trafienia, rundy. Możliwość gry w ramach quizu lub w <strong>trybie solo</strong> (osobna gra bez pełnego scenariusza quizowego).</p>
+    </div>
+
+    <div class="iq-card">
+      <h3><span aria-hidden="true">🎤</span> Bitwa wokalna</h3>
+      <p>Gra muzyczna: dwie strony sali (np. Panie vs Panowie), sterowanie z panelu, gotowe zestawy lub własne utwory. Idealna na „bitwę” pod śmiech i zaangażowanie.</p>
+    </div>
+
+    <div class="iq-card">
+      <h3><span aria-hidden="true">🎵</span> Śpiewaj dalej</h3>
+      <p>Zatrzymany fragment piosenki — goście domykają linię melodia / tekst. Świetna na wesela i integracje; działa w tej samej logice „jeden host, telefony w przeglądarce”.</p>
+    </div>
+
+    <div class="iq-card">
+      <h3><span aria-hidden="true">✨</span> Whitney Challenge</h3>
+      <p>Format inspirowany znanym wyzwaniem wokalnym: emocje na sali, proste zasady dla gości, prowadzenie z aplikacji. Dobry blok między muzyką a quizem.</p>
+    </div>
+
+    <div class="iq-card">
+      <h3><span aria-hidden="true">🎹</span> NJR Sampler i inne gry muzyczne</h3>
+      <p><span class="iq-badge">w pakiecie funkcji</span> Banki sampli, kafelki na telefonie i sterowanie z komputera; spójne z resztą Imprezji (pełna rozgrywka gier muzycznych zwykle po odblokowaniu <strong>licencji</strong>).</p>
+    </div>
+
+    <div class="iq-card">
+      <h3><span aria-hidden="true">🎛️</span> Imprezator — utwory do tańca</h3>
+      <p>Lista utworów z własnego dysku (foldery / pliki), podgląd na TV i telefonie — <strong>pomocnik animatora / DJ-a</strong>, gdy chcesz poprowadzić taniec bez przełączania na osobny player.</p>
+    </div>
+
+    <div class="iq-card">
+      <h3><span aria-hidden="true">🌈</span> Wizualizacje</h3>
+      <p>Animacje na dużym ekranie (m.in. w stylu Milkdrop), opcja pod <strong>beat detection</strong> — tło pod muzykę, przerwy między blokami, atmosfera klubu na sali weselnej lub eventowej.</p>
+    </div>
+
+    <div class="iq-card">
+      <h3><span aria-hidden="true">🖼️</span> Prezentacje zdjęć</h3>
+      <p>Slajdy na TV/projektora: przełączanie kolejnych zdjęć, spójny z resztą aplikacji. Świetne na powitanie, prezentację pary młodej, jubileusz lub firmę.</p>
+    </div>
+
+    <div class="iq-card">
+      <h3><span aria-hidden="true">📱</span> Stream kamery z telefonu</h3>
+      <p>Obraz z <strong>telefonu jako kamery</strong> na duży ekran (w ramach możliwości sieci i urządzenia) — np. plan na salę, gości przy stole, szybki „live insert” bez osobnej transmisji.</p>
+    </div>
+
+    <div class="iq-card">
+      <h3><span aria-hidden="true">🎬</span> Wyświetlanie filmów</h3>
+      <p>Odtwarzanie materiałów wideo na ekranie głównym imprezy — jeden „duży ekran” dla klipów, życzeń wideo lub nagranego contentu w ramach wieczoru.</p>
+    </div>
+
+    <div class="iq-card">
+      <h3><span aria-hidden="true">🏷️</span> Personalizowane logo i oprawa</h3>
+      <p>Wgranie <strong>własnego logo</strong> i spójna identyfikacja na ekranach startowych i w grze — wygląd „pod markę” DJ-a, sali lub klienta eventowego.</p>
+    </div>
+
+    <div class="iq-card">
+      <h3><span aria-hidden="true">📊</span> Decybelomierz</h3>
+      <p>Pomiar poziomu dźwięku w sali — czytelna informacja dla prowadzącego; pomaga dbać o komfort i ustalenia z obsługą lokalu.</p>
+    </div>
+
+    <div class="iq-card">
+      <h3><span aria-hidden="true">🕐</span> Zegar</h3>
+      <p>Zegar na dużym ekranie — orientacja czasu dla gości i obsługi (koniec bloku, policyjna godzina, plan imprezy).</p>
+    </div>
+
+    <div class="iq-card">
+      <h3><span aria-hidden="true">⏱️</span> Odliczanie</h3>
+      <p>Timer / odliczanie na projektorze — start zabawy, przerwa, konkurs, „do północy zostało…”. Proste narzędzie bez osobnej aplikacji.</p>
+    </div>
+
+  </div>
+
+  <h2>I wiele więcej w tym samym programie</h2>
+  <div class="iq-more">
+    <p style="margin: 0 0 0.25rem; font-weight: 600; color: #0f172a;">To nie koniec — w pakiecie masz też m.in.:</p>
+    <ul>
+      <li><strong>Panel admina (PWA)</strong> — prowadzenie z telefonu: połączenie, muzyka, skróty do trybów, kamera, prezentacja.</li>
+      <li><strong>Generator QR do WiFi</strong> — goście łączą się z siecią jednym skanem (gdy chcesz uprościć dołączanie do quizu).</li>
+      <li><strong>Tunel / gra przez internet (LTE)</strong> — gdy część osób nie jest w tej samej WiFi co host (opcjonalnie).</li>
+      <li><strong>Ekran powitalny, QR do gry, instrukcje</strong> — spójny start imprezy.</li>
+      <li><strong>Analiza WiFi</strong> (m.in. kanały 20/40 MHz) — pomoc przy problemach z siecią na miejscu.</li>
+      <li><strong>Działanie offline w LAN</strong> — pełna rozgrywka bez internetu, gdy router i komputer są tylko dla imprezy.</li>
+      <li><strong>14 dni próby</strong> — test quizu z głosowaniem; <strong>licencja</strong> odblokowuje m.in. Familiadę, Statki i pełne gry muzyczne zgodnie z komunikatami w aplikacji.</li>
+    </ul>
+  </div>
+
+  <div class="iq-foot">
+    <strong>Uwaga marketingowa:</strong> Powyższa lista opisuje zakres funkcji <strong>Imprezja Quiz</strong> jako pakietu narzędziowego. Dokładne ekrany i etykiety mogą się lekko różnić w zależności od wersji programu — aktualny zestaw zawsze potwierdza uruchomiona aplikacja i <a href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/blob/main/CHANGELOG.md" target="_blank" rel="noopener">CHANGELOG</a>.
+  </div>
+</div>
+
+<hr>
+
+<h2 id="opis-glowny">Jak to działa w praktyce</h2>
+<p>Powyżej znajdujesz <strong>cennik</strong>, <strong>pobieranie aplikacji</strong> oraz <strong>pełną listę tego, co jest w pakiecie</strong> (karty modułów). Dalej — szczegóły dla DJ-a i prowadzącego: Familiada, typy pytań, nagrania, wymagania i linki prawne.</p>
 
 <hr>
 

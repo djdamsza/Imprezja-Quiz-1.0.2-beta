@@ -141,7 +141,6 @@
         }
         .tile:active { transform: scale(0.96); }
         .tile.playing { box-shadow: 0 0 0 4px #f1c40f, 0 0 20px rgba(241,196,15,0.5); }
-        .tile.bg-playing { box-shadow: 0 0 0 4px #9b59b6, 0 0 20px rgba(155,89,182,0.5); }
         .tile { position: relative; -webkit-touch-callout: none; touch-action: pan-y; }
         .tile .tile-bg-note { position: absolute; top: 6px; right: 6px; font-size: 1.1rem; opacity: 0.95; }
         .tile .tile-play-icon { position: absolute; top: 6px; left: 6px; font-size: 1.1rem; opacity: 0.95; }
@@ -231,12 +230,36 @@
         let currentBankIndex = 0;
         let active = false;
         let playingTileId = null;
-        let playingBackgroundTileId = null;
         let playingImprezatorTrackId = null;
         /** Rozróżnienie tap vs scroll (nie odtwarzaj przy przewijaniu listy). */
         const TILE_TAP_MAX_MOVE_PX = 22;
         let tileTouchPan = null;
         let tileIgnoreClicksUntil = 0;
+        let _iframeLayoutRoTimer = null;
+
+        function scheduleRenderAfterLayout() {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => { render(); });
+            });
+        }
+
+        function attachSamplerIframeLayoutFix() {
+            if (typeof ResizeObserver === 'undefined') return;
+            const ro = new ResizeObserver(() => {
+                if (!active) return;
+                const tiles = document.getElementById('tiles');
+                if (!tiles || tiles.style.display === 'none') return;
+                const r = tiles.getBoundingClientRect();
+                if (r.width < 8 || r.height < 8) return;
+                clearTimeout(_iframeLayoutRoTimer);
+                _iframeLayoutRoTimer = setTimeout(() => {
+                    _iframeLayoutRoTimer = null;
+                    render();
+                }, 70);
+            });
+            ro.observe(document.body);
+        }
+        attachSamplerIframeLayoutFix();
 
         function ensureBanks() {
             if (!config.banks || !config.banks.length) {
@@ -256,36 +279,83 @@
                     active = !!d.active;
                     if (d.config) config = d.config;
                     ensureBanks();
-                    currentBankIndex = Math.min(currentBankIndex, (config.banks || []).length - 1);
-                    if (currentBankIndex < 0) currentBankIndex = 0;
+                    const _si = currentSamplerBankIndices();
+                    if (_si.length) {
+                        if (_si.indexOf(currentBankIndex) < 0) currentBankIndex = _si[0];
+                    } else {
+                        currentBankIndex = Math.min(currentBankIndex, (config.banks || []).length - 1);
+                        if (currentBankIndex < 0) currentBankIndex = 0;
+                    }
                     render();
+                    scheduleRenderAfterLayout();
                 }
             }).catch(() => {});
         }
-        let _restSyncTimer = null;
-        function scheduleRestConfigSync() {
-            clearTimeout(_restSyncTimer);
-            _restSyncTimer = setTimeout(() => { _restSyncTimer = null; fetchStateViaREST(); }, 220);
+        let _samplerRestAfterActiveOnce = false;
+        let _bankNavDedupe = { t: 0, d: 0 };
+        let _setBankDedupe = { t: 0, idx: -1 };
+
+        function applySamplerBankDelta(delta) {
+            if (delta !== 1 && delta !== -1) return;
+            const now = Date.now();
+            if (now - _bankNavDedupe.t < 100 && _bankNavDedupe.d === delta) return;
+            _bankNavDedupe = { t: now, d: delta };
+            goToBank(delta);
         }
+
+        function samplerTabIndexToPhysicalBankIndex(tabIdx) {
+            const list = currentSamplerBankIndices();
+            if (!list.length) return 0;
+            const t = Math.max(0, Math.min(list.length - 1, Math.floor(Number(tabIdx)) || 0));
+            return list[t];
+        }
+
+        function applySamplerSetBank(tabIndex) {
+            if (typeof tabIndex !== 'number' || !Number.isFinite(tabIndex)) return;
+            const now = Date.now();
+            if (now - _setBankDedupe.t < 100 && _setBankDedupe.idx === tabIndex) return;
+            _setBankDedupe = { t: now, idx: tabIndex };
+            ensureBanks();
+            const list = currentSamplerBankIndices();
+            /** NIE klampujemy — jeśli lokalny config ma mniej banków (wyścig z bootstrapem), wychodzimy bez zmiany; właściwe dane przyjdą bootstrapem admin-pwa. */
+            const t = Math.floor(Number(tabIndex));
+            if (t < 0 || t >= list.length) return;
+            currentBankIndex = list[t];
+            render();
+        }
+
         socket.on('connect', () => {
+            _samplerRestAfterActiveOnce = false;
             rejoin();
             fetchStateViaREST();
         });
         let autoStartDone = false;
         let stateSeq = 0;
+        let _lastPostedSamplerTabIdx = -999;
         socket.on('njr_sampler_state', (s) => {
             stateSeq++;
+            _lastPostedSamplerTabIdx = -999;
             active = s.active;
+            if (!s.active) _samplerRestAfterActiveOnce = false;
             if (s.config) config = s.config;
             ensureBanks();
-            currentBankIndex = Math.min(currentBankIndex, (config.banks || []).length - 1);
-            if (currentBankIndex < 0) currentBankIndex = 0;
+            const _samplerIdx = currentSamplerBankIndices();
+            if (_samplerIdx.length) {
+                if (_samplerIdx.indexOf(currentBankIndex) < 0) currentBankIndex = _samplerIdx[0];
+            } else {
+                currentBankIndex = Math.min(currentBankIndex, (config.banks || []).length - 1);
+                if (currentBankIndex < 0) currentBankIndex = 0;
+            }
             if (!s.active && !autoStartDone) {
                 autoStartDone = true;
                 fetch('/api/njr-sampler/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(() => {});
             }
             render();
-            if (s.active) scheduleRestConfigSync();
+            scheduleRenderAfterLayout();
+            if (s.active && !_samplerRestAfterActiveOnce) {
+                _samplerRestAfterActiveOnce = true;
+                setTimeout(() => { fetchStateViaREST(); }, 500);
+            }
         });
         socket.on('njr_sampler_volume_sync', (v) => {
             const vol = Math.max(0, Math.min(1, v));
@@ -299,16 +369,10 @@
         });
 
         let playingBankIndex = null;
-        let playingBackgroundBankIndex = null;
         socket.on('njr_sampler_playing', (payload) => {
-            const p = typeof payload === 'object' ? payload : { tileId: payload, isBackground: false };
-            if (p.isBackground) {
-                playingBackgroundTileId = p.tileId;
-                playingBackgroundBankIndex = p.bankIndex != null ? p.bankIndex : null;
-            } else {
-                playingTileId = p.tileId;
-                playingBankIndex = p.bankIndex != null ? p.bankIndex : null;
-            }
+            const p = typeof payload === 'object' ? payload : { tileId: payload };
+            playingTileId = p.tileId;
+            playingBankIndex = p.bankIndex != null ? p.bankIndex : null;
             render();
         });
         socket.on('njr_sampler_stopped', () => { playingTileId = null; render(); });
@@ -316,6 +380,32 @@
             playingImprezatorTrackId = trackId || null;
             render();
         });
+
+        function currentSamplerBankIndices() {
+            ensureBanks();
+            const banks = config.banks || [];
+            return banks.map((_, i) => i).filter(i => {
+                const b = banks[i];
+                return b && b.id !== '__imprezator__' && b.type !== 'imprezator';
+            });
+        }
+
+        function currentSamplerTabIndexForParent() {
+            const idxList = currentSamplerBankIndices();
+            if (!idxList.length) return 0;
+            const pos = idxList.indexOf(currentBankIndex);
+            return pos >= 0 ? pos : 0;
+        }
+
+        function notifyParentSamplerTabIndex() {
+            try {
+                if (!active || !window.parent || window.parent === window) return;
+                const pos = currentSamplerTabIndexForParent();
+                if (pos === _lastPostedSamplerTabIdx) return;
+                _lastPostedSamplerTabIdx = pos;
+                window.parent.postMessage({ type: 'imprezja_sampler_bank_tab', index: pos }, window.location.origin);
+            } catch (_) {}
+        }
 
         function renderBankSwitcher(bankName) {
             const switcher = document.getElementById('bank-switcher');
@@ -325,12 +415,13 @@
             switcher.style.display = 'flex';
             const leftBtn = document.getElementById('bank-arrow-left');
             const rightBtn = document.getElementById('bank-arrow-right');
-            const many = config.banks && config.banks.length > 1;
+            const many = currentSamplerBankIndices().length > 1;
             if (leftBtn) leftBtn.classList.toggle('hidden', !many);
             if (rightBtn) rightBtn.classList.toggle('hidden', !many);
         }
 
         function render() {
+            try {
             const wait = document.getElementById('wait-screen');
             const tiles = document.getElementById('tiles');
             const hasBanks = config.banks && config.banks.length > 0;
@@ -390,34 +481,42 @@
                 return false;
             };
             tiles.innerHTML = trackList.map((t, i) => {
-                const isPlaying = (playingTileId === t.id && playingBankIndex === currentBankIndex) || (playingBackgroundTileId === t.id && playingBackgroundBankIndex === currentBankIndex);
-                const isBg = playingBackgroundTileId === t.id && playingBackgroundBankIndex === currentBankIndex;
+                const isPlaying = playingTileId === t.id && playingBankIndex === currentBankIndex;
                 const icon = isPlaying ? '⏸' : '▶';
                 const emoji = t.image && (t.image.startsWith('/') || t.image.startsWith('http')) ? '' : (t.image || '');
                 const img = t.image && (t.image.startsWith('/') || t.image.startsWith('http')) ? t.image : '';
                 const spanClass = lastOdd && i === cnt - 1 ? ' tile-last-odd' : '';
                 const lightClass = isLightBg(t.color) ? ' tile-light-bg' : '';
                 return `
-                    <div class="tile${spanClass}${lightClass} ${isPlaying ? 'playing' : ''} ${isBg ? 'bg-playing' : ''}" data-id="${t.id}" data-bank="${currentBankIndex}" style="background:${t.color || '#0000ff'}" role="button" tabindex="0">
+                    <div class="tile${spanClass}${lightClass} ${isPlaying ? 'playing' : ''}" data-id="${t.id}" data-bank="${currentBankIndex}" style="background:${t.color || '#0000ff'}" role="button" tabindex="0">
                         <span class="tile-play-icon">${icon}</span>
-                        ${t.isBackground ? '<span class="tile-bg-note" title="Tło muzyczne">🎵</span>' : ''}
                         ${img ? `<img class="emoji img" src="${img}" alt="" draggable="false" loading="lazy">` : (emoji ? `<span class="emoji">${emoji}</span>` : '')}
                         <span class="label">${(t.label || '').replace(/</g,'&lt;') || '—'}</span>
                     </div>
                 `;
             }).join('');
+            } finally {
+                if (active && window.parent && window.parent !== window) notifyParentSamplerTabIndex();
+            }
         }
 
         function goToBank(delta) {
-            ensureBanks();
-            const n = config.banks.length;
+            const idxList = currentSamplerBankIndices();
+            const n = idxList.length;
             if (n <= 1) return;
-            currentBankIndex = (currentBankIndex + delta + n) % n;
+            let pos = idxList.indexOf(currentBankIndex);
+            if (pos < 0) pos = 0;
+            pos = (pos + delta + n) % n;
+            currentBankIndex = idxList[pos];
             render();
         }
 
-        document.getElementById('bank-arrow-left')?.addEventListener('click', () => goToBank(-1));
-        document.getElementById('bank-arrow-right')?.addEventListener('click', () => goToBank(1));
+        document.getElementById('bank-arrow-left')?.addEventListener('click', () => {
+            socket.emit('njr_sampler_bank_delta', -1);
+        });
+        document.getElementById('bank-arrow-right')?.addEventListener('click', () => {
+            socket.emit('njr_sampler_bank_delta', 1);
+        });
 
         function handleTileTap(e) {
             e.stopPropagation();
@@ -476,27 +575,59 @@
             if (e.target.closest('.tile') || e.target.closest('.imprezator-track')) e.preventDefault();
         });
 
+        /**
+         * Bootstrap z admin-pwa (rodzic iframe): config już zbudowany dla kształtu telefonu, z aktualnym stanem.
+         * Przyjmujemy go jako źródło prawdy — eliminuje wyścig z socket.io przy pierwszym otwarciu (problem „F5 naprawia”).
+         */
+        function applySamplerBootstrap(payload) {
+            if (!payload || !payload.config) return;
+            const prevIdx = currentBankIndex;
+            active = !!payload.active;
+            config = payload.config;
+            ensureBanks();
+            const _si = currentSamplerBankIndices();
+            /** Admin może przysłać 'targetTabIndex' — wtedy od razu ustawiamy żądany bank (pełne dane są w payload.config, więc render na pewno zobaczy nowe kafelki). */
+            if (_si.length && payload && typeof payload.targetTabIndex === 'number' && Number.isFinite(payload.targetTabIndex)) {
+                const tt = Math.floor(payload.targetTabIndex);
+                if (tt >= 0 && tt < _si.length) currentBankIndex = _si[tt];
+                else currentBankIndex = _si[0];
+            } else if (_si.length) {
+                if (_si.indexOf(prevIdx) >= 0) currentBankIndex = prevIdx;
+                else currentBankIndex = _si[0];
+            } else {
+                currentBankIndex = 0;
+            }
+            _samplerRestAfterActiveOnce = true;
+            _lastPostedSamplerTabIdx = -999;
+            render();
+            scheduleRenderAfterLayout();
+        }
+
         window.addEventListener('message', (e) => {
-            if (e.data && e.data.type === 'njr_sampler_set_bank' && typeof e.data.index === 'number') {
-                ensureBanks();
-                const n = (config.banks || []).filter(b => b.id !== '__imprezator__').length;
-                if (n > 0) {
-                    currentBankIndex = Math.max(0, Math.min(e.data.index, n - 1));
-                    render();
-                }
+            if (e.origin !== window.location.origin) return;
+            if (!e.data || typeof e.data.type !== 'string') return;
+            if (e.data.type === 'imprezja_sampler_bootstrap') {
+                applySamplerBootstrap(e.data);
+                return;
+            }
+            if (e.data.type === 'njr_sampler_set_bank' && typeof e.data.index === 'number' && Number.isFinite(e.data.index)) {
+                applySamplerSetBank(e.data.index);
+            } else if (e.data.type === 'njr_sampler_bank_delta' && (e.data.delta === 1 || e.data.delta === -1)) {
+                applySamplerBankDelta(e.data.delta);
             }
         });
-        socket.on('njr_sampler_set_bank', (data) => {
-            ensureBanks();
-            const n = (config.banks || []).filter(b => b.id !== '__imprezator__').length;
-            if (n > 0 && typeof data.index === 'number') {
-                currentBankIndex = Math.max(0, Math.min(data.index, n - 1));
-                render();
+        try {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({ type: 'imprezja_sampler_iframe_ready' }, window.location.origin);
             }
+        } catch (_) {}
+        socket.on('njr_sampler_set_bank', (data) => {
+            if (!data || typeof data.index !== 'number' || !Number.isFinite(data.index)) return;
+            applySamplerSetBank(data.index);
         });
         socket.on('njr_sampler_bank_delta', (data) => {
             const d = data && (data.delta === 1 || data.delta === -1) ? data.delta : 0;
-            if (d) goToBank(d);
+            if (d) applySamplerBankDelta(d);
         });
         function toggleTile(id) {
             if (!active) return;
@@ -564,6 +695,15 @@
         setInterval(() => {
             if (document.visibilityState === 'visible' && !socket.connected) fetchStateViaREST();
         }, 5000);
+
+        window.addEventListener('load', () => {
+            fetchStateViaREST();
+            scheduleRenderAfterLayout();
+        });
+        window.addEventListener('pageshow', () => {
+            fetchStateViaREST();
+            scheduleRenderAfterLayout();
+        });
     </script>
 </body>
 </html>

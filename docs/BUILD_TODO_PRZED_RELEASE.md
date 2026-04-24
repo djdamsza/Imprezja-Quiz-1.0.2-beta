@@ -9,7 +9,7 @@
 |---|----------|---------|-----------|-------|
 | 1 | **Zasoby** | Brak `build/icon.png` | Wysoki | `prepare-win-icon.js` wymaga `build/icon.png` do wygenerowania `icon.ico` dla Windows. Bez tego build:win przejdzie (skrypt exit 0), ale instalator nie będzie miał ikony. Źródło: utworzyć lub skopiować z innego projektu (np. 512×512 PNG). |
 | 2 | **Zasoby** | `resources/cloudflared-windows/cloudflared.exe` nie w repo | Średni | Pobierane przez `prepare-cloudflared-for-windows.js` przed build:win. Na czystym klonie pierwszy build:win musi pobrać ~50 MB. Sprawdzić, czy `.gitignore` nie wyklucza `resources/` – jeśli tak, dodać wyjątek dla cloudflared. |
-| 3 | **Zasoby** | ~~NJR konwerter~~ | — | **Wykluczony z builda** – to osobny projekt (tools/vdj-database-editor). |
+| 3 | **Zasoby** | ~~NJR konwerter~~ | — | **Osobny produkt** — repozytorium `djdamsza/njr-konwerter`, nie w tym monorepo. |
 | 4 | **npm audit** | 9 luk bezpieczeństwa | Średni | `npm audit` zgłasza: ajv (ReDoS), electron (ASAR bypass), jimp/file-type (infinite loop), minimatch (ReDoS), qs (DoS), tar (path traversal). `npm audit fix` naprawi część; electron i jimp wymagają `--force` (breaking changes). |
 | 5 | **Skrypt** | `rebuild:full` używa `rm -rf` | Niski | `rm -rf node_modules/electron/dist` nie działa na Windows. Zastąpić cross-platformowo (np. `node scripts/clean.js` rozszerzyć lub użyć `rimraf`). |
 | 6 | **Wersja** | `1.2.0-beta.0` w package.json | Średni | Przed release zmienić na stabilną (np. `1.2.0`). |

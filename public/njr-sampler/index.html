@@ -191,8 +191,8 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="/lib/audio-normalize.js"></script>
+    <script src="/lib/digital-output-cap.js"></script>
     <audio id="sampler-audio" style="display:none;"></audio>
-    <audio id="sampler-audio-bg" style="display:none;"></audio>
     <audio id="sampler-audio-imprezator" style="display:none;"></audio>
     <audio id="preview-audio" style="display:none;"></audio>
 
@@ -217,16 +217,13 @@
         let bankAssignments = ['domyslna'];
         let configList = ['domyslna'];
         let samplerVolume = 1; // 0–1, master z telefonu
-        let currentTileVolume = 1; // 0–1, proporcja kafelka (one-shot)
-        let currentBgTileVolume = 1; // 0–1, proporcja tła
+        let currentTileVolume = 1; // 0–1, proporcja kafelka
 
         function applyVolumes() {
             const a = document.getElementById('sampler-audio');
-            const bg = document.getElementById('sampler-audio-bg');
             const ai = document.getElementById('sampler-audio-imprezator');
-            if (a) a.volume = Math.min(1, Math.max(0, currentTileVolume * samplerVolume));
-            if (bg) bg.volume = Math.min(1, Math.max(0, currentBgTileVolume * samplerVolume));
-            if (ai && !ai.paused) ai.volume = Math.min(1, samplerVolume);
+            if (a && !a._fadeIntervalId) a.volume = clampDigitalOutputLinear(Math.max(0, currentTileVolume * samplerVolume));
+            if (ai && !ai.paused && !ai._fadeIntervalId) ai.volume = clampDigitalOutputLinear(samplerVolume);
         }
         function fadeOutAndStop(audioEl, ms, onDone) {
             if (!audioEl || audioEl.paused) {
@@ -244,7 +241,6 @@
                     clearInterval(audioEl._fadeIntervalId);
                     audioEl._fadeIntervalId = null;
                     audioEl.pause();
-                    if (audioEl.id === 'sampler-audio-bg') audioEl.src = '';
                     if (typeof onDone === 'function') onDone();
                 }
             };
@@ -254,9 +250,7 @@
         const fromEditor = new URLSearchParams(location.search).get('editor');
         window.initAudioContext = function() {
             const a = document.getElementById('sampler-audio');
-            const bg = document.getElementById('sampler-audio-bg');
             if (a) { a.volume = 0; a.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='; a.play().then(() => { a.pause(); a.src = ''; a.volume = 1; }).catch(() => {}); }
-            if (bg) { bg.volume = 0; bg.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='; bg.play().then(() => { bg.pause(); bg.src = ''; bg.volume = 1; }).catch(() => {}); }
         };
         socket.emit('njr_sampler_join_screen');
         socket.on('njr_sampler_state', async (s) => {
@@ -265,77 +259,34 @@
             else (fromEditor ? showEditorMode : showIntroMode)();
         });
         socket.on('njr_sampler_play', (payload) => {
-            const data = typeof payload === 'string' ? { url: payload, volume: 1, isBackground: false, loop: false } : payload;
+            const data = typeof payload === 'string' ? { url: payload, volume: 1, loop: false } : payload;
             const vol = data.volume ?? 1;
             const loop = !!data.loop;
             const gain = (typeof data.normalizedGain === 'number' && data.normalizedGain !== 1) ? data.normalizedGain
                 : (typeof window.AudioNormalize !== 'undefined' ? window.AudioNormalize.getCachedGain(data.url) : 1);
-            if (data.isBackground) {
-                const bg = document.getElementById('sampler-audio-bg');
-                if (!bg) return;
-                if (bg._fadeIntervalId) { clearInterval(bg._fadeIntervalId); bg._fadeIntervalId = null; }
-                currentBgTileVolume = vol;
-                bg.src = data.url;
-                bg.volume = Math.min(1, Math.max(0, vol * samplerVolume * gain));
-                bg.loop = loop;
-                bg.onended = loop ? null : () => socket.emit('njr_sampler_background_ended');
-                bg.play().catch(e => console.warn('bg play:', e));
-            } else {
-                const a = document.getElementById('sampler-audio');
-                if (a && a._fadeIntervalId) { clearInterval(a._fadeIntervalId); a._fadeIntervalId = null; }
-                currentTileVolume = vol;
-                a.src = data.url;
-                a.volume = Math.min(1, Math.max(0, vol * samplerVolume * gain));
-                a.loop = loop;
-                a.play().catch(e => console.warn('play:', e));
-            }
+            const a = document.getElementById('sampler-audio');
+            if (!a) return;
+            if (a._fadeIntervalId) { clearInterval(a._fadeIntervalId); a._fadeIntervalId = null; }
+            currentTileVolume = vol;
+            a.src = data.url;
+            a.volume = clampDigitalOutputLinear(Math.max(0, vol * samplerVolume * gain));
+            a.loop = loop;
+            a.play().catch(e => console.warn('play:', e));
         });
         socket.on('njr_sampler_stop', (payload) => {
-            const data = typeof payload === 'object' ? payload : {};
+            const data = typeof payload === 'object' && payload ? payload : {};
             const a = document.getElementById('sampler-audio');
-            const thenPlay = data.thenPlay;
-            const doPlay = () => {
-                if (thenPlay && a) {
-                    currentTileVolume = thenPlay.volume ?? 1;
-                    const gain = (typeof thenPlay.normalizedGain === 'number' && thenPlay.normalizedGain !== 1) ? thenPlay.normalizedGain
-                        : (typeof window.AudioNormalize !== 'undefined' ? window.AudioNormalize.getCachedGain(thenPlay.url) : 1);
-                    a.src = thenPlay.url;
-                    a.volume = Math.min(1, Math.max(0, (thenPlay.volume ?? 1) * samplerVolume * gain));
-                    a.loop = !!thenPlay.loop;
-                    a.play().catch(e => console.warn('Audio:', e));
-                }
-            };
-            if (data.fadeOut && a && !a.paused) {
-                fadeOutAndStop(a, 500, doPlay);
-            } else {
-                if (a) a.pause();
-                doPlay();
+            if (!a) return;
+            if (data.immediate) {
+                if (a._fadeIntervalId) { clearInterval(a._fadeIntervalId); a._fadeIntervalId = null; }
+                a.pause();
+                return;
             }
-        });
-        socket.on('njr_sampler_stop_background', (payload) => {
-            const data = typeof payload === 'object' ? payload : {};
-            const bg = document.getElementById('sampler-audio-bg');
-            const thenPlay = data.thenPlay;
-            const doPlay = () => {
-                if (thenPlay && bg) {
-                    currentBgTileVolume = thenPlay.volume ?? 1;
-                    const gain = (typeof thenPlay.normalizedGain === 'number' && thenPlay.normalizedGain !== 1) ? thenPlay.normalizedGain
-                        : (typeof window.AudioNormalize !== 'undefined' ? window.AudioNormalize.getCachedGain(thenPlay.url) : 1);
-                    bg.src = thenPlay.url;
-                    bg.volume = Math.min(1, Math.max(0, (thenPlay.volume ?? 1) * samplerVolume * gain));
-                    bg.loop = !!thenPlay.loop;
-                    bg.onended = thenPlay.loop ? null : () => socket.emit('njr_sampler_background_ended');
-                    bg.play().catch(e => console.warn('Audio bg:', e));
-                } else if (bg) {
-                    bg.pause();
-                    bg.src = '';
-                }
-            };
-            if (data.fadeOut && bg && !bg.paused) {
-                fadeOutAndStop(bg, 500, doPlay);
+            if (data.fadeOut && !a.paused) {
+                fadeOutAndStop(a, 1000, () => { applyVolumes(); });
             } else {
-                if (bg && !thenPlay) { bg.pause(); bg.src = ''; }
-                doPlay();
+                if (a._fadeIntervalId) { clearInterval(a._fadeIntervalId); a._fadeIntervalId = null; }
+                a.pause();
             }
         });
         socket.on('njr_sampler_volume', (v) => {
@@ -346,27 +297,39 @@
             const ai = document.getElementById('sampler-audio-imprezator');
             if (!ai) return;
             ai.src = data.url;
-            ai.volume = Math.max(0, Math.min(1, data.volume ?? 1));
+            ai.volume = clampDigitalOutputLinear(Math.max(0, data.volume ?? 1));
             ai.onended = () => socket.emit('njr_sampler_imprezator_ended');
             ai.play().catch(e => console.warn('Audio imprezator (sampler):', e));
         });
-        socket.on('njr_sampler_imprezator_stop', () => {
+        socket.on('njr_sampler_imprezator_stop', (payload) => {
+            const data = typeof payload === 'object' && payload ? payload : {};
             const ai = document.getElementById('sampler-audio-imprezator');
-            if (ai) { ai.pause(); ai.src = ''; }
+            if (!ai) return;
+            if (data.immediate) {
+                if (ai._fadeIntervalId) { clearInterval(ai._fadeIntervalId); ai._fadeIntervalId = null; }
+                ai.pause();
+                ai.src = '';
+                return;
+            }
+            if (data.fadeOut && !ai.paused) {
+                fadeOutAndStop(ai, 1000, () => { ai.src = ''; applyVolumes(); });
+            } else {
+                if (ai._fadeIntervalId) { clearInterval(ai._fadeIntervalId); ai._fadeIntervalId = null; }
+                ai.pause();
+                ai.src = '';
+            }
         });
         socket.on('admin_stop_music', () => {
             const a = document.getElementById('sampler-audio');
-            const bg = document.getElementById('sampler-audio-bg');
             const ai = document.getElementById('sampler-audio-imprezator');
-            if (a) a.pause();
-            if (bg) { bg.pause(); bg.src = ''; }
-            if (ai) { ai.pause(); ai.src = ''; }
+            if (a) { if (a._fadeIntervalId) { clearInterval(a._fadeIntervalId); a._fadeIntervalId = null; } a.pause(); }
+            if (ai) { if (ai._fadeIntervalId) { clearInterval(ai._fadeIntervalId); ai._fadeIntervalId = null; } ai.pause(); ai.src = ''; }
         });
         document.querySelectorAll('input[name="tileCount"]').forEach(r => {
             r.onchange = () => {
                 config.tileCount = parseInt(r.value);
                 if (!config.tiles) config.tiles = [];
-                while (config.tiles.length < config.tileCount) config.tiles.push({ id: 't' + config.tiles.length, color: '#0000ff', label: '', image: '', audio: '', volume: 100, isBackground: false, loop: false, fadeOut: false });
+                while (config.tiles.length < config.tileCount) config.tiles.push({ id: 't' + config.tiles.length, color: '#0000ff', label: '', image: '', audio: '', volume: 100, loop: false });
                 config.tiles = config.tiles.slice(0, config.tileCount);
                 renderTiles();
             };
@@ -390,10 +353,8 @@
                 updateTile(tileId, 'volume', parseInt(inp.value));
                 const s = document.getElementById('vol-val-' + tileId);
                 if (s) s.textContent = inp.value;
-            } else if (inp.type === 'checkbox') {
-                if (inp.dataset.field === 'loop') updateTile(tileId, 'loop', inp.checked);
-                else if (inp.dataset.field === 'fadeOut') updateTile(tileId, 'fadeOut', inp.checked);
-                else { updateTile(tileId, 'isBackground', inp.checked); renderTiles(); }
+            } else if (inp.type === 'checkbox' && inp.dataset.field === 'loop') {
+                updateTile(tileId, 'loop', inp.checked);
             }
         });
         grid.addEventListener('click', (e) => {
@@ -519,7 +480,7 @@
             if (hasContent && !confirm('Utworzyć nową pustą konfigurację? Niezapisane zmiany zostaną utracone.')) return;
             const n = config.tileCount || 8;
             const tiles = [];
-            for (let i = 0; i < n; i++) tiles.push({ id: 't' + i, color: '#0000ff', label: '', image: '', audio: '', volume: 100, isBackground: false, loop: false, fadeOut: false });
+            for (let i = 0; i < n; i++) tiles.push({ id: 't' + i, color: '#0000ff', label: '', image: '', audio: '', volume: 100, loop: false });
             config = { tileCount: n, tiles };
             currentConfigName = 'nowy';
             const sel = document.getElementById('config-select');
@@ -636,20 +597,17 @@
             if (!config.tiles) config.tiles = [];
             const n = config.tileCount || 8;
             while (config.tiles.length < n) {
-                config.tiles.push({ id: 't' + config.tiles.length, color: '#0000ff', label: '', image: '', audio: '', volume: 100, isBackground: false, loop: false, fadeOut: false });
+                config.tiles.push({ id: 't' + config.tiles.length, color: '#0000ff', label: '', image: '', audio: '', volume: 100, loop: false });
             }
             config.tiles = config.tiles.slice(0, n);
             config.tiles.forEach(t => {
                 if (t.volume == null) t.volume = 100;
-                if (t.isBackground == null) t.isBackground = false;
                 if (t.loop == null) t.loop = false;
-                if (t.fadeOut == null) t.fadeOut = false;
             });
 
             const grid = document.getElementById('tiles-grid');
             grid.innerHTML = config.tiles.map((t, i) => `
                 <div class="tile-editor" data-id="${t.id}">
-                    ${t.isBackground ? '<span class="bg-note" title="Tło muzyczne">🎵</span>' : ''}
                     <div class="preview-inline">
                         <h4 style="margin:0;flex:1">Kafelek ${i + 1}</h4>
                         <button type="button" class="btn preview-btn" data-tile="${t.id}" title="Odsłuchaj">▶</button>
@@ -680,9 +638,7 @@
                     <div class="audio-browser" id="audio-browser-${t.id}" style="display:none;"></div>
                     <label>Głośność kafelka: <span id="vol-val-${t.id}">${t.volume ?? 100}</span>%</label>
                     <input type="range" class="tile-vol" data-tile="${t.id}" min="0" max="100" value="${t.volume ?? 100}">
-                    <label class="bg-check"><input type="checkbox" ${t.isBackground?'checked':''} data-tile="${t.id}"> TŁO MUZYCZNE</label>
                     <label class="bg-check"><input type="checkbox" ${t.loop?'checked':''} data-tile="${t.id}" data-field="loop"> 🔁 Odtwarzaj w pętli</label>
-                    <label class="bg-check"><input type="checkbox" ${t.fadeOut?'checked':''} data-tile="${t.id}" data-field="fadeOut"> 🔇 Wyciszanie (2 s)</label>
                 </div>
             `).join('');
             document.querySelectorAll('.audio-search').forEach(inp => {

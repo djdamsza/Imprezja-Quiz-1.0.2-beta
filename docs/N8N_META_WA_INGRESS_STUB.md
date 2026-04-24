@@ -13,3 +13,5 @@ Gdy masz już działający [webhook enqueue](N8N_TELEGRAM_HITL_ZAPYTANIA.md):
 **Uwaga:** pełna automatyczna odpowiedź do klienta na Messengerze wymaga **wysyłki przez API Meta** (osobny node HTTP), nie przez Resend. HITL w Telegramie nadal działa jako Twoja akceptacja treści / decyzji.
 
 Szczegóły uprawnień aplikacji Meta poza zakresem tego repo — zob. [Meta Developers](https://developers.facebook.com/docs/messenger-platform).
+
+**Schemat workflow (FB + IG połączone, HITL, odpowiedź na tym samym kanale):** [N8N_META_IG_FB_HITL_SCHEMAT.md](N8N_META_IG_FB_HITL_SCHEMAT.md).

@@ -30,8 +30,6 @@ body{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
 .iq-btn:hover:not(:disabled){background:#219a52}
 .iq-btn:disabled{opacity:0.6;cursor:not-allowed}
 .iq-error{background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;padding:12px 14px;border-radius:8px;font-size:0.88rem;margin-top:14px;display:none;line-height:1.5}
-.iq-no-session{background:#fffbeb;border:1px solid #fde68a;color:#92400e;padding:14px 18px;border-radius:10px;margin-bottom:24px;font-size:0.9rem;text-align:center;display:none}
-.iq-no-session button{margin-top:10px;padding:9px 20px;background:#92400e;color:#fff;border:none;border-radius:7px;cursor:pointer;font-weight:600;font-size:0.88rem}
 .iq-success-card{display:none;text-align:center;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #86efac;border-radius:16px;padding:36px 24px;margin-bottom:24px}
 .iq-success-card h2{margin:12px 0 8px;color:#15803d;font-size:1.3rem}
 .iq-success-card p{margin:0 0 8px;color:#166534;font-size:0.95rem;line-height:1.6}
@@ -41,37 +39,59 @@ body{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
 .iq-dl-row{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
 .iq-dl-btn{flex:1;min-width:140px;display:block;padding:11px 12px;background:#0073aa;color:#fff!important;text-decoration:none!important;border-radius:8px;font-size:0.82rem;font-weight:600;text-align:center;line-height:1.4}
 .iq-dl-btn.win{background:#0078d4}
+.iq-hero-muted{text-align:center;padding:40px 24px 32px;background:linear-gradient(135deg,#fefce8,#fef9c3);border-radius:20px;margin-bottom:32px;border:1px solid #fde047;display:none}
+.iq-hero-muted h1{margin:0 0 10px;font-size:1.5rem;font-weight:700;color:#854d0e}
+.iq-hero-muted p{margin:0;color:#713f12;font-size:0.95rem;line-height:1.6}
+.iq-hero-bad{text-align:center;padding:40px 24px 32px;background:linear-gradient(135deg,#fef2f2,#fee2e2);border-radius:20px;margin-bottom:32px;border:1px solid #fecaca;display:none}
+.iq-hero-bad h1{margin:0 0 10px;font-size:1.5rem;font-weight:700;color:#b91c1c}
+.iq-hero-bad p{margin:0;color:#991b1b;font-size:0.95rem;line-height:1.6}
+.iq-hero-wait{text-align:center;padding:36px 24px;background:#f8fafc;border-radius:20px;margin-bottom:32px;border:1px solid #e2e8f0;display:none}
+.iq-main-flow{display:none}
+.iq-main-flow.visible{display:block}
 @media(max-width:500px){.iq-hero h1{font-size:1.4rem}.iq-dl-row{flex-direction:column}}
 </style>
 </head>
 <body>
 <div id="iq-sukces">
-  <div class="iq-hero">
+  <div class="iq-hero" id="iq-hero-paid" style="display:none">
     <div class="iq-hero-icon">🎉</div>
     <h1>Dziękujemy za zakup!</h1>
     <p>Płatność przebiegła pomyślnie. Wykonaj 3 kroki poniżej, aby aktywować licencję.</p>
   </div>
-  <div id="iq-no-session" class="iq-no-session">
-    <strong>Nie wykryto sesji płatności.</strong> Jeśli właśnie zapłaciłeś — odśwież stronę, adres URL powinien zawierać parametr <code>session_id</code>.
-    <br><button onclick="location.reload()">Odśwież stronę</button>
+  <div class="iq-hero-wait" id="iq-hero-wait">
+    <div class="iq-hero-icon">⏳</div>
+    <h1 style="margin:0 0 8px;font-size:1.35rem;color:#334155">Sprawdzanie płatności…</h1>
+    <p style="margin:0;color:#64748b;font-size:0.95rem">Chwila — weryfikujemy sesję w Stripe.</p>
   </div>
+  <div class="iq-hero-muted" id="iq-hero-neutral">
+    <h1>Brak potwierdzenia płatności</h1>
+    <p>Na tej stronie widać instrukcję aktywacji <strong>dopiero po udanej płatności</strong>. Adres po zakupie zawiera w URL parametr <code>session_id=cs_…</code> — otwórz ten link z przeglądarki po powrocie ze Stripe.</p>
+    <p style="margin-top:14px">Wejście „na pusto” na <code>/sukces/</code> <strong>nie</strong> oznacza opłacenia zamówienia.</p>
+    <p style="margin-top:14px"><a href="https://nowajakoscrozrywki.pl/produkt/imprezja-quiz/" style="color:#854d0e;font-weight:700">→ Wróć do produktu i dokończ zakup</a></p>
+  </div>
+  <div class="iq-hero-bad" id="iq-hero-unpaid">
+    <h1>Płatność niedokończona lub sesja nieważna</h1>
+    <p>Nie udało się potwierdzić opłaconej sesji. Jeśli płaciłeś — odczekaj chwilę i odśwież stronę; jeśli przerwałeś płatność — dokończ ją w sklepie.</p>
+    <p style="margin-top:14px"><a href="https://nowajakoscrozrywki.pl/produkt/imprezja-quiz/" style="color:#b91c1c;font-weight:700">→ Wróć do kasy</a></p>
+  </div>
+  <div class="iq-main-flow" id="iq-main-flow">
   <div class="iq-steps">
-    <div class="iq-step done" id="iq-step1">
-      <div class="iq-step-num">✓</div>
+    <div class="iq-step" id="iq-step1">
+      <div class="iq-step-num">1</div>
       <div class="iq-step-body">
         <h3>Płatność zrealizowana</h3>
         <p>Otrzymasz e-mail z potwierdzeniem zakupu na podany adres.</p>
       </div>
     </div>
-    <div class="iq-step active" id="iq-step2">
+    <div class="iq-step" id="iq-step2">
       <div class="iq-step-num">2</div>
       <div class="iq-step-body">
         <h3>Pobierz i uruchom Imprezja Quiz</h3>
         <p>Jeśli nie pobrałeś jeszcze aplikacji, pobierz ją teraz:</p>
         <div class="iq-dl-row">
-          <a class="iq-dl-btn win" href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.2.2/Imprezja.Quiz.Setup.1.2.2.exe">🪟 Windows (.exe)</a>
-          <a class="iq-dl-btn" href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.2.2/Imprezja.Quiz-1.2.2-arm64.dmg">🍎 macOS Apple Silicon</a>
-          <a class="iq-dl-btn" href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.2.2/Imprezja.Quiz-1.2.2.dmg">🍎 macOS Intel</a>
+          <a class="iq-dl-btn win" href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.2.4/Imprezja.Quiz.Setup.1.2.4.exe">🪟 Windows (.exe)</a>
+          <a class="iq-dl-btn" href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.2.4/Imprezja.Quiz-1.2.4-arm64.dmg">🍎 macOS Apple Silicon</a>
+          <a class="iq-dl-btn" href="https://github.com/djdamsza/Imprezja-Quiz-1.0.2-beta/releases/download/v1.2.4/Imprezja.Quiz-1.2.4.dmg">🍎 macOS Intel</a>
         </div>
       </div>
     </div>
@@ -98,6 +118,7 @@ body{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
     <p>Sprawdź swoją skrzynkę e-mail (również folder <strong>Spam/Oferty</strong>).<br>Klucz wklej w polu „Klucz licencyjny" w programie i kliknij <strong>Aktywuj</strong>.</p>
     <p style="margin-top:16px;font-size:0.85rem">Nie dostałeś e-maila po 5 minutach? Napisz: <a href="mailto:biuro@imprezja.pl" style="color:#15803d;font-weight:600">biuro@imprezja.pl</a></p>
   </div>
+  </div>
   <div class="iq-footer">
     <a href="https://nowajakoscrozrywki.pl/produkt/imprezja-quiz/">← Wróć do sklepu</a>
     <a href="https://nowajakoscrozrywki.pl/faq-imprezja-quiz/">❓ FAQ</a>
@@ -108,14 +129,54 @@ body{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
 (function(){
   var API='https://imprezja-quiz-1-0-2-beta.onrender.com';
   var sessionId=(new URLSearchParams(window.location.search)).get('session_id')||'';
-  var noSession=document.getElementById('iq-no-session');
   var formCard=document.getElementById('iq-form-card');
   var successCard=document.getElementById('iq-success-card');
   var input=document.getElementById('iq-machine-id');
   var btn=document.getElementById('iq-submit');
   var errorEl=document.getElementById('iq-error');
+  var step1=document.getElementById('iq-step1');
+  var step2=document.getElementById('iq-step2');
   var step3=document.getElementById('iq-step3');
-  if(!sessionId){noSession.style.display='block';btn.disabled=true}else{step3.classList.add('active')}
+  var heroPaid=document.getElementById('iq-hero-paid');
+  var heroWait=document.getElementById('iq-hero-wait');
+  var heroNeutral=document.getElementById('iq-hero-neutral');
+  var heroUnpaid=document.getElementById('iq-hero-unpaid');
+  var mainFlow=document.getElementById('iq-main-flow');
+  btn.disabled=true;
+  function showPaidFlow(){
+    heroWait.style.display='none';
+    heroPaid.style.display='block';
+    mainFlow.classList.add('visible');
+    step1.classList.add('done');
+    step1.querySelector('.iq-step-num').textContent='✓';
+    step2.classList.add('active');
+    step3.classList.add('active');
+    btn.disabled=false;
+  }
+  function showNeutral(){
+    heroWait.style.display='none';
+    heroNeutral.style.display='block';
+    mainFlow.classList.remove('visible');
+    btn.disabled=true;
+  }
+  function showUnpaid(){
+    heroWait.style.display='none';
+    heroUnpaid.style.display='block';
+    mainFlow.classList.remove('visible');
+    btn.disabled=true;
+  }
+  if(!sessionId){
+    showNeutral();
+  }else{
+    heroWait.style.display='block';
+    fetch(API+'/api/checkout/session-status?session_id='+encodeURIComponent(sessionId))
+      .then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d}})})
+      .then(function(x){
+        if(x.ok&&x.d&&x.d.paid===true)showPaidFlow();
+        else showUnpaid();
+      })
+      .catch(function(){showUnpaid()});
+  }
   function showError(m){errorEl.textContent=m;errorEl.style.display='block';btn.disabled=false;btn.textContent='Wyślij klucz licencyjny na e-mail →'}
   document.getElementById('iq-form').addEventListener('submit',function(e){
     e.preventDefault();

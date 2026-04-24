@@ -207,6 +207,17 @@ Darmowy Web Service **zasypia** po ~**15 minutach** bez HTTP.
 - Ustaw zewnętrzny ping **co 10–14 minut** na np. `https://TWOJ-SERWIS.onrender.com/` albo lekki endpoint (n8n odpowiada na głównym URL).
 - Narzędzia: [cron-job.org](https://cron-job.org), UptimeRobot (free), lub cron z hostingu **o ile** pozwala na interwał **krótszy niż 15 min** (wiele paneli ma minimum 1 h — wtedy ping z zewnętrznej usługi).
 
+### dPanel (dhosting) + PHP — częste przyczyny, że „cron jest”, a Render i tak śpi
+
+1. **Interwał `*/15` na granicy limitu** — Render budzi się po ~15 min bez ruchu; opóźnienie crona + cold start sprawiają, że **co 15 minut bywa za rzadko**. Ustaw **`*/10 * * * *`** lub **`*/12 * * * *`**. **Dwa** zadania co 15 min w **tych samych** minutach **nie** zwiększają częstotliwości.
+2. **Ścieżka z `~` w CRON** — część środowisk **nie rozwija** tyldy do katalogu domowego; wtedy PHP **w ogóle nie uruchamia** Twojego pliku (albo uruchamia inny). Wpisz **pełną ścieżkę** z panelu (np. `/home/LOGIN/imprezja.pl/public_html/cron-ping-n8n.php`) — ścieżkę zwykle podaje **FTP/SSH** lub pomoc dhosting.
+3. **Katalog roboczy** — ustaw na **katalog, w którym leży skrypt** (np. `.../public_html`), spójnie z polem ŚCIEŻKA; rozjazd `public_html` vs katalog wyżej bywa mylący przy innych skryptach.
+4. **Zły `$url` w pliku** — w szablonie z repo był przykładowy host; musi być **dokładnie** URL Web Service z Render (HTTPS, aktualna nazwa `*.onrender.com`).
+5. **Skrypt „działa”, ale nie wychodzi na sieć** — na CLI czasem `allow_url_fopen=Off` i brak cURL; szablon w [`docs/examples/cron-ping-n8n-render-dhosting.php`](./examples/cron-ping-n8n-render-dhosting.php) najpierw używa **cURL**, potem `file_get_contents`. **Diagnostyka:** po każdym uruchomieniu powstaje **`cron-n8n-ping-last.txt`** (nadpisywany) — OK/FAIL, kod HTTP, URL, opcjonalnie **`src=nazwa-pliku.url`** i ewentualny błąd. Opcjonalnie pusty plik **`cron-ping-n8n.debug`** → dopisywanie do **`cron-n8n-ping.log`**. Adres Rendera: plik **`cron-ping-n8n.url`** *albo* **`NAZWA-TAKA-JAK-PHP.url`** (np. `cron-ping-n8n-render-dhosting.url` obok `cron-ping-n8n-render-dhosting.php`) — jedna linia, pełny `https://…onrender.com/`. Bez tego skrypt zostaje na placeholderze `TWOJ-SERWIS` i zawsze kończy się błędem.
+6. **Limit czasu PHP w cronie (~30 s)** — na części hostingów **cron PHP** jest ubijany po ok. **30 sekundach**, niezależnie od `set_time_limit` w skrypcie. Cold start n8n na Renderze często trwa **dłużej** → w **`cron-n8n-ping-last.txt`** zobaczysz **FAIL** i np. pusty `http=-` lub timeout. **Rozwiązania:** (a) poproś dhosting o zwiększenie limitu czasu dla zadań CRON / PHP-CLI, (b) jeśli w panelu jest **cron „powłoka”** (bash) zamiast PHP, ustaw np.  
+   `*/10 * * * * curl -fsS --max-time 120 "https://TWOJ-SERWIS.onrender.com/" -o /dev/null`  
+   (ścieżka do `curl` wg panelu, czas max zgodny z limitem hostingu), (c) zostań przy PHP, ale **upgrade Render** (brak spin-down) albo krótszy cold start — wtedy odpowiedź zmieści się w 30 s.
+
 ---
 
 ## 6. E-mail na Render

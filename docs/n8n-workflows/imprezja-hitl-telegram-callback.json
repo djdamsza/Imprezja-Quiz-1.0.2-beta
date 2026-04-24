@@ -3,48 +3,396 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Callback z Telegram (inline Akceptuj / Odrzuć)\n\n1. **Credential:** Telegram API (token bota) — ten sam co `TELEGRAM_BOT_TOKEN` w env dla HTTP w enqueue\n2. **Env:** `TELEGRAM_OPERATOR_CHAT_ID` — tylko ten chat obsługujemy\n3. **Po imporcie:** podłącz **Execute Workflow** do workflowu automail (kopia gałęzi Resend) albo wyślij mail ręcznie — szablon w docs\n4. **answerCallbackQuery** — poniżej HTTP, żeby zniknęło „loading” na przycisku",
-        "height": 380,
-        "width": 400
+        "content": "## Telegram: callback_query + message (+ głos)\n\n**Jeden** trigger — jeden webhook bota.\n**Głos:** jedno wywołanie **Perplexity** (Sonar) z załącznikiem audio w **base64** (`file_url`) — bez OpenAI. Odpowiedź **tylko tekstem** w Telegramie (Perplexity nie ma TTS w API). Env: **PERPLEXITY_API_KEY**. Reszta: refine oferty, **TELEGRAM_OPERATOR_USER_ID** w grupie.",
+        "height": 200,
+        "width": 420
       },
       "id": "sticky-cb",
       "name": "Sticky_Notes",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [-200, 0]
+      "position": [
+        -200,
+        0
+      ]
     },
     {
       "parameters": {
-        "updates": ["callback_query"]
+        "updates": [
+          "callback_query",
+          "message"
+        ]
       },
       "id": "tg-tr-cb",
       "name": "Telegram_Trigger_Callback",
       "type": "n8n-nodes-base.telegramTrigger",
       "typeVersion": 1.1,
-      "position": [240, 300],
+      "position": [
+        240,
+        360
+      ],
       "webhookId": "imprezja-hitl-callback-v1",
-      "notes": "Po imporcie: dodaj credential Telegram API (Access Token = TELEGRAM_BOT_TOKEN)."
+      "notes": "Credential Telegram. Oba typy update w jednym workflow."
     },
     {
       "parameters": {
-        "jsCode": "const root = $input.first().json;\nconst u = root.callback_query || root;\nconst cqid = u.id != null ? u.id : null;\nif (!u || !u.data) return [{ json: { skip: true, callback_query_id: cqid, answer_text: 'Brak danych.' } }];\nconst data = String(u.data || '');\nconst fromId = u.from && u.from.id != null ? String(u.from.id) : '';\nlet allowed = '';\ntry { allowed = String($env.TELEGRAM_OPERATOR_CHAT_ID || '').trim(); } catch (e) {}\nif (!allowed || fromId !== allowed) {\n  return [{ json: { skip: true, callback_query_id: cqid, answer_text: 'Brak uprawnien.' } }];\n}\nlet action = '';\nlet leadId = '';\nif (data.startsWith('ap:')) { action = 'approve'; leadId = data.slice(3).trim(); }\nelse if (data.startsWith('rj:')) { action = 'reject'; leadId = data.slice(3).trim(); }\nelse return [{ json: { skip: true, callback_query_id: cqid, answer_text: 'Nieznana akcja.' } }];\nif (!leadId || leadId.length < 32) return [{ json: { skip: true, callback_query_id: cqid, answer_text: 'Zly ID.' } }];\nconst opId = u.from && u.from.id != null ? u.from.id : null;\nreturn [{ json: { skip: false, action, lead_id: leadId, callback_query_id: cqid, message_chat_id: u.message && u.message.chat ? u.message.chat.id : null, message_id: u.message && u.message.message_id, operator_telegram_user_id: opId } }];"
+        "jsCode": "const r = $input.first().json;\nlet opChat = '';\nlet opUser = '';\ntry {\n  opChat = String($env.TELEGRAM_OPERATOR_CHAT_ID || '').trim();\n  opUser = String($env.TELEGRAM_OPERATOR_USER_ID || '').trim();\n} catch (e) {}\n\n/** Grupa: CHAT_ID = -100… (gdzie lecą powiadomienia), USER_ID = Twój numeryczny from.id (@userinfobot). Prywatnie: wystarczy CHAT_ID = Twój user id; USER_ID puste. */\nfunction senderAuthorized(fromIdRaw) {\n  const fid = fromIdRaw != null ? String(fromIdRaw) : '';\n  if (opUser) return fid === opUser;\n  return !!opChat && fid === opChat;\n}\n\n/* --- Wiadomość / edycja (dopisek tekstowy lub głos) --- */\nconst msg = !r.callback_query && (r.message || r.edited_message) ? (r.message || r.edited_message) : null;\nif (msg) {\n  if (!senderAuthorized(msg.from && msg.from.id)) return [];\n  if (!opChat) return [];\n  const chatId = msg.chat && msg.chat.id != null ? msg.chat.id : null;\n  if (chatId == null) return [];\n  const voiceOrAudio = msg.voice || msg.audio;\n  if (voiceOrAudio && voiceOrAudio.file_id) {\n    return [{ json: { branch: 'voice', file_id: String(voiceOrAudio.file_id), telegram_chat_id: chatId } }];\n  }\n  const text = msg.text != null ? String(msg.text).trim() : '';\n  if (!text || text.startsWith('/')) return [];\n  return [{ json: { branch: 'append', append_text: text.slice(0, 4000), telegram_chat_id: chatId } }];\n}\n\n/* --- Callback (przyciski) --- */\nconst u = r.callback_query || r;\nconst cqid = u.id != null ? u.id : null;\nif (!u || !u.data) return [{ json: { branch: 'callback', skip: true, callback_query_id: cqid, answer_text: 'Brak danych.' } }];\nconst data = String(u.data || '');\nif (!senderAuthorized(u.from && u.from.id)) {\n  return [{ json: { branch: 'callback', skip: true, callback_query_id: cqid, answer_text: 'Brak uprawnien.' } }];\n}\nif (!opChat) {\n  return [{ json: { branch: 'callback', skip: true, callback_query_id: cqid, answer_text: 'Brak TELEGRAM_OPERATOR_CHAT_ID.' } }];\n}\nlet action = '';\nlet leadId = '';\nif (data.startsWith('ap:')) { action = 'approve'; leadId = data.slice(3).trim(); }\nelse if (data.startsWith('rj:')) { action = 'reject'; leadId = data.slice(3).trim(); }\nelse if (data.startsWith('snd:')) { action = 'send_offer'; leadId = data.slice(4).trim(); }\nelse if (data.startsWith('md:')) { action = 'modify'; leadId = data.slice(3).trim(); }\nelse return [{ json: { branch: 'callback', skip: true, callback_query_id: cqid, answer_text: 'Nieznana akcja.' } }];\nif (!leadId || leadId.length < 32) return [{ json: { branch: 'callback', skip: true, callback_query_id: cqid, answer_text: 'Zly ID.' } }];\nconst opId = u.from && u.from.id != null ? u.from.id : null;\nconst msgChat = u.message && u.message.chat ? u.message.chat.id : null;\nreturn [{ json: { branch: 'callback', skip: false, action, lead_id: leadId, callback_query_id: cqid, message_chat_id: msgChat, message_id: u.message && u.message.message_id, operator_telegram_user_id: opId } }];"
       },
       "id": "code-cb-parse",
-      "name": "Code_ParseCallback",
+      "name": "Code_TelegramIngress",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [480, 300]
+      "position": [
+        480,
+        360
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "version": 2, "leftValue": "", "caseSensitive": true, "typeValidation": "strict" },
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "b1",
+              "leftValue": "={{ $json.branch }}",
+              "rightValue": "append",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-append",
+      "name": "If_BranchAppend",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        700,
+        360
+      ],
+      "notesInFlow": true,
+      "notes": "TRUE = dopisek tekstowy (append). FALSE = If_BranchVoice (głos) albo callback (If_Skip)."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "bv1",
+              "leftValue": "={{ $json.branch }}",
+              "rightValue": "voice",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "hitl-if-branch-voice",
+      "name": "If_BranchVoice",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        700,
+        520
+      ],
+      "notesInFlow": true,
+      "notes": "Głos: tylko Perplexity (audio base64 w file_url). Odpowiedź tekstowa w czacie. Zob. docs N8N_VOICE_PERPLEXITY_TELEGRAM.md — format OGG może być odrzucony przez API."
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/getFile",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "file_id",
+              "value": "={{ $json.file_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "hitl-http-tg-getfile-voice",
+      "name": "HTTP_Telegram_GetFileVoice",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        920,
+        440
+      ],
+      "notes": "Pobranie file_path do pliku voice/ogg."
+    },
+    {
+      "parameters": {
+        "jsCode": "const ing = $('Code_TelegramIngress').first().json;\nconst gf = $input.first().json;\nconst path = gf.result && gf.result.file_path ? String(gf.result.file_path) : '';\nlet token = '';\ntry {\n  token = String($env.TELEGRAM_BOT_TOKEN || '').trim();\n} catch (e) {}\nif (!gf.ok || !path || !token) throw new Error('Telegram getFile failed');\nconst tg_download_url = 'https://api.telegram.org/file/bot' + token + '/' + path;\nreturn [{ json: { telegram_chat_id: ing.telegram_chat_id, file_id: ing.file_id, tg_download_url } }];"
+      },
+      "id": "hitl-code-voice-merge-path",
+      "name": "Code_VoiceMergeTelegramPath",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1140,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.tg_download_url }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "responseFormat": "file",
+              "outputPropertyName": "data"
+            }
+          }
+        }
+      },
+      "id": "hitl-http-tg-download-voice",
+      "name": "HTTP_Telegram_DownloadVoice",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1360,
+        440
+      ],
+      "notes": "Binary w polu data."
+    },
+    {
+      "parameters": {
+        "jsCode": "const merge = $('Code_VoiceMergeTelegramPath').first().json;\nconst item = $input.first();\nconst bin = item.binary && item.binary.data;\nlet b64 = '';\nif (bin && typeof bin.data === 'string' && bin.data.length) b64 = bin.data;\nelse if (bin && bin.data && typeof bin.data.data === 'string') b64 = bin.data.data;\nif (!b64) throw new Error('Brak base64 audio po pobraniu z Telegrama (sprawdź pole binary.data w n8n).');\nconst hitl_pplx_voice_body = {\n  model: 'sonar',\n  max_tokens: 900,\n  temperature: 0.3,\n  messages: [\n    {\n      role: 'system',\n      content:\n        'Jesteś asystentem biura Imprezja (DJ, wesela, imprezy). Dostajesz nagranie głosowe operatora w załączniku. Odsłuchaj, zrozum intencję i odpowiedz krótko po polsku, naturalnym językiem. Bez JSON, bez markdown, bez numerowanych list. Jeśli nie możesz przetworzyć audio, poproś o wpisanie treści tekstem.',\n    },\n    {\n      role: 'user',\n      content: [\n        {\n          type: 'text',\n          text:\n            'To nagranie głosowe od operatora (Telegram). Odpowiedz na treść nagrania.',\n        },\n        {\n          type: 'file_url',\n          file_url: { url: b64 },\n          file_name: 'voice.ogg',\n        },\n      ],\n    },\n  ],\n};\nreturn [{ json: { telegram_chat_id: merge.telegram_chat_id, hitl_pplx_voice_body } }];"
+      },
+      "id": "hitl-code-voice-pplx-body",
+      "name": "Code_VoiceBuildPerplexityBody",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1580,
+        440
+      ],
+      "notes": "Audio jako base64 w file_url (Perplexity Sonar). Bez OpenAI Whisper."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.perplexity.ai/chat/completions",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + String($env.PERPLEXITY_API_KEY || $env.PPLX_API_KEY || '').trim() }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.hitl_pplx_voice_body) }}",
+        "options": {}
+      },
+      "id": "hitl-http-pplx-voice",
+      "name": "HTTP_Perplexity_VoiceFromAudio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1800,
+        440
+      ],
+      "continueOnFail": true,
+      "notes": "Jedno wywołanie: audio + odpowiedź. Klucz PERPLEXITY_API_KEY / PPLX_API_KEY."
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = $('Code_VoiceMergeTelegramPath').first().json;\nconst r = $input.first().json;\nlet txt = '';\ntry {\n  if (r && r.choices && r.choices[0] && r.choices[0].message) txt = String(r.choices[0].message.content || '').trim();\n} catch (e) {}\ntxt = txt.replace(/^\\`\\`\\`[\\s\\S]*?\\`\\`\\`/g, '').trim();\nif (!txt) {\n  const err = r && r.error ? String(r.error.message || r.error) : '';\n  txt = err\n    ? 'Perplexity (audio): błąd API — ' + err.slice(0, 500) + ' — spróbuj tekstem lub sprawdź czy Sonar akceptuje ten format pliku.'\n    : 'Brak odpowiedzi z Perplexity. Możliwe że API nie obsługuje tego typu audio w file_url — napisz proszę tekstem.';\n}\nreturn [{ json: { telegram_chat_id: base.telegram_chat_id, voice_reply_text: txt.slice(0, 4000) } }];"
+      },
+      "id": "hitl-code-voice-pplx-text",
+      "name": "Code_VoiceExtractPplxReply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2020,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: Number($json.telegram_chat_id), text: String($json.voice_reply_text || '') }) }}",
+        "options": {}
+      },
+      "id": "hitl-http-tg-voice-text-only",
+      "name": "HTTP_Telegram_VoiceReplyTextOnly",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2240,
+        440
+      ],
+      "continueOnFail": true,
+      "notes": "Odpowiedź tylko tekstem (Perplexity nie ma TTS w API)."
+    },
+    {
+      "parameters": {},
+      "id": "hitl-noop-voice-done",
+      "name": "NoOp_VoiceDone",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        3120,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id FROM lead_queue WHERE notes = 'MOD_WAIT' AND status = 'pending' AND telegram_chat_id IN ($1::bigint, $2::bigint) ORDER BY created_at DESC LIMIT 1",
+        "options": {
+          "queryReplacement": "={{ (() => { const msgChat = Number($('Code_TelegramIngress').first().json.telegram_chat_id); const s = String($env.TELEGRAM_OPERATOR_CHAT_ID || '').trim(); const envChat = !s || Number.isNaN(Number(s)) ? msgChat : Number(s); return [msgChat, envChat]; })() }}"
+        }
+      },
+      "id": "pg-sel",
+      "name": "Postgres_FindModWaitLead",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        920,
+        240
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "h1",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-found",
+      "name": "If_LeadFound",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1140,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE lead_queue SET notes = NULL, payload_json = jsonb_set(COALESCE(payload_json, '{}'::jsonb), '{operator_telegram_append}', to_jsonb($2::text), true) WHERE id = $1::uuid RETURNING *",
+        "options": {
+          "queryReplacement": "={{ [ $('Postgres_FindModWaitLead').first().json.id, $('Code_TelegramIngress').first().json.append_text ] }}"
+        }
+      },
+      "id": "pg-upd",
+      "name": "Postgres_AppendToPayload",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1360,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: Number($('Code_TelegramIngress').first().json.telegram_chat_id), text: 'Zapisano instrukcje (wewn.). Buduję podgląd (kalendarz + ewentualna przeróbka SI). Za chwilę przyjdzie jedna wiadomość z treścią maila i przyciskami Wyślij / Zmień — to jest finalny podgląd (gdy SI zadziała, zmiany są już wplecione w treść, bez osobnego bloku z poleceniami).' }) }}",
+        "options": {}
+      },
+      "id": "http-ok",
+      "name": "HTTP_Telegram_ConfirmAppend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1580,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: Number($('Code_TelegramIngress').first().json.telegram_chat_id), text: 'Brak oczekiwania na dopisek — kliknij Modyfikuj przy zgloszeniu.' }) }}",
+        "options": {}
+      },
+      "id": "http-nope",
+      "name": "HTTP_Telegram_NoPendingAppend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1360,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
           "conditions": [
             {
               "id": "s1",
               "leftValue": "={{ $json.skip }}",
               "rightValue": true,
-              "operator": { "type": "boolean", "operation": "equals" }
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
             }
           ],
           "combinator": "and"
@@ -55,7 +403,10 @@
       "name": "If_Skip",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [700, 300]
+      "position": [
+        920,
+        520
+      ]
     },
     {
       "parameters": {
@@ -70,21 +421,77 @@
       "name": "HTTP_AnswerCallback_Skip",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [920, 160]
+      "position": [
+        1140,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "m1",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "modify",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-modify",
+      "name": "If_Modify",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1140,
+        600
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE lead_queue SET status = $2, decided_at = NOW(), decided_by_chat_id = $3::bigint WHERE id = $1::uuid AND status = 'pending' RETURNING *",
+        "query": "UPDATE lead_queue SET notes = NULL WHERE telegram_chat_id = $1::bigint AND notes = 'MOD_WAIT'",
         "options": {
-          "queryReplacement": "={{ [$json.lead_id, $json.action === 'approve' ? 'approved' : 'rejected', Number($json.operator_telegram_user_id)] }}"
+          "queryReplacement": "={{ [Number($json.message_chat_id)] }}"
         }
       },
-      "id": "pg-update",
-      "name": "Postgres_UpdateStatus",
+      "id": "pg-clear-mod",
+      "name": "Postgres_ClearModWaitOthers",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [920, 400]
+      "position": [
+        1360,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE lead_queue SET notes = 'MOD_WAIT' WHERE id = $1::uuid AND status = 'pending' RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [$('Code_TelegramIngress').first().json.lead_id] }}"
+        }
+      },
+      "id": "pg-set-mod",
+      "name": "Postgres_SetModWait",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1580,
+        520
+      ]
     },
     {
       "parameters": {
@@ -92,39 +499,1818 @@
         "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/answerCallbackQuery",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ callback_query_id: $('Code_ParseCallback').first().json.callback_query_id, text: $('Code_ParseCallback').first().json.action === 'approve' ? 'Zatwierdzono' : 'Odrzucono', show_alert: false }) }}",
+        "jsonBody": "={{ JSON.stringify({ callback_query_id: $('Code_TelegramIngress').first().json.callback_query_id, text: 'Wyslij jedna wiadomosc z dopiskiem.', show_alert: true }) }}",
+        "options": {}
+      },
+      "id": "http-answer-mod",
+      "name": "HTTP_AnswerCallback_Modify",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1800,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: Number($('Code_TelegramIngress').first().json.message_chat_id), text: 'Czekam na JEDNA wiadomosc — instrukcje wewnetrzne (nie ida do klienta w mailu): co zmienic w ofercie, dopisac, PDF, dojazd itd.' }) }}",
+        "options": {}
+      },
+      "id": "http-tg-hint",
+      "name": "HTTP_Telegram_ModifyHint",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2020,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE lead_queue SET status = CASE WHEN $2::text = 'rejected' AND status = 'pending' THEN 'rejected' WHEN $2::text = 'approved' AND status = 'pending' THEN 'approved' WHEN $2::text = 'approved' AND status = 'approved' THEN 'approved' ELSE status END, decided_at = CASE WHEN $2::text = 'rejected' AND status = 'pending' THEN NOW() WHEN $2::text = 'approved' AND status = 'pending' THEN NOW() ELSE decided_at END, decided_by_chat_id = CASE WHEN $2::text = 'rejected' AND status = 'pending' THEN $3::bigint WHEN $2::text = 'approved' AND status = 'pending' THEN $3::bigint ELSE decided_by_chat_id END WHERE id = $1::uuid AND (($2::text = 'rejected' AND status = 'pending') OR ($2::text = 'approved' AND status IN ('pending', 'approved'))) RETURNING *",
+        "options": {
+          "queryReplacement": "={{ [$json.lead_id, ($json.action === 'approve' || $json.action === 'send_offer') ? 'approved' : 'rejected', Number($json.operator_telegram_user_id)] }}"
+        }
+      },
+      "id": "pg-update",
+      "name": "Postgres_UpdateStatus",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1360,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/answerCallbackQuery",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ callback_query_id: $('Code_TelegramIngress').first().json.callback_query_id, text: (() => { const a = $('Code_TelegramIngress').first().json.action; if (a === 'send_offer') return 'Wysylam do klienta…'; if (a === 'approve') return 'Zatwierdzono'; return 'Odrzucono'; })(), show_alert: false }) }}",
         "options": {}
       },
       "id": "http-answer-ok",
       "name": "HTTP_AnswerCallback_OK",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1140, 400]
+      "position": [
+        1580,
+        700
+      ]
     },
     {
       "parameters": {
-        "content": "## Dalej: Execute Workflow\n\nTu wklej **Execute Workflow** z ID kopii automail (tylko gałąź oferty) albo **HTTP Request** do wewnętrznego webhooka z `payload_json` z RETURNING.",
-        "height": 200,
-        "width": 320
+        "jsCode": "/** Skleja payload_json + ai_json z lead_queue → kształt jak po ParseAndRoute + treść maila HITL. */\nconst row = $('Postgres_UpdateStatus').first().json;\nfunction pj(x) {\n  if (x == null) return {};\n  if (typeof x === 'object' && !Array.isArray(x)) return x;\n  try { return JSON.parse(String(x)); } catch (e) { return {}; }\n}\nconst p = pj(row.payload_json);\nconst ai = pj(row.ai_json);\nconst append = p.operator_telegram_append != null ? String(p.operator_telegram_append).trim() : '';\nlet body = String(ai.proposed_email_reply || '').trim();\nif (!body) body = '(Brak treści Perplexity — uzupełnij ręcznie w mailu.)';\nconst mailFromNotify = String(p.mail_from_notify || 'Biuro Imprezja <biuro@imprezja.pl>');\nconst clientMail = String(p.client_to_email || p.wp_form_client_email || '').trim();\nconst merged = {\n  ...p,\n  ...ai,\n  hitl_approved_body_plain: body,\n  hitl_operator_instructions_for_ai: append,\n  mail_from_notify: mailFromNotify,\n  mail_from: mailFromNotify,\n  reply_to: clientMail || mailFromNotify,\n  wyslana_akcja: 'hitl_telegram_approve',\n  temat_wyslanej: '',\n  data_wyslania: '',\n};\n\nlet hitl_bypass_offer_dedup = false;\ntry {\n  const ing = $('Code_TelegramIngress').first().json;\n  if (ing && ing.action === 'send_offer') hitl_bypass_offer_dedup = true;\n} catch (e) {}\nif (append.length > 0) hitl_bypass_offer_dedup = true;\nmerged.hitl_bypass_offer_dedup = hitl_bypass_offer_dedup;\n\nreturn [{ json: merged }];"
       },
-      "id": "sticky-exec",
-      "name": "Sticky_ExecuteNext",
-      "type": "n8n-nodes-base.stickyNote",
+      "id": "hitl-prep-payload",
+      "name": "Code_PreparePayloadFromLead",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1800,
+        880
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Pełny wiersz pod arkusz **73 kolumn** (jak zapytania-imprezja-pelne-dane.csv).\n * Wejście maila + AI + kalendarz + oferta (HTML) + pola CRM. emailFrom jako czytelny tekst.\n */\nconst j = $input.first().json;\n\nfunction emailFromStr(x) {\n  if (x == null || x === '') return '';\n  if (typeof x === 'string') return x;\n  if (typeof x === 'object') {\n    if (x.text) return String(x.text);\n    if (x.address) return String(x.address);\n    if (Array.isArray(x.value) && x.value[0] && x.value[0].address) return String(x.value[0].address);\n  }\n  return String(x);\n}\n\nfunction isoToPl(d) {\n  if (!d || d.length < 10) return '';\n  const p = d.slice(0, 10).split('-');\n  if (p.length !== 3) return '';\n  return p[2] + '.' + p[1] + '.' + p[0];\n}\n\nconst rawStart = j.event_date_start ? String(j.event_date_start) : '';\nlet dataTerminIso = '';\nif (rawStart.length >= 10 && /^\\d{4}-\\d{2}-\\d{2}/.test(rawStart)) dataTerminIso = rawStart.slice(0, 10);\nconst rawEnd = j.event_date_end ? String(j.event_date_end) : '';\nlet dataTerminZakresDo = '';\nif (rawEnd.length >= 10 && /^\\d{4}-\\d{2}-\\d{2}/.test(rawEnd)) dataTerminZakresDo = rawEnd.slice(0, 10);\n\nconst bodyForShort = String(j.emailBody || j.wp_form_message || '');\nconst tresc = bodyForShort.length > 500 ? bodyForShort.slice(0, 500) + '…' : bodyForShort;\n\nfunction boolStr(v) {\n  return v === true || v === 'true' || v === 'TRUE' ? 'TRUE' : 'FALSE';\n}\n\nlet workflowRun = '';\ntry {\n  if (typeof $execution !== 'undefined' && $execution && $execution.id != null) workflowRun = String($execution.id);\n} catch (e) {}\n\nfunction pickRecipientEmail(j0) {\n  const tryList = [j0.client_to_email, j0.email, j0.wp_form_client_email];\n  for (let i = 0; i < tryList.length; i++) {\n    const c = tryList[i];\n    if (c && typeof c === 'string' && c.includes('@')) return c.trim();\n  }\n  const ef = j0.emailFrom;\n  if (typeof ef === 'string') {\n    const m = ef.match(/<([^>\\s]+@[^>\\s]+)>/);\n    if (m) return m[1].trim();\n    if (ef.includes('@')) return ef.trim();\n    return '';\n  }\n  if (ef && typeof ef === 'object') {\n    if (ef.address && String(ef.address).includes('@')) return String(ef.address).trim();\n    if (Array.isArray(ef.value) && ef.value[0] && ef.value[0].address) return String(ef.value[0].address).trim();\n    if (ef.text) {\n      const t = String(ef.text);\n      const m2 = t.match(/<([^>\\s]+@[^>\\s]+)>/);\n      if (m2) return m2[1].trim();\n      if (t.includes('@')) return t.trim();\n    }\n  }\n  const _body = String(j0.emailBody || j0.wp_form_message || '');\n  const _lbl = _body.match(/E-?mail\\s*[:：]\\s*([^\\s\\r\\n<>]+@[^\\s\\r\\n<>]+)/i);\n  if (_lbl) return _lbl[1].trim();\n  const _any = _body.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}/i);\n  if (_any) return _any[0].trim();\n  return '';\n}\n\nlet telefon = String(j.wp_form_phone || '').trim();\nif (!telefon) {\n  const pl = bodyForShort.match(/(?:Telefon|tel\\.?|kom\\.?|phone)\\s*[:：]\\s*([+\\d\\s\\-().]{8,40})/i);\n  if (pl) telefon = pl[1].replace(/\\s+/g, ' ').trim();\n}\n\nconst resend_to = pickRecipientEmail(j);\nlet automail_skip_duplicate_offer_send = false;\nlet automail_skip_duplicate_offer_reason = '';\ntry {\n  const staticData = $getWorkflowStaticData('global');\n  if (!staticData.automailOfferDedup) staticData.automailOfferDedup = {};\n  const emailK = String(resend_to || '').trim().toLowerCase();\n  const wa = String(j.wyslana_akcja || 'single_date');\n  const rk = (dataTerminIso || '').slice(0, 10) + '_' + (dataTerminZakresDo || '').slice(0, 10);\n  const appendFp = String(j.operator_telegram_append || '').trim().slice(0, 120);\n  const dedupKey = emailK + '|' + wa + '|' + rk + '|' + appendFp;\n  const WINDOW_MS = 20 * 60 * 1000;\n  const now = Date.now();\n  const prev = staticData.automailOfferDedup[dedupKey];\n  if (emailK.includes('@') && !j.hitl_bypass_offer_dedup) {\n    if (prev != null && now - prev < WINDOW_MS) {\n      automail_skip_duplicate_offer_send = true;\n      automail_skip_duplicate_offer_reason = 'duplicate_within_20m_same_client_dates';\n    } else {\n      staticData.automailOfferDedup[dedupKey] = now;\n    }\n  }\n} catch (e) {\n  automail_skip_duplicate_offer_reason = 'dedup_err';\n}\nconst emailFromReadable = emailFromStr(j.emailFrom);\nconst zapisano_at = new Date().toISOString();\n\nfunction escapeHtmlFollowup(s) {\n  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\\\"/g,'&quot;');\n}\nfunction terminPhraseFollowup(j0, isoStart, zakresDoIso) {\n  const wa = String(j0.wyslana_akcja || '');\n  if (wa === 'range_calendar_days') {\n    const a = isoToPl(isoStart) || (String(j0.event_date_start || '').slice(0, 10));\n    const b = isoToPl(zakresDoIso) || (String(j0.event_date_end || '').slice(0, 10));\n    if (a && b) return 'okres ' + a + '–' + b;\n    if (a) return 'okres wokół ' + a;\n    return 'okres z zapytania';\n  }\n  const pl = isoToPl(isoStart);\n  if (pl) return pl;\n  return 'termin z zapytania';\n}\nconst followupHasEmail = !!(resend_to && String(resend_to).includes('@'));\nconst followupCandidate = j.skip_client_offer_resend !== true && j.human !== true && followupHasEmail && j.is_event_inquiry === true;\nlet followup_eligible_at = '';\nlet followup_offer_variant = 'none';\nlet subject_followup_3d = '';\nlet html_followup_3d = '';\nif (followupCandidate) {\n  const eligible = new Date();\n  let delayH = 48;\n  try {\n    const eh = String($env.FOLLOWUP_DELAY_HOURS ?? '').trim();\n    if (eh !== '') {\n      const n0 = parseInt(eh, 10);\n      if (Number.isFinite(n0) && n0 >= 0) delayH = n0;\n    } else {\n      const ed = String($env.FOLLOWUP_DELAY_DAYS ?? '').trim();\n      if (ed !== '') {\n        const d0 = parseInt(ed, 10);\n        if (Number.isFinite(d0) && d0 >= 0) delayH = d0 * 24;\n      }\n    }\n  } catch (e) {}\n  eligible.setUTCHours(eligible.getUTCHours() + delayH);\n  followup_eligible_at = eligible.toISOString();\n  const wa = String(j.wyslana_akcja || '');\n  if (wa === 'range_calendar_days') followup_offer_variant = 'range_list';\n  else if (j.demo_termin_wolny === true) followup_offer_variant = 'termin_wolny';\n  else followup_offer_variant = 'termin_zajety';\n  const datePhrase = terminPhraseFollowup(j, dataTerminIso, dataTerminZakresDo);\n  const cn = (j.client_name || j.wp_form_name || '').trim();\n  const greeting = cn ? ('Cześć ' + escapeHtmlFollowup(cn) + ',') : 'Cześć,';\n  let terminNote = '';\n  if (followup_offer_variant === 'termin_wolny' || followup_offer_variant === 'range_list') {\n    terminNote = '<p>W kontekście <strong>' + escapeHtmlFollowup(datePhrase) + '</strong> kalendarz nadal wygląda na <strong>wolny</strong> — chętnie potwierdzę ostatecznie po Twojej decyzji.</p>';\n  } else {\n    terminNote = '<p>Wracam do <strong>oferty i propozycji innych terminów</strong>, o których pisałem wcześniej.</p>';\n  }\n  subject_followup_3d = 'Co słychać z zapytaniem o termin? 🙂 Krótka chwila na ofertę';\n  html_followup_3d =\n    '<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:15px;line-height:1.5;color:#222;\">' +\n    '<p>' + greeting + '</p>' +\n    '<p>mam nadzieję, że u Was wszystko OK i że przygotowania do <strong>imprezy</strong> idą w dobrym kierunku — niezależnie czy mowa o <strong>weselu</strong>, osiemnastce, urodzinach, firmówce czy innej okazji 🙂</p>' +\n    '<p>Wracam z krótkim przypomnieniem po mojej wiadomości z ofertą w sprawie <strong>' + escapeHtmlFollowup(datePhrase) + '</strong>.</p>' +\n    terminNote +\n    '<p>Chciałem się odezwać i zapytać wprost:</p>' +\n    '<ul style=\"margin:0 0 1em 1.2em;\">' +\n    '<li>czy <strong>oferta i koncepcja imprezy</strong> są w Waszym stylu?</li>' +\n    '<li>czy są pytania co do <strong>muzyki, atrakcji</strong> (taniec w chmurach, fotobudka, fontanny iskier itd.) albo <strong>szczegółów</strong>?</li>' +\n    '</ul>' +\n    '<p>Zapraszam do obejrzenia <strong>realizacji</strong>:</p>' +\n    '<ul style=\"margin:0 0 1em 1.2em;\">' +\n    '<li><strong>Facebook:</strong> <a href=\"https://www.facebook.com/imprezjadamiannowaczyk\">facebook.com/imprezjadamiannowaczyk</a> — relacje i opinie</li>' +\n    '<li><strong>Instagram:</strong> <a href=\"https://www.instagram.com/imprezja/\">instagram.com/imprezja</a> — stories z imprez i efekty specjalne</li>' +\n    '</ul>' +\n    '<p><strong>Dajcie znać</strong>, co myślicie — <strong>503 836 965</strong>, odpowiedź na tego maila albo krótka rozmowa online. Chętnie doprecyzuję szczegóły 🙂</p>' +\n    '<p>Pozdrawiam serdecznie,<br><strong>Damian Nowaczyk</strong><br>DJ / wodzirej Imprezja<br><a href=\"https://www.imprezja.pl\">www.imprezja.pl</a></p></div>';\n}\n\nconst gca = j.google_calendar_available;\nlet googleCalendarAvailableCell = '';\nif (typeof gca === 'boolean') googleCalendarAvailableCell = boolStr(gca);\nelse if (gca != null && gca !== '') googleCalendarAvailableCell = String(gca);\n\nconst fullSheet = {\n  zapisano_at,\n  workflow_run: workflowRun,\n  emailSubject: String(j.emailSubject || ''),\n  emailBody: String(j.emailBody || ''),\n  emailFrom: emailFromReadable,\n  mailDate: String(j.mailDate || ''),\n  wp_form_name: String(j.wp_form_name || ''),\n  wp_form_phone: String(j.wp_form_phone || ''),\n  wp_form_message: String(j.wp_form_message || ''),\n  wp_form_client_email: String(j.wp_form_client_email || ''),\n  is_event_inquiry: boolStr(j.is_event_inquiry === true),\n  event_inquiry_confidence: String(j.event_inquiry_confidence || 'low'),\n  needs_human_review: boolStr(j.needs_human_review === true),\n  event_date_start: j.event_date_start != null && j.event_date_start !== '' ? String(j.event_date_start) : '',\n  event_date_end: j.event_date_end != null && j.event_date_end !== '' ? String(j.event_date_end) : '',\n  date_confidence: String(j.date_confidence || 'low'),\n  venue_or_city: j.venue_or_city != null ? String(j.venue_or_city) : '',\n  location_confidence: String(j.location_confidence || 'low'),\n  client_name: String(j.client_name || ''),\n  event_kind: String(j.event_kind || ''),\n  raw_quote: String(j.raw_quote || ''),\n  date_ok: boolStr(j.date_ok === true),\n  location_ok: boolStr(j.location_ok === true),\n  human: boolStr(j.human === true),\n  dj_notify_email: String(j.dj_notify_email || ''),\n  mail_from_notify: String(j.mail_from_notify || ''),\n  client_to_email: String(j.client_to_email || ''),\n  calStart: j.calStart != null && j.calStart !== '' ? String(j.calStart) : '',\n  calEnd: j.calEnd != null && j.calEnd !== '' ? String(j.calEnd) : '',\n  check_date_ymd: j.check_date_ymd != null && j.check_date_ymd !== '' ? String(j.check_date_ymd) : '',\n  calendar_query_until_exclusive: j.calendar_query_until_exclusive != null && j.calendar_query_until_exclusive !== '' ? String(j.calendar_query_until_exclusive) : '',\n  calendar_check_note: j.calendar_check_note != null ? String(j.calendar_check_note) : '',\n  demo_termin_wolny: boolStr(j.demo_termin_wolny === true),\n  google_calendar_available: googleCalendarAvailableCell,\n  google_calendar_warning: String(j.google_calendar_warning || ''),\n  event_kind_used: String(j.event_kind_used || j.event_kind || 'other'),\n  mail_from: String(j.mail_from || ''),\n  reply_to: String(j.reply_to || ''),\n  offer_pdf_url: String(j.offer_pdf_url || ''),\n  subject_wolny: String(j.subject_wolny || ''),\n  subject_zajety: String(j.subject_zajety || ''),\n  html_wolny: String(j.html_wolny || ''),\n  html_zajety: String(j.html_zajety || ''),\n  resend_to,\n  data_termin_iso: dataTerminIso,\n  data_termin_pl: isoToPl(dataTerminIso),\n  data_termin_zakres_do: dataTerminZakresDo,\n  typ_imprezy: String(j.event_kind_used || j.event_kind || 'other'),\n  klient_imie: String(j.client_name || j.wp_form_name || ''),\n  email: String(j.client_to_email || ''),\n  telefon,\n  miejscowosc: j.venue_or_city != null ? String(j.venue_or_city) : '',\n  pewnosc_daty: String(j.date_confidence || 'low'),\n  pewnosc_lokalizacji: String(j.location_confidence || 'low'),\n  zapytanie_o_impreze: boolStr(j.is_event_inquiry === true),\n  reczna_obsluga: boolStr(j.human === true),\n  lokalizacja_ok: boolStr(j.location_ok === true),\n  kalendarz_wolny: boolStr(j.demo_termin_wolny === true),\n  notatka_kalendarz: j.calendar_check_note != null ? String(j.calendar_check_note) : '',\n  temat_maila: String(j.emailSubject || ''),\n  nadawca_naglowek: emailFromReadable,\n  tresc_skrocona: tresc.replace(/\\r?\\n/g, ' '),\n  wyslana_akcja: String(j.wyslana_akcja || ''),\n  temat_wyslanej: String(j.temat_wyslanej || ''),\n  data_wyslania: String(j.data_wyslania || ''),\n  ask_clarification_source: String(j.ask_clarification_source || ''),\n  followup_candidate: boolStr(followupCandidate),\n  followup_eligible_at: followup_eligible_at || '',\n  followup_sent: 'FALSE',\n  followup_sent_at: '',\n  followup_offer_variant: followup_offer_variant || 'none',\n  subject_followup_3d: subject_followup_3d || '',\n  html_followup_3d: html_followup_3d || '',\n};\n\nconst skipOfferOnly = j.skip_client_offer_resend === true || j.skip_client_offer_resend === 'true' || String(j.skip_client_offer_resend || '').toUpperCase() === 'TRUE';\nreturn [{ json: { ...j, ...fullSheet, skip_client_offer_resend: skipOfferOnly, automail_skip_duplicate_offer_send, automail_skip_duplicate_offer_reason } }];"
+      },
+      "id": "hitl-build-sheet",
+      "name": "Code_BuildSheetRowZapytania",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2020,
+        880
+      ],
+      "notesInFlow": true,
+      "notes": "Pełne **73 pola** jak `zapytania-imprezja-pelne-dane.csv` → **Code_SheetColumnsOnly**."
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Wszystkie **73 kolumn** jak w zapytania-imprezja-pelne-dane.csv (kolejność = nagłówek arkusza).\n */\nconst j = $input.first().json;\nconst keys = ['zapisano_at', 'workflow_run', 'emailSubject', 'emailBody', 'emailFrom', 'mailDate', 'wp_form_name', 'wp_form_phone', 'wp_form_message', 'wp_form_client_email', 'is_event_inquiry', 'event_inquiry_confidence', 'needs_human_review', 'event_date_start', 'event_date_end', 'date_confidence', 'venue_or_city', 'location_confidence', 'client_name', 'event_kind', 'raw_quote', 'date_ok', 'location_ok', 'human', 'dj_notify_email', 'mail_from_notify', 'client_to_email', 'calStart', 'calEnd', 'check_date_ymd', 'calendar_query_until_exclusive', 'calendar_check_note', 'demo_termin_wolny', 'google_calendar_available', 'google_calendar_warning', 'event_kind_used', 'mail_from', 'reply_to', 'offer_pdf_url', 'subject_wolny', 'subject_zajety', 'html_wolny', 'html_zajety', 'resend_to', 'data_termin_iso', 'data_termin_pl', 'data_termin_zakres_do', 'typ_imprezy', 'klient_imie', 'email', 'telefon', 'miejscowosc', 'pewnosc_daty', 'pewnosc_lokalizacji', 'zapytanie_o_impreze', 'reczna_obsluga', 'lokalizacja_ok', 'kalendarz_wolny', 'notatka_kalendarz', 'temat_maila', 'nadawca_naglowek', 'tresc_skrocona', 'wyslana_akcja', 'temat_wyslanej', 'data_wyslania', 'ask_clarification_source', 'followup_candidate', 'followup_eligible_at', 'followup_sent', 'followup_sent_at', 'followup_offer_variant', 'subject_followup_3d', 'html_followup_3d'];\nconst out = {};\nfor (let i = 0; i < keys.length; i++) {\n  const k = keys[i];\n  const v = j[k];\n  out[k] = v != null && v !== undefined ? v : '';\n}\nreturn [{ json: out }];"
+      },
+      "id": "hitl-sheet-cols",
+      "name": "Code_SheetColumnsOnly",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2240,
+        880
+      ],
+      "notesInFlow": true,
+      "notes": "Eksport **73 kolumn** w kolejności nagłówka arkusza."
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "sheet",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "11vKJ7Df-lxeu_fVIA3B3JAssSxCEMByut5gneULLbfk",
+          "mode": "id",
+          "cachedResultName": "Zapytania_Imprezja_2026"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Arkusz1",
+          "mode": "name",
+          "cachedResultName": "Arkusz1"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "hitl-gs-append",
+      "name": "GoogleSheets_AppendZapytania",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        2460,
+        880
+      ],
+      "notesInFlow": true,
+      "notes": "Wejście z **Code_SheetColumnsOnly** (**73 kolumny**). Append Row, continueOnFail. **Zaimportuj:** przypisz to samo konto OAuth co w automail (Google Sheets).",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "NmthFQ76Y1NQwXQy",
+          "name": "Google Sheets account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "/** Fallback gdy brak szablonu wolny/zajęty: treść z leada + link PDF (wesele / okolicznościowa). */\nconst j = $('Code_BuildSheetRowZapytania').first().json;\nconst plain = String(j.hitl_approved_body_plain || '').trim() || '(pusto)';\nfunction esc(s) {\n  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');\n}\nconst ek = String(j.event_kind || '').toLowerCase() === 'wedding' ? 'wedding' : 'other';\nconst pdfW = 'https://imprezja.pl/wp-content/uploads/2026/01/Oferta-wesele-Imprezja-2027.pdf';\nconst pdfO = 'https://imprezja.pl/wp-content/uploads/2026/01/Oferta-impreza-2027-Damian-Nowaczyk.pdf';\nconst pdf = ek === 'wedding' ? pdfW : pdfO;\nconst html = '<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:15px;line-height:1.5;color:#222\">' +\n  '<pre style=\"white-space:pre-wrap;font-family:inherit;margin:0\">' + esc(plain) + '</pre>' +\n  '<p style=\"margin-top:1em;border-top:1px solid #eee;padding-top:1em;\">Pełna oferta (PDF): <a href=\"' + esc(pdf) + '\">' + esc(pdf) + '</a></p></div>';\nconst subj = ('Re: ' + String(j.emailSubject || 'Imprezja')).slice(0, 200);\nreturn [{ json: { ...j, hitl_resend_html: html, hitl_resend_subject: subj, data_wyslania: new Date().toISOString() } }];"
+      },
+      "id": "hitl-code-resend-wrap",
+      "name": "Code_HitlResendHtml",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2680,
+        880
+      ],
+      "notesInFlow": true,
+      "notes": "Używane tylko przy HITL_ALLOW_PERPLEXITY_FALLBACK_CLIENT_SEND=true; domyślnie ścieżka idzie na Telegram bez Resend."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.RESEND_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ from: String($json.mail_from_notify || $json.mail_from || '').trim(), to: String($json.resend_to || '').trim(), reply_to: String($json.reply_to || $json.client_to_email || '').trim(), subject: $json.hitl_resend_subject, html: $json.hitl_resend_html }) }}",
+        "options": {},
+        "authentication": "none"
+      },
+      "id": "hitl-http-resend",
+      "name": "HTTP_Resend_HitlApproved",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2900,
+        880
+      ],
+      "notesInFlow": true,
+      "notes": "Wysyłka szkicu SI+PDF do klienta tylko gdy If_HitlEnvAllowPerplexityClientSend = true (env HITL_ALLOW_PERPLEXITY_FALLBACK_CLIENT_SEND)."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "ap1",
+              "leftValue": "={{ ['approve','send_offer'].includes($('Code_TelegramIngress').first().json.action) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "hitl-if-approved",
+      "name": "If_Approved",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1800,
+        700
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "hitl-noop-after-reject",
+      "name": "NoOp_AfterReject",
+      "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [1320, 360]
+      "position": [
+        2020,
+        600
+      ],
+      "notes": "Odrzucono lub brak akcji wysyłki — tylko status w Postgres."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d1",
+              "leftValue": "={{ $json.date_ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c76ca27c-a07e-4cbf-b2a6-675ea1",
+      "name": "HitlCal_If_DateOK1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2000,
+        1000
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Zakres całego dnia (okno pod events.list — zajętość wg **Code_Merge**: tylko **całodniowe**) z event_date_start.\n * Offset: opcjonalnie CALENDAR_BUSY_TZ_OFFSET w Render (np. +01:00 / +02:00) + N8N_BLOCK_ENV_ACCESS_IN_NODE=false.\n */\nconst j = $input.first().json;\nconst startRaw = j.event_date_start;\nif (!startRaw) {\n  return [{ json: { ...j, calStart: null, calEnd: null, demo_termin_wolny: true, calendar_check_note: 'brak_event_date_start' } }];\n}\nconst s = String(startRaw).trim();\nlet day = s.slice(0, 10);\nif (!/^\\d{4}-\\d{2}-\\d{2}$/.test(day)) {\n  const d = new Date(s);\n  if (Number.isNaN(d.getTime())) {\n    return [{ json: { ...j, calStart: null, calEnd: null, demo_termin_wolny: true, calendar_check_note: 'niepoprawna_data' } }];\n  }\n  const y = d.getUTCFullYear();\n  const mo = String(d.getUTCMonth() + 1).padStart(2, '0');\n  const da = String(d.getUTCDate()).padStart(2, '0');\n  day = `${y}-${mo}-${da}`;\n}\nlet tz = '+02:00';\ntry {\n  if (typeof $env !== 'undefined' && $env.CALENDAR_BUSY_TZ_OFFSET) tz = String($env.CALENDAR_BUSY_TZ_OFFSET);\n} catch (e) {}\nfunction addOneCalendarDay(ymd) {\n  const p = ymd.split('-').map((x) => parseInt(x, 10));\n  const t = new Date(Date.UTC(p[0], p[1] - 1, p[2]));\n  t.setUTCDate(t.getUTCDate() + 1);\n  return t.getUTCFullYear() + '-' + String(t.getUTCMonth() + 1).padStart(2, '0') + '-' + String(t.getUTCDate()).padStart(2, '0');\n}\nconst dayNextExclusive = addOneCalendarDay(day);\nconst calStart = day + 'T00:00:00.000' + tz;\nconst calEnd = dayNextExclusive + 'T00:00:00.000' + tz;\nreturn [{ json: { ...j, calStart, calEnd, check_date_ymd: day, calendar_query_until_exclusive: dayNextExclusive } }];"
+      },
+      "id": "a1b9c2d3-e4f5-6789-abcd-ef01a2",
+      "name": "HitlCal_Code_BuildCalWindow",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2220,
+        920
+      ],
+      "notesInFlow": true,
+      "notes": "Buduje calStart/calEnd (cały dzień). Brak daty → demo_termin_wolny=true, pominięcie Google."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cal1",
+              "leftValue": "={{ !!$json.calStart }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b2c0d3e4-f5a6-7890-bcde-f012a3",
+      "name": "HitlCal_If_CalendarRangeOk",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2440,
+        920
+      ],
+      "notes": "true = wołaj Google Calendar; false = idź do PrepareOferta (już demo_termin_wolny=true)."
+    },
+    {
+      "parameters": {
+        "resource": "event",
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "nowaczykdamian@gmail.com",
+          "mode": "list",
+          "cachedResultName": "nowaczykdamian@gmail.com"
+        },
+        "returnAll": true,
+        "timeMin": "={{ $('HitlCal_Code_BuildCalWindow').first().json.calStart }}",
+        "timeMax": "={{ $('HitlCal_Code_BuildCalWindow').first().json.calEnd }}",
+        "options": {
+          "timeZone": "Europe/Warsaw"
+        }
+      },
+      "id": "f1e2d3c4-b5a6-7890-abcd-ef12a4",
+      "name": "HitlCal_Google_Calendar_EventsForColorCheck",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        2660,
+        840
+      ],
+      "notesInFlow": true,
+      "notes": "**Ten sam kalendarz** co w Google (sprawdź ID vs aplikacja). **Get Many** z **timeZone Europe/Warsaw**. Zajętość: tylko wpisy **całodniowe** — patrz **Code_MergeCalendarAvailability**.",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "oUtfCfDQmNBOZ3WV",
+          "name": "Google Calendar account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const route = $('HitlCal_Code_BuildCalWindow').first().json;\n\nfunction ymdFromApi(x) {\n  if (x == null || x === '') return '';\n  const s = String(x).trim();\n  const m = s.match(/^(\\d{4}-\\d{2}-\\d{2})/);\n  return m ? m[1] : '';\n}\nfunction addOneDayYmd(ymd) {\n  const p0 = ymd.split('-').map(function (x) { return parseInt(x, 10); });\n  const t = new Date(Date.UTC(p0[0], p0[1] - 1, p0[2]));\n  t.setUTCDate(t.getUTCDate() + 1);\n  return t.getUTCFullYear() + '-' + String(t.getUTCMonth() + 1).padStart(2, '0') + '-' + String(t.getUTCDate()).padStart(2, '0');\n}\n/** Całodniowe = Google `start.date` bez aktywnego `start.dateTime` (n8n czasem zwraca samo `date`). */\nfunction allDayRangeForEvent(ev) {\n  if (!ev || ev.status === 'cancelled') return null;\n  const st = ev.start;\n  if (!st || typeof st !== 'object') return null;\n  if (st.dateTime) return null;\n  const startYmd = ymdFromApi(st.date);\n  if (!startYmd) return null;\n  const en = ev.end;\n  let endEx = '';\n  if (en && typeof en === 'object' && en.date && !en.dateTime) {\n    endEx = ymdFromApi(en.date);\n  }\n  if (!endEx) endEx = addOneDayYmd(startYmd);\n  return { startYmd: startYmd, endEx: endEx };\n}\nfunction allDayOverlapsYmd(ev, ymd) {\n  const r = allDayRangeForEvent(ev);\n  if (!r) return false;\n  return r.startYmd <= ymd && r.endEx > ymd;\n}\nfunction dayBlockedByAllDay(events, ymd) {\n  for (let i = 0; i < events.length; i++) {\n    if (allDayOverlapsYmd(events[i], ymd)) return true;\n  }\n  return false;\n}\n\nif (route.calendar_check_note) {\n  return [{ json: { ...route } }];\n}\n\nconst dayY = route.calStart ? String(route.calStart).slice(0, 10) : String(route.event_date_start || '').slice(0, 10);\nconst rawEv = $input.all().map(function (x) { return x.json; }).filter(function (e) { return e && (e.id || e.summary); });\n\nlet allDayParsed = 0;\nfor (let i = 0; i < rawEv.length; i++) {\n  if (allDayRangeForEvent(rawEv[i])) allDayParsed++;\n}\n\nlet wolny = true;\nlet dbg = 'ok';\nif (!dayY || !/^\\d{4}-\\d{2}-\\d{2}$/.test(dayY)) {\n  dbg = 'brak_dnia';\n} else {\n  wolny = !dayBlockedByAllDay(rawEv, dayY);\n  dbg = wolny ? 'brak_blokady' : 'cal_all_day_overlap';\n}\n\nreturn [{ json: {\n  ...route,\n  demo_termin_wolny: wolny,\n  google_calendar_available: wolny,\n  calendar_block_rule: 'google_all_day_only',\n  calendar_busy_by_all_day: !wolny,\n  calendar_busy_by_all_day_color: !wolny,\n  calendar_busy_color_ids: '',\n  calendar_block_debug: dbg,\n  calendar_debug_events_in_window: rawEv.length,\n  calendar_debug_all_day_events_parsed: allDayParsed\n} }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "d4e2f5a6-b7c8-9012-def0-1234a5",
+      "name": "HitlCal_Code_MergeCalendarAvailability",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2880,
+        840
+      ],
+      "notes": "**Zajęty** = wydarzenie **„Cały dzień”** w Google (`start.date` w API, bez `start.dateTime`). **Bez** `colorId` / `CALENDAR_BUSY_COLOR_IDS`. Sloty z godziną **nie** blokują dnia."
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Oferty — demo_termin_wolny z Google Calendar (node wcześniej) lub true przy pominięciu API.\n * Szablony: wesele (event_kind wedding) vs inna impreza; PDF i treść osobno.\n */\nconst j = $input.first().json;\nconst eventKind = String(j.event_kind || 'other').toLowerCase() === 'wedding' ? 'wedding' : 'other';\nconst cn = j.client_name ? String(j.client_name) : '';\nconst dateRaw = j.event_date_start ? String(j.event_date_start) : '';\nconst dateStr = dateRaw.length >= 10 ? dateRaw.slice(0, 10) : dateRaw;\nfunction isoToPl(d) {\n  if (!d || d.length < 10) return d || '';\n  const p = d.slice(0, 10).split('-');\n  if (p.length !== 3) return d;\n  return p[2] + '.' + p[1] + '.' + p[0];\n}\nconst datePl = isoToPl(dateStr);\nconst dateForSubject = datePl || dateStr || '';\nconst offerPdfWedding = 'https://imprezja.pl/wp-content/uploads/2026/01/Oferta-wesele-Imprezja-2027.pdf';\nconst offerPdfOther = 'https://imprezja.pl/wp-content/uploads/2026/01/Oferta-impreza-2027-Damian-Nowaczyk.pdf';\nconst offerPdfUrl = eventKind === 'wedding' ? offerPdfWedding : offerPdfOther;\nconst mailFrom = 'Biuro Imprezja <biuro@imprezja.pl>';\nconst replyTo = 'biuro@imprezja.pl';\nconst demo_termin_wolny = (j.demo_termin_wolny !== undefined && j.demo_termin_wolny !== null) ? !!j.demo_termin_wolny : true;\nconst locNote = !j.location_ok ? '<p style=\"margin-top:1em;border-top:1px solid #eee;padding-top:1em;\"><strong>Proszę jeszcze</strong> o podanie <strong>miejscowości lub obiektu</strong> imprezy — ułatwi to wycenę dojazdu i logistyki (można dopisać w odpowiedzi na tego maila).</p>' : '';\nfunction escapeHtml(s) {\n  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;');\n}\nconst greeting = cn ? 'Cześć ' + escapeHtml(cn) + ',' : 'Cześć,';\nconst datePhrase = datePl ? escapeHtml(datePl) : '[data imprezy]';\nconst pdfBlock = '<p>Tu podrzucam link do pełnej oferty z detalami:<br><a href=\"' + escapeHtml(offerPdfUrl) + '\">' + escapeHtml(offerPdfUrl) + '</a></p>\\n';\nconst wrapOpen = '<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:15px;line-height:1.5;color:#222;\">\\n';\nconst wrapClose = '\\n</div>';\nlet htmlWolny;\nif (eventKind === 'wedding') {\n  htmlWolny = wrapOpen +\n'<p>' + greeting + '</p>\\n' +\n'<p>Sprawdziłem kalendarz… i mam dobrą wiadomość: w <strong>' + datePhrase + '</strong> jestem wolny i z przyjemnością rozkręcę <strong>Wasze wesele</strong>.</p>\\n' +\n'<p>Nazywam się Damian Nowaczyk, od ponad 20 lat kręcę imprezy pod marką Imprezja – od wesel, przez osiemnastki i urodziny, po poprawiny i firmówki. Dzięki temu ogarniam gości w każdym wieku: od przedszkolaków po klub seniora, więc każdy znajdzie coś dla siebie na parkiecie.</p>\\n' +\n'<p><strong>Jak wygląda wesele ze mną?</strong></p>\\n' +\n'<ul style=\"margin:0 0 1em 1.2em;padding:0;\">\\n' +\n'<li>dużo dobrej muzyki – od klasyków po świeże radiowe numery, zawsze dopasowane do Was i Waszych gości,</li>\\n' +\n'<li>angażujące zabawy, animacje, konkursy i quizy – ale bez żenady,</li>\\n' +\n'<li>fajna, swobodna atmosfera, w której nie ma miejsca na nudę,</li>\\n' +\n'<li>scenariusz dopasowany do Was, a nie „szablon z internetu”.</li>\\n' +\n'</ul>\\n' +\n'<p><strong>Do tego możecie dorzucić kilka „efektów specjalnych”:</strong></p>\\n' +\n'<ul style=\"margin:0 0 1em 1.2em;padding:0;\">\\n' +\n'<li>taniec w chmurach (ciężki dym) – pierwszy taniec jak z teledysku,</li>\\n' +\n'<li>dekoracja sali światłem LED – klimat od romantycznego po klubowy,</li>\\n' +\n'<li>fotobudka AI – nowość 2026 – świetna zabawa i super fotki,</li>\\n' +\n'<li>fotobudka – masa śmiesznych zdjęć i pamiątek dla gości,</li>\\n' +\n'<li>fontanny iskier – efekt WOW na wejście czy pierwszy taniec,</li>\\n' +\n'<li>CO2 Gun, lampy UV, rurki LED – idealne na „parkietowy szał”,</li>\\n' +\n'<li>dodatkowe atrakcje dla dzieci – żeby rodzice mogli spokojnie się bawić.</li>\\n' +\n'</ul>\\n' +\npdfBlock +\n'<p>Jeśli brzmi to jak Wasze klimaty, możemy złapać się na krótką rozmowę telefoniczną lub online i spokojnie wszystko omówić.</p>\\n' +\n'<p>Pozdrawiam i trzymam kciuki za Wasze przygotowania<br><strong>Damian Nowaczyk</strong><br>tel. 503 836 965<br><a href=\"https://www.imprezja.pl\">www.imprezja.pl</a></p>' +\nlocNote + wrapClose;\n} else {\n  htmlWolny = wrapOpen +\n'<p>' + greeting + '</p>\\n' +\n'<p>Sprawdziłem kalendarz… i mam dobrą wiadomość: w <strong>' + datePhrase + '</strong> jestem wolny i z przyjemnością rozkręcę <strong>Twoją imprezę</strong>.</p>\\n' +\n'<p>Nazywam się Damian Nowaczyk, od ponad 20 lat kręcę imprezy pod marką Imprezja – od wesel, przez osiemnastki i urodziny, po poprawiny i firmówki. Dzięki temu ogarniam gości w każdym wieku: od przedszkolaków po klub seniora, więc każdy znajdzie coś dla siebie na parkiecie.</p>\\n' +\n'<p><strong>Jak wygląda impreza ze mną?</strong></p>\\n' +\n'<ul style=\"margin:0 0 1em 1.2em;padding:0;\">\\n' +\n'<li>dużo dobrej muzyki – od klasyków po świeże radiowe numery, dopasowane do Ciebie, gości i charakteru imprezy,</li>\\n' +\n'<li>angażujące zabawy, animacje, konkursy i quizy – ale bez żenady,</li>\\n' +\n'<li>fajna, swobodna atmosfera, w której nie ma miejsca na nudę,</li>\\n' +\n'<li>scenariusz dopasowany do Ciebie i Twojej imprezy, a nie „szablon z internetu”.</li>\\n' +\n'</ul>\\n' +\n'<p><strong>Do tego możesz dorzucić kilka „efektów specjalnych”:</strong></p>\\n' +\n'<ul style=\"margin:0 0 1em 1.2em;padding:0;\">\\n' +\n'<li>taniec w chmurach (ciężki dym) – pierwszy taniec jak z teledysku,</li>\\n' +\n'<li>dekoracja sali światłem LED – klimat od romantycznego po klubowy,</li>\\n' +\n'<li>fotobudka – masa śmiesznych zdjęć i pamiątek dla gości,</li>\\n' +\n'<li>fotobudka AI – nowoczesna atrakcja – hit sezonu 2026,</li>\\n' +\n'<li>fontanny iskier – efekt WOW na wejście czy pierwszy taniec,</li>\\n' +\n'<li>CO2 Gun, lampy UV, rurki LED – idealne na „parkietowy szał”,</li>\\n' +\n'<li>dodatkowe atrakcje dla dzieci – żeby rodzice mogli spokojnie się bawić.</li>\\n' +\n'</ul>\\n' +\npdfBlock +\n'<p>Jeśli brzmi to jak Twoje klimaty, chętnie umówię się na krótką rozmowę telefoniczną lub online – spokojnie wszystko omówimy.</p>\\n' +\n'<p>Pozdrawiam i trzymam kciuki za Twoją imprezę<br><strong>Damian Nowaczyk</strong><br>tel. 503 836 965<br><a href=\"https://www.imprezja.pl\">www.imprezja.pl</a></p>' +\nlocNote + wrapClose;\n}\nlet htmlZajety;\nif (eventKind === 'wedding') {\n  htmlZajety = wrapOpen +\n'<p>' + greeting + '</p>\\n' +\n'<p>dzięki za maila i zaufanie! Sprawdziłem kalendarz i szkoda – <strong>' + datePhrase + '</strong> już zajęty. Ale spokojnie, mam kilka opcji, żeby Was nie zostawić na lodzie! &#128522;</p>\\n' +\n'<p><strong>Co mogę zaoferować zamiast:</strong></p>\\n' +\n'<ul style=\"margin:0 0 1em 1.2em;padding:0;\">\\n' +\n'<li><strong>najbliższa wolna data przed</strong> lub <strong>najbliższa po</strong> – mogę przesłać dostępność,</li>\\n' +\n'<li><strong>Lista rezerwowa</strong> – pary czasami zmieniają plany, daję cynk jako pierwszy,</li>\\n' +\n'</ul>\\n' +\n'<p>Dajcie znać, co Wam pasuje – pogadamy i znajdziemy najlepsze rozwiązanie.</p>\\n' +\n'<p>Pozdro i trzymam kciuki za piękną imprezę,<br><strong>Damian Nowaczyk</strong><br>DJ/Wodzirej Imprezja<br>503 836 965<br><a href=\"https://www.imprezja.pl\">www.imprezja.pl</a></p>' +\nlocNote + wrapClose;\n} else {\n  htmlZajety = wrapOpen +\n'<p>' + greeting + '</p>\\n' +\n'<p>dzięki za maila i zaufanie! Sprawdziłem kalendarz i szkoda – <strong>' + datePhrase + '</strong> już zajęty. Mam jednak kilka opcji, żeby Cię nie zostawić na lodzie! &#128522;</p>\\n' +\n'<p><strong>Co mogę zaproponować:</strong></p>\\n' +\n'<ul style=\"margin:0 0 1em 1.2em;padding:0;\">\\n' +\n'<li><strong>najbliższa wolna data przed</strong> lub <strong>najbliższa po</strong> – mogę przesłać dostępność,</li>\\n' +\n'<li><strong>Lista rezerwowa</strong> – czasem terminy się zwalniają, daję znać jako pierwszy,</li>\\n' +\n'</ul>\\n' +\n'<p>Daj znać, co Ci pasuje – pogadamy i znajdziemy najlepsze rozwiązanie.</p>\\n' +\n'<p>Pozdrawiam i trzymam kciuki,<br><strong>Damian Nowaczyk</strong><br>DJ/Wodzirej Imprezja<br>503 836 965<br><a href=\"https://www.imprezja.pl\">www.imprezja.pl</a></p>' +\nlocNote + wrapClose;\n}\nconst subjectWolny = (eventKind === 'wedding' ? 'Wasz termin jest wolny – działamy? 🙂' : 'Twój termin jest wolny – działamy? 🙂') + (dateForSubject ? ' (' + dateForSubject + ')' : '');\nconst subjectZajety = (eventKind === 'wedding' ? 'Termin zajęty – mam dla Was opcje' : 'Termin zajęty – mam dla Ciebie opcje') + (dateForSubject ? ' (' + dateForSubject + ')' : '');\nreturn [{ json: { ...j, event_kind_used: eventKind, mail_from: mailFrom, reply_to: replyTo, offer_pdf_url: offerPdfUrl, demo_termin_wolny, html_wolny: htmlWolny, html_zajety: htmlZajety, subject_wolny: subjectWolny, subject_zajety: subjectZajety } }];"
+      },
+      "id": "f5bc62b1-675b-4e3c-8be1-e411a6",
+      "name": "HitlCal_PrepareOfertaMails",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3100,
+        880
+      ],
+      "notesInFlow": true,
+      "notes": "demo_termin_wolny z Code_MergeCalendarAvailability / fallback z Code_BuildCalWindow (brak zakresu = wolny)."
+    },
+    {
+      "parameters": {
+        "jsCode": "/** Tekst z Modyfikuj = instrukcje wewnętrzne (SI/CRM), nie wklejamy do HTML wysyłki do klienta. */\nconst j = $input.first().json;\nreturn [{ json: { ...j, hitl_operator_append_in_client_mail: false } }];"
+      },
+      "id": "hitl-merge-append-offer",
+      "name": "Code_HitlMergeAppendIntoOfferHtml",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3220,
+        880
+      ],
+      "notesInFlow": true,
+      "notes": "Nie modyfikuje HTML klienta. Instrukcje z Telegrama zostają w payload (operator_telegram_append) i polu hitl_operator_instructions_for_ai."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "sk1",
+              "leftValue": "={{ $json.skip_client_offer_resend === true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "99f4b51e-7ddc-4ac4-9201-cf9ea7",
+      "name": "HitlCal_If_SkipClientOfferResend",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2440,
+        1080
+      ],
+      "notes": "Po mailu **doprecyzowania** nie wysyłaj oferty wolny/zajęty. true → NoOp."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "bd1",
+              "leftValue": "={{ $json.automail_skip_duplicate_offer_send !== true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c0ffee00-0001-4000-8000-0000a8",
+      "name": "HitlCal_If_BlockDuplicateOfferSend",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2660,
+        1160
+      ],
+      "notesInFlow": true,
+      "notes": "Pomija **Resend** gdy ten sam klient + ten sam zakres/termin w ciągu **20 min** (np. potrójny submit formularza)."
+    },
+    {
+      "parameters": {},
+      "id": "c0ffee00-0001-4000-8000-0000a9",
+      "name": "HitlCal_NoOp_DuplicateResendSkipped",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2880,
+        1240
+      ],
+      "notesInFlow": true,
+      "notes": "Duplikat oferty w oknie czasu — bez drugiego maila do klienta."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "t1",
+              "leftValue": "={{ $json.demo_termin_wolny }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "134f70b3-3169-4555-ad1a-1544b1",
+      "name": "HitlCal_If_TerminWolny",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2880,
+        1080
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.RESEND_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ from: $json.mail_from, to: String($json.resend_to || $json.client_to_email || $json.email || '').trim(), reply_to: $json.reply_to, subject: $json.subject_wolny, html: $json.html_wolny }) }}",
+        "options": {},
+        "authentication": "none"
+      },
+      "id": "d46e8c30-cf91-4c46-b9b9-f61bb2",
+      "name": "HitlCal_Resend_WolnyTermin",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3100,
+        1000
+      ],
+      "notesInFlow": true,
+      "notes": "Postgres follow-up — patrz N8N_MECHANIZM. Auth: $env.RESEND_API_KEY."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.RESEND_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ from: $json.mail_from, to: String($json.resend_to || $json.client_to_email || $json.email || '').trim(), reply_to: $json.reply_to, subject: $json.subject_zajety, html: $json.html_zajety }) }}",
+        "options": {},
+        "authentication": "none"
+      },
+      "id": "201a7d7a-188b-464f-924d-e14cb3",
+      "name": "HitlCal_Resend_TerminZajety",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3100,
+        1160
+      ],
+      "notes": "Auth: $env.RESEND_API_KEY."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Follow-up: opóźnienie = FOLLOWUP_DELAY_HOURS (domyślnie 48 h = 2 dni) lub FOLLOWUP_DELAY_DAYS×24 w Code_BuildSheetRowZapytania.\n// Arkusz: subject_followup_3d, html_followup_3d, followup_eligible_at.\n// Workflow 2: eligible_at<=now → Resend (opcjonalnie FOLLOWUP_BCC) → followup_sent=TRUE.\nreturn $input.all();"
+      },
+      "id": "3f2930df-7cf8-4460-8649-c645b4",
+      "name": "HitlCal_NoOp_FollowUp3d_SheetHint",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3320,
+        1080
+      ],
+      "notesInFlow": true,
+      "notes": "Cron: czytaj arkusz wg followup_* — patrz docs/N8N_FOLLOWUP_3D_SHEETS.md"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ho1",
+              "leftValue": "={{ String($json.html_wolny || \"\").length > 50 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "hitl-if-has-offer-html",
+      "name": "If_HitlHasPreparedOffer",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2220,
+        1080
+      ],
+      "notesInFlow": true,
+      "notes": "true = był **PrepareOfertaMails** (wolny/zajęty); false = tylko arkusz + ewentualnie Perplexity."
+    },
+    {
+      "parameters": {},
+      "id": "hitl-noop-skip-clar",
+      "name": "NoOp_HitlSkipClarificationBranch",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2660,
+        1000
+      ],
+      "notes": "HITL: gałąź „skip oferty” z automaila — tu bez drugiego maila doprecyzowania."
+    },
+    {
+      "parameters": {},
+      "id": "hitl-noop-no-offer-email",
+      "name": "NoOp_HitlNoOfferEmailBranch",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2440,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "p1",
+              "leftValue": "={{ String($(\"Code_BuildSheetRowZapytania\").first().json.html_wolny || \"\").length < 50 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "hitl-if-need-perplexity",
+      "name": "If_HitlNeedPerplexityResend",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2880,
+        1320
+      ],
+      "notes": "Gdy nie było szablonu wolny/zajęty — wyślij **proposed_email_reply** (Perplexity)."
+    },
+    {
+      "parameters": {},
+      "id": "hitl-noop-after-sheet-offer-sent",
+      "name": "NoOp_HitlAfterSheetOfferAlreadySent",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        3100,
+        1400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "/** Jak PreparePayloadFromLead, z wiersza po zapisaniu dopisku — tylko podgląd (hitl_preview_only). */\nconst row = $('Postgres_AppendToPayload').first().json;\nfunction pj(x) {\n  if (x == null) return {};\n  if (typeof x === 'object' && !Array.isArray(x)) return x;\n  try { return JSON.parse(String(x)); } catch (e) { return {}; }\n}\nconst p = pj(row.payload_json);\nconst ai = pj(row.ai_json);\nconst append = p.operator_telegram_append != null ? String(p.operator_telegram_append).trim() : '';\nlet body = String(ai.proposed_email_reply || '').trim();\nif (!body) body = '(Brak treści Perplexity — uzupełnij ręcznie w mailu.)';\nconst mailFromNotify = String(p.mail_from_notify || 'Biuro Imprezja <biuro@imprezja.pl>');\nconst clientMail = String(p.client_to_email || p.wp_form_client_email || '').trim();\nconst merged = {\n  ...p,\n  ...ai,\n  hitl_approved_body_plain: body,\n  hitl_operator_instructions_for_ai: append,\n  mail_from_notify: mailFromNotify,\n  mail_from: mailFromNotify,\n  reply_to: clientMail || mailFromNotify,\n  wyslana_akcja: 'hitl_telegram_approve',\n  temat_wyslanej: '',\n  data_wyslania: '',\n  hitl_preview_only: true,\n  hitl_preview_lead_id: String(row.id || ''),\n  hitl_notify_chat_id: row.telegram_chat_id != null ? Number(row.telegram_chat_id) : null,\n  hitl_client_email_preview: clientMail,\n};\nreturn [{ json: merged }];"
+      },
+      "id": "hitl-payload-append-preview",
+      "name": "Code_HitlPayloadFromAppendRow",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1580,
+        -80
+      ],
+      "notesInFlow": true,
+      "notes": "Po zapisaniu dopisku: buduje payload jak Approve, ale hitl_preview_only — bez zmiany statusu."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "pv1",
+              "leftValue": "={{ $json.hitl_preview_only === true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "hitl-if-gate-nodate",
+      "name": "If_HitlGateNoDatePreview",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2000,
+        1120
+      ],
+      "notes": "Gdy brak date_ok: podgląd zamiast od razu arkusz+mail (tylko ścieżka preview)."
+    },
+    {
+      "parameters": {
+        "jsCode": "const j = $input.first().json;\nconst plain = String(j.hitl_approved_body_plain || '').trim() || '(pusto)';\nconst ek = String(j.event_kind || '').toLowerCase() === 'wedding' ? 'wedding' : 'other';\nconst pdfW = 'https://imprezja.pl/wp-content/uploads/2026/01/Oferta-wesele-Imprezja-2027.pdf';\nconst pdfO = 'https://imprezja.pl/wp-content/uploads/2026/01/Oferta-impreza-2027-Damian-Nowaczyk.pdf';\nconst pdf = ek === 'wedding' ? pdfW : pdfO;\nlet body = 'PODGLĄD — brak konkretnej daty. Treść poniżej (bez instrukcji z Modyfikuj) + PDF to wariant do klienta tylko przy włączonym env; domyślnie auto-mail wyłączony.\\nDo: ' + String(j.hitl_client_email_preview || j.client_to_email || '') + '\\n---\\n' + plain + '\\n---\\nPDF: ' + pdf;\nconst instr = j.operator_telegram_append != null ? String(j.operator_telegram_append).trim() : '';\nif (instr) body += '\\n\\n---\\nTwoje instrukcje (tylko Telegram — NIE w mailu):\\n' + instr;\nif (body.length > 3600) body = body.slice(0, 3600) + '\\n\\n[ucięte — pełna treść w mailu]';\nreturn [{ json: { ...j, hitl_offer_preview_text: body, hitl_offer_preview_chat_id: j.hitl_notify_chat_id, hitl_offer_preview_lead_id: String(j.hitl_preview_lead_id || ''), hitl_preview_btn_send: 'Zatwierdź bez maila do klienta' } }];"
+      },
+      "id": "hitl-preview-plain-nodate",
+      "name": "Code_HitlPreviewPlainNoDate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2220,
+        1040
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "pm1",
+              "leftValue": "={{ $json.hitl_preview_only === true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "hitl-if-preview-after-merge",
+      "name": "If_HitlPreviewOnlyAfterMerge",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3340,
+        880
+      ],
+      "notes": "Podgląd oferty w Telegram zamiast od razu arkusz — tylko po dopisku."
+    },
+    {
+      "parameters": {
+        "jsCode": "const j = $input.first().json;\nconst w = j.demo_termin_wolny === true || j.demo_termin_wolny === 'true' || String(j.demo_termin_wolny || '').toUpperCase() === 'TRUE';\nconst html = w ? String(j.html_wolny || '') : String(j.html_zajety || '');\nconst subj = w ? String(j.subject_wolny || '') : String(j.subject_zajety || '');\nfunction htmlToPlain(h) {\n  return String(h || '')\n    .replace(/<br\\s*\\/?>/gi, '\\n')\n    .replace(/<\\/p>/gi, '\\n')\n    .replace(/<\\/li>/gi, '\\n')\n    .replace(/<[^>]+>/g, '')\n    .replace(/&nbsp;/g, ' ')\n    .replace(/&amp;/g, '&')\n    .replace(/&lt;/g, '<')\n    .replace(/&gt;/g, '>')\n    .trim();\n}\nconst statusLine = w ? 'Wariant: termin WOLNY (szablon + PDF).' : 'Wariant: termin ZAJĘTY (szablon + PDF).';\nconst instr = j.operator_telegram_append != null ? String(j.operator_telegram_append).trim() : '';\nlet intro = 'PODGLĄD — treść do klienta (szablon + PDF).\\n\\n';\nif (j.hitl_offer_si_refined === true) intro = 'PODGLĄD — treść po przeróbce SI (tak poleci do klienta po Wyślij).\\n\\n';\nelse if (instr) {\n  intro =\n    'PODGLĄD — SI nie przerobił HTML (sprawdź w Executions node HTTP_Perplexity_RefineOfferAfterModify i PERPLEXITY_API_KEY).\\n' +\n    'To jedyna wiadomość podglądu; po Wyślij do klienta poleci szablon BEZ przeróbki (instrukcje poniżej NIE trafiają do klienta).\\n\\n' +\n    'Twoje instrukcje (tylko operator):\\n' +\n    instr.slice(0, 400) +\n    (instr.length > 400 ? '…' : '') +\n    '\\n\\n---\\nTreść maila (szablon):\\n\\n';\n}\nlet body = intro + statusLine + '\\nTemat: ' + subj + '\\nDo: ' + String(j.hitl_client_email_preview || j.client_to_email || j.resend_to || '') + '\\n---\\n' + htmlToPlain(html);\nif (j.hitl_offer_si_refined === true && instr) body += '\\n\\n---\\nTwoje instrukcje (dla porównania, nie w mailu):\\n' + instr.slice(0, 1200);\nif (body.length > 3600) body = body.slice(0, 3600) + '\\n\\n[ucięte — pełna treść poleci w mailu HTML]';\nreturn [{ json: { ...j, hitl_offer_preview_text: body, hitl_offer_preview_chat_id: j.hitl_notify_chat_id, hitl_offer_preview_lead_id: String(j.hitl_preview_lead_id || ''), hitl_preview_btn_send: 'Wyślij do klienta' } }];"
+      },
+      "id": "hitl-format-preview-html",
+      "name": "Code_HitlFormatTelegramOfferPreview",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3560,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: Number($json.hitl_offer_preview_chat_id), text: $json.hitl_offer_preview_text, reply_markup: { inline_keyboard: [ [{ text: String($json.hitl_preview_btn_send || 'Wyślij do klienta'), callback_data: 'snd:' + $json.hitl_offer_preview_lead_id }], [{ text: 'Zmień dopisek', callback_data: 'md:' + $json.hitl_offer_preview_lead_id }] ] } }) }}",
+        "options": {}
+      },
+      "continueOnFail": true,
+      "id": "hitl-http-tg-offer-preview",
+      "name": "HTTP_Telegram_OfferPreview",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3780,
+        920
+      ],
+      "notes": "Przyciski snd:/md: mieszczą się w limicie 64 B Telegram."
+    },
+    {
+      "parameters": {
+        "jsCode": "/** Po udanym Resend — tekst powiadomienia na Telegram operatora. */\nconst s = $('Code_BuildSheetRowZapytania').first().json;\nconst to = String(s.resend_to || s.client_to_email || s.wp_form_client_email || '').trim() || '(brak adresu)';\nconst w = s.demo_termin_wolny === true || s.demo_termin_wolny === 'true' || String(s.demo_termin_wolny || '').toUpperCase() === 'TRUE';\nconst hasOffer = String(s.html_wolny || '').length > 50;\nlet kind = 'treść AI + PDF (fallback HITL)';\nif (hasOffer) kind = w ? 'szablon termin wolny + PDF' : 'szablon termin zajęty + PDF';\nlet chatId = 0;\ntry {\n  const ing = $('Code_TelegramIngress').first().json;\n  if (ing && ing.message_chat_id != null) chatId = Number(ing.message_chat_id);\n  else if (ing && ing.telegram_chat_id != null) chatId = Number(ing.telegram_chat_id);\n} catch (e) {}\nif (!chatId) {\n  try { chatId = Number(String($env.TELEGRAM_OPERATOR_CHAT_ID || '').trim()); } catch (e2) {}\n}\nconst subj = hasOffer ? (w ? String(s.subject_wolny || '') : String(s.subject_zajety || '')) : String(s.hitl_resend_subject || s.emailSubject || '');\nconst text = 'Wysłano wiadomość e-mail do klienta.\\nDo: ' + to + (subj ? '\\nTemat: ' + subj.slice(0, 120) : '') + '\\nTyp: ' + kind;\nreturn [{ json: { hitl_tg_sent_chat_id: chatId, hitl_tg_sent_text: text } }];"
+      },
+      "id": "hitl-code-tg-mail-sent",
+      "name": "Code_HitlTelegramClientSentNotice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3210,
+        1080
+      ],
+      "notesInFlow": true,
+      "notes": "Tylko po sukcesie HTTP Resend (wejście z node Resend). Powiadomienie na czat operatora."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: Number($json.hitl_tg_sent_chat_id), text: $json.hitl_tg_sent_text }) }}",
+        "options": {}
+      },
+      "id": "hitl-http-tg-mail-sent",
+      "name": "HTTP_Telegram_NotifyClientMailSent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3430,
+        1080
+      ],
+      "notesInFlow": true,
+      "notes": "Info dla operatora: mail do klienta faktycznie poszedł przez Resend.",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "pfx1",
+              "leftValue": "={{ String($env.HITL_ALLOW_PERPLEXITY_FALLBACK_CLIENT_SEND || '').trim().toLowerCase() === 'true' }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "hitl-if-env-perplexity-send",
+      "name": "If_HitlEnvAllowPerplexityClientSend",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2760,
+        1320
+      ],
+      "notesInFlow": true,
+      "notes": "Domyślnie FALSE: nie wysyłaj szkicu SI do klienta. TRUE tylko gdy env HITL_ALLOW_PERPLEXITY_FALLBACK_CLIENT_SEND=true."
+    },
+    {
+      "parameters": {
+        "jsCode": "/** Brak szablonu wolny/zajęty — NIE Resend do klienta; tylko Telegram dla operatora. */\nconst s = $('Code_BuildSheetRowZapytania').first().json;\nconst plain = String(s.hitl_approved_body_plain || '').trim() || '(pusto)';\nconst shortPlain = plain.length > 3000 ? plain.slice(0, 3000) + '\\n…' : plain;\nconst to = String(s.resend_to || s.client_to_email || s.wp_form_client_email || '').trim() || '(brak adresu)';\nlet chatId = 0;\ntry {\n  const ing = $('Code_TelegramIngress').first().json;\n  if (ing && ing.message_chat_id != null) chatId = Number(ing.message_chat_id);\n  else if (ing && ing.telegram_chat_id != null) chatId = Number(ing.telegram_chat_id);\n} catch (e) {}\nif (!chatId) {\n  try { chatId = Number(String($env.TELEGRAM_OPERATOR_CHAT_ID || '').trim()); } catch (e2) {}\n}\nlet text =\n  'Do klienta NIE wysłano maila automatycznie (brak pełnej daty / szablonu kalendarza — to byłby tylko szkic SI + PDF).\\n' +\n  'Odpisz ręcznie z Biura albo doprecyzuj termin w korespondencji, żeby zadziałała oferta wolny/zajęty.\\n\\n' +\n  'Klient: ' +\n  to +\n  '\\n---\\nRobocza treść (nie wysłana):\\n' +\n  shortPlain;\nconst instr = String(s.hitl_operator_instructions_for_ai || s.operator_telegram_append || '').trim();\nif (instr) text += '\\n---\\nTwoje instrukcje (nie do klienta):\\n' + instr;\nreturn [{ json: { hitl_tg_blocked_chat_id: chatId, hitl_tg_blocked_text: text } }];"
+      },
+      "id": "hitl-code-tg-perplexity-blocked",
+      "name": "Code_HitlTelegramPerplexityBlockedNotice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2980,
+        1400
+      ],
+      "notesInFlow": true,
+      "notes": "Zastępuje Resend na ścieżce Perplexity — informacja na Telegram."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: Number($json.hitl_tg_blocked_chat_id), text: $json.hitl_tg_blocked_text }) }}",
+        "options": {}
+      },
+      "id": "hitl-http-tg-perplexity-blocked",
+      "name": "HTTP_Telegram_NotifyPerplexityNotSentToClient",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3200,
+        1400
+      ],
+      "notesInFlow": true,
+      "notes": "Powiadomienie zamiast maila do klienta na ścieżce bez szablonu.",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {},
+      "id": "hitl-noop-perplexity-blocked",
+      "name": "NoOp_HitlPerplexityNoClientSend",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        3420,
+        1400
+      ],
+      "notes": "Koniec gałęzi: arkusz już zapisany, klient bez auto-maila."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "rf1",
+              "leftValue": "={{ String($json.operator_telegram_append || $json.hitl_operator_instructions_for_ai || '').trim().length > 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "hitl-if-refine-pplx",
+      "name": "If_HitlRefineOfferIfOperatorInstructions",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3380,
+        880
+      ],
+      "notesInFlow": true,
+      "notes": "Gdy są instrukcje z Modyfikuj — Perplexity przerabia HTML oferty przed podglądem / wysyłką."
+    },
+    {
+      "parameters": {
+        "jsCode": "const j = $input.first().json;\nconst instr = String(j.operator_telegram_append || j.hitl_operator_instructions_for_ai || '').trim();\nif (!instr) return [{ json: j }];\nconst w = j.demo_termin_wolny === true || j.demo_termin_wolny === 'true' || String(j.demo_termin_wolny || '').toUpperCase() === 'TRUE';\nconst target = w ? 'wolny' : 'zajety';\nconst html = w ? String(j.html_wolny || '') : String(j.html_zajety || '');\nconst system =\n  'Jesteś edytorem maili HTML dla biura Imprezja (DJ / wodzirej Damian Nowaczyk). Dostajesz SZABLON HTML gotowej oferty (style inline, div) oraz INSTRUKCJE operatora po polsku. Zastosuj instrukcje w treści: dopisz brakujące zdania, zmień akapity według polecenia (np. wesele PDF, dojazd +100 zł, liczba gości), zachowaj profesjonalny, ciepły ton. Nie usuwaj linków do PDF jeśli były w szablonie, chyba że instrukcja każe je zmienić. NIGDY nie dodawaj nagłówka ani osobnej sekcji w stylu Uzupełnienie po naszej stronie, notatki wewnętrznej ani bloku z dosłownym kopiowaniem poleceń z Telegrama — klient ma dostać tylko naturalną treść maila. Zwróć WYŁĄCZNIE poprawiony HTML (jeden spójny fragment jak wejście — zwykle jeden główny div), bez markdown, bez ```, bez komentarzy przed/po. Maks. ok. 14000 znaków.';\nconst user =\n  'INSTRUKCJE OPERATORA (z Telegram / Modyfikuj):\\n' +\n  instr.slice(0, 2500) +\n  '\\n\\n---\\nSZABLON HTML DO PRZERÓBKI:\\n' +\n  html.slice(0, 15000);\nconst hitl_pplx_body = {\n  model: 'sonar',\n  temperature: 0.25,\n  max_tokens: 4500,\n  messages: [\n    { role: 'system', content: system },\n    { role: 'user', content: user },\n  ],\n};\nreturn [{ json: { ...j, hitl_pplx_body, hitl_refine_target: target } }];"
+      },
+      "id": "hitl-code-build-pplx-refine",
+      "name": "Code_HitlBuildPerplexityRefinePayload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3600,
+        760
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.perplexity.ai/chat/completions",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + String($env.PERPLEXITY_API_KEY || $env.PPLX_API_KEY || '').trim() }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.hitl_pplx_body) }}",
+        "options": {}
+      },
+      "id": "hitl-http-pplx-refine-offer",
+      "name": "HTTP_Perplexity_RefineOfferAfterModify",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3820,
+        760
+      ],
+      "notesInFlow": true,
+      "notes": "Env PERPLEXITY_API_KEY lub PPLX_API_KEY. Przeróbka HTML wg instrukcji z Modyfikuj.",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const built = $('Code_HitlBuildPerplexityRefinePayload').first().json;\nconst r = $input.first().json;\nlet refined = '';\ntry {\n  if (r && r.choices && r.choices[0] && r.choices[0].message && r.choices[0].message.content) {\n    refined = String(r.choices[0].message.content).trim();\n  }\n} catch (e) {}\nrefined = refined.replace(/^\\`\\`\\`(?:html)?\\s*/i, '').replace(/\\`\\`\\`\\s*$/,'').trim();\nfunction stripOperatorMetaSections(html) {\n  let h = String(html || '');\n  for (let iter = 0; iter < 15; iter++) {\n    const before = h;\n    h = h.replace(/<div[^>]*>[\\s\\S]*?<strong>\\s*Uzupełnienie\\s+po\\s+naszej\\s+stronie\\s*:?\\s*<\\/strong>[\\s\\S]*?<\\/div>/gi, '');\n    h = h.replace(/<p[^>]*>\\s*<strong>\\s*Uzupełnienie\\s+po\\s+naszej\\s+stronie\\s*:?\\s*<\\/strong>\\s*<\\/p>(?:\\s*<p[^>]*>[\\s\\S]*?<\\/p>)?/gi, '');\n    h = h.replace(/<section[^>]*>[\\s\\S]*?Uzupełnienie\\s+po\\s+naszej\\s+stronie[\\s\\S]*?<\\/section>/gi, '');\n    if (h === before) break;\n  }\n  return h.trim();\n}\nrefined = stripOperatorMetaSections(refined);\nconst out = { ...built };\ndelete out.hitl_pplx_body;\nconst tgt = built.hitl_refine_target;\ndelete out.hitl_refine_target;\nif (refined.length >= 80) {\n  if (tgt === 'wolny') out.html_wolny = refined;\n  else out.html_zajety = refined;\n  out.hitl_offer_si_refined = true;\n} else {\n  out.hitl_offer_si_refined = false;\n  out.hitl_offer_si_refine_note = 'Perplexity nie zwrócił treści — wysyłka oryginalnego szablonu.';\n}\nreturn [{ json: out }];"
+      },
+      "id": "hitl-code-apply-pplx-refine",
+      "name": "Code_HitlApplyPerplexityRefinedHtml",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4040,
+        760
+      ],
+      "notes": "Wpisuje przerobiony HTML w html_wolny lub html_zajety."
     }
   ],
   "connections": {
-    "Telegram_Trigger_Callback": { "main": [[{ "node": "Code_ParseCallback", "type": "main", "index": 0 }]] },
-    "Code_ParseCallback": { "main": [[{ "node": "If_Skip", "type": "main", "index": 0 }]] },
-    "If_Skip": {
+    "Telegram_Trigger_Callback": {
       "main": [
-        [{ "node": "HTTP_AnswerCallback_Skip", "type": "main", "index": 0 }],
-        [{ "node": "Postgres_UpdateStatus", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Code_TelegramIngress",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "Postgres_UpdateStatus": { "main": [[{ "node": "HTTP_AnswerCallback_OK", "type": "main", "index": 0 }]] }
+    "Code_TelegramIngress": {
+      "main": [
+        [
+          {
+            "node": "If_BranchAppend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If_BranchAppend": {
+      "main": [
+        [
+          {
+            "node": "Postgres_FindModWaitLead",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If_BranchVoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If_BranchVoice": {
+      "main": [
+        [
+          {
+            "node": "HTTP_Telegram_GetFileVoice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If_Skip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP_Telegram_GetFileVoice": {
+      "main": [
+        [
+          {
+            "node": "Code_VoiceMergeTelegramPath",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code_VoiceMergeTelegramPath": {
+      "main": [
+        [
+          {
+            "node": "HTTP_Telegram_DownloadVoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP_Telegram_DownloadVoice": {
+      "main": [
+        [
+          {
+            "node": "Code_VoiceBuildPerplexityBody",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code_VoiceBuildPerplexityBody": {
+      "main": [
+        [
+          {
+            "node": "HTTP_Perplexity_VoiceFromAudio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP_Perplexity_VoiceFromAudio": {
+      "main": [
+        [
+          {
+            "node": "Code_VoiceExtractPplxReply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code_VoiceExtractPplxReply": {
+      "main": [
+        [
+          {
+            "node": "HTTP_Telegram_VoiceReplyTextOnly",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP_Telegram_VoiceReplyTextOnly": {
+      "main": [
+        [
+          {
+            "node": "NoOp_VoiceDone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres_FindModWaitLead": {
+      "main": [
+        [
+          {
+            "node": "If_LeadFound",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If_LeadFound": {
+      "main": [
+        [
+          {
+            "node": "Postgres_AppendToPayload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP_Telegram_NoPendingAppend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres_AppendToPayload": {
+      "main": [
+        [
+          {
+            "node": "HTTP_Telegram_ConfirmAppend",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Code_HitlPayloadFromAppendRow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If_Skip": {
+      "main": [
+        [
+          {
+            "node": "HTTP_AnswerCallback_Skip",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If_Modify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If_Modify": {
+      "main": [
+        [
+          {
+            "node": "Postgres_ClearModWaitOthers",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Postgres_UpdateStatus",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres_ClearModWaitOthers": {
+      "main": [
+        [
+          {
+            "node": "Postgres_SetModWait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres_SetModWait": {
+      "main": [
+        [
+          {
+            "node": "HTTP_AnswerCallback_Modify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP_AnswerCallback_Modify": {
+      "main": [
+        [
+          {
+            "node": "HTTP_Telegram_ModifyHint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres_UpdateStatus": {
+      "main": [
+        [
+          {
+            "node": "HTTP_AnswerCallback_OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP_AnswerCallback_OK": {
+      "main": [
+        [
+          {
+            "node": "If_Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If_Approved": {
+      "main": [
+        [
+          {
+            "node": "Code_PreparePayloadFromLead",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "NoOp_AfterReject",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code_PreparePayloadFromLead": {
+      "main": [
+        [
+          {
+            "node": "HitlCal_If_DateOK1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code_BuildSheetRowZapytania": {
+      "main": [
+        [
+          {
+            "node": "Code_SheetColumnsOnly",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "If_HitlHasPreparedOffer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code_SheetColumnsOnly": {
+      "main": [
+        [
+          {
+            "node": "GoogleSheets_AppendZapytania",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GoogleSheets_AppendZapytania": {
+      "main": [
+        [
+          {
+            "node": "If_HitlNeedPerplexityResend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code_HitlResendHtml": {
+      "main": [
+        [
+          {
+            "node": "HTTP_Resend_HitlApproved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HitlCal_If_DateOK1": {
+      "main": [
+        [
+          {
+            "node": "HitlCal_Code_BuildCalWindow",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If_HitlGateNoDatePreview",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HitlCal_Code_BuildCalWindow": {
+      "main": [
+        [
+          {
+            "node": "HitlCal_If_CalendarRangeOk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HitlCal_If_CalendarRangeOk": {
+      "main": [
+        [
+          {
+            "node": "HitlCal_Google_Calendar_EventsForColorCheck",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HitlCal_PrepareOfertaMails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HitlCal_Google_Calendar_EventsForColorCheck": {
+      "main": [
+        [
+          {
+            "node": "HitlCal_Code_MergeCalendarAvailability",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HitlCal_Code_MergeCalendarAvailability": {
+      "main": [
+        [
+          {
+            "node": "HitlCal_PrepareOfertaMails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HitlCal_PrepareOfertaMails": {
+      "main": [
+        [
+          {
+            "node": "Code_HitlMergeAppendIntoOfferHtml",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code_HitlMergeAppendIntoOfferHtml": {
+      "main": [
+        [
+          {
+            "node": "If_HitlRefineOfferIfOperatorInstructions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If_HitlHasPreparedOffer": {
+      "main": [
+        [
+          {
+            "node": "HitlCal_If_SkipClientOfferResend",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "NoOp_HitlNoOfferEmailBranch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HitlCal_If_SkipClientOfferResend": {
+      "main": [
+        [
+          {
+            "node": "NoOp_HitlSkipClarificationBranch",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HitlCal_If_BlockDuplicateOfferSend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HitlCal_If_BlockDuplicateOfferSend": {
+      "main": [
+        [
+          {
+            "node": "HitlCal_If_TerminWolny",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HitlCal_NoOp_DuplicateResendSkipped",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HitlCal_If_TerminWolny": {
+      "main": [
+        [
+          {
+            "node": "HitlCal_Resend_WolnyTermin",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HitlCal_Resend_TerminZajety",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HitlCal_Resend_WolnyTermin": {
+      "main": [
+        [
+          {
+            "node": "Code_HitlTelegramClientSentNotice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HitlCal_Resend_TerminZajety": {
+      "main": [
+        [
+          {
+            "node": "Code_HitlTelegramClientSentNotice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If_HitlNeedPerplexityResend": {
+      "main": [
+        [
+          {
+            "node": "If_HitlEnvAllowPerplexityClientSend",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "NoOp_HitlAfterSheetOfferAlreadySent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code_HitlPayloadFromAppendRow": {
+      "main": [
+        [
+          {
+            "node": "HitlCal_If_DateOK1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If_HitlGateNoDatePreview": {
+      "main": [
+        [
+          {
+            "node": "Code_HitlPreviewPlainNoDate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code_BuildSheetRowZapytania",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code_HitlPreviewPlainNoDate": {
+      "main": [
+        [
+          {
+            "node": "HTTP_Telegram_OfferPreview",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If_HitlPreviewOnlyAfterMerge": {
+      "main": [
+        [
+          {
+            "node": "Code_HitlFormatTelegramOfferPreview",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code_BuildSheetRowZapytania",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code_HitlFormatTelegramOfferPreview": {
+      "main": [
+        [
+          {
+            "node": "HTTP_Telegram_OfferPreview",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code_HitlTelegramClientSentNotice": {
+      "main": [
+        [
+          {
+            "node": "HTTP_Telegram_NotifyClientMailSent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP_Telegram_NotifyClientMailSent": {
+      "main": [
+        [
+          {
+            "node": "HitlCal_NoOp_FollowUp3d_SheetHint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP_Resend_HitlApproved": {
+      "main": [
+        [
+          {
+            "node": "Code_HitlTelegramClientSentNotice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If_HitlEnvAllowPerplexityClientSend": {
+      "main": [
+        [
+          {
+            "node": "Code_HitlResendHtml",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code_HitlTelegramPerplexityBlockedNotice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code_HitlTelegramPerplexityBlockedNotice": {
+      "main": [
+        [
+          {
+            "node": "HTTP_Telegram_NotifyPerplexityNotSentToClient",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP_Telegram_NotifyPerplexityNotSentToClient": {
+      "main": [
+        [
+          {
+            "node": "NoOp_HitlPerplexityNoClientSend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If_HitlRefineOfferIfOperatorInstructions": {
+      "main": [
+        [
+          {
+            "node": "Code_HitlBuildPerplexityRefinePayload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If_HitlPreviewOnlyAfterMerge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code_HitlBuildPerplexityRefinePayload": {
+      "main": [
+        [
+          {
+            "node": "HTTP_Perplexity_RefineOfferAfterModify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP_Perplexity_RefineOfferAfterModify": {
+      "main": [
+        [
+          {
+            "node": "Code_HitlApplyPerplexityRefinedHtml",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code_HitlApplyPerplexityRefinedHtml": {
+      "main": [
+        [
+          {
+            "node": "If_HitlPreviewOnlyAfterMerge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "settings": { "executionOrder": "v1" },
-  "meta": { "templateCredsSetupCompleted": false }
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
 }

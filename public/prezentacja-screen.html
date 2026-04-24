@@ -6,6 +6,7 @@
     <title>Prezentacja – Imprezja</title>
     <link rel="icon" href="/favicon.ico">
     <script src="/socket.io/socket.io.js"></script>
+    <script src="/lib/digital-output-cap.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background: #000; overflow: hidden; }
@@ -134,9 +135,13 @@
         let vizMilkdropPresetIndex = 0;
         let vizMilkdropChangePreset = null;
         let vizMilkdropResizeHandler = null;
+        let vizMilkdropResizeObserver = null;
+        const AUDIOMOTION_PRESETS = ['equalizer','equalizer-mirror','spectrum','led','reflex','lumi','radial','prism','graph','dual'];
+        let vizAudioMotionChangePreset = null;
+        let vizAudioMotionPresetIndex = 0;
         let liveOverlayState = { type: 'none', countdownMinutes: 3, text: '', textPosition: 'center' };
 
-        function getPrezentacjaEffectiveVolume() { return Math.min(1, prezentacjaChannelVolume * masterVolume); }
+        function getPrezentacjaEffectiveVolume() { return clampDigitalOutputLinear(prezentacjaChannelVolume * masterVolume); }
         function applyVideoVolumes() {
             const eff = getPrezentacjaEffectiveVolume();
             document.querySelectorAll('#slides-wrapper .slide-video video').forEach(v => {
@@ -281,7 +286,9 @@
             if (vizMilkdropStream) { vizMilkdropStream.getTracks().forEach(t => t.stop()); vizMilkdropStream = null; }
             if (vizMilkdropVisualizer) { try { vizMilkdropVisualizer.disconnectAudio(); } catch (e) {} vizMilkdropVisualizer = null; }
             if (vizMilkdropResizeHandler) { window.removeEventListener('resize', vizMilkdropResizeHandler); vizMilkdropResizeHandler = null; }
+            if (vizMilkdropResizeObserver) { try { vizMilkdropResizeObserver.disconnect(); } catch (_) {} vizMilkdropResizeObserver = null; }
             vizMilkdropChangePreset = null;
+            vizAudioMotionChangePreset = null;
             const alarm = document.getElementById('countdown-alarm');
             const bell = document.getElementById('countdown-bell');
             if (alarm) { alarm.pause(); alarm.currentTime = 0; }
@@ -879,35 +886,57 @@
                 });
         }
 
+        function _loadScriptOnce(src) {
+            return new Promise((resolve, reject) => {
+                if (document.querySelector('script[data-lib-src="' + src + '"]')) {
+                    resolve();
+                    return;
+                }
+                const s = document.createElement('script');
+                s.src = src;
+                s.async = false;
+                s.setAttribute('data-lib-src', src);
+                s.onload = () => resolve();
+                s.onerror = () => reject(new Error('Nie udało się załadować ' + src));
+                document.head.appendChild(s);
+            });
+        }
+
         function loadMilkdrop() {
             if (window._milkdropLoadPromise) return window._milkdropLoadPromise;
-            const presetUrls = [
-                'https://esm.sh/butterchurn-presets@2.4.7',
-                'https://esm.sh/butterchurn-presets@2.4.7/lib/butterchurnPresetsExtra.min.js',
-                'https://esm.sh/butterchurn-presets@2.4.7/lib/butterchurnPresetsExtra2.min.js',
-                'https://esm.sh/butterchurn-presets@2.4.7/lib/butterchurnPresetsMD1.min.js',
-                'https://esm.sh/butterchurn-presets@2.4.7/lib/butterchurnPresetsNonMinimal.min.js'
+            const presetScripts = [
+                '/lib/butterchurn-presets/butterchurnPresets.min.js',
+                '/lib/butterchurn-presets/butterchurnPresetsExtra.min.js',
+                '/lib/butterchurn-presets/butterchurnPresetsExtra2.min.js',
+                '/lib/butterchurn-presets/butterchurnPresetsMD1.min.js',
+                '/lib/butterchurn-presets/butterchurnPresetsNonMinimal.min.js'
             ];
-            window._milkdropLoadPromise = Promise.all([
-                import('https://esm.sh/butterchurn@2.6.7'),
-                Promise.all(presetUrls.map(url => import(url).catch(() => ({})))).then(modules => {
+            const presetGlobals = [
+                'butterchurnPresets',
+                'butterchurnPresetsExtra',
+                'butterchurnPresetsExtra2',
+                'butterchurnPresetsMD1',
+                'butterchurnPresetsNonMinimal'
+            ];
+            window._milkdropLoadPromise = _loadScriptOnce('/lib/butterchurn/butterchurn.min.js')
+                .then(() => Promise.all(presetScripts.map(src => _loadScriptOnce(src).catch(err => { console.warn('Preset pack missing:', src, err); }))))
+                .then(() => {
                     const merged = {};
-                    modules.forEach(mod => {
-                        if (!mod || (typeof mod !== 'object')) return;
-                        const p = mod.default || mod;
-                        const presets = p && p.getPresets ? p.getPresets() : (p && typeof p === 'object' && !p.getPresets ? p : {});
+                    presetGlobals.forEach(g => {
+                        const mod = window[g];
+                        if (!mod) return;
+                        const presets = (mod && typeof mod.getPresets === 'function') ? mod.getPresets() : (typeof mod === 'object' ? mod : {});
                         if (presets && typeof presets === 'object') {
                             Object.keys(presets).forEach(k => { if (presets[k] && !merged[k]) merged[k] = presets[k]; });
                         }
                     });
-                    return merged;
-                })
-            ]).then(([bc, allPresets]) => ({
-                butterchurn: bc.default || bc,
-                allPresets: allPresets
-            }));
+                    const bc = window.butterchurn;
+                    if (!bc) throw new Error('Butterchurn nie został załadowany');
+                    return { butterchurn: bc.default || bc, allPresets: merged };
+                });
             return window._milkdropLoadPromise;
         }
+
 
         function runMilkdrop(container, slide) {
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -934,7 +963,7 @@
                 vizContainer.style.display = 'block';
                 vizContainer.innerHTML = '';
                 const canvas = document.createElement('canvas');
-                canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;display:block;cursor:pointer;';
+                canvas.style.cssText = 'position:absolute;top:0;left:0;display:block;cursor:pointer;';
                 vizContainer.appendChild(canvas);
                 const ctx = new (window.AudioContext || window.webkitAudioContext)();
                 if (ctx.state === 'suspended') ctx.resume();
@@ -942,9 +971,23 @@
                 const gainNode = ctx.createGain();
                 gainNode.gain.value = Math.pow(10, 10 / 20);
                 src.connect(gainNode);
-                const w = Math.max(640, vizContainer.clientWidth || window.innerWidth);
-                const h = Math.max(480, vizContainer.clientHeight || window.innerHeight);
-                const visualizer = butterchurn.createVisualizer(ctx, canvas, { width: w, height: h });
+                const dpr = Math.max(1, window.devicePixelRatio || 1);
+                function measureSize() {
+                    const cssW = Math.max(1, vizContainer.clientWidth || window.innerWidth);
+                    const cssH = Math.max(1, vizContainer.clientHeight || window.innerHeight);
+                    return { cssW, cssH, pxW: Math.round(cssW * dpr), pxH: Math.round(cssH * dpr) };
+                }
+                let size = measureSize();
+                canvas.width = size.pxW;
+                canvas.height = size.pxH;
+                canvas.style.width = size.cssW + 'px';
+                canvas.style.height = size.cssH + 'px';
+                const visualizer = butterchurn.createVisualizer(ctx, canvas, {
+                    width: size.pxW,
+                    height: size.pxH,
+                    pixelRatio: 1,
+                    textureRatio: 1
+                });
                 visualizer.connectAudio(gainNode);
                 vizMilkdropVisualizer = visualizer;
                 vizMilkdropPresetNames = Object.keys(allPresets || {}).filter(k => allPresets[k]);
@@ -976,17 +1019,29 @@
                 }
                 requestAnimationFrame(render);
                 vizMilkdropResizeHandler = () => {
-                    const nw = vizContainer.clientWidth || window.innerWidth;
-                    const nh = vizContainer.clientHeight || window.innerHeight;
-                    if (vizMilkdropVisualizer && (canvas.width !== nw || canvas.height !== nh)) {
-                        vizMilkdropVisualizer.setRendererSize(nw, nh);
+                    if (!vizMilkdropVisualizer) return;
+                    const ns = measureSize();
+                    if (canvas.width !== ns.pxW || canvas.height !== ns.pxH) {
+                        canvas.width = ns.pxW;
+                        canvas.height = ns.pxH;
+                        canvas.style.width = ns.cssW + 'px';
+                        canvas.style.height = ns.cssH + 'px';
+                        try { vizMilkdropVisualizer.setRendererSize(ns.pxW, ns.pxH); }
+                        catch (e) { console.warn('Milkdrop setRendererSize:', e); }
                     }
                 };
-                vizMilkdropResizeHandler();
+                requestAnimationFrame(() => vizMilkdropResizeHandler());
+                setTimeout(() => vizMilkdropResizeHandler(), 400);
                 window.addEventListener('resize', vizMilkdropResizeHandler);
+                if (typeof ResizeObserver !== 'undefined') {
+                    try {
+                        vizMilkdropResizeObserver = new ResizeObserver(() => vizMilkdropResizeHandler());
+                        vizMilkdropResizeObserver.observe(vizContainer);
+                    } catch (_) {}
+                }
             }).catch(err => {
                 console.warn('Milkdrop:', err);
-                container.querySelector('.viz-no-mic').innerHTML = '<strong>Błąd</strong> – ' + (err.message || 'Milkdrop nie załadował się') + '. Wymaga połączenia z internetem (CDN).';
+                container.querySelector('.viz-no-mic').innerHTML = '<strong>Błąd</strong> – ' + (err.message || 'Milkdrop nie załadował się') + '.';
                 container.querySelector('.viz-no-mic').style.display = 'block';
                 container.querySelector('.viz-container').style.display = 'none';
             });
@@ -1023,25 +1078,22 @@
                     const vizContainer = container.querySelector('.viz-container');
                     vizContainer.innerHTML = '';
                     vizContainer.style.display = 'block';
+                    vizContainer.style.cursor = 'pointer';
                     container.querySelector('.viz-no-mic').style.display = 'none';
-                    const opts = {
-                        gradient: 'rainbow',
-                        height: window.innerHeight,
-                        showScaleY: false,
-                        mirror: 0,
-                        volume: 0
-                    };
-                    if (preset === 'led') {
-                        opts.ledBars = true;
-                        opts.trueLeds = true;
-                    } else if (preset === 'spectrum') {
-                        opts.mode = 1;
-                    } else if (preset === 'equalizer-mirror') {
-                        opts.mirror = 2;
-                    }
-                    vizAnalyzer = new AudioMotionAnalyzer(vizContainer, opts);
+                    const initialOpts = buildAudioMotionOpts(preset, slide);
+                    vizAnalyzer = new AudioMotionAnalyzer(vizContainer, initialOpts);
                     vizMicStream = vizAnalyzer.audioCtx.createMediaStreamSource(stream);
                     vizAnalyzer.connectInput(vizMicStream);
+                    vizAudioMotionPresetIndex = Math.max(0, AUDIOMOTION_PRESETS.indexOf(preset));
+                    vizAudioMotionChangePreset = (delta) => {
+                        if (!vizAnalyzer) return;
+                        const d = (delta === 1 || delta === -1) ? delta : 1;
+                        vizAudioMotionPresetIndex = (vizAudioMotionPresetIndex + d + AUDIOMOTION_PRESETS.length) % AUDIOMOTION_PRESETS.length;
+                        const newPreset = AUDIOMOTION_PRESETS[vizAudioMotionPresetIndex];
+                        try { vizAnalyzer.setOptions(buildAudioMotionOpts(newPreset, slide)); }
+                        catch (e) { console.warn('AudioMotion setOptions:', e); }
+                    };
+                    vizContainer.addEventListener('click', (e) => { e.preventDefault(); if (vizAudioMotionChangePreset) vizAudioMotionChangePreset(1); });
                 })
                 .catch(err => {
                     console.warn('getUserMedia/audiomotion:', err);
@@ -1049,6 +1101,66 @@
                     container.querySelector('.viz-no-mic').style.display = 'block';
                     container.querySelector('.viz-container').style.display = 'none';
                 });
+        }
+
+        function buildAudioMotionOpts(preset, slide) {
+            const opts = {
+                mode: 2,
+                gradient: 'rainbow',
+                gradientRight: 'rainbow',
+                splitGradient: false,
+                channelLayout: 'single',
+                mirror: 0,
+                radial: false,
+                radialInvert: false,
+                spinSpeed: 0,
+                ledBars: false,
+                trueLeds: false,
+                lumiBars: false,
+                alphaBars: false,
+                reflexRatio: 0,
+                reflexAlpha: 0,
+                reflexBright: 1,
+                showPeaks: false,
+                fillAlpha: 1,
+                lineWidth: 0,
+                frequencyScale: 'log',
+                showScaleX: false,
+                showScaleY: false,
+                showBgColor: true,
+                bgAlpha: 0.3,
+                smoothing: 0.7,
+                volume: 0,
+                height: window.innerHeight
+            };
+            switch (preset) {
+                case 'led':
+                    Object.assign(opts, { ledBars: true, trueLeds: true, mode: 3, gradient: 'classic' }); break;
+                case 'spectrum':
+                    Object.assign(opts, { mode: 1, gradient: 'prism' }); break;
+                case 'equalizer-mirror':
+                    Object.assign(opts, { mirror: 2, mode: 2, gradient: 'rainbow' }); break;
+                case 'radial':
+                    Object.assign(opts, { radial: true, spinSpeed: 2, mode: 5, gradient: 'rainbow', showBgColor: false }); break;
+                case 'lumi':
+                    Object.assign(opts, { lumiBars: true, mode: 3, gradient: 'steelblue', alphaBars: true }); break;
+                case 'reflex':
+                    Object.assign(opts, { reflexRatio: 0.5, reflexAlpha: 0.25, reflexBright: 1, mode: 2, gradient: 'prism', showPeaks: true }); break;
+                case 'graph':
+                    Object.assign(opts, { mode: 10, gradient: 'rainbow', fillAlpha: 0.5, lineWidth: 2 }); break;
+                case 'dual':
+                    Object.assign(opts, { mode: 2, channelLayout: 'dual-vertical', gradient: 'rainbow', gradientRight: 'orangered', splitGradient: true }); break;
+                case 'prism':
+                    Object.assign(opts, { radial: true, radialInvert: true, mode: 8, gradient: 'prism', spinSpeed: 1 }); break;
+                case 'equalizer':
+                default:
+                    break;
+            }
+            if (slide && typeof slide.vizGradient === 'string' && slide.vizGradient) {
+                opts.gradient = slide.vizGradient;
+                if (opts.splitGradient) opts.gradientRight = slide.vizGradient;
+            }
+            return opts;
         }
 
         function goToSlide(index, forceInit) {
@@ -1264,8 +1376,10 @@
             const preset = String(slide && slide.preset || '').toLowerCase();
             const isWebvs = slide && slide.type === 'visualization' && preset === 'webvs';
             const isMilkdrop = slide && slide.type === 'visualization' && preset === 'milkdrop';
+            const isAudioMotion = slide && slide.type === 'visualization' && AUDIOMOTION_PRESETS.includes(preset);
             if (isWebvs && vizWebvsChangePreset) vizWebvsChangePreset(d);
             else if (isMilkdrop && vizMilkdropChangePreset) vizMilkdropChangePreset(d);
+            else if (isAudioMotion && vizAudioMotionChangePreset) vizAudioMotionChangePreset(d);
             else vizWinampModeDelta = d;
         }
         socket.on('prezentacja_winamp_mode', (data) => handleWinampMode(data && data.delta));
@@ -1280,6 +1394,7 @@
                 const isWinamp = slide && slide.type === 'visualization' && (preset === 'winamp' || preset === 'tunnel');
                 const isWebvs = slide && slide.type === 'visualization' && preset === 'webvs';
                 const isMilkdrop = slide && slide.type === 'visualization' && preset === 'milkdrop';
+                const isAudioMotion = slide && slide.type === 'visualization' && AUDIOMOTION_PRESETS.includes(preset);
                 const delta = e.key === 'ArrowRight' ? 1 : -1;
                 if (isWinamp) {
                     vizWinampModeDelta = delta;
@@ -1289,6 +1404,9 @@
                     e.preventDefault();
                 } else if (isMilkdrop && vizMilkdropChangePreset) {
                     vizMilkdropChangePreset(delta);
+                    e.preventDefault();
+                } else if (isAudioMotion && vizAudioMotionChangePreset) {
+                    vizAudioMotionChangePreset(delta);
                     e.preventDefault();
                 }
             }

@@ -6,6 +6,8 @@
     <title>Whitney – Imprezja Quiz</title>
     <link rel="icon" href="data:,">
     <script src="/socket.io/socket.io.js"></script>
+    <script src="/lib/audio-normalize.js"></script>
+    <script src="/lib/digital-output-cap.js"></script>
     <style>
         :root {
             --bg: radial-gradient(circle at center, #1a1a2e, #000);
@@ -169,7 +171,6 @@
     </div>
 
     <audio id="whitney-audio" style="display:none;"></audio>
-    <audio id="whitney-audio-bg" style="display:none;"></audio>
     <audio id="preview-audio" style="display:none;"></audio>
 
     <script>
@@ -183,34 +184,38 @@
         let config = { tileCount: TILE_COUNT, tiles: [] };
         let whitneyVolume = 1;
         let currentTileVolume = 1;
-        let currentBgTileVolume = 1;
 
         function applyVolumes() {
             const a = document.getElementById('whitney-audio');
-            const bg = document.getElementById('whitney-audio-bg');
-            if (a) a.volume = currentTileVolume * whitneyVolume;
-            if (bg) bg.volume = currentBgTileVolume * whitneyVolume;
+            if (a && !a._fadeIntervalId) a.volume = clampDigitalOutputLinear(Math.max(0, currentTileVolume * whitneyVolume));
         }
-        function fadeOutAndStop(audioEl, ms) {
-            if (!audioEl || audioEl.paused) return;
-            if (audioEl._fadeRafId) cancelAnimationFrame(audioEl._fadeRafId);
+        function fadeOutAndStop(audioEl, ms, onDone) {
+            if (!audioEl || audioEl.paused) {
+                if (typeof onDone === 'function') onDone();
+                return;
+            }
+            if (audioEl._fadeIntervalId) clearInterval(audioEl._fadeIntervalId);
             const startVol = audioEl.volume;
-            const start = performance.now();
-            const step = (now) => {
-                const elapsed = now - start;
+            const start = Date.now();
+            const step = () => {
+                const elapsed = Date.now() - start;
                 const t = Math.min(1, elapsed / ms);
                 audioEl.volume = startVol * (1 - t);
-                if (t < 1) audioEl._fadeRafId = requestAnimationFrame(step);
-                else {
-                    audioEl._fadeRafId = null;
+                if (t >= 1) {
+                    clearInterval(audioEl._fadeIntervalId);
+                    audioEl._fadeIntervalId = null;
                     audioEl.pause();
-                    if (audioEl.id === 'whitney-audio-bg') audioEl.src = '';
+                    if (typeof onDone === 'function') onDone();
                 }
             };
-            audioEl._fadeRafId = requestAnimationFrame(step);
+            audioEl._fadeIntervalId = setInterval(step, 50);
         }
 
         const fromEditor = new URLSearchParams(location.search).get('editor');
+        window.initAudioContext = function() {
+            const a = document.getElementById('whitney-audio');
+            if (a) { a.volume = 0; a.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='; a.play().then(() => { a.pause(); a.src = ''; a.volume = 1; }).catch(() => {}); }
+        };
         socket.emit('whitney_join_screen');
         socket.on('whitney_state', async (s) => {
             updateIntroButtonsForActive(!!s.active);
@@ -218,44 +223,39 @@
             else (fromEditor ? showEditorMode : showIntroMode)();
         });
         socket.on('whitney_play', (payload) => {
-            const data = typeof payload === 'string' ? { url: payload, volume: 1, isBackground: false, loop: false } : payload;
+            const data = typeof payload === 'string' ? { url: payload, volume: 1, loop: false } : payload;
             const vol = data.volume ?? 1;
             const loop = !!data.loop;
-            if (data.isBackground) {
-                const bg = document.getElementById('whitney-audio-bg');
-                if (!bg) return;
-                if (bg._fadeRafId) { cancelAnimationFrame(bg._fadeRafId); bg._fadeRafId = null; }
-                currentBgTileVolume = vol;
-                bg.src = data.url;
-                bg.volume = vol * whitneyVolume;
-                bg.loop = loop;
-                bg.onended = loop ? null : () => socket.emit('whitney_background_ended');
-                bg.play().catch(e => console.warn('Audio bg:', e));
+            const gain = (typeof data.normalizedGain === 'number' && data.normalizedGain !== 1) ? data.normalizedGain
+                : (typeof window.AudioNormalize !== 'undefined' ? window.AudioNormalize.getCachedGain(data.url) : 1);
+            const a = document.getElementById('whitney-audio');
+            if (!a) return;
+            if (a._fadeIntervalId) { clearInterval(a._fadeIntervalId); a._fadeIntervalId = null; }
+            currentTileVolume = vol;
+            a.src = data.url;
+            a.volume = clampDigitalOutputLinear(Math.max(0, vol * whitneyVolume * gain));
+            a.loop = loop;
+            a.play().catch(e => console.warn('Audio:', e));
+        });
+        socket.on('whitney_stop', (payload) => {
+            const data = typeof payload === 'object' && payload ? payload : {};
+            const a = document.getElementById('whitney-audio');
+            if (!a) return;
+            if (data.immediate) {
+                if (a._fadeIntervalId) { clearInterval(a._fadeIntervalId); a._fadeIntervalId = null; }
+                a.pause();
+                return;
+            }
+            if (data.fadeOut && !a.paused) {
+                fadeOutAndStop(a, 1000, () => { applyVolumes(); });
             } else {
-                const a = document.getElementById('whitney-audio');
-                if (a && a._fadeRafId) { cancelAnimationFrame(a._fadeRafId); a._fadeRafId = null; }
-                currentTileVolume = vol;
-                a.src = data.url;
-                a.volume = vol * whitneyVolume;
-                a.loop = loop;
-                a.play().catch(e => console.warn('Audio:', e));
+                if (a._fadeIntervalId) { clearInterval(a._fadeIntervalId); a._fadeIntervalId = null; }
+                a.pause();
             }
         });
-        const doWhitneyStop = (payload) => {
-            const data = typeof payload === 'object' ? payload : {};
+        socket.on('admin_stop_music', () => {
             const a = document.getElementById('whitney-audio');
-            const bg = document.getElementById('whitney-audio-bg');
-            if (data.fadeOut && a && !a.paused) fadeOutAndStop(a, 2000);
-            else if (a) a.pause();
-            if (bg) { bg.pause(); bg.src = ''; }
-        };
-        socket.on('whitney_stop', doWhitneyStop);
-        socket.on('admin_stop_music', () => doWhitneyStop({}));
-        socket.on('whitney_stop_background', (payload) => {
-            const data = typeof payload === 'object' ? payload : {};
-            const bg = document.getElementById('whitney-audio-bg');
-            if (data.fadeOut && bg && !bg.paused) fadeOutAndStop(bg, 2000);
-            else if (bg) { bg.pause(); bg.src = ''; }
+            if (a) { if (a._fadeIntervalId) { clearInterval(a._fadeIntervalId); a._fadeIntervalId = null; } a.pause(); }
         });
         socket.on('whitney_volume', (v) => {
             whitneyVolume = v;
@@ -286,10 +286,8 @@
                 updateTile(tileId, 'volume', parseInt(inp.value));
                 const s = document.getElementById('vol-val-' + tileId);
                 if (s) s.textContent = inp.value;
-            } else if (inp.type === 'checkbox') {
-                if (inp.dataset.field === 'loop') updateTile(tileId, 'loop', inp.checked);
-                else if (inp.dataset.field === 'fadeOut') updateTile(tileId, 'fadeOut', inp.checked);
-                else { updateTile(tileId, 'isBackground', inp.checked); renderTiles(); }
+            } else if (inp.type === 'checkbox' && inp.dataset.field === 'loop') {
+                updateTile(tileId, 'loop', inp.checked);
             }
         });
         grid.addEventListener('click', (e) => {
@@ -330,7 +328,7 @@
                 config = d.config || { tileCount: TILE_COUNT, tiles: [] };
                 if (!config.tiles) config.tiles = [];
                 while (config.tiles.length < TILE_COUNT) {
-                    config.tiles.push({ id: 't' + config.tiles.length, color: '#3498db', label: '', image: '', audio: '', volume: 100, isBackground: false, loop: false, fadeOut: false });
+                    config.tiles.push({ id: 't' + config.tiles.length, color: '#3498db', label: '', image: '', audio: '', volume: 100, loop: false });
                 }
                 config.tiles = config.tiles.slice(0, TILE_COUNT);
                 config.tileCount = TILE_COUNT;
@@ -344,19 +342,16 @@
         function renderTiles() {
             if (!config.tiles) config.tiles = [];
             while (config.tiles.length < TILE_COUNT) {
-                config.tiles.push({ id: 't' + config.tiles.length, color: '#3498db', label: '', image: '', audio: '', volume: 100, isBackground: false, loop: false, fadeOut: false });
+                config.tiles.push({ id: 't' + config.tiles.length, color: '#3498db', label: '', image: '', audio: '', volume: 100, loop: false });
             }
             config.tiles = config.tiles.slice(0, TILE_COUNT);
             config.tiles.forEach(t => {
                 if (t.volume == null) t.volume = 100;
-                if (t.isBackground == null) t.isBackground = false;
                 if (t.loop == null) t.loop = false;
-                if (t.fadeOut == null) t.fadeOut = false;
             });
 
             grid.innerHTML = config.tiles.map((t, i) => `
                 <div class="tile-editor" data-id="${t.id}">
-                    ${t.isBackground ? '<span class="bg-note" title="Tło muzyczne">🎵</span>' : ''}
                     <div class="preview-inline">
                         <h4 style="margin:0;flex:1">Kafelek ${i + 1}</h4>
                         <button type="button" class="btn preview-btn" data-tile="${t.id}" title="Odsłuchaj">▶</button>
@@ -383,9 +378,7 @@
                     <div class="audio-browser" id="audio-browser-${t.id}" style="display:none;"></div>
                     <label>Głośność kafelka: <span id="vol-val-${t.id}">${t.volume ?? 100}</span>%</label>
                     <input type="range" class="tile-vol" data-tile="${t.id}" min="0" max="100" value="${t.volume ?? 100}">
-                    <label class="bg-check"><input type="checkbox" ${t.isBackground?'checked':''} data-tile="${t.id}"> TŁO MUZYCZNE</label>
                     <label class="bg-check"><input type="checkbox" ${t.loop?'checked':''} data-tile="${t.id}" data-field="loop"> 🔁 Odtwarzaj w pętli</label>
-                    <label class="bg-check"><input type="checkbox" ${t.fadeOut?'checked':''} data-tile="${t.id}" data-field="fadeOut"> 🔇 Wyciszanie (2 s)</label>
                 </div>
             `).join('');
             document.querySelectorAll('.audio-search').forEach(inp => {

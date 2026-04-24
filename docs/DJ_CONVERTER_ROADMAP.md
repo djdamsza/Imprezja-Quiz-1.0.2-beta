@@ -1,5 +1,7 @@
 # Konwerter VDJ ↔ Rekordbox – roadmap i architektura
 
+> **Stan na 2026:** implementacja i build **NJR Konwerter** są w osobnym repozytorium [github.com/djdamsza/njr-konwerter](https://github.com/djdamsza/njr-konwerter). W tekście poniżej odwołania do `tools/vdj-database-editor` są historyczne (katalog usunięty z repo Imprezja Quiz).
+
 ## 1. Cel
 
 **Aplikacja desktopowa** – pobierana na dysk, działa lokalnie (offline). Umożliwia:

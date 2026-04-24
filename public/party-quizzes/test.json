@@ -1,0 +1,158 @@
+{
+  "gameMode": "party",
+  "defaultPoints": 10,
+  "disableTimePoints": true,
+  "questions": [
+    {
+      "id": "q_1776751417208_tp4wu",
+      "type": "QUIZ",
+      "question": "Która plane test największa?",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Ziemia",
+        "Mars",
+        "Saturn",
+        "Uran"
+      ],
+      "media": "/uploads/1776751112685-image.webp",
+      "image": "/uploads/1776751112685-image.webp",
+      "imageSmall": "/uploads/1776751112685-image-thumb.webp",
+      "correct": 2
+    },
+    {
+      "id": "q_1776751417208_nsowy",
+      "type": "ESTIMATION",
+      "question": "Ile lat ma Michał?",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "",
+      "image": "",
+      "imageSmall": "",
+      "correctValue": 8,
+      "min": 0,
+      "max": 100
+    },
+    {
+      "id": "q_1776751417208_bmbf5",
+      "type": "OPEN",
+      "question": "Strzel suchara",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "/uploads/1776751178008-nikoladamian_fotobudka_____kopia.webp",
+      "image": "/uploads/1776751178008-nikoladamian_fotobudka_____kopia.webp",
+      "imageSmall": "/uploads/1776751178008-nikoladamian_fotobudka_____kopia-thumb.webp"
+    },
+    {
+      "id": "q_1776751417208_i5jww",
+      "type": "LETTER",
+      "question": "Podaj miasto na literę....",
+      "time": 45,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "",
+      "correct": -1
+    },
+    {
+      "id": "q_1776751417208_c2g5f",
+      "type": "SHIPS",
+      "question": "Zagrajmy w statmi",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "",
+      "pointsPerHit": 5,
+      "boardSize": 8,
+      "ships": [
+        {
+          "row": 0,
+          "col": 1,
+          "size": 2,
+          "vertical": true
+        },
+        {
+          "row": 3,
+          "col": 1,
+          "size": 3,
+          "vertical": true
+        },
+        {
+          "row": 2,
+          "col": 4,
+          "size": 4,
+          "vertical": false
+        },
+        {
+          "row": 7,
+          "col": 3,
+          "size": 5,
+          "vertical": false
+        }
+      ]
+    },
+    {
+      "id": "q_1776751417208_y8yvo",
+      "type": "FAMILIADA",
+      "question": "Alkohol bez litery W w nazwie",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        {
+          "text": "Bimber",
+          "points": 20
+        },
+        {
+          "text": "Gin",
+          "points": 19
+        },
+        {
+          "text": "Rum",
+          "points": 18
+        },
+        {
+          "text": "Tequila",
+          "points": 17
+        },
+        {
+          "text": "Szampan",
+          "points": 16
+        },
+        {
+          "text": "Likier",
+          "points": 10
+        }
+      ],
+      "correct": -1
+    },
+    {
+      "id": "q_1776751417208_a2mdw",
+      "type": "MUSIC",
+      "question": "Co to za przebój",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "La Bomba",
+        "La Bamba",
+        "Lambada",
+        "Latryna",
+        "La Zumba"
+      ],
+      "media": "/uploads/1776751371519-La_Bamba__EDM_Dance_House_Remix___Di__a_de_Muertos_Party__J.Devis___Jorge_Walking__Rumba_Bass_.mp3",
+      "audio": "/uploads/1776751371519-La_Bamba__EDM_Dance_House_Remix___Di__a_de_Muertos_Party__J.Devis___Jorge_Walking__Rumba_Bass_.mp3",
+      "correct": 1
+    }
+  ],
+  "thanksScreen": {
+    "text": "Dzięki wielkie",
+    "image": "/uploads/1773236822109-M_B__401___1_d__1_.webp"
+  }
+}

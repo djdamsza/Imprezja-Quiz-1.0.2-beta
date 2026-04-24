@@ -35,6 +35,22 @@
         }
         .top-bar .gear-wrap { position: absolute; right: 0; top: 50%; transform: translateY(-50%); }
         .logo-start { max-height: 144px; width: auto; }
+        .brand-stack {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        .editors-under-logo {
+            font-size: 1.05rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            color: rgba(241, 196, 15, 0.95);
+            text-shadow: 0 1px 12px rgba(241, 196, 15, 0.22);
+            margin: 0;
+            padding: 0 12px;
+            text-align: center;
+        }
         .gear-wrap {
             position: relative;
             flex-shrink: 0;
@@ -139,6 +155,8 @@
             min-height: 0;
             width: 100%;
             max-width: 1200px;
+            padding-bottom: 56px;
+            box-sizing: border-box;
         }
         .subtitle {
             color: rgba(255,255,255,0.6);
@@ -146,12 +164,27 @@
             margin-bottom: 16px;
             flex-shrink: 0;
         }
+        .editors-kafelki-frame {
+            width: 100%;
+            max-width: 940px;
+            padding: 18px 20px 22px;
+            border: 2px solid rgba(241, 196, 15, 0.4);
+            border-radius: 18px;
+            background: rgba(6, 8, 16, 0.55);
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.06),
+                0 12px 36px rgba(0, 0, 0, 0.4);
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+        }
         .mode-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 16px;
             width: 100%;
-            max-width: 900px;
+            max-width: 100%;
             flex: 1;
             min-height: 0;
             align-content: start;
@@ -190,6 +223,14 @@
         .mode-btn.quiz:hover { border-color: #3498db; background: rgba(52, 152, 219, 0.15); }
         .mode-btn.familiada { border-color: rgba(231, 76, 60, 0.4); }
         .mode-btn.familiada:hover { border-color: #e74c3c; background: rgba(231, 76, 60, 0.15); }
+        .mode-btn.party-quiz {
+            border-color: rgba(241, 196, 15, 0.45);
+            background: linear-gradient(135deg, rgba(52, 152, 219, 0.12) 0%, rgba(231, 76, 60, 0.12) 100%);
+        }
+        .mode-btn.party-quiz:hover {
+            border-color: #f1c40f;
+            background: linear-gradient(135deg, rgba(52, 152, 219, 0.22) 0%, rgba(231, 76, 60, 0.22) 100%);
+        }
         .mode-btn.sampler { border-color: rgba(155, 89, 182, 0.4); }
         .mode-btn.sampler:hover { border-color: #9b59b6; background: rgba(155, 89, 182, 0.15); }
         .mode-btn.spiewaj-dalej { border-color: rgba(230, 126, 34, 0.4); }
@@ -204,18 +245,33 @@
         .mode-btn.imprezator:hover { border-color: #10b981; background: rgba(16, 185, 129, 0.15); }
         .mode-btn.prezentacja { border-color: rgba(139, 92, 246, 0.4); }
         .mode-btn.prezentacja:hover { border-color: #8b5cf6; background: rgba(139, 92, 246, 0.15); }
-        /* Przyciski: Ekran główny, Panel na telefonie, Panel na komputerze */
+        /* Dolny pasek: linki admin + aktualizacje (lewo), wersja (prawo) */
         .bottom-panel-btns {
             position: fixed;
             bottom: 20px;
             left: 20px;
+            right: 20px;
             z-index: 10001;
             display: flex;
             flex-wrap: wrap;
-            gap: 10px;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px 16px;
         }
-        .bottom-panel-btns a,
-        .bottom-panel-btns button {
+        .bottom-panel-btns-cluster {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+            flex: 1;
+        }
+        .bottom-panel-btns .version-footer {
+            flex-shrink: 0;
+            white-space: nowrap;
+            margin-left: auto;
+        }
+        .bottom-panel-btns a {
             padding: 10px 20px;
             border-radius: 8px;
             border: 1px solid rgba(52,152,219,0.5);
@@ -231,42 +287,44 @@
             gap: 6px;
             transition: all 0.2s;
         }
-        .bottom-panel-btns a:hover,
-        .bottom-panel-btns button:hover {
+        .bottom-panel-btns a:hover {
             background: rgba(52,152,219,0.5);
             border-color: rgba(52,152,219,0.7);
             color: #fff;
         }
-        .editors-section-title {
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: rgba(255,255,255,0.55);
-            margin-bottom: 12px;
-        }
         @media (max-width: 900px) {
             .mode-btn.statki-solo { grid-column: auto; }
-        }
-        .bottom-row {
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            margin-top: 12px;
-            margin-bottom: 60px;
+            .editors-kafelki-frame { padding: 14px 12px 18px; }
         }
         .version-footer { font-size: 0.8rem; color: rgba(255,255,255,0.45); }
-        .btn-updates {
-            padding: 8px 14px;
-            background: rgba(255,255,255,0.1);
-            border: 2px solid rgba(255,255,255,0.2);
+        .bottom-panel-btns button.btn-updates-panel {
+            padding: 10px 16px;
             border-radius: 8px;
+            border: 1px solid rgba(52,152,219,0.5);
+            background: rgba(52,152,219,0.3);
             color: #fff;
             cursor: pointer;
-            font-size: 0.85rem;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-family: inherit;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
         }
-        .btn-updates:hover { background: rgba(255,255,255,0.15); border-color: rgba(255,215,0,0.4); }
-        #update-result { font-size: 0.85rem; padding: 8px 12px; border-radius: 6px; display: none; }
+        .bottom-panel-btns button.btn-updates-panel:hover {
+            background: rgba(52,152,219,0.5);
+            border-color: rgba(52,152,219,0.7);
+            color: #fff;
+        }
+        #update-result {
+            font-size: 0.8rem;
+            padding: 6px 10px;
+            border-radius: 6px;
+            display: none;
+            max-width: min(360px, 42vw);
+        }
         @media (max-width: 900px) {
             .mode-grid { grid-template-columns: repeat(2, 1fr); }
         }
@@ -342,7 +400,10 @@
 </head>
 <body>
     <header class="top-bar">
-        <img src="/img/logo_imprezja.png" alt="Imprezja Quiz" class="logo-start">
+        <div class="brand-stack">
+            <img src="/img/logo_imprezja.png" alt="Imprezja Quiz" class="logo-start">
+            <p class="editors-under-logo">Sekcja edytorów</p>
+        </div>
         <div class="gear-wrap" id="gear-wrap">
             <button type="button" class="gear-btn" id="gear-btn" title="Ustawienia, licencje, poradniki">⚙️</button>
             <div class="gear-menu-backdrop" id="gear-menu-backdrop" aria-hidden="true"></div>
@@ -442,6 +503,7 @@
     </div>
 
     <main class="main">
+        <div class="editors-kafelki-frame">
         <div class="mode-grid">
             <a href="/editor.html" class="mode-btn quiz">
                 <span class="mode-icon">🎮</span>
@@ -452,6 +514,11 @@
                 <span class="mode-icon">🎤</span>
                 <span class="mode-title">Familiada</span>
                 <span class="mode-desc">Edytor pytań Familiady. Sterowanie z Admin PWA.</span>
+            </a>
+            <a href="/party-quiz/editor.html" class="mode-btn party-quiz">
+                <span class="mode-icon">🥳</span>
+                <span class="mode-title">Party Quiz</span>
+                <span class="mode-desc">Hybryda Quizu i Familiady. Drużyny, fizyczne przyciski, sterowanie z panelu admina.</span>
             </a>
             <a href="/njr-sampler.html?editor=1" class="mode-btn sampler requires-license" data-requires-license="1">
                 <span class="mode-icon">🎛️</span>
@@ -481,7 +548,7 @@
             <a href="/imprezator.html?editor=1" class="mode-btn imprezator requires-license" data-requires-license="1">
                 <span class="mode-icon">🎵</span>
                 <span class="mode-title">Imprezator</span>
-                <span class="mode-desc">Edytor muzyki do tańca. Panel na telefonie, odtwarzaj z komputera.</span>
+                <span class="mode-desc">Edytor muzyki do animacji. Panel na telefonie, odtwarzaj z komputera.</span>
             </a>
             <a href="/editor-prezentacja.html" class="mode-btn prezentacja">
                 <span class="mode-icon">📽️</span>
@@ -494,14 +561,15 @@
                 <span class="mode-desc">Tekst i grafika powitalna na ekranie głównym.</span>
             </a>
         </div>
-        <div class="bottom-panel-btns">
-            <a href="/screen-controller.html" target="_blank" rel="noopener">🖥️ Ekran główny</a>
-            <a href="/admin-pwa-qr.html" target="_blank" rel="noopener">📱 Panel na telefonie</a>
-            <a href="/admin-pwa.html" target="_blank" rel="noopener">💻 Panel na komputerze</a>
         </div>
-        <div class="bottom-row">
-            <button type="button" class="btn-updates" onclick="checkForUpdates()">🔍 Sprawdź aktualizacje</button>
-            <span id="update-result"></span>
+        <div class="bottom-panel-btns">
+            <div class="bottom-panel-btns-cluster">
+                <a href="/screen-controller.html" target="_blank" rel="noopener">🖥️ Ekran główny</a>
+                <a href="/admin-pwa-qr.html" target="_blank" rel="noopener">📱 Panel na telefonie</a>
+                <a href="/admin-pwa.html" target="_blank" rel="noopener">💻 Panel na komputerze</a>
+                <button type="button" class="btn-updates-panel" onclick="checkForUpdates()">🔍 Sprawdź aktualizacje</button>
+                <span id="update-result"></span>
+            </div>
             <span class="version-footer" id="version-footer">v...</span>
         </div>
     </main>

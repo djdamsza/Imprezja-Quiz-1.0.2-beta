@@ -8,6 +8,7 @@
     <link rel="manifest" href="/manifest.json">
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/profanity-filter.js"></script>
+    <script src="/js/letter-word-pl-en.js"></script>
     <!-- Fonty lokalne – aplikacja działa bez internetu (sieć Wi‑Fi wystarczy) -->
     <style>
         /* === ZMIENNE === */
@@ -3664,6 +3665,7 @@
                 if (qTextEl && qTextEl.getAttribute('data-playoff-active') === 'true') {
                     qTextEl.removeAttribute('data-playoff-active');
                 }
+                resetAnswersGridPlayoffStyles(document.getElementById('answers-grid'));
             }
             
             if (state.type === 'IDLE' || state.type === 'INTRO') {
@@ -4604,6 +4606,14 @@
             log('🎤 ========== KONIEC showPlayoffScreen ==========');
         }
 
+        /** Usuwa inline style z dogrywki / wyników (display:flex!important na gridzie), inaczej kolejne QUIZ/MUSIC ma jeden rząd kafelków bez tekstu. */
+        function resetAnswersGridPlayoffStyles(grid) {
+            if (!grid) return;
+            ['display', 'flex-direction', 'justify-content', 'align-items', 'flex-wrap', 'align-content', 'width', 'max-width', 'min-height', 'padding', 'gap', 'grid-template-columns', 'grid-template-rows'].forEach(function (prop) {
+                try { grid.style.removeProperty(prop); } catch (e) {}
+            });
+        }
+
         function updateQuestionDisplay(q, opts) {
             const imageOnly = opts && opts.imageOnly === true;
             log('🎤 updateQuestionDisplay wywołane:', {
@@ -4745,10 +4755,22 @@
                     document.getElementById('voting-screen').classList.add('no-image');
                 }
             } else {
+                // Po dogrywce nagłówek mógł zostać z inline display:none !important (tylko OPEN miał wcześniej jawne przywrócenie)
+                if (!isPlayoffActive && !hasPlayoffAttr) {
+                    const qh = document.querySelector('.question-header');
+                    if (qh) {
+                        ['display', 'visibility', 'opacity', 'height', 'width', 'position', 'left', 'margin', 'padding', 'max-height', 'overflow'].forEach(function (prop) {
+                            try { qh.style.removeProperty(prop); } catch (e) {}
+                        });
+                    }
+                }
                 // Dla innych typów pytań - standardowa logika
                 const imgSrc = (q.imageSmall || q.image || q.media || '').trim();
                 if (imgSrc && !skipImages) {
                     const src = (imgSrc.startsWith('/') || imgSrc.startsWith('http')) ? imgSrc : '/uploads/' + imgSrc;
+                    ['display', 'visibility', 'opacity', 'height', 'width', 'position', 'left', 'margin', 'padding', 'max-height', 'overflow'].forEach(function (prop) {
+                        try { heroContainer.style.removeProperty(prop); } catch (e) {}
+                    });
                     heroContainer.style.display = 'block';
                     if (!sameHeroImage(src)) {
                         heroImg.src = src;
@@ -4794,6 +4816,7 @@
                 battleBar.style.display = 'none';
             }
             
+            resetAnswersGridPlayoffStyles(grid);
             grid.classList.remove('playoff-mode', 'list-mode');
             const votingScreenEl = document.getElementById('voting-screen');
             if (votingScreenEl) {
@@ -5099,16 +5122,13 @@
             } else if ((q.type === 'QUIZ' || q.type === 'MUSIC' || q.type === 'VOTE' || q.type === 'VOTE_IMG') && q.answers) {
                 const correctAnswers = Array.isArray(q.correct) ? q.correct : (q.correct !== undefined && q.correct !== null && q.correct !== -1 ? [q.correct] : []);
                 const limit = (q.type === 'VOTE' || q.type === 'VOTE_IMG') ? 2 : Math.min(5, q.answers.filter(Boolean).length);
-                // WAŻNE: Zachowaj układ poziomy (2 kolumny) tak jak podczas głosowania
                 grid.classList.remove('list-mode');
-                // WAŻNE: Dla pytań muzycznych upewnij się że voting-screen ma klasę music-mode
+                resetAnswersGridPlayoffStyles(grid);
                 const votingScreen = document.getElementById('voting-screen');
                 if (q.type === 'MUSIC' && votingScreen) {
                     votingScreen.classList.add('music-mode');
-                    grid.style.gridTemplateColumns = '1fr 1fr';
-                } else {
-                    if (votingScreen) votingScreen.classList.remove('music-mode');
-                    grid.style.gridTemplateColumns = '1fr 1fr';
+                } else if (votingScreen) {
+                    votingScreen.classList.remove('music-mode');
                 }
                 let html = '';
                 for (let i = 0; i < limit && i < (q.answers.length || 0); i++) {
@@ -5290,12 +5310,11 @@
                 grid.innerHTML = '';
                 grid.style.pointerEvents = '';
                 grid.style.cursor = '';
+                resetAnswersGridPlayoffStyles(grid);
                 grid.style.removeProperty('width');
                 grid.style.removeProperty('height');
                 grid.style.removeProperty('min-height');
                 grid.style.removeProperty('max-height');
-                grid.style.removeProperty('grid-template-columns');
-                grid.style.removeProperty('grid-template-rows');
             }
             // Reset hero/grafiki – usuń inline !important z poprzedniego stanu (np. dogrywka), żeby grafika znów ładowała się na telefonach
             if (heroContainer) {
@@ -5751,7 +5770,7 @@
                 grid.innerHTML = `
                     <div class="open-question-ui">
                         <div style="position: relative;">
-                            <input type="text" id="open-answer-input" placeholder="np. rock, techno..." maxlength="80" autocomplete="off">
+                            <input type="text" id="open-answer-input" placeholder="Wpisz tekst" maxlength="80" autocomplete="off">
                             <div id="open-answer-warning" class="profanity-warning" style="display: none;">Niedozwolone słowo</div>
                         </div>
                         <button type="button" class="answer-btn open-submit-btn" id="open-submit">Wyślij</button>
@@ -5878,16 +5897,13 @@
                 grid.classList.remove('list-mode', 'hot-or-not-grid', 'playoff-mode');
                 
                 if (letterCount === 1) {
-                    // 1 litera - duża litera obok pola tekstowego
-                    const letter = playerLetters[0].toUpperCase();
+                    // 1 litera — litera wstępnie w polu (jak „prefiks”), żeby nie dublować wizualnie z osobną kafelkową literą
                     grid.innerHTML = `
-                        <div class="letter-question-ui" style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; max-width: 100%; margin: 0 auto; gap: 15px;">
-                            <div style="display:flex; align-items:center; gap:12px; width:100%; max-width:400px;">
-                                <div style="flex-shrink:0; width:64px; height:64px; display:flex; align-items:center; justify-content:center; font-size:2.8rem; font-weight:900; color:#fff; background:#9c27b0; border-radius:14px; letter-spacing:0; line-height:1; box-shadow:0 4px 16px rgba(156,39,176,0.4);">${letter}</div>
-                                <div style="flex:1; min-width:0;">
-                                    <input type="text" id="letter-answer-input-1" placeholder="wpisz wyraz..." maxlength="80" autocomplete="off" style="width:100%;">
-                                    <div id="letter-answer-warning-1" class="profanity-warning" style="display: none;">Niedozwolone słowo</div>
-                                </div>
+                        <div class="letter-question-ui" style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; max-width: 100%; margin: 0 auto; gap: 12px;">
+                            <div style="width:100%; max-width:400px;">
+                                <input type="text" id="letter-answer-input-1" placeholder="Dokończ wyraz…" maxlength="80" autocomplete="off" style="width:100%; font-size:1.15rem; padding:12px 14px; box-sizing:border-box;">
+                                <div id="letter-answer-warning-1" class="profanity-warning" style="display: none;">Niedozwolone słowo</div>
+                                <div style="font-size:0.82rem; color: rgba(255,255,255,0.68); margin-top:8px; line-height:1.35;">Pierwsza litera jest już w polu — dopisz resztę słowa. Możesz ją usunąć lub zmienić (mała / duża).</div>
                             </div>
                             <button type="button" class="answer-btn letter-submit-btn" id="letter-submit" style="text-align: center;">Wyślij</button>
                             <div id="letter-sent-msg" class="letter-sent-msg">Wysłano</div>
@@ -5931,11 +5947,30 @@
                         initLetterFilter();
                     }
                     
-                    // Walidacja: słowo musi zaczynać się na właściwą literę
+                    (function seedLetterField() {
+                        if (!letterInput1) return;
+                        const seed = playerLetters[0].toUpperCase();
+                        letterInput1.value = seed;
+                        requestAnimationFrame(function () {
+                            try {
+                                letterInput1.focus();
+                                var n = letterInput1.value.length;
+                                letterInput1.setSelectionRange(n, n);
+                            } catch (e0) {}
+                        });
+                    })();
+                    
+                    // Walidacja wizualna: alfabet PL/EN + zgodność pierwszej litery (Ł liczy się przy wylosowanym L)
                     letterInput1.addEventListener('input', function() {
-                        const value = this.value.trim().toLowerCase();
-                        const requiredLetter = playerLetters[0].toLowerCase();
-                        if (value && !value.startsWith(requiredLetter)) {
+                        const t = this.value.trim();
+                        const IW = window.ImprezjaLetterWord;
+                        if (!t) {
+                            this.style.borderColor = '';
+                            this.style.color = '';
+                            return;
+                        }
+                        const bad = !IW || !IW.onlyPlEnLetters(t) || !IW.startsWithLetter(t, playerLetters[0]);
+                        if (bad) {
                             this.style.borderColor = '#f44336';
                             this.style.color = '#f44336';
                         } else {
@@ -5946,38 +5981,35 @@
                     
                     letterSubmit.onclick = () => {
                         const t = (letterInput1 && letterInput1.value) ? letterInput1.value.trim() : '';
-                        if (t) {
-                            const lowerT = t.toLowerCase();
-                            const requiredLetter = playerLetters[0].toLowerCase();
-                            if (lowerT.startsWith(requiredLetter)) {
-                                sendLetterAnswer(t);
-                            } else {
-                                if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-                                alert(`Wyraz musi zaczynać się na literę ${playerLetters[0].toUpperCase()}`);
-                            }
+                        if (!t) return;
+                        const err = letterWordValidationError(t, playerLetters[0]);
+                        if (!err) {
+                            sendLetterAnswer(t);
+                            return;
+                        }
+                        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+                        if (err === 'charset') {
+                            alert('Dozwolone są tylko litery polskie i angielskie oraz opcjonalnie apostrof lub myślnik w wyrazie (bez cyfr i emoji).');
+                        } else {
+                            alert('Wyraz musi zaczynać się na literę ' + String(playerLetters[0]).toUpperCase() + ' (polska forma, np. Ł przy L, też jest OK).');
                         }
                     };
                     letterInput1.addEventListener('keydown', (e) => { if (e.key === 'Enter') letterSubmit.click(); });
                 } else {
-                    // 2 litery - dwa pola tekstowe obok dużych liter
-                    const letter1 = playerLetters[0].toUpperCase();
-                    const letter2 = playerLetters[1].toUpperCase();
+                    // 2 litery — każde pole z wstępnie wpisaną literą (bez osobnych kafelków obok)
                     grid.innerHTML = `
-                        <div class="letter-question-ui" style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; max-width: 100%; margin: 0 auto; gap: 15px;">
-                            <div style="display:flex; align-items:center; gap:12px; width:100%; max-width:400px;">
-                                <div style="flex-shrink:0; width:64px; height:64px; display:flex; align-items:center; justify-content:center; font-size:2.8rem; font-weight:900; color:#fff; background:#9c27b0; border-radius:14px; line-height:1; box-shadow:0 4px 16px rgba(156,39,176,0.4);">${letter1}</div>
-                                <div style="flex:1; min-width:0;">
-                                    <input type="text" id="letter-answer-input-1" placeholder="wpisz wyraz..." maxlength="80" autocomplete="off" style="width:100%;">
-                                    <div id="letter-answer-warning-1" class="profanity-warning" style="display: none;">Niedozwolone słowo</div>
-                                </div>
+                        <div class="letter-question-ui" style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; max-width: 100%; margin: 0 auto; gap: 12px;">
+                            <div style="width:100%; max-width:400px;">
+                                <div style="font-size:0.78rem; color: rgba(255,255,255,0.55); margin-bottom:4px;">Pierwszy wyraz</div>
+                                <input type="text" id="letter-answer-input-1" placeholder="Dokończ wyraz…" maxlength="80" autocomplete="off" style="width:100%; font-size:1.1rem; padding:10px 12px; box-sizing:border-box;">
+                                <div id="letter-answer-warning-1" class="profanity-warning" style="display: none;">Niedozwolone słowo</div>
                             </div>
-                            <div style="display:flex; align-items:center; gap:12px; width:100%; max-width:400px;">
-                                <div style="flex-shrink:0; width:64px; height:64px; display:flex; align-items:center; justify-content:center; font-size:2.8rem; font-weight:900; color:#fff; background:#9c27b0; border-radius:14px; line-height:1; box-shadow:0 4px 16px rgba(156,39,176,0.4);">${letter2}</div>
-                                <div style="flex:1; min-width:0;">
-                                    <input type="text" id="letter-answer-input-2" placeholder="wpisz wyraz..." maxlength="80" autocomplete="off" style="width:100%;">
-                                    <div id="letter-answer-warning-2" class="profanity-warning" style="display: none;">Niedozwolone słowo</div>
-                                </div>
+                            <div style="width:100%; max-width:400px;">
+                                <div style="font-size:0.78rem; color: rgba(255,255,255,0.55); margin-bottom:4px;">Drugi wyraz</div>
+                                <input type="text" id="letter-answer-input-2" placeholder="Dokończ wyraz…" maxlength="80" autocomplete="off" style="width:100%; font-size:1.1rem; padding:10px 12px; box-sizing:border-box;">
+                                <div id="letter-answer-warning-2" class="profanity-warning" style="display: none;">Niedozwolone słowo</div>
                             </div>
+                            <div style="font-size:0.82rem; color: rgba(255,255,255,0.68); max-width:400px; line-height:1.35;">W każdym polu pierwsza litera jest już wpisana — możesz ją zmienić lub usunąć.</div>
                             <button type="button" class="answer-btn letter-submit-btn" id="letter-submit" style="text-align: center;">Wyślij</button>
                             <div id="letter-sent-msg" class="letter-sent-msg">Wysłano</div>
                         </div>
@@ -6027,11 +6059,19 @@
                             };
                             initLetterFilter();
                             
-                            // Walidacja
+                            const seedCh = playerLetters[idx].toUpperCase();
+                            input.value = seedCh;
+                            
                             input.addEventListener('input', function() {
-                                const value = this.value.trim().toLowerCase();
-                                const requiredLetter = playerLetters[idx].toLowerCase();
-                                if (value && !value.startsWith(requiredLetter)) {
+                                const t = this.value.trim();
+                                const IW = window.ImprezjaLetterWord;
+                                if (!t) {
+                                    this.style.borderColor = '';
+                                    this.style.color = '';
+                                    return;
+                                }
+                                const bad = !IW || !IW.onlyPlEnLetters(t) || !IW.startsWithLetter(t, playerLetters[idx]);
+                                if (bad) {
                                     this.style.borderColor = '#f44336';
                                     this.style.color = '#f44336';
                                 } else {
@@ -6042,24 +6082,35 @@
                         }
                     });
                     
+                    requestAnimationFrame(function () {
+                        try {
+                            if (letterInput1) {
+                                letterInput1.focus();
+                                var n1 = letterInput1.value.length;
+                                letterInput1.setSelectionRange(n1, n1);
+                            }
+                        } catch (e1) {}
+                    });
+                    
                     letterSubmit.onclick = () => {
                         const t1 = (letterInput1 && letterInput1.value) ? letterInput1.value.trim() : '';
                         const t2 = (letterInput2 && letterInput2.value) ? letterInput2.value.trim() : '';
-                        if (t1 && t2) {
-                            const lowerT1 = t1.toLowerCase();
-                            const lowerT2 = t2.toLowerCase();
-                            const requiredLetter1 = playerLetters[0].toLowerCase();
-                            const requiredLetter2 = playerLetters[1].toLowerCase();
-                            if (lowerT1.startsWith(requiredLetter1) && lowerT2.startsWith(requiredLetter2)) {
-                                sendLetterAnswer([t1, t2]);
-                            } else {
-                                if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-                                let msg = '';
-                                if (!lowerT1.startsWith(requiredLetter1)) msg += `Pierwszy wyraz musi zaczynać się na literę ${playerLetters[0].toUpperCase()}. `;
-                                if (!lowerT2.startsWith(requiredLetter2)) msg += `Drugi wyraz musi zaczynać się na literę ${playerLetters[1].toUpperCase()}.`;
-                                alert(msg.trim());
-                            }
+                        if (!t1 || !t2) return;
+                        const e1 = letterWordValidationError(t1, playerLetters[0]);
+                        const e2 = letterWordValidationError(t2, playerLetters[1]);
+                        if (!e1 && !e2) {
+                            sendLetterAnswer([t1, t2]);
+                            return;
                         }
+                        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+                        if (e1 === 'charset' || e2 === 'charset') {
+                            alert('Dozwolone są tylko litery polskie i angielskie oraz opcjonalnie apostrof lub myślnik w wyrazie (bez cyfr i emoji).');
+                            return;
+                        }
+                        let msg = '';
+                        if (e1 === 'prefix') msg += 'Pierwszy wyraz musi zaczynać się na literę ' + String(playerLetters[0]).toUpperCase() + '. ';
+                        if (e2 === 'prefix') msg += 'Drugi wyraz musi zaczynać się na literę ' + String(playerLetters[1]).toUpperCase() + '.';
+                        alert(msg.trim());
                     };
                     letterInput1.addEventListener('keydown', (e) => { if (e.key === 'Enter') letterInput2.focus(); });
                     letterInput2.addEventListener('keydown', (e) => { if (e.key === 'Enter') letterSubmit.click(); });
@@ -6199,20 +6250,12 @@
                 const answers = question.answers || [];
                 
                 // Tryb listy dla więcej niż 4 odpowiedzi (ale nie dla pytań muzycznych)
-                if(answers.length > 4 && question.type !== 'MUSIC') {
+                if (answers.length > 4 && question.type !== 'MUSIC') {
                     grid.classList.add('list-mode');
                 } else {
                     grid.classList.remove('list-mode');
-                    // Dla pytań muzycznych zawsze układ 2 kolumny (jak QUIZ)
-                    if(question.type === 'MUSIC') {
-                        grid.style.gridTemplateColumns = '1fr 1fr';
-                        grid.style.gridTemplateRows = '';
-                    } else {
-                        // Zawsze układ poziomy (2 kolumny) dla 2-4 odpowiedzi
-                        grid.style.gridTemplateColumns = '1fr 1fr';
-                        grid.style.gridTemplateRows = '';
-                    }
                 }
+                resetAnswersGridPlayoffStyles(grid);
                 
                 const limit = (question.type === 'VOTE' || question.type === 'VOTE_IMG') ? 2 : answers.length;
                 
@@ -6226,10 +6269,9 @@
                     btn.style.pointerEvents = '';
                     btn.style.cursor = 'pointer';
                     btn.disabled = false;
-                    btn.innerHTML = `
-                        <div class="answer-letter">${letters[i]}</div>
-                        <div class="answer-text">${answers[i]}</div>
-                    `;
+                    btn.innerHTML = '<div class="answer-letter">' + letters[i] + '</div><div class="answer-text"></div>';
+                    const txtEl = btn.querySelector('.answer-text');
+                    if (txtEl) txtEl.textContent = (answers[i] != null && answers[i] !== '') ? String(answers[i]) : '—';
                     btn.onclick = () => sendAnswer(i, btn);
                     grid.appendChild(btn);
                 }
@@ -6875,6 +6917,17 @@
             document.getElementById('open-answer-input')?.setAttribute('readonly', 'true');
         }
         
+        /** null = OK; inaczej kod: 'empty' | 'charset' | 'prefix' */
+        function letterWordValidationError(word, requiredAsciiLetter) {
+            var IW = window.ImprezjaLetterWord;
+            if (!IW) return 'charset';
+            var t = String(word || '').trim();
+            if (!t) return 'empty';
+            if (!IW.onlyPlEnLetters(t)) return 'charset';
+            if (!IW.startsWithLetter(t, requiredAsciiLetter)) return 'prefix';
+            return null;
+        }
+
         function sendLetterAnswer(textOrArray) {
             log('🔍 DEBUG sendLetterAnswer - START:', {
                 textOrArray: textOrArray,
@@ -6900,6 +6953,37 @@
                 const trimmedText = String(textOrArray).trim();
                 if (!trimmedText) return;
                 words = [trimmedText];
+            }
+
+            const lg0 = currentGameState && currentGameState.letterGame;
+            const plArr0 = (lg0 && lg0.playerLetters) ? lg0.playerLetters[socket.id] : null;
+            const lc0 = (lg0 && lg0.letterCount) || 1;
+            if (plArr0 && plArr0.length) {
+                if (lc0 === 1) {
+                    const err = letterWordValidationError(words[0], plArr0[0]);
+                    if (err === 'charset') {
+                        alert('Dozwolone są tylko litery polskie i angielskie oraz opcjonalnie apostrof lub myślnik w wyrazie (bez cyfr i emoji).');
+                        return;
+                    }
+                    if (err === 'prefix') {
+                        alert('Wyraz musi zaczynać się na literę ' + String(plArr0[0]).toUpperCase() + ' (polska forma np. Ł też jest OK).');
+                        return;
+                    }
+                } else if (words.length >= 2) {
+                    const e1 = letterWordValidationError(words[0], plArr0[0]);
+                    const e2 = letterWordValidationError(words[1], plArr0[1]);
+                    if (e1 === 'charset' || e2 === 'charset') {
+                        alert('Dozwolone są tylko litery polskie i angielskie oraz opcjonalnie apostrof lub myślnik w wyrazie (bez cyfr i emoji).');
+                        return;
+                    }
+                    if (e1 === 'prefix' || e2 === 'prefix') {
+                        var msg = '';
+                        if (e1 === 'prefix') msg += 'Pierwszy wyraz musi zaczynać się na literę ' + String(plArr0[0]).toUpperCase() + '. ';
+                        if (e2 === 'prefix') msg += 'Drugi wyraz musi zaczynać się na literę ' + String(plArr0[1]).toUpperCase() + '.';
+                        alert(msg.trim());
+                        return;
+                    }
+                }
             }
             
             // Sprawdź czy odpowiedź zawiera niecenzuralne słowa

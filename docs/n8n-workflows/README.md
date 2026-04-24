@@ -7,15 +7,19 @@
 | Plik | Opis |
 |------|------|
 | [schema-lead-queue.sql](./schema-lead-queue.sql) | Postgres: `lead_queue`, `lead_events` |
-| [imprezja-hitl-enqueue.json](./imprezja-hitl-enqueue.json) | Webhook + INSERT + Telegram (Akceptuj/Odrzuć) |
-| [imprezja-hitl-telegram-callback.json](./imprezja-hitl-telegram-callback.json) | Callback → UPDATE status + `answerCallbackQuery` |
-| [imprezja-telegram-voice-perplexity.json](./imprezja-telegram-voice-perplexity.json) | Szkielet: tylko Twój głos → `getFile` (dokończ Whisper → Perplexity → TTS) |
+| [imprezja-hitl-enqueue.json](./imprezja-hitl-enqueue.json) | Webhook + Perplexity (draft maila) + INSERT + Telegram (treść + propozycja + Akceptuj/Odrzuć/Modyfikuj) |
+| [imprezja-hitl-telegram-callback.json](./imprezja-hitl-telegram-callback.json) | Jeden trigger: `callback_query` + `message` → przyciski, dopisek tekstowy, **głos** operatora (**jedno** wywołanie Perplexity z audio w `file_url` jako base64; odpowiedź **tylko tekstem** w Telegramie). Wymaga **`PERPLEXITY_API_KEY`**. |
+| [imprezja-telegram-voice-perplexity.json](./imprezja-telegram-voice-perplexity.json) | **Nie używaj na tym samym bocie** co callback (drugi webhook). Zostawione jako szkielet referencyjny; pełna ścieżka jest w **`imprezja-hitl-telegram-callback.json`**. |
 
-Dokumentacja: [N8N_TELEGRAM_HITL_ZAPYTANIA.md](../N8N_TELEGRAM_HITL_ZAPYTANIA.md), [N8N_VOICE_PERPLEXITY_TELEGRAM.md](../N8N_VOICE_PERPLEXITY_TELEGRAM.md), szkic Meta/WA → [N8N_META_WA_INGRESS_STUB.md](../N8N_META_WA_INGRESS_STUB.md).
+Dokumentacja: [N8N_TELEGRAM_HITL_ZAPYTANIA.md](../N8N_TELEGRAM_HITL_ZAPYTANIA.md), [N8N_VOICE_PERPLEXITY_TELEGRAM.md](../N8N_VOICE_PERPLEXITY_TELEGRAM.md), Meta/WA → [N8N_META_WA_INGRESS_STUB.md](../N8N_META_WA_INGRESS_STUB.md), **schemat FB+IG+HITL** → [N8N_META_IG_FB_HITL_SCHEMAT.md](../N8N_META_IG_FB_HITL_SCHEMAT.md).
 
 ### `automail-imap-fixed.json` — **automail (główny)**
 
-**automail:** IMAP (`biuro@`) **lub** ręczny test **`Start_Test_FormWP`** → **Filter** (formularz WP) → **Perplexity_Analyze** → **ParseAndRoute** → gałęzie Resend.
+**Tryb domyślny (HITL — każdy mail):** **ParseAndRoute** → **HTTP_HITL_EnqueueEveryMail** → koniec — Telegram (workflow **imprezja-hitl-enqueue**), **bez** auto-oferty do klienta. Render: **`HITL_ENQUEUE_WEBHOOK_URL`** + **`HITL_WEBHOOK_SECRET`**. Szczegóły: [N8N_TELEGRAM_HITL_ZAPYTANIA.md](../N8N_TELEGRAM_HITL_ZAPYTANIA.md).
+
+**Łańcuch wejścia:** IMAP (`biuro@`) **lub** **`Start_Test_FormWP`** → **Filter** (formularz WP) → **Perplexity_Analyze** → **ParseAndRoute** → (HITL HTTP jak wyżej). Stara gałąź **If_HumanReview** → kalendarz → Resend jest **odłączona** w JSON (node’y można usunąć z canvasu).
+
+**Stara logika auto-oferty** (node’y w pliku, bez wejścia z **ParseAndRoute** — na przyszłość / ręczne przełączenie):
 
 - Po **`date_ok`:** **Code_BuildCalWindow** → **If_CalendarRangeOk** → **Google_Calendar_EventsForColorCheck** → **Code_MergeCalendarAvailability** → **PrepareOfertaMails** → **If_TerminWolny** → **Resend** (wolny / zajęty). **Zajęty** = tylko wydarzenie **„Cały dzień”** w Google (API: `start.date`, bez `start.dateTime`); **bez** kolorów i **`CALENDAR_BUSY_COLOR_IDS`**. Szczegóły: [`../N8N_GOOGLE_CALENDAR_COLOR_BUSY.md`](../N8N_GOOGLE_CALENDAR_COLOR_BUSY.md).
 - Po **`date_range_ok`:** **Code_BuildRangeEventsQuery** → **Google_Calendar_RangeEventsForColor** → **Code_CompactRangeEventsForColor** → **Code_ListSaturdayCalWindows** → **If_RangeSaturdayListOk** → **Code_RollupRangeSaturdays** → arkusz + mail: w liście **głównie wolne piątki i soboty** (max 10 pozycji), przy braku wolnych weekendów — prośba o sprawdzenie przed/po okresem; opcjonalnie skrót innych wolnych dni. **Do klienta jedna wiadomość:** **Code_MergeAskClarification** nie łączy się już równolegle z **Resend_AskClarification** — najpierw **Code_BuildSheetRowZapytania**, potem **If_SkipClientOfferResend** → albo **Resend_AskClarification** (sam doprecyzowanie), albo **Resend_WolnyTermin** / **Resend_TerminZajety** (oferta/zakres z **locNote** / blokiem o miejscu w **Code_RollupRangeSaturdays**).
@@ -37,7 +41,7 @@ Dokumentacja: [N8N_TELEGRAM_HITL_ZAPYTANIA.md](../N8N_TELEGRAM_HITL_ZAPYTANIA.md
 ### Po imporcie — obowiązkowo
 
 1. **Credentials:** **Perplexity** (Header Auth) → **oba** node’y: **Perplexity_Analyze** i **Perplexity_AskClarification** (ten sam `Bearer pplx-…`). **Google Calendar OAuth2** → **Google_Calendar_EventsForColorCheck** i **Google_Calendar_RangeEventsForColor** (n8n może poprosić o przypisanie, jeśli ID z repo nie istnieje u Ciebie).
-2. W obu node’ach **Event → Get Many** ustaw **Calendar** na właściwy kalendarz (ID: e-mail konta Google lub `…@group.calendar.google.com`).
+2. W obu node’ach **Event → Get Many** pole **Calendar** w eksporcie z repo jest ustawione na **główny kalendarz** `nowaczykdamian@gmail.com` (jak w Twoim działającym imporcie). Jeśli w n8n używasz innego kalendarza (np. `…@group.calendar.google.com`), wybierz go ręcznie w obu node’ach — **ten sam ID w obu**.
 3. **`CALENDAR_BUSY_COLOR_IDS`** — **nie jest już używane** do zajętości; możesz usunąć z env. Zajęty dzień = tylko **całodniowy** wpis w kalendarzu.
 4. **`RESEND_API_KEY`** na Renderze + **`N8N_BLOCK_ENV_ACCESS_IN_NODE`** ≠ `true` (jeśli używasz `$env` w Resend i opcjonalnie **`CALENDAR_BUSY_TZ_OFFSET`** w **Code**).
 

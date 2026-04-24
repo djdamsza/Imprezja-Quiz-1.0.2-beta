@@ -1,0 +1,35 @@
+# Imprezja - Damian Nowaczyk
+
+> DJ i wodzirej na wesela, imprezy firmowe i uroczystości rodzinne. Firma z Przygodzic (woj. wielkopolskie); obsługa m.in. Ostrów Wlkp., Poznań, Kalisz, Wrocław. Ponad 20 lat doświadczenia. W ofercie m.in. oprawa muzyczna, prowadzenie, quizy, animacje taneczne.
+
+## Kontakt
+
+- [Strona główna](https://imprezja.pl/): Imprezja.pl - oferta i zapytania
+- [O mnie](https://imprezja.pl/o-mnie-damian-nowaczyk/)
+- E-mail: [biuro@imprezja.pl](mailto:biuro@imprezja.pl)
+- Telefon: +48 503 836 965
+- Adres: ul. Wrzosowa 19, 63-421 Przygodzice, Polska
+
+## Kluczowe strony (oferta)
+
+- [DJ na wesele](https://imprezja.pl/dj-na-wesele/)
+- [Imprezy okolicznościowe](https://imprezja.pl/imprezy-okolicznosciowe/)
+- [Szkolenia dla DJ-ów - Nowa Jakość Rozrywki](https://imprezja.pl/szkolenia/)
+- [Galeria](https://imprezja.pl/galeria/)
+- [Sklep / produkty cyfrowe (Imprezja Quiz)](https://nowajakoscrozrywki.pl/): quiz, familiada, oprogramowanie eventowe
+
+## Media społecznościowe
+
+- [Facebook](https://www.facebook.com/imprezjadamiannowaczyk)
+- [Instagram](https://www.instagram.com/imprezja/)
+- [YouTube](https://www.youtube.com/channel/UCw5wDmmGNT2QA7DPtuGAiZA)
+- [LinkedIn - Imprezja](https://www.linkedin.com/company/42381130/)
+
+## Dla botów AI
+
+- Mapa strony: https://imprezja.pl/sitemap_index.xml
+- Zasady crawlowania (classic): https://imprezja.pl/robots.txt
+
+## Opcjonalnie (mniej priorytetowe)
+
+- [Blog / artykuły](https://imprezja.pl/) - sekcje newsowe i realizacje, jeśli występują na stronie

@@ -6,6 +6,8 @@
     <title>Śpiewaj Dalej – Imprezja Quiz</title>
     <link rel="icon" href="data:,">
     <script src="/socket.io/socket.io.js"></script>
+    <script src="/lib/audio-normalize.js"></script>
+    <script src="/lib/digital-output-cap.js"></script>
     <style>
         :root {
             --bg: radial-gradient(circle at center, #1a1a2e, #000);
@@ -214,59 +216,66 @@
         });
         let spiewajCurrentTrackId = null;
         let progressInterval = null;
-        let spiewajGainNode = null;
-        let spiewajAudioContext = null;
+        let spiewajCurrentTrackGain = 1;
+        let spiewajPlayGen = 0;
 
         function ensureSpiewajAudioGraph() {
-            const a = document.getElementById('spiewaj-audio');
-            if (!a || spiewajGainNode) return spiewajGainNode;
-            try {
-                const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                const src = ctx.createMediaElementSource(a);
-                const gain = ctx.createGain();
-                src.connect(gain);
-                gain.connect(ctx.destination);
-                gain.gain.value = 1;
-                spiewajAudioContext = ctx;
-                spiewajGainNode = gain;
-                return gain;
-            } catch (e) { return null; }
+            return null; // Web Audio w Electron psuje odsłuch – jak Imprezator: tylko HTMLAudioElement.volume
         }
 
+        function hardAbortSpiewajAudio(a) {
+            if (!a) return;
+            if (a._fadeIntervalId) { clearInterval(a._fadeIntervalId); a._fadeIntervalId = null; }
+            a.pause();
+            a.removeAttribute('src');
+            try { a.load(); } catch (e) {}
+            a.onended = null;
+            a.ontimeupdate = null;
+        }
         function fadeOutAndStop(audioEl, ms, onDone) {
-            if (!audioEl || audioEl.paused) return;
-            if (audioEl._fadeRafId) cancelAnimationFrame(audioEl._fadeRafId);
-            const startVol = spiewajGainNode ? spiewajGainNode.gain.value : audioEl.volume;
-            const start = performance.now();
-            const step = (now) => {
-                const elapsed = now - start;
+            if (!audioEl || audioEl.paused) {
+                if (typeof onDone === 'function') onDone();
+                return;
+            }
+            if (audioEl._fadeIntervalId) clearInterval(audioEl._fadeIntervalId);
+            const startVol = audioEl.volume;
+            const start = Date.now();
+            const step = () => {
+                const elapsed = Date.now() - start;
                 const t = Math.min(1, elapsed / ms);
-                const vol = startVol * (1 - t);
-                if (spiewajGainNode) spiewajGainNode.gain.value = vol;
-                else audioEl.volume = vol;
-                if (t < 1) audioEl._fadeRafId = requestAnimationFrame(step);
-                else {
-                    audioEl._fadeRafId = null;
+                audioEl.volume = startVol * (1 - t);
+                if (t >= 1) {
+                    clearInterval(audioEl._fadeIntervalId);
+                    audioEl._fadeIntervalId = null;
                     audioEl.pause();
                     if (typeof onDone === 'function') onDone();
                 }
             };
-            audioEl._fadeRafId = requestAnimationFrame(step);
+            audioEl._fadeIntervalId = setInterval(step, 50);
         }
 
-        socket.on('spiewaj_dalej_play', (payload) => {
+        socket.on('spiewaj_dalej_play', async (payload) => {
+            spiewajPlayGen += 1;
+            const playGen = spiewajPlayGen;
             const data = typeof payload === 'object' ? payload : { url: payload, volume: 1, trackId: null };
             const a = document.getElementById('spiewaj-audio');
             if (!a) return;
             ensureSpiewajAudioGraph();
+            let gain = typeof data.normalizedGain === 'number' ? data.normalizedGain : 1;
+            if (gain === 1 && typeof window.AudioNormalize !== 'undefined' && data.url && (data.url.startsWith('/') || (window.location.host && data.url.includes(window.location.host)))) {
+                gain = await window.AudioNormalize.getNormalizedGainForUrl(data.url);
+            }
+            if (playGen !== spiewajPlayGen) return;
             spiewajCurrentTrackId = data.trackId || null;
-            const vol = (data.volume ?? 1) * 1;
+            spiewajCurrentTrackGain = gain;
+            const vol = clampDigitalOutputLinear(Math.max(0, (data.volume ?? 1) * gain));
+            if (a._fadeIntervalId) { clearInterval(a._fadeIntervalId); a._fadeIntervalId = null; }
             a.src = data.url;
-            if (spiewajGainNode) spiewajGainNode.gain.value = vol;
-            else a.volume = vol;
+            a.volume = vol;
             a.onended = () => {
                 if (spiewajCurrentTrackId) socket.emit('spiewaj_dalej_ended', { trackId: spiewajCurrentTrackId });
                 spiewajCurrentTrackId = null;
+                spiewajCurrentTrackGain = 1;
                 if (progressInterval) { clearInterval(progressInterval); progressInterval = null; }
             };
             let lastProgressEmit = 0;
@@ -278,29 +287,53 @@
                 const p = Math.min(1, a.currentTime / a.duration);
                 socket.emit('spiewaj_dalej_progress', { trackId: spiewajCurrentTrackId, progress: p });
             };
-            a.play().catch(e => console.warn('Audio:', e));
+            a.play().then(() => {
+                if (playGen !== spiewajPlayGen) hardAbortSpiewajAudio(a);
+            }).catch(e => console.warn('Audio:', e));
         });
         const doSpiewajStop = (payload) => {
+            spiewajPlayGen += 1;
+            const data = typeof payload === 'object' && payload ? payload : {};
             const a = document.getElementById('spiewaj-audio');
             const trackId = spiewajCurrentTrackId;
-            if (!a || a.paused) {
-                if (trackId) socket.emit('spiewaj_dalej_ended', { trackId });
+            const wantFade = data.fadeOut !== false && !data.immediate;
+            if (data.immediate) {
                 spiewajCurrentTrackId = null;
+                spiewajCurrentTrackGain = 1;
+                if (progressInterval) { clearInterval(progressInterval); progressInterval = null; }
+                hardAbortSpiewajAudio(a);
                 return;
             }
+            if (!a) {
+                if (trackId) socket.emit('spiewaj_dalej_ended', { trackId });
+                spiewajCurrentTrackId = null;
+                spiewajCurrentTrackGain = 1;
+                return;
+            }
+            if (a._fadeIntervalId) { clearInterval(a._fadeIntervalId); a._fadeIntervalId = null; }
+            if (wantFade && !a.paused) {
+                spiewajCurrentTrackId = null;
+                spiewajCurrentTrackGain = 1;
+                fadeOutAndStop(a, 1000, () => {
+                    if (trackId) socket.emit('spiewaj_dalej_ended', { trackId });
+                    hardAbortSpiewajAudio(a);
+                });
+                return;
+            }
+            if (trackId) socket.emit('spiewaj_dalej_ended', { trackId });
             spiewajCurrentTrackId = null;
-            fadeOutAndStop(a, 500, () => { if (trackId) socket.emit('spiewaj_dalej_ended', { trackId }); });
+            spiewajCurrentTrackGain = 1;
+            if (progressInterval) { clearInterval(progressInterval); progressInterval = null; }
+            hardAbortSpiewajAudio(a);
         };
         socket.on('spiewaj_dalej_stop', doSpiewajStop);
-        socket.on('admin_stop_music', () => doSpiewajStop({}));
+        socket.on('admin_stop_music', () => doSpiewajStop({ immediate: true }));
         socket.on('spiewaj_dalej_volume', (v) => {
-            const vol = Math.max(0, Math.min(1, v));
-            if (spiewajGainNode) {
-                spiewajGainNode.gain.value = vol;
-            } else {
-                const a = document.getElementById('spiewaj-audio');
-                if (a) a.volume = vol;
-            }
+            const eff = Math.max(0, Math.min(1, v));
+            const vol = clampDigitalOutputLinear(eff * spiewajCurrentTrackGain);
+            const a = document.getElementById('spiewaj-audio');
+            if (a && a._fadeIntervalId) return;
+            if (a) a.volume = vol;
         });
         socket.on('tunnel_started', () => loadQRData());
 

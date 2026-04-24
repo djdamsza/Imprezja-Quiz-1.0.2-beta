@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Glos → Perplexity (szkielet)\n\nDokończ: getFile → pobierz plik → Whisper → HTTP Perplexity → TTS → sendAudio/sendDocument.\n\nDocs: [`N8N_VOICE_PERPLEXITY_TELEGRAM.md`](../N8N_VOICE_PERPLEXITY_TELEGRAM.md)",
+        "content": "## Uwaga: nie drugi webhook\n\nPelna sciezka glosu jest w **imprezja-hitl-telegram-callback.json** (jeden bot = jeden trigger). Ten plik tylko jako szkielet / notatki.\n\nDocs: `N8N_VOICE_PERPLEXITY_TELEGRAM.md`",
         "height": 260,
         "width": 380
       },

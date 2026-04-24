@@ -1,0 +1,18 @@
+/* Familiada Regular – bitmapowa czcionka dot-matrix z teleturnieju TVP
+   „Familiada" (Copyright darunio123456789 2010, Creative Commons BY-SA).
+   Każdy glyph to siatka okrągłych kropek – dokładnie jak lampki na prawdziwej
+   tablicy w studio. Żadnych masek ani filtrów nie potrzeba.
+
+   UWAGA: Oryginalny plik miał uszkodzoną tablicę cmap (glyph reference 119
+   > liczba glyphów 118 → OTS parsing error w Chrome/Firefox). Poniższe pliki
+   *-fixed.woff2 i *-fixed.ttf zostały odbudowane narzędziem fontTools –
+   cmap jest prawidłowy, dodana wielka „Ą" (nie było w oryginale). Źródła
+   pod /fonts/familiada-custom/familiada.ttf / .woff (dla archiwum). */
+@font-face {
+    font-family: 'Familiada';
+    font-style: normal;
+    font-weight: 400;
+    font-display: block;
+    src: url('/fonts/familiada-custom/familiada-fixed.woff2') format('woff2'),
+         url('/fonts/familiada-custom/familiada-fixed.ttf')   format('truetype');
+}

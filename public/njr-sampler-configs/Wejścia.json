@@ -1,0 +1,83 @@
+{
+  "tileCount": 8,
+  "banks": [
+    {
+      "id": "b1",
+      "name": "Kafelki",
+      "tiles": [
+        {
+          "id": "t0",
+          "color": "#0000ff",
+          "label": "",
+          "image": "⚡",
+          "audio": "/uploads/1775237917571-james-bond.mp3",
+          "volume": 100,
+          "loop": false
+        },
+        {
+          "id": "t1",
+          "color": "#0000ff",
+          "label": "",
+          "image": "⚡",
+          "audio": "/uploads/1775237951887-spz-western-showdown-1.mp3",
+          "volume": 100,
+          "loop": false
+        },
+        {
+          "id": "t2",
+          "color": "#008080",
+          "label": "zegar",
+          "image": "",
+          "audio": "/uploads/1775238019158-30_Second_Long_O_Clock_Counting_Down.mp3",
+          "volume": 100,
+          "loop": false
+        },
+        {
+          "id": "t3",
+          "color": "#0000ff",
+          "label": "JE je wejscie",
+          "image": "⚡",
+          "audio": "/uploads/1775238050806-rizz-walk.mp3",
+          "volume": 100,
+          "loop": false
+        },
+        {
+          "id": "t4",
+          "color": "#0000ff",
+          "label": "",
+          "image": "X-FILES",
+          "audio": "/uploads/1775238089669-illuminati-confirmed-sound-effect-music-1.mp3",
+          "volume": 100,
+          "loop": false
+        },
+        {
+          "id": "t5",
+          "color": "#0000ff",
+          "label": "",
+          "image": "organa upiór",
+          "audio": "/uploads/1775238134407-marcello-rossi-toccata-and-fugue-in-d-minor.mp3",
+          "volume": 100,
+          "loop": false
+        },
+        {
+          "id": "t6",
+          "color": "#0000ff",
+          "label": "",
+          "image": "angry birds",
+          "audio": "/uploads/1775238195341-angry-birds-theme-song-audiotrimmer.mp3",
+          "volume": 100,
+          "loop": false
+        },
+        {
+          "id": "t7",
+          "color": "#0000ff",
+          "label": "",
+          "image": "FIFA",
+          "audio": "/uploads/1775238246248-hymn-ligi-mistrzo__w.mp3",
+          "volume": 100,
+          "loop": false
+        }
+      ]
+    }
+  ]
+}

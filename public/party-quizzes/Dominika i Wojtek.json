@@ -1,0 +1,516 @@
+{
+  "gameMode": "party",
+  "defaultPoints": 10,
+  "disableTimePoints": true,
+  "welcome": {
+    "title": "Party Quiz",
+    "subtitle": "Zaraz startujemy",
+    "logoUrl": "/img/logo_imprezja.png",
+    "introMusicUrl": "/uploads/sfx/intro_loop.mp3"
+  },
+  "questions": [
+    {
+      "id": "q_1776924615552_3zq4u",
+      "type": "QUIZ",
+      "question": " Jaki alkohol Pan Młody lubi najbardziej?",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Wino",
+        "Tequila",
+        "Wódka",
+        "Piwo"
+      ],
+      "media": "/uploads/1776837672810-jaki_alkohol_ma_najmniej_kalorii.webp",
+      "image": "/uploads/1776837672810-jaki_alkohol_ma_najmniej_kalorii.webp",
+      "imageSmall": "/uploads/1776837672810-jaki_alkohol_ma_najmniej_kalorii-thumb.webp",
+      "correct": 1
+    },
+    {
+      "id": "q_1776924615552_za0s6",
+      "type": "QUIZ",
+      "question": "Z jakiej miejscowości najbardziej oddalonej stąd przyjechali goście weselni?",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Gdańsk",
+        "Gdynia",
+        "Gniezno",
+        "Przygodzice"
+      ],
+      "media": "/uploads/1776837643386-POLSKA_mapa_woj_z_powiatami.webp",
+      "image": "/uploads/1776837643386-POLSKA_mapa_woj_z_powiatami.webp",
+      "imageSmall": "/uploads/1776837643386-POLSKA_mapa_woj_z_powiatami-thumb.webp",
+      "correct": 0
+    },
+    {
+      "id": "q_1776924615552_t3qkx",
+      "type": "QUIZ",
+      "question": "Kto jest na zdjęciu?",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Dominika",
+        "Wojtek",
+        "",
+        ""
+      ],
+      "media": "/uploads/1776924241983-Wojtek_5.webp",
+      "image": "/uploads/1776924241983-Wojtek_5.webp",
+      "imageSmall": "/uploads/1776924241983-Wojtek_5-thumb.webp",
+      "correct": 1
+    },
+    {
+      "id": "q_1776924615552_b5mtz",
+      "type": "QUIZ",
+      "question": "Jak zdrobniale Pan Młody mówi do Pani Młodej?",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Nisia",
+        "Domi",
+        "Mała",
+        "Kochanie"
+      ],
+      "media": "",
+      "image": "",
+      "imageSmall": "",
+      "correct": 0
+    },
+    {
+      "id": "q_1776924615552_0pasw",
+      "type": "QUIZ",
+      "question": " Jak najczęściej Pani Młoda mówi do Pana Młodego?",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Kotuś",
+        "Wojtuś",
+        "Misiu",
+        ""
+      ],
+      "media": "",
+      "image": "",
+      "imageSmall": "",
+      "correct": 0
+    },
+    {
+      "id": "q_1776924615552_wensq",
+      "type": "QUIZ",
+      "question": "Gdzie odbyła się ich pierwsza randka?",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "W kinie",
+        "W parku",
+        "Na strzelnicy",
+        ""
+      ],
+      "media": "",
+      "image": "",
+      "imageSmall": "",
+      "correct": 0
+    },
+    {
+      "id": "q_1776924615552_n9gxp",
+      "type": "QUIZ",
+      "question": "Kto jest na zdjęciu?",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Dominika",
+        "Wojtek",
+        "",
+        ""
+      ],
+      "media": "/uploads/1776924307429-Dominika5.webp",
+      "image": "/uploads/1776924307429-Dominika5.webp",
+      "imageSmall": "/uploads/1776924307429-Dominika5-thumb.webp",
+      "correct": 0
+    },
+    {
+      "id": "q_1776924615552_pnur7",
+      "type": "QUIZ",
+      "question": "Jaki jest wspólnie ulubiony film Państwa Młodych?",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Władca Pierścieni: Dwie Wieże",
+        "Gwiezdny Pył",
+        "Król Lew",
+        ""
+      ],
+      "media": "/uploads/1776837907410-img-8010-960x580.webp",
+      "image": "/uploads/1776837907410-img-8010-960x580.webp",
+      "imageSmall": "/uploads/1776837907410-img-8010-960x580-thumb.webp",
+      "correct": 0
+    },
+    {
+      "id": "q_1776924615552_cijjl",
+      "type": "QUIZ",
+      "question": "Kto jest na zdjęciu?",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Dominika",
+        "Wojtek",
+        "",
+        ""
+      ],
+      "media": "/uploads/1776924269570-Dominika_3.webp",
+      "image": "/uploads/1776924269570-Dominika_3.webp",
+      "imageSmall": "/uploads/1776924269570-Dominika_3-thumb.webp",
+      "correct": 0
+    },
+    {
+      "id": "q_1776924615552_lumj1",
+      "type": "QUIZ",
+      "question": "Jaki jest wspólnie ulubiony serial Państwa Młodych?",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Fringe",
+        "Wataha",
+        "Breaking Bad",
+        "PRzyjaciele"
+      ],
+      "media": "/uploads/1776837970063-MV5BYThlMThmOWUtZGI4Ny00NGIyLWI1MTMtYmEyNjM1ZGU1NDQzXkEyXkFqcGc_._V1_.webp",
+      "image": "/uploads/1776837970063-MV5BYThlMThmOWUtZGI4Ny00NGIyLWI1MTMtYmEyNjM1ZGU1NDQzXkEyXkFqcGc_._V1_.webp",
+      "imageSmall": "/uploads/1776837970063-MV5BYThlMThmOWUtZGI4Ny00NGIyLWI1MTMtYmEyNjM1ZGU1NDQzXkEyXkFqcGc_._V1_-thumb.webp",
+      "correct": 1
+    },
+    {
+      "id": "q_1776924615552_3tth0",
+      "type": "QUIZ",
+      "question": "Kto jest na zdjęciu?",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Dominika",
+        "Wojtek",
+        "",
+        ""
+      ],
+      "media": "/uploads/1776924345664-Wojtek_2.webp",
+      "image": "/uploads/1776924345664-Wojtek_2.webp",
+      "imageSmall": "/uploads/1776924345664-Wojtek_2-thumb.webp",
+      "correct": 1
+    },
+    {
+      "id": "q_1776924615552_ufvd4",
+      "type": "QUIZ",
+      "question": "Jaki jest wspólnie ulubiony serial komediowy Państwa Młodych?",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Jak Poznałem Waszą Matkę",
+        "Ranczo",
+        "Teoria Wielkiego Podrywu",
+        "Przyjaciele"
+      ],
+      "media": "/uploads/1776837970063-MV5BYThlMThmOWUtZGI4Ny00NGIyLWI1MTMtYmEyNjM1ZGU1NDQzXkEyXkFqcGc_._V1_.webp",
+      "image": "/uploads/1776837970063-MV5BYThlMThmOWUtZGI4Ny00NGIyLWI1MTMtYmEyNjM1ZGU1NDQzXkEyXkFqcGc_._V1_.webp",
+      "imageSmall": "/uploads/1776837970063-MV5BYThlMThmOWUtZGI4Ny00NGIyLWI1MTMtYmEyNjM1ZGU1NDQzXkEyXkFqcGc_._V1_-thumb.webp",
+      "correct": 1
+    },
+    {
+      "id": "q_1776924615552_jbghc",
+      "type": "QUIZ",
+      "question": "Jaka wódka jest dziś na stołach?",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Biała Dama",
+        "Biała Mewa",
+        "Biały Bocian",
+        ""
+      ],
+      "media": "/uploads/1776837672810-jaki_alkohol_ma_najmniej_kalorii.webp",
+      "image": "/uploads/1776837672810-jaki_alkohol_ma_najmniej_kalorii.webp",
+      "imageSmall": "/uploads/1776837672810-jaki_alkohol_ma_najmniej_kalorii-thumb.webp",
+      "correct": 2
+    },
+    {
+      "id": "q_1776924615552_82ufu",
+      "type": "QUIZ",
+      "question": "Jakich kosmetyków ona ma najwięcej?",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Szminek",
+        "Kremów do twarzy",
+        "Odżywek do włosów",
+        ""
+      ],
+      "media": "/uploads/1776838144689-Naturalne-kosmetyki-do-makijazu.webp",
+      "image": "/uploads/1776838144689-Naturalne-kosmetyki-do-makijazu.webp",
+      "imageSmall": "/uploads/1776838144689-Naturalne-kosmetyki-do-makijazu-thumb.webp",
+      "correct": 2
+    },
+    {
+      "id": "q_1776924615552_kkwtf",
+      "type": "QUIZ",
+      "question": "Najlepsza bajka z dzieciństwa Pani Młodej?",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Mój brat niedźwiedź",
+        "Król Lew ",
+        "Nowe szaty króla",
+        ""
+      ],
+      "media": "",
+      "image": "",
+      "imageSmall": "",
+      "correct": 1
+    },
+    {
+      "id": "q_1776924615552_qnmih",
+      "type": "FAST_LIST",
+      "question": "Szybka lista pytań",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "fastListItems": [
+        {
+          "question": "Gdzie Państwo Młodzi zobaczyli się po raz pierwszy?",
+          "answer": "studniówka brata p. młodej"
+        },
+        {
+          "question": "Dokąd zaplanowany jest pierwszy wyjazd Państwa Młodych po ślubie?",
+          "answer": "Zakopane"
+        },
+        {
+          "question": "Gdzie pracuje Pan Młody? Podaj pełną poprawną nazwę!",
+          "answer": "Generalna Dyrekcja Dróg Krajowych i Autostrad"
+        },
+        {
+          "question": "Kolor oczu pana młodego",
+          "answer": "zielone lub zielono-szare"
+        },
+        {
+          "question": "Po kim Pani Młoda odziedziczyła swoje kręcone włosy?",
+          "answer": "Po tacie"
+        },
+        {
+          "question": "Imię świadka:",
+          "answer": "Krzysztof"
+        },
+        {
+          "question": "Imię świadkowej:",
+          "answer": "Alicja"
+        },
+        {
+          "question": "Jak ma na imię brat Pani Młodej?",
+          "answer": "Tomek"
+        },
+        {
+          "question": "Imiona rodziców Pana Młodego",
+          "answer": "Grażyna i Andrzej"
+        },
+        {
+          "question": "Imiona rodziców Pani Młodej",
+          "answer": "Wiesława i Ryszard"
+        },
+        {
+          "question": "W którym roku Państwo Młodzi się poznali?",
+          "answer": "2014"
+        },
+        {
+          "question": "Gdzie oświadczył się Pan Młody?",
+          "answer": "Byczyna"
+        },
+        {
+          "question": "Najczęściej powtarzające się nazwisko wśród gości weselnych to…?",
+          "answer": "Jokiel"
+        },
+        {
+          "question": "Ile wspólnie ważą",
+          "answer": "130 kg"
+        }
+      ],
+      "correct": -1,
+      "bgMusic": "/uploads/sfx/tlowyborcze.mp3"
+    },
+    {
+      "id": "q_1776924615552_4m5uw",
+      "type": "FAMILIADA",
+      "question": "Alkohol bez litery \"W\" w nazwie",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        {
+          "text": "Bimber",
+          "points": 20
+        },
+        {
+          "text": "Gin",
+          "points": 17
+        },
+        {
+          "text": "Rum",
+          "points": 15
+        },
+        {
+          "text": "Tequila",
+          "points": 13
+        },
+        {
+          "text": "Szampan",
+          "points": 11
+        },
+        {
+          "text": "Likier",
+          "points": 10
+        },
+        {
+          "text": "Brandy",
+          "points": 8
+        },
+        {
+          "text": "Koniak",
+          "points": 6
+        }
+      ],
+      "correct": -1
+    },
+    {
+      "id": "q_1776924615553_uy5yp",
+      "type": "FAST_LIST",
+      "question": "ON / ONA",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "fastListItems": [
+        {
+          "question": "Kto pierwszy powiedział \"kocham Cię\"?",
+          "answer": "ON"
+        },
+        {
+          "question": "Kto pierwszy pocałował?",
+          "answer": "ON"
+        },
+        {
+          "question": "Kto jest bardziej uparty?",
+          "answer": "ONA"
+        },
+        {
+          "question": "Kto częściej podjada?",
+          "answer": "ONA"
+        },
+        {
+          "question": "Kto obejrzał w swoim życiu więcej meczy?",
+          "answer": "ONA"
+        },
+        {
+          "question": "Kto szybciej zasypia?",
+          "answer": "ON"
+        },
+        {
+          "question": "Kto później chodzi spać?",
+          "answer": "ON"
+        },
+        {
+          "question": "Kto głośniej chrapie?",
+          "answer": "ON"
+        },
+        {
+          "question": "Kto będzie rozpieszczał dzieci?",
+          "answer": "ON"
+        },
+        {
+          "question": "Kto zasypia przed telewizorem?",
+          "answer": "ON"
+        },
+        {
+          "question": "Kto lepiej opowiada dowcipy?",
+          "answer": "ON"
+        },
+        {
+          "question": "Kto lepiej naśladuje drugą osobę żeby ją rozśmieszyć/zdenerwować?",
+          "answer": "ON"
+        },
+        {
+          "question": "Kto jest później gotowy do wyjścia?",
+          "answer": "ON"
+        },
+        {
+          "question": "Kto był prymusem w szkole?",
+          "answer": "ONA"
+        },
+        {
+          "question": "Kto lepiej dogada się z obcokrajowcem za granicą?",
+          "answer": "ON"
+        },
+        {
+          "question": "Kto ma więcej butów?",
+          "answer": "ONA"
+        },
+        {
+          "question": "Kto spędza więcej czasu przed ekranem telefonu?",
+          "answer": "ON"
+        },
+        {
+          "question": "Kto chętniej zaplanowałby wieczór z planszówkami?",
+          "answer": "ON"
+        },
+        {
+          "question": "Kto się szybciej niecierpliwi?",
+          "answer": "ONA"
+        },
+        {
+          "question": "Kto lepiej pamięta o ważnych datach (np. urodziny, itp…)?",
+          "answer": "ONA"
+        },
+        {
+          "question": "Kto chętnie utnie sobie drzemkę w ciągu dnia?",
+          "answer": "ON"
+        },
+        {
+          "question": "Kto jest bardziej zorganizowany?",
+          "answer": "ONA"
+        },
+        {
+          "question": "Kto jest bardziej otwarty na eksperymenty kulinarne?",
+          "answer": "ON"
+        },
+        {
+          "question": "Kto ma twardszy sen?",
+          "answer": "ON"
+        },
+        {
+          "question": "Kto jest bardziej punktualny?",
+          "answer": "ONA"
+        },
+        {
+          "question": "Kto jest większym zmarzluchem?",
+          "answer": "ONA"
+        }
+      ],
+      "correct": -1,
+      "bgMusic": "/uploads/sfx/tlowyborcze.mp3"
+    }
+  ],
+  "thanksScreen": {
+    "text": "Dziękujemy za zabawę!",
+    "image": "/uploads/1773236822109-M_B__401___1_d__1_.webp"
+  }
+}

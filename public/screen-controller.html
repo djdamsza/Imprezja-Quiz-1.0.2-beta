@@ -69,6 +69,17 @@
             object-fit: contain;
             object-position: center;
         }
+        /* Party-welcome: logo większe, wyśrodkowane; sporo miejsca na napis pod spodem. */
+        #view-welcome.party-welcome .welcome-image {
+            top: 8%;
+            bottom: 28%;
+            left: 8%;
+            right: 8%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            filter: drop-shadow(0 8px 30px rgba(0,0,0,0.6));
+        }
         #view-welcome .welcome-logo {
             position: fixed;
             top: 16px;
@@ -134,11 +145,14 @@
         <div id="welcome-text-wrap" class="welcome-text-wrap text-center">
             <div id="welcome-text" class="welcome-text"></div>
         </div>
+        <!-- Party Quiz intro music — odtwarzane tylko gdy welcome_update poda introMusicUrl. -->
+        <audio id="welcome-intro-audio" loop preload="auto"></audio>
     </div>
 
     <!-- Widoki trybów (iframe ładowany przy pierwszym wyświetleniu) -->
     <div id="view-quiz" class="screen-view">
-        <iframe id="iframe-quiz" data-src="/Screen.html"></iframe>
+        <!-- tvShell=1: Screen ukrywa QR „Panel admina” i przyciski intro na rzutniku (shell ≠ laptop przy stole). -->
+        <iframe id="iframe-quiz" data-src="/Screen.html?tvShell=1"></iframe>
     </div>
     <div id="view-familiada" class="screen-view">
         <iframe id="iframe-familiada" data-src="/familiada/screen.html"></iframe>
@@ -201,6 +215,11 @@
         function showView(mode) {
             IMPREZJA_LOG('showView', mode, 'MUSIC_MODES.includes=', MUSIC_MODES.includes(mode));
             if (MUSIC_MODES.includes(mode)) return;
+            // Party Quiz reużywa iframe'a Screen.html (tego samego co 'quiz').
+            // Pasek drużyn i render typu FAMILIADA są dodane w Screen.html i aktywują się przez event 'party_state'.
+            if (mode === 'party') mode = 'quiz';
+            // Zatrzymaj muzykę intro gdy opuszczamy welcome (żeby nie grała podczas pytań).
+            if (mode !== 'welcome') stopWelcomeIntroMusic();
             try {
                 document.querySelectorAll('.screen-view').forEach(v => { v.classList.remove('active'); });
                 const view = document.getElementById('view-' + mode);
@@ -229,10 +248,14 @@
         // Aktualizuj ekran powitalny
         const FONT_SIZES = { small: 'clamp(1.2rem, 3vw, 2.5rem)', medium: 'clamp(2rem, 5vw, 4rem)', large: 'clamp(2.8rem, 7vw, 5.5rem)' };
         function updateWelcome(data) {
+            const view = document.getElementById('view-welcome');
             const logo = document.getElementById('welcome-logo');
             const img = document.getElementById('welcome-image');
             const text = document.getElementById('welcome-text');
             const textWrap = document.getElementById('welcome-text-wrap');
+            const audio = document.getElementById('welcome-intro-audio');
+            const isParty = !!data.partyMode;
+            if (view) view.classList.toggle('party-welcome', isParty);
             if (data.logoVisible !== false && logo) logo.style.display = 'block';
             else if (data.logoVisible === false && logo) logo.style.display = 'none';
             if (data.imageUrl && img) {
@@ -249,6 +272,31 @@
                 textWrap.classList.remove('text-top', 'text-center', 'text-bottom');
                 textWrap.classList.add('text-' + (data.textPosition || 'center'));
                 textWrap.style.display = data.text ? 'flex' : 'none';
+            }
+            // Intro music (Party Quiz): ustaw źródło i odtwarzaj w pętli. Browser może zablokować
+            // autoplay przy pierwszym wejściu — wtedy odblokuje się po pierwszej interakcji.
+            if (audio) {
+                const musicUrl = data.introMusicUrl || '';
+                if (musicUrl) {
+                    const resolved = musicUrl.startsWith('/') ? (window.location.origin + musicUrl) : musicUrl;
+                    if (audio.src !== resolved) {
+                        audio.src = resolved;
+                    }
+                    audio.volume = (typeof data.introVolume === 'number') ? Math.max(0, Math.min(1, data.introVolume)) : 0.6;
+                    const p = audio.play();
+                    if (p && typeof p.catch === 'function') p.catch(() => { /* autoplay blocked; będzie grał po pierwszej interakcji */ });
+                } else {
+                    try { audio.pause(); } catch (_) {}
+                    audio.removeAttribute('src');
+                    audio.load();
+                }
+            }
+        }
+        /** Zatrzymaj muzykę intro gdy opuszczamy welcome. */
+        function stopWelcomeIntroMusic() {
+            const audio = document.getElementById('welcome-intro-audio');
+            if (audio) {
+                try { audio.pause(); } catch (_) {}
             }
         }
 
@@ -326,6 +374,47 @@
                     iframe.contentWindow.postMessage({ type: 'prezentacja_winamp_mode', delta: data && data.delta }, '*');
                 } catch (_) {}
             }
+        });
+
+        /** Pełny ekran okna przeglądarki/Electron — wywoływane z iframe (np. Screen.html), bo requestFullscreen w iframe często jest blokowany. */
+        function shellRequestFullscreen() {
+            const doc = document.documentElement;
+            const req = doc.requestFullscreen || doc.webkitRequestFullscreen || doc.mozRequestFullScreen || doc.msRequestFullscreen;
+            if (req) {
+                try {
+                    const p = req.call(doc);
+                    if (p && typeof p.then === 'function') p.catch(function () {});
+                } catch (e) { IMPREZJA_ERR('shellRequestFullscreen', e); }
+            }
+        }
+        function shellNotifyIframesFullscreen(active) {
+            document.querySelectorAll('iframe[data-src]').forEach(function (f) {
+                try {
+                    if (f.contentWindow) {
+                        f.contentWindow.postMessage({ type: 'imprezja_shell_fullscreen', active: !!active }, window.location.origin);
+                    }
+                } catch (_) {}
+            });
+        }
+        window.addEventListener('message', function (ev) {
+            if (!ev.data) return;
+            if (ev.data.type === 'imprezja_request_fullscreen') {
+                if (ev.origin !== window.location.origin) return;
+                IMPREZJA_LOG('message imprezja_request_fullscreen');
+                shellRequestFullscreen();
+                return;
+            }
+            /** TV (Screen iframe) — Szybka lista: kończy muzykę intro shella obok quizu. */
+            if (ev.data.type === 'imprezja-stop-welcome-intro') {
+                if (ev.origin !== window.location.origin) return;
+                stopWelcomeIntroMusic();
+            }
+        });
+        ['fullscreenchange', 'webkitfullscreenchange'].forEach(function (evName) {
+            document.addEventListener(evName, function () {
+                const active = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+                shellNotifyIframesFullscreen(active);
+            });
         });
 
         socket.on('connect', () => { IMPREZJA_LOG('socket connect'); socket.emit('screen_join'); });

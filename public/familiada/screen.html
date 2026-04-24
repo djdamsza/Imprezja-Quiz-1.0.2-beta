@@ -4,20 +4,54 @@
     <meta charset="UTF-8">
     <link rel="icon" type="image/x-icon" href="/favicon.ico"><link rel="icon" type="image/png" sizes="32x32" href="/img/icon-32.png"><link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
     <title>Familiada – ekran TV</title>
+    <!-- DotGothic16: domyślny /400.css obejmuje wyłącznie znaki CJK (japoński).
+         Dla liter łacińskich + polskich diakrytyków używamy wariantu latin-ext,
+         który zawiera podstawowe litery łacińskie oraz rozszerzone (Ą Ć Ę Ł Ń Ó Ś Ź Ż). -->
+    <!-- „Familiada Regular" – bitmapowa czcionka z teleturnieju (CC BY-SA).
+         To jest dokładnie ta czcionka z oryginalnej tablicy TVP; każda litera
+         jest już zbudowana z okrągłych kropek-LEDów, więc nie potrzebujemy
+         żadnej dodatkowej maski ani overlayu. -->
+    <link href="/fonts/familiada-custom/familiada.css" rel="stylesheet">
+    <!-- Zapasowe czcionki pikselowe (gdyby Familiada nie załadowała się szybko). -->
+    <link href="/fonts/silkscreen/latin-ext-400.css" rel="stylesheet">
+    <link href="/fonts/vt323/latin-ext-400.css" rel="stylesheet">
     <link href="/fonts/pixelify-sans/400.css" rel="stylesheet">
     <link href="/fonts/pixelify-sans/700.css" rel="stylesheet">
     <style>
         :root {
-            --led-yellow: #ffe033;
-            --led-off: #443300;
-            --font-led: 'Pixelify Sans', monospace;
-            --font-digits: 'Segoe UI', 'Roboto', 'Arial', sans-serif;
+            --led-yellow: #ffd833;
+            --led-yellow-bright: #fff9c0;
+            --led-yellow-dim: rgba(255, 216, 51, 0.4);
+            --led-off: #3a2d05;
+            /* „Familiada Regular" – prawdziwa czcionka z teleturnieju TVP.
+               Każdy glyph jest zbudowany z okrągłych kropek (żarówek LED),
+               więc NIE potrzebujemy CSS mask ani żadnej nakładki – wystarczy
+               czytelny żółty kolor + delikatny glow. Efekt jest ostry jak LCD
+               w kalkulatorze: świeci się tylko to, co ma świecić. */
+            --font-led: 'Familiada', 'Silkscreen', 'VT323', monospace;
+            --font-digits: 'Familiada', 'Silkscreen', 'VT323', monospace;
         }
         body { background: #000; font-family: var(--font-led); margin: 0; overflow: hidden; height: 100vh; display: flex; flex-direction: column; color: var(--led-yellow); position: relative; }
         body::before { content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none;
             background: linear-gradient(90deg, rgba(0, 80, 180, 0.65) 0%, rgba(0, 60, 140, 0.45) 30%, transparent 75%), linear-gradient(270deg, rgba(180, 0, 0, 0.65) 0%, rgba(140, 0, 0, 0.45) 30%, transparent 75%);
             animation: bgGradientPulse 4s ease-in-out infinite; }
         @keyframes bgGradientPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        /* === Utility glow dla LCD/LED tekstu =====================================
+           Czcionka Familiada ma już gotowe kropki w glyphach. Dokładamy tylko
+           delikatny halo, żeby litery wyglądały jak lekko rozżarzone LEDy –
+           zero rozmycia, bo rozmycie pogarsza czytelność. */
+        .lamp-glow {
+            text-shadow:
+                0 0 1px var(--led-yellow-bright),
+                0 0 3px rgba(255, 216, 51, 0.55);
+        }
+        .lamp-glow-strong {
+            text-shadow:
+                0 0 1px var(--led-yellow-bright),
+                0 0 2px var(--led-yellow),
+                0 0 6px rgba(255, 216, 51, 0.55);
+        }
 
         .logo-footer { position: fixed; bottom: 20px; right: 20px; z-index: 50; height: 32px; width: auto; opacity: 0.75; pointer-events: none; }
         .logo-footer img { height: 100%; width: auto; object-fit: contain; }
@@ -26,12 +60,35 @@
         .team-score-panel { width: 28%; min-width: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; z-index: 1; }
         #panel-blue { background: linear-gradient(135deg, rgba(0, 40, 100, 0.3) 0%, transparent 70%); }
         #panel-red { background: linear-gradient(225deg, rgba(100, 0, 0, 0.3) 0%, transparent 70%); }
-        .team-name { font-family: var(--font-led); font-size: 1.8vw; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px; color: var(--led-yellow); text-shadow: 0 0 8px var(--led-yellow); line-height: 1.4; }
-        .score-display { background: transparent; color: var(--led-yellow); font-family: var(--font-digits); font-size: 4vw; padding: 2px 8px; min-width: 50px; text-align: center; text-shadow: 0 0 10px var(--led-yellow); font-variant-numeric: tabular-nums; }
-        #question-box { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 15px; text-align: center; position: relative; z-index: 2; }
-        #question-text { color: var(--led-yellow); font-family: var(--font-led); font-size: clamp(1.8vw, 3vw, 5vw); text-transform: uppercase; text-shadow: 0 0 8px var(--led-yellow); line-height: 1.35; letter-spacing: 1px; max-width: 95%; white-space: normal; word-wrap: break-word; overflow: visible; }
-        #question-text.question-long { font-size: clamp(1.5vw, 2.3vw, 4vw); line-height: 1.3; }
-        #question-text.question-very-long { font-size: clamp(1.2vw, 1.8vw, 3vw); line-height: 1.25; }
+        .team-name { font-family: var(--font-led); font-size: 2.2vw; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 2px; color: var(--led-yellow); line-height: 1.3;
+            text-shadow:
+                0 0 1px var(--led-yellow-bright),
+                0 0 3px rgba(255, 216, 51, 0.5); }
+        .score-display { background: transparent; color: var(--led-yellow); font-family: var(--font-digits); font-size: 5vw; padding: 2px 8px; min-width: 50px; text-align: center;
+            font-variant-numeric: tabular-nums; letter-spacing: 2px;
+            text-shadow:
+                0 0 1px var(--led-yellow-bright),
+                0 0 2px var(--led-yellow),
+                0 0 6px rgba(255, 216, 51, 0.55); }
+        #question-box { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 15px; text-align: center; position: relative; z-index: 2; min-height: 0; overflow: hidden; }
+        /* Domyślny rozmiar – dla krótkich pytań. Dłuższe pytania są zmniejszane
+           dynamicznie przez JS (fitQuestionText), żeby zawsze mieściły się w
+           #question-box – niezależnie od długości i użytej czcionki. */
+        #question-text {
+            color: var(--led-yellow);
+            font-family: var(--font-led);
+            font-size: 2.8vw;
+            text-transform: uppercase;
+            line-height: 1.2;
+            letter-spacing: 1px;
+            max-width: 98%;
+            white-space: normal;
+            word-wrap: break-word;
+            overflow: visible;
+            text-shadow:
+                0 0 1px var(--led-yellow-bright),
+                0 0 3px rgba(255, 216, 51, 0.5);
+        }
 
         #main-board { flex: 1; display: flex; position: relative; padding: 15px 0; z-index: 1; }
         #main-board .carbon-bg { flex: 1; background: #000; }
@@ -41,20 +98,108 @@
         .x-mark.active { background: #1a0808; color: var(--led-yellow); opacity: 1; animation: blinkX 0.4s ease-out; }
         .x-mark.active .x-pixel { filter: drop-shadow(0 0 8px var(--led-yellow)); }
 
-        #board-display { flex: 1; background: #000; margin: 0 10px 10px 10px; display: flex; flex-direction: column; padding: 20px; position: relative; min-height: 0; }
-        #rows-container { flex: 1; display: flex; flex-direction: column; justify-content: space-evenly; gap: 0.5vh; min-height: 0; }
-        .answer-row { display: flex; align-items: center; margin-bottom: 0; padding: 0.2vh 0; font-size: var(--answer-font-size, 3vw); transition: all 0.5s; line-height: 1.35; flex: 1; min-height: 0; }
+        /* === Tablica z żarówkami (board z oryginalnej Familiady) ==================
+           Prawdziwa tablica w teleturnieju: czarne tło LED panelu, otoczone
+           kremowo-srebrną plastikową ramą z zaokrąglonymi rogami. Dodatkowo
+           widać subtelne światło zapalanych i gasnących żarówek wokół każdej
+           litery – odwzorowujemy to przez radial-gradient "unlit dots" w tle.
 
-        .row-num { width: 50px; min-width: 50px; text-align: center; color: var(--led-yellow); font-family: var(--font-digits); margin-right: 15px; text-shadow: 0 0 5px var(--led-yellow); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+           Użyte techniki:
+           • rounded-corners + gruba border (ramka plastiku)
+           • inset box-shadow (wgłębienie panelu jak w prawdziwym urządzeniu)
+           • outset box-shadow (bloom tablicy świecącej w studio)
+           • gęsta siatka ciemnych kropek w ::before (unlit lamps)
+           • radial vignette z ::after (lens effect + ciemniejsze rogi) */
+        #board-display {
+            flex: 1;
+            background: #050300;
+            margin: 6px 14px 14px 14px;
+            display: flex;
+            flex-direction: column;
+            padding: 26px 30px;
+            position: relative;
+            min-height: 0;
+            overflow: hidden;
+            border-radius: 18px;
+            box-shadow:
+                inset 0 0 60px rgba(0, 0, 0, 0.9),
+                inset 0 0 18px rgba(255, 180, 40, 0.08),
+                0 0 30px rgba(255, 200, 50, 0.10),
+                0 4px 18px rgba(0, 0, 0, 0.6);
+        }
+        /* Siatka „nieaktywnych" diod – delikatny grid żarówek w tle panelu,
+           jak na prawdziwej tablicy TVP. Czcionka Familiada ma własne kropki,
+           więc to tło jest tylko subtelnym wypełnieniem pustych obszarów. */
+        #board-display::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background-image:
+                radial-gradient(circle, rgba(255, 216, 51, 0.06) 22%, transparent 24%);
+            background-size: 7px 7px;
+            z-index: 0;
+        }
+        /* Lekki vignette + soczewka TV żeby „ożywić" tablicę. */
+        #board-display::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background:
+                radial-gradient(ellipse at 50% 35%, transparent 55%, rgba(0,0,0,0.35) 100%),
+                linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, transparent 18%);
+            z-index: 2;
+        }
+        #rows-container { flex: 1; display: flex; flex-direction: column; justify-content: space-evenly; gap: 0.5vh; min-height: 0; position: relative; z-index: 1; }
+        #total-pot, #center-x-overlay { position: relative; z-index: 1; }
+        .answer-row { display: flex; align-items: center; margin-bottom: 0; padding: 0.2vh 0; font-size: var(--answer-font-size, 3.2vw); transition: all 0.5s; line-height: 1.3; flex: 1; min-height: 0; }
+
+        .row-num { width: 50px; min-width: 50px; text-align: center; color: var(--led-yellow); font-family: var(--font-digits); margin-right: 15px;
+            flex-shrink: 0; font-variant-numeric: tabular-nums;
+            text-shadow:
+                0 0 1px var(--led-yellow-bright),
+                0 0 3px rgba(255, 216, 51, 0.5); }
         .row-text { flex: 1; text-transform: uppercase; letter-spacing: var(--answer-spacing, 2px); position: relative; white-space: nowrap; overflow: hidden; font-family: var(--font-led); }
-        .hidden-mask { display: block; color: var(--led-off); font-family: var(--font-led); letter-spacing: 3px; }
-        .revealed-text { display: none; color: var(--led-yellow); text-shadow: 0 0 8px var(--led-yellow); font-family: var(--font-led); }
+        /* Niezapalone miejsca – delikatne, przyciemnione kropki wskazujące
+           miejsce jeszcze do odkrycia (jak „puste" żarówki w oryginale TVP). */
+        .hidden-mask {
+            display: block;
+            color: var(--led-off);
+            font-family: var(--font-led);
+            letter-spacing: 4px;
+            opacity: 0.85;
+        }
+        .revealed-text {
+            display: none;
+            color: var(--led-yellow);
+            font-family: var(--font-led);
+            text-shadow:
+                0 0 1px var(--led-yellow-bright),
+                0 0 2px var(--led-yellow),
+                0 0 5px rgba(255, 216, 51, 0.5);
+        }
         .revealed .hidden-mask { display: none; }
-        .revealed .revealed-text { display: block; }
-        .row-points { width: var(--row-points-width, 80px); min-width: 50px; text-align: right; padding-right: 10px; color: var(--led-yellow); font-family: var(--font-digits); text-shadow: 0 0 5px var(--led-yellow); visibility: hidden; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+        .revealed .revealed-text { display: block; animation: lampIgnite 0.25s ease-out; }
+        @keyframes lampIgnite {
+            0%   { opacity: 0.2; }
+            50%  { opacity: 1; }
+            70%  { opacity: 0.85; }
+            100% { opacity: 1; }
+        }
+        .row-points { width: var(--row-points-width, 80px); min-width: 50px; text-align: right; padding-right: 10px; color: var(--led-yellow); font-family: var(--font-digits);
+            visibility: hidden; flex-shrink: 0; font-variant-numeric: tabular-nums;
+            text-shadow:
+                0 0 1px var(--led-yellow-bright),
+                0 0 3px rgba(255, 216, 51, 0.5); }
         .revealed .row-points { visibility: visible; }
 
-        #total-pot { text-align: right; font-size: 2.5vw; padding-top: 10px; color: var(--led-yellow); text-shadow: 0 0 10px var(--led-yellow); margin-top: 10px; font-family: var(--font-digits); font-variant-numeric: tabular-nums; }
+        #total-pot { text-align: right; font-size: 2.8vw; padding-top: 10px; color: var(--led-yellow);
+            margin-top: 10px; font-family: var(--font-digits); font-variant-numeric: tabular-nums; letter-spacing: 2px;
+            text-shadow:
+                0 0 1px var(--led-yellow-bright),
+                0 0 2px var(--led-yellow),
+                0 0 6px rgba(255, 216, 51, 0.55); }
 
         #familiada-title-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 250; background: #000; pointer-events: none; overflow: hidden; }
         #familiada-title-overlay::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0;
@@ -82,8 +227,10 @@
         #familiada-jingle-scores { display: none; position: relative; z-index: 1; margin-top: 3vh; flex-direction: row; gap: 15vw; align-items: center; justify-content: center; }
         #familiada-jingle-scores.visible { display: flex; }
         .jingle-team { text-align: center; font-family: var(--font-led); }
-        .jingle-team .jingle-name { font-size: 3.5vw; color: var(--led-yellow); text-shadow: 0 0 12px var(--led-yellow); margin-bottom: 1vh; text-transform: uppercase; letter-spacing: 2px; display: block; }
-        .jingle-team .jingle-points { font-size: 6vw; font-weight: bold; font-family: var(--font-digits); color: var(--led-yellow); text-shadow: 0 0 15px var(--led-yellow); font-variant-numeric: tabular-nums; }
+        .jingle-team .jingle-name { font-size: 3.5vw; color: var(--led-yellow); margin-bottom: 1vh; text-transform: uppercase; letter-spacing: 2px; display: block;
+            text-shadow: 0 0 1px var(--led-yellow-bright), 0 0 3px rgba(255, 216, 51, 0.5); }
+        .jingle-team .jingle-points { font-size: 6vw; font-weight: bold; font-family: var(--font-digits); color: var(--led-yellow); font-variant-numeric: tabular-nums;
+            text-shadow: 0 0 1px var(--led-yellow-bright), 0 0 2px var(--led-yellow), 0 0 6px rgba(255, 216, 51, 0.55); }
         .pixel-title-wrap { display: flex; gap: 1.2vw; justify-content: center; align-items: center; flex-wrap: nowrap; max-width: 90vw; }
         .pixel-letter { display: flex; flex-direction: column; gap: 0.35vw; }
         .pixel-row { display: flex; gap: 0.35vw; }
@@ -114,9 +261,12 @@
         #final-pixel-title .pixel-row { gap: 0.4vw; }
         .final-scores { display: flex; gap: 15vw; }
         .f-team { text-align: center; font-family: var(--font-led); }
-        .f-name { font-size: 4.5vw; color: var(--led-yellow); text-shadow: 0 0 15px var(--led-yellow); margin-bottom: 2vh; text-transform: uppercase; letter-spacing: 3px; }
-        .f-points { font-size: 10vw; font-weight: bold; font-family: var(--font-digits); color: var(--led-yellow); text-shadow: 0 0 20px var(--led-yellow); font-variant-numeric: tabular-nums; }
-        .f-team.winner .f-name, .f-team.winner .f-points { color: var(--led-yellow); text-shadow: 0 0 25px var(--led-yellow), 0 0 40px rgba(255,224,51,0.5); }
+        .f-name { font-size: 4.5vw; color: var(--led-yellow); margin-bottom: 2vh; text-transform: uppercase; letter-spacing: 2px;
+            text-shadow: 0 0 1px var(--led-yellow-bright), 0 0 4px rgba(255, 216, 51, 0.55); }
+        .f-points { font-size: 10vw; font-weight: bold; font-family: var(--font-digits); color: var(--led-yellow); font-variant-numeric: tabular-nums;
+            text-shadow: 0 0 2px var(--led-yellow-bright), 0 0 3px var(--led-yellow), 0 0 8px rgba(255, 216, 51, 0.55); }
+        .f-team.winner .f-name, .f-team.winner .f-points { color: var(--led-yellow);
+            text-shadow: 0 0 2px var(--led-yellow-bright), 0 0 5px var(--led-yellow), 0 0 12px rgba(255, 216, 51, 0.75); }
         .f-team.loser .f-name, .f-team.loser .f-points { opacity: 0.5; }
 
         @keyframes blinkX { 0% { transform: scale(1.5); opacity:0; } 100% { transform: scale(1); opacity:1; } }
@@ -521,6 +671,45 @@
         let currentAnswerCount = 0;
 
         /** Skalowanie odpowiedzi: 85% wysokości dla listy, duże czcionki, zmniejszanie tylko przy wielu odpowiedziach */
+        /**
+         * Automatyczne dopasowanie rozmiaru pytania do #question-box.
+         * Progi statyczne (question-long/very-long) nie działały dobrze po
+         * przejściu na Familiadę – ta czcionka jest wyraźnie szersza niż
+         * DotGothic16 na tę samą liczbę znaków, więc pytania potrafiły
+         * wychodzić poza ekran. Zamiast ręcznych progów: resetujemy font-size
+         * do CSS default, mierzymy czy scroll przekracza viewport i stopniowo
+         * zmniejszamy, aż się zmieści. Działa dla każdej czcionki.
+         */
+        function fitQuestionText() {
+            const el = document.getElementById('question-text');
+            const box = document.getElementById('question-box');
+            if (!el || !box) return;
+            el.style.fontSize = '';
+            el.style.letterSpacing = '';
+
+            const maxH = box.clientHeight - 4;
+            const maxW = box.clientWidth - 4;
+            const startPx = parseFloat(getComputedStyle(el).fontSize) || 36;
+            let fs = startPx;
+            let ls = 1;
+            let guard = 40;
+            while ((el.scrollHeight > maxH || el.scrollWidth > maxW) && fs > 10 && guard-- > 0) {
+                fs *= 0.93;
+                el.style.fontSize = fs + 'px';
+                if (fs < 18 && ls > 0) { ls = 0; el.style.letterSpacing = '0'; }
+            }
+        }
+        window.addEventListener('resize', () => {
+            fitQuestionText();
+            if (typeof currentAnswerCount === 'number') applyAnswerScaling(currentAnswerCount);
+        });
+        // Po załadowaniu fontu Familiada wymiary glyphów mogą się zmienić
+        // względem fallbacka – ponowne dopasowanie zapobiega „przeskokom".
+        if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(() => fitQuestionText()).catch(() => {});
+        }
+        window.addEventListener('load', () => fitQuestionText());
+
         function applyAnswerScaling(count) {
             if (!displayWrapper) return;
             currentAnswerCount = count || 0;
@@ -572,9 +761,7 @@
                 socket.emit('familiada_request_team_names');
                 const qEl = document.getElementById('question-text');
                 qEl.innerText = msg.data.question;
-                const qLen = (msg.data.question || '').length;
-                qEl.classList.toggle('question-long', qLen > 40 && qLen <= 75);
-                qEl.classList.toggle('question-very-long', qLen > 75);
+                fitQuestionText();
                 currentPot = 0;
                 document.getElementById('total-pot').innerText = "SUMA: 0";
                 document.querySelectorAll('.x-mark').forEach(x => x.classList.remove('active'));
@@ -619,7 +806,7 @@
                 document.getElementById('familiada-title-overlay').classList.remove('visible');
                 document.getElementById('final-screen').style.display = 'none';
                 document.getElementById('question-text').innerText = 'OCZEKIWANIE...';
-                document.getElementById('question-text').classList.remove('question-long', 'question-very-long');
+                fitQuestionText();
                 document.getElementById('total-pot').innerText = 'SUMA: 0';
                 currentPot = 0;
                 document.querySelectorAll('.x-mark').forEach(x => x.classList.remove('active'));

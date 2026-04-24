@@ -1,0 +1,168 @@
+<!--
+  Imprezja.pl – jeden blok schema.org (JSON-LD) na stronę główną.
+  1. Wyłącz schema w YourSEO / podobnej wtyczce (jak planujesz).
+  2. Jeśli zostawiasz Yoast: w Yoast SEO → Ustawienia → Ogólne → Dane strukturalne
+     wyłącz automatyczny graf schema (żeby nie było dwóch Organization/LocalBusiness).
+  3. Wklej poniższy <script> w stopce strony głównej TYLKO na tej stronie:
+     – Blocksy: wygląd → stopka → Custom HTML / Krótki kod
+     – albo wtyczka „WPCode” / „Code Snippets” z warunkiem: strona główna / is_front_page
+  4. Sprawdź: https://search.google.com/test/rich-results
+
+  GEO: współrzędne z OpenStreetMap Nominatim dla budynku „19, Wrzosowa, Przygodzice”
+       (możesz doprecyzować w Google Maps i podmienić lat/lon).
+
+  Godziny: poniedziałek–sobota 9:00–21:00, niedziela zamknięte (brak wpisu na Sunday).
+
+  aggregateRating (Google + Facebook + Wesele z klasą + Trustindex):
+    – Jedna para ratingValue + reviewCount = średnia ważona ze WSZYSTKICH opinii w 4 źródłach:
+      suma_pkt = (śr_G × liczba_G) + (śr_FB × liczba_FB) + (śr_WZK × liczba_WZK) + (śr_Tr × liczba_Tr)
+      reviewCount = liczba_G + liczba_FB + liczba_WZK + liczba_Tr
+      ratingValue = suma_pkt / reviewCount (np. zaokrąglone do 2 miejsc)
+    – W JSON poniżej są LICZBY ORIENTACYJNE (przykład: G 4.9/40 + FB 5.0/25 + WZK 5.0/29 + Trust 4.8/15).
+    – OBOWIĄZKOWO podmień na rzeczywiste dane z Google Business Profile, Facebooka, WZK i Trustindex.
+    – Zalecane: na stronie głównej krótko pokaż tę samą zagregowaną średnią/łączną liczbę (tekst dla użytkownika),
+      żeby była zgodność z danymi strukturalnymi (wymagania Google).
+
+  priceRange: skrót wg konwencji Google ($ = nisko … $$$$ = bardzo wysoko). Możesz zamienić np. na „4000–6000 PLN”
+    jeśli Rich Results to zaakceptuje – często wystarczą symbole dolarów.
+-->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://imprezja.pl/#website",
+      "url": "https://imprezja.pl/",
+      "name": "Imprezja – Damian Nowaczyk",
+      "description": "DJ i wodzirej na wesela i imprezy – Poznań, Ostrów Wlkp., Kalisz i okolice.",
+      "publisher": { "@id": "https://imprezja.pl/#organization" },
+      "inLanguage": "pl-PL",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://imprezja.pl/?s={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://imprezja.pl/#organization",
+      "name": "Imprezja sp. z o.o.",
+      "url": "https://imprezja.pl/",
+      "logo": {
+        "@type": "ImageObject",
+        "@id": "https://imprezja.pl/#logo",
+        "url": "https://imprezja.pl/wp-content/uploads/2020/07/logo-n1.jpg",
+        "contentUrl": "https://imprezja.pl/wp-content/uploads/2020/07/logo-n1.jpg"
+      },
+      "image": { "@id": "https://imprezja.pl/#logo" },
+      "sameAs": [
+        "https://www.facebook.com/imprezjadamiannowaczyk",
+        "https://www.instagram.com/imprezja/",
+        "https://www.linkedin.com/company/42381130/",
+        "https://pl.pinterest.com/imprezja/",
+        "https://www.youtube.com/channel/UCw5wDmmGNT2QA7DPtuGAiZA"
+      ]
+    },
+    {
+      "@type": "LocalBusiness",
+      "additionalType": "https://schema.org/ProfessionalService",
+      "@id": "https://imprezja.pl/#localbusiness",
+      "name": "Imprezja – Damian Nowaczyk | DJ i wodzirej",
+      "description": "Nowoczesny DJ i wodzirej na wesela, imprezy firmowe i uroczystości rodzinne. Pełna oprawa muzyczna, konkursy, quizy, prowadzenie spotkań.",
+      "url": "https://imprezja.pl/",
+      "telephone": "+48503836965",
+      "email": "biuro@imprezja.pl",
+      "image": [
+        "https://imprezja.pl/wp-content/uploads/2020/07/logo-n1.jpg",
+        "https://imprezja.pl/wp-content/uploads/2026/03/MB-401-1-830x882.webp"
+      ],
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "ul. Wrzosowa 19",
+        "addressLocality": "Przygodzice",
+        "postalCode": "63-421",
+        "addressRegion": "wielkopolskie",
+        "addressCountry": "PL"
+      },
+      "geo": {
+        "@type": "GeoCoordinates",
+        "latitude": 51.5920941,
+        "longitude": 17.7975757
+      },
+      "hasMap": "https://www.google.com/maps/search/?api=1&query=Wrzosowa+19%2C+63-421+Przygodzice%2C+Polska",
+      "openingHoursSpecification": [
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+          "opens": "09:00",
+          "closes": "21:00"
+        }
+      ],
+      "parentOrganization": { "@id": "https://imprezja.pl/#organization" },
+      "areaServed": [
+        { "@type": "City", "name": "Ostrów Wielkopolski" },
+        { "@type": "City", "name": "Poznań" },
+        { "@type": "City", "name": "Kalisz" },
+        { "@type": "City", "name": "Wrocław" }
+      ],
+      "sameAs": [
+        "https://www.facebook.com/imprezjadamiannowaczyk",
+        "https://www.instagram.com/imprezja/",
+        "https://www.youtube.com/channel/UCw5wDmmGNT2QA7DPtuGAiZA"
+      ],
+      "priceRange": "$$–$$$",
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.94",
+        "bestRating": "5",
+        "worstRating": "1",
+        "ratingCount": "109"
+      }
+    },
+    {
+      "@type": "Person",
+      "@id": "https://imprezja.pl/#person-damian-nowaczyk",
+      "name": "Damian Nowaczyk",
+      "url": "https://imprezja.pl/",
+      "image": "https://imprezja.pl/wp-content/uploads/2026/03/MB-401-1-830x882.webp",
+      "jobTitle": "DJ, wodzirej",
+      "worksFor": { "@id": "https://imprezja.pl/#organization" },
+      "sameAs": [
+        "https://www.facebook.com/imprezjadamiannowaczyk",
+        "https://www.instagram.com/imprezja/"
+      ]
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://imprezja.pl/#webpage",
+      "url": "https://imprezja.pl/",
+      "name": "DJ Wodzirej Damian Nowaczyk – Imprezja.pl",
+      "isPartOf": { "@id": "https://imprezja.pl/#website" },
+      "about": { "@id": "https://imprezja.pl/#localbusiness" },
+      "primaryImageOfPage": {
+        "@type": "ImageObject",
+        "url": "https://imprezja.pl/wp-content/uploads/2026/03/MB-401-1-830x882.webp",
+        "contentUrl": "https://imprezja.pl/wp-content/uploads/2026/03/MB-401-1-830x882.webp"
+      },
+      "breadcrumb": { "@id": "https://imprezja.pl/#breadcrumb" },
+      "inLanguage": "pl-PL"
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": "https://imprezja.pl/#breadcrumb",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Strona główna",
+          "item": "https://imprezja.pl/"
+        }
+      ]
+    }
+  ]
+}
+</script>

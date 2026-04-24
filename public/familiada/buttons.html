@@ -2,46 +2,203 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <link rel="icon" type="image/x-icon" href="/favicon.ico"><link rel="icon" type="image/png" sizes="32x32" href="/img/icon-32.png"><link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/img/icon-32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/img/icon-180.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="/img/icon-192.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="/img/icon-512.png">
+    <link rel="manifest" href="/familiada/buttons-manifest.json">
     <meta name="viewport" content="width=device-width, height=device-height, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Familiada">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#000000">
     <title>Familiada – Przyciski</title>
     <script src="/socket.io/socket.io.js"></script>
     <script src="/lib/nosleep.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body { width: 100%; height: 100%; overflow: hidden; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
-        body { display: flex; flex-direction: column; font-family: sans-serif; }
-        .btn-half {
-            flex: 1;
+        html, body {
+            width: 100%; height: 100%; overflow: hidden;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            background: #000;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            color: #fff;
+        }
+        body {
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: opacity 0.15s, filter 0.15s;
+            position: relative;
+        }
+
+        /* Układ obu buzzerów obok siebie */
+        #buzzer-wrap {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            align-items: center;
+            justify-content: space-evenly;
+            padding: 4vh 2vw;
+        }
+
+        /* Jeden buzzer = kolumna: przycisk + etykieta pod spodem */
+        .buzzer-col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2.5vh;
+            flex: 1;
+            max-width: 50%;
+        }
+
+        /* --- BUZZER (okrągły, przestrzenny, z metalowym pierścieniem) --- */
+        .buzzer {
+            position: relative;
+            width: min(42vw, 52vh);
+            height: min(42vw, 52vh);
+            border-radius: 50%;
             cursor: pointer;
             user-select: none;
             -webkit-user-select: none;
-            min-height: 50vh;
+            -webkit-tap-highlight-color: transparent;
+            transition: transform 0.08s ease-out, filter 0.08s ease-out;
+            will-change: transform, filter;
+            /* Metalowy pierścień + cień pod przyciskiem */
+            background:
+                radial-gradient(circle at 50% 45%, #f0f0f0 0%, #d0d0d0 35%, #9a9a9a 60%, #6a6a6a 85%, #3a3a3a 100%);
+            box-shadow:
+                0 10px 30px rgba(0, 0, 0, 0.85),
+                0 2px 6px rgba(0, 0, 0, 0.7),
+                inset 0 2px 4px rgba(255, 255, 255, 0.35),
+                inset 0 -4px 8px rgba(0, 0, 0, 0.45);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        .btn-half:active { opacity: 1; filter: brightness(1); }
-        #btn-blue {
-            background: linear-gradient(180deg, #0066dd 0%, #0044aa 50%, #003380 100%);
+
+        /* Kopuła (kolorowa soczewka) w środku pierścienia */
+        .buzzer::before {
+            content: '';
+            position: absolute;
+            inset: 9%;
+            border-radius: 50%;
+            background: var(--dome-bg);
+            box-shadow:
+                inset 0 0 30px rgba(0, 0, 0, 0.55),
+                inset 0 -10px 25px rgba(0, 0, 0, 0.4),
+                0 0 0 2px rgba(0, 0, 0, 0.3);
+            transition: box-shadow 0.1s ease-out, background 0.1s ease-out;
+            z-index: 1;
         }
-        #btn-red {
-            background: linear-gradient(0deg, #dd2244 0%, #aa0022 50%, #880018 100%);
+
+        /* Refleks (highlight) – nakładka „szklana" na kopule */
+        .buzzer::after {
+            content: '';
+            position: absolute;
+            top: 14%;
+            left: 18%;
+            width: 42%;
+            height: 30%;
+            border-radius: 50%;
+            background: radial-gradient(ellipse at center,
+                rgba(255, 255, 255, 0.55) 0%,
+                rgba(255, 255, 255, 0.18) 55%,
+                transparent 100%);
+            filter: blur(2px);
+            pointer-events: none;
+            transition: opacity 0.1s ease-out;
+            z-index: 2;
         }
-        .btn-half.pressed {
-            opacity: 1 !important;
-            filter: brightness(1) !important;
+
+        /* Kolory kopuł */
+        .buzzer.blue {
+            --dome-bg: radial-gradient(circle at 38% 30%,
+                #9ac6ff 0%,
+                #4a90ff 25%,
+                #1a5fd0 55%,
+                #0b3a90 85%,
+                #062055 100%);
         }
-        .btn-label {
-            font-size: clamp(1.5rem, 6vw, 3rem);
-            font-weight: bold;
-            color: rgba(255,255,255,0.9);
-            text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+        .buzzer.red {
+            --dome-bg: radial-gradient(circle at 38% 30%,
+                #ff9aa8 0%,
+                #e34058 25%,
+                #b01026 55%,
+                #730014 85%,
+                #3a0008 100%);
+        }
+        /* === Podmiana stron (familiada_color_sides_swap) =========================
+           Gdy admin włączy zamianę kolorów stron, buzzer team=1 (fizycznie „niebieski")
+           wizualnie staje się czerwony, a buzzer team=2 („czerwony") – niebieski.
+           Identyfikatory drużyn (team=1 / team=2) NIE zmieniają się – serwer nadal
+           wie kto jest kim, zmienia się tylko kolor kopuły oraz flash po kliknięciu. */
+        body.swap-colors .buzzer.blue {
+            --dome-bg: radial-gradient(circle at 38% 30%,
+                #ff9aa8 0%,
+                #e34058 25%,
+                #b01026 55%,
+                #730014 85%,
+                #3a0008 100%);
+        }
+        body.swap-colors .buzzer.red {
+            --dome-bg: radial-gradient(circle at 38% 30%,
+                #9ac6ff 0%,
+                #4a90ff 25%,
+                #1a5fd0 55%,
+                #0b3a90 85%,
+                #062055 100%);
+        }
+
+        /* Stan wciśnięty: „głębokie kliknięcie" – przycisk lekko się obniża,
+           kopuła ciemnieje, refleks nika, pierścień traci trochę blasku. */
+        .buzzer:active,
+        .buzzer.pressed {
+            transform: translateY(2px) scale(0.98);
+            filter: brightness(0.9);
+        }
+        .buzzer:active::before,
+        .buzzer.pressed::before {
+            box-shadow:
+                inset 0 0 45px rgba(0, 0, 0, 0.75),
+                inset 0 -6px 18px rgba(0, 0, 0, 0.5),
+                0 0 0 2px rgba(0, 0, 0, 0.4);
+            filter: brightness(0.8);
+        }
+        .buzzer:active::after,
+        .buzzer.pressed::after {
+            opacity: 0.35;
+        }
+
+        /* Stan zablokowany – wyszarzenie */
+        .buzzer.disabled {
+            filter: grayscale(0.55) brightness(0.55);
             pointer-events: none;
         }
+
+        /* Etykieta drużyny pod buzzerem – LED-owa, żółta */
+        .buzzer-label {
+            font-family: 'Pixelify Sans', monospace;
+            font-size: clamp(1.1rem, 3.2vw, 2rem);
+            font-weight: 700;
+            color: #ffe033;
+            text-shadow:
+                0 0 8px rgba(255, 224, 51, 0.8),
+                0 0 18px rgba(255, 224, 51, 0.35);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-align: center;
+            white-space: nowrap;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding: 0 8px;
+        }
+
+        /* Flash – pełnoekranowy ekran koloru drużyny, która przycisnęła */
         #flash-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             z-index: 100; pointer-events: none; opacity: 0;
@@ -49,42 +206,242 @@
         }
         #flash-overlay.visible { opacity: 1; }
         #flash-overlay.fade-out { transition: opacity 3s ease-out; opacity: 0; }
-        .btn-half.disabled { pointer-events: none; opacity: 0.5; }
+
+        /* Przycisk Pełny ekran (dyskretny, w rogu) */
         #fs-btn {
             position: fixed; bottom: 12px; right: 12px; z-index: 200;
-            background: rgba(0,0,0,0.6); color: #fff; border: 1px solid #777;
-            padding: 10px 16px; border-radius: 8px; font-size: 14px;
-            cursor: pointer; font-family: sans-serif;
+            background: rgba(0, 0, 0, 0.55);
+            color: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            padding: 9px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            backdrop-filter: blur(6px);
         }
-        #fs-btn:hover { background: rgba(0,0,0,0.8); }
+        #fs-btn:hover { background: rgba(0, 0, 0, 0.8); color: #fff; }
+
+        /* Ostrzeżenie HTTPS / wake lock (widoczne tylko gdy potrzebne) */
+        #https-warn {
+            position: fixed;
+            top: 10px; left: 50%;
+            transform: translateX(-50%);
+            z-index: 250;
+            display: none;
+            background: rgba(200, 70, 30, 0.9);
+            color: #fff;
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-size: 13px;
+            max-width: 92vw;
+            text-align: center;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+            line-height: 1.35;
+        }
+        #https-warn a {
+            color: #fff;
+            font-weight: 700;
+            text-decoration: underline;
+        }
+        #https-warn.visible { display: block; }
+
+        /* Wskaźnik stanu połączenia – niewielki punkt w lewym górnym rogu. */
+        #conn-status {
+            position: fixed; top: 12px; left: 12px; z-index: 200;
+            display: flex; align-items: center; gap: 6px;
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 12px;
+            pointer-events: none;
+            user-select: none;
+        }
+        #conn-status .dot {
+            width: 10px; height: 10px; border-radius: 50%;
+            background: #2ecc71;
+            box-shadow: 0 0 8px rgba(46, 204, 113, 0.7);
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        #conn-status.disconnected .dot {
+            background: #e74c3c;
+            box-shadow: 0 0 8px rgba(231, 76, 60, 0.8);
+            animation: connDotPulse 1s ease-in-out infinite;
+        }
+        #conn-status.disconnected .label { color: #ffb199; }
+        @keyframes connDotPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* Nakładka „Łączenie…" – pełnoekranowa, zasłania przyciski przy utracie
+           połączenia, żeby nikt nie próbował nacisnąć nieaktywnego buzzera. */
+        #reconnect-overlay {
+            position: fixed; inset: 0; z-index: 260;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.78);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            color: #fff;
+            font-size: clamp(1rem, 3vw, 1.4rem);
+            text-align: center;
+            padding: 20px;
+            line-height: 1.5;
+        }
+        #reconnect-overlay.visible { display: flex; }
+        #reconnect-overlay .spinner {
+            width: 48px; height: 48px;
+            border: 4px solid rgba(255, 255, 255, 0.18);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.9s linear infinite;
+            margin-bottom: 14px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #reconnect-overlay .hint {
+            margin-top: 10px;
+            font-size: 0.8em;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        /* Małe ekrany – układ pionowy */
+        @media (max-width: 520px) and (orientation: portrait) {
+            #buzzer-wrap { flex-direction: column; padding: 3vh 4vw; }
+            .buzzer-col { max-width: 100%; }
+            .buzzer { width: min(70vw, 40vh); height: min(70vw, 40vh); }
+        }
     </style>
 </head>
 <body>
+    <div id="conn-status"><span class="dot"></span><span class="label">OK</span></div>
+    <div id="reconnect-overlay">
+        <div>
+            <div class="spinner"></div>
+            <div>Łączenie z serwerem…</div>
+            <div class="hint">Trzymaj tablet w zasięgu sieci Wi-Fi.<br>Po odzyskaniu połączenia przyciski wrócą automatycznie.</div>
+        </div>
+    </div>
+    <div id="https-warn"></div>
     <button id="fs-btn" type="button">⛶ Pełny ekran</button>
     <div id="flash-overlay"></div>
-    <div class="btn-half" id="btn-blue" data-team="1">
-        <span class="btn-label" id="btn-label-1">NIEBIESCY</span>
-    </div>
-    <div class="btn-half" id="btn-red" data-team="2">
-        <span class="btn-label" id="btn-label-2">CZERWONI</span>
+
+    <div id="buzzer-wrap">
+        <div class="buzzer-col">
+            <div class="buzzer blue" id="btn-blue" data-team="1" role="button" aria-label="Niebiescy"></div>
+            <div class="buzzer-label" id="btn-label-1">NIEBIESCY</div>
+        </div>
+        <div class="buzzer-col">
+            <div class="buzzer red" id="btn-red" data-team="2" role="button" aria-label="Czerwoni"></div>
+            <div class="buzzer-label" id="btn-label-2">CZERWONI</div>
+        </div>
     </div>
 
     <script>
-        const socket = io();
-        const btnBlue = document.getElementById('btn-blue');
-        const btnRed = document.getElementById('btn-red');
-        const flashOverlay = document.getElementById('flash-overlay');
+        // === Auto-przekierowanie na HTTPS (jeżeli serwer go udostępnia) ============
+        // Wake Lock API działa wyłącznie w secure context (https / localhost), więc
+        // jeśli ekran telefonu ma nie gasnąć — musi to być HTTPS.
+        (function maybeRedirectHttps() {
+            try {
+                if (location.protocol !== 'http:') return;
+                if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return;
+                if (sessionStorage.getItem('imprezja_https_redirect_tried') === '1') return;
+                fetch('/api/server-info', { cache: 'no-store' })
+                    .then(r => r.ok ? r.json() : null)
+                    .then(info => {
+                        if (!info || !info.https || !info.https.available || !info.https.port) return;
+                        sessionStorage.setItem('imprezja_https_redirect_tried', '1');
+                        const url = 'https://' + location.hostname + ':' + info.https.port + location.pathname + location.search + location.hash;
+                        location.replace(url);
+                    })
+                    .catch(() => {});
+            } catch (_) {}
+        })();
 
-        socket.emit('register_familiada', { role: 'buttons' });
-        socket.emit('familiada_request_team_names');
+        // Socket.IO – konfiguracja odporna na restart serwera.
+        // reconnection: true + nieograniczona liczba prób z backoffem,
+        // tak żeby tablet nie wymagał ręcznego odświeżania po restarcie.
+        const socket = io({
+            reconnection: true,
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 500,
+            reconnectionDelayMax: 4000,
+            timeout: 8000,
+            transports: ['websocket', 'polling']
+        });
+
+        const btnBlue = document.getElementById('btn-blue');
+        const btnRed  = document.getElementById('btn-red');
+        const flashOverlay = document.getElementById('flash-overlay');
+        const httpsWarn = document.getElementById('https-warn');
+        const connStatus = document.getElementById('conn-status');
+        const connLabel = connStatus.querySelector('.label');
+        const reconnectOverlay = document.getElementById('reconnect-overlay');
 
         let buttonsEnabled = false;
+        let currentTeamNames = { team1: 'NIEBIESCY', team2: 'CZERWONI' };
+
+        // === Zamiana kolorów stron (familiada_color_sides_swap) ===================
+        // Spójnie z panelem admin i ekranem TV: gdy włączona, buzzer team=1 wizualnie
+        // staje się czerwony (a team=2 niebieski). Team ID pozostaje niezmienione.
+        const LS_COLOR_SWAP = 'imprezja_familiada_buttons_color_swap';
+        let colorsSwapped = false;
+        function applyColorSwap(swapped) {
+            colorsSwapped = !!swapped;
+            document.body.classList.toggle('swap-colors', colorsSwapped);
+            try { localStorage.setItem(LS_COLOR_SWAP, colorsSwapped ? '1' : '0'); } catch (_) {}
+        }
+        // Stan z cache na starcie – unikamy krótkotrwałego „złego" koloru zanim
+        // serwer dośle aktualną flagę.
+        try {
+            const cached = localStorage.getItem(LS_COLOR_SWAP);
+            if (cached === '1') document.body.classList.add('swap-colors');
+            colorsSwapped = cached === '1';
+        } catch (_) {}
+
+        function setConnected(connected) {
+            connStatus.classList.toggle('disconnected', !connected);
+            connLabel.textContent = connected ? 'OK' : 'Łączę…';
+            reconnectOverlay.classList.toggle('visible', !connected);
+        }
+        setConnected(false);
+
+        // === Re-rejestracja po każdym (re)connect ================================
+        // Po restarcie serwera nasze stare „register_familiada" z poprzedniej sesji
+        // jest utracone – musimy je wysłać PONOWNIE przy każdym połączeniu, w przeciwnym
+        // razie serwer nie wie, że jesteśmy klientem „buttons" i nie trafiamy do pokoju.
+        function registerButtons() {
+            try {
+                socket.emit('register_familiada', { role: 'buttons' });
+                socket.emit('familiada_request_team_names');
+                // Po reconnect wiedza o stanie rundy jest pusta – poprosimy serwer
+                // o bieżący stan (jeśli endpoint istnieje – patrz server.js).
+                socket.emit('familiada_request_state');
+            } catch (_) {}
+        }
+
+        socket.on('connect', () => {
+            setConnected(true);
+            registerButtons();
+        });
+        socket.on('reconnect', () => {
+            setConnected(true);
+            registerButtons();
+        });
+        socket.on('disconnect', (reason) => {
+            setConnected(false);
+            setButtonsEnabled(false);
+        });
+        socket.on('connect_error', () => setConnected(false));
+        socket.on('reconnect_error', () => setConnected(false));
+        if (socket.connected) { setConnected(true); registerButtons(); }
 
         function setTeamLabels(team1, team2) {
             const l1 = document.getElementById('btn-label-1');
             const l2 = document.getElementById('btn-label-2');
-            if (l1) l1.textContent = (team1 && String(team1).trim()) ? String(team1).toUpperCase() : 'NIEBIESCY';
-            if (l2) l2.textContent = (team2 && String(team2).trim()) ? String(team2).toUpperCase() : 'CZERWONI';
+            const n1 = (team1 && String(team1).trim()) ? String(team1).toUpperCase() : 'NIEBIESCY';
+            const n2 = (team2 && String(team2).trim()) ? String(team2).toUpperCase() : 'CZERWONI';
+            if (l1) l1.textContent = n1;
+            if (l2) l2.textContent = n2;
+            currentTeamNames = { team1: n1, team2: n2 };
         }
 
         function setButtonsEnabled(enabled) {
@@ -94,9 +451,12 @@
         }
 
         function showFlash(team) {
-            flashOverlay.style.background = team === 1
-                ? 'linear-gradient(180deg, #0044aa 0%, #003380 50%, #002255 100%)'
-                : 'linear-gradient(0deg, #aa0022 0%, #800018 50%, #550010 100%)';
+            // Po swapie kolor flash'a ma być zgodny z wizualną kopułą buzzera,
+            // który fizycznie nacisnął gracz (team=1 po swap = czerwony).
+            const blueGrad = 'radial-gradient(circle at 50% 50%, #3a7dff 0%, #0b3a90 55%, #041a44 100%)';
+            const redGrad  = 'radial-gradient(circle at 50% 50%, #ff4560 0%, #9a0a1e 55%, #3d0008 100%)';
+            const visualBlueTeam = colorsSwapped ? 2 : 1;
+            flashOverlay.style.background = team === visualBlueTeam ? blueGrad : redGrad;
             flashOverlay.classList.remove('fade-out');
             flashOverlay.style.transition = 'none';
             flashOverlay.style.opacity = '1';
@@ -112,11 +472,13 @@
 
         function sendPress(team) {
             if (!buttonsEnabled) return;
+            if (!socket.connected) return;
             socket.emit('familiada_button_press', { team: team });
             setButtonsEnabled(false);
             const btn = team === 1 ? btnBlue : btnRed;
             btn.classList.add('pressed');
-            setTimeout(() => btn.classList.remove('pressed'), 300);
+            if (navigator.vibrate) { try { navigator.vibrate(30); } catch (_) {} }
+            setTimeout(() => btn.classList.remove('pressed'), 220);
         }
 
         socket.on('familiada_button_flash', (data) => {
@@ -130,11 +492,41 @@
             if (msg.type === 'NEW_ROUND') setButtonsEnabled(true);
             if (msg.type === 'SHOW_FINAL' || msg.type === 'FULL_RESET') setButtonsEnabled(false);
         });
+        // Zamiana kolorów stron – synchronizacja z panelem admin / ekranem TV.
+        socket.on('familiada_color_sides_swap', (data) => {
+            applyColorSwap(!!(data && data.swapped));
+        });
+        // Odpowiedź serwera na request po reconnect: czy runda trwa, kto już dzwonił itp.
+        socket.on('familiada_state', (state) => {
+            if (!state) return;
+            if (state.team1 || state.team2) setTeamLabels(state.team1, state.team2);
+            if (typeof state.colorSidesSwapped === 'boolean') applyColorSwap(state.colorSidesSwapped);
+            // questionActive=true + buttonUsed=false → znów można cisnąć dzwonki
+            const canPress = !!state.questionActive && !state.buttonUsedThisRound;
+            setButtonsEnabled(canPress);
+        });
+        // Party Quiz: te same buzzery mogą służyć do FAMILIADA / LETTER / FAST_LIST — stan z serwera.
+        socket.on('party_state', (ps) => {
+            if (!ps || !ps.active) {
+                try { socket.emit('familiada_request_state'); } catch (_) {}
+                return;
+            }
+            const t = ps.activePartyQuestionType;
+            if (t && ['FAMILIADA', 'LETTER', 'FAST_LIST'].indexOf(t) !== -1) {
+                setButtonsEnabled(!ps.buttonUsedThisRound);
+            } else {
+                setButtonsEnabled(false);
+            }
+        });
 
-        btnBlue.addEventListener('click', () => sendPress(1));
-        btnBlue.addEventListener('touchend', (e) => { e.preventDefault(); sendPress(1); });
-        btnRed.addEventListener('click', () => sendPress(2));
-        btnRed.addEventListener('touchend', (e) => { e.preventDefault(); sendPress(2); });
+        // Obsługa zarówno touchstart (natychmiastowa) jak i click (myszka / test).
+        // touchstart + preventDefault zapobiega podwójnemu wyzwoleniu przez emulowany click.
+        function bindBuzzer(el, team) {
+            el.addEventListener('touchstart', (e) => { e.preventDefault(); sendPress(team); }, { passive: false });
+            el.addEventListener('click', (e) => { sendPress(team); });
+        }
+        bindBuzzer(btnBlue, 1);
+        bindBuzzer(btnRed, 2);
 
         function toggleFullScreen() {
             if (!document.fullscreenElement) {
@@ -147,24 +539,35 @@
         }
         document.getElementById('fs-btn').addEventListener('click', toggleFullScreen);
 
+        // === Wake Lock – niegasnący ekran ==========================================
         let wakeLock = null;
         let noSleep = null;
+        let wakeLockOk = false;
+
         async function requestWakeLock() {
             if (window.isSecureContext && 'wakeLock' in navigator && document.visibilityState === 'visible') {
                 try {
                     if (wakeLock) { try { await wakeLock.release(); } catch (e) {} wakeLock = null; }
                     wakeLock = await navigator.wakeLock.request('screen');
                     wakeLock.addEventListener('release', () => { wakeLock = null; });
-                    if (noSleep) { noSleep.disable(); noSleep = null; }
+                    wakeLockOk = true;
+                    if (noSleep) { try { noSleep.disable(); } catch (_) {} noSleep = null; }
+                    hideHttpsWarn();
                     return;
-                } catch (err) {}
+                } catch (err) { /* spróbuj NoSleep poniżej */ }
             }
             if (!noSleep && typeof NoSleep !== 'undefined') {
-                noSleep = new NoSleep();
-                noSleep.enable();
+                try { noSleep = new NoSleep(); noSleep.enable(); wakeLockOk = true; } catch (_) {}
+            }
+            // Jeżeli jesteśmy na czystym HTTP (ani secure context, ani localhost),
+            // Wake Lock API nie zadziała – pokaż ostrzeżenie i link do HTTPS (jeśli mamy).
+            if (!window.isSecureContext && location.protocol === 'http:') {
+                maybeShowHttpsWarn();
             }
         }
-        document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') requestWakeLock(); });
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') requestWakeLock();
+        });
         function enableKeepAwake() {
             requestWakeLock();
             document.removeEventListener('click', enableKeepAwake);
@@ -172,6 +575,23 @@
         }
         document.addEventListener('click', enableKeepAwake, { once: true });
         document.addEventListener('touchstart', enableKeepAwake, { once: true });
+
+        function hideHttpsWarn() { httpsWarn.classList.remove('visible'); httpsWarn.textContent = ''; }
+        function maybeShowHttpsWarn() {
+            fetch('/api/server-info', { cache: 'no-store' })
+                .then(r => r.ok ? r.json() : null)
+                .then(info => {
+                    if (info && info.https && info.https.available && info.https.port) {
+                        const url = 'https://' + location.hostname + ':' + info.https.port + location.pathname;
+                        httpsWarn.innerHTML = 'Ekran może gasnąć. <a href="' + url + '">Otwórz przez HTTPS</a> – wtedy zablokujemy wygaszanie.';
+                        httpsWarn.classList.add('visible');
+                    } else {
+                        httpsWarn.textContent = 'Uwaga: ekran może gasnąć (brak HTTPS). Nie blokuj wygaszacza telefonu.';
+                        httpsWarn.classList.add('visible');
+                    }
+                })
+                .catch(() => {});
+        }
     </script>
 </body>
 </html>

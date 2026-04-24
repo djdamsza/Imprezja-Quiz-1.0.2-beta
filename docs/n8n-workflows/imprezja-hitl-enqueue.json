@@ -3,15 +3,15 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## HITL — zapis leadu + Telegram\n\n1. **Migracja SQL:** [`schema-lead-queue.sql`](./schema-lead-queue.sql)\n2. **Env:** `HITL_WEBHOOK_SECRET`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_OPERATOR_CHAT_ID` (Twój numeryczny chat_id)\n3. **Postgres:** przypisz credential do **Postgres_InsertLead**\n4. **Wywołanie z automail:** po `ParseAndRoute` dodaj **IF** + **HTTP Request** `POST` na URL webhooka z nagłówkiem `Authorization: Bearer …` i body jak w [`N8N_TELEGRAM_HITL_ZAPYTANIA.md`](../N8N_TELEGRAM_HITL_ZAPYTANIA.md)\n5. **Callback:** import [`imprezja-hitl-telegram-callback.json`](./imprezja-hitl-telegram-callback.json)",
+        "content": "## HITL — zapis + Telegram (Perplexity + Modyfikuj)\n\n**404 webhook not registered** → ten workflow musi być **Active** (przełącznik / Publish). Inaczej automail dostaje 404.\n\n**Env:** `HITL_WEBHOOK_SECRET`, `HITL_ENQUEUE_WEBHOOK_URL` (opcjonalnie — automail złoży URL z `WEBHOOK_URL` + `/webhook/imprezja-hitl-enqueue`), `TELEGRAM_*`, **`PERPLEXITY_API_KEY`**. `WEBHOOK_URL` = tylko `https://twoj-host.onrender.com` (bez ścieżki webhooka).\n**Ścieżka:** `imprezja-hitl-enqueue` (końcówka **ue**).\nPostgres → **Postgres_InsertLead**.\n**Modyfikuj:** osobny workflow callback — jedna wiadomość tekstowa (dopisek).",
         "height": 520,
-        "width": 420
+        "width": 440
       },
       "id": "sticky-hitl-enq",
       "name": "Sticky_Notes",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [-200, -60]
+      "position": [-200, -40]
     },
     {
       "parameters": {
@@ -29,7 +29,7 @@
     },
     {
       "parameters": {
-        "jsCode": "/**\n * Oczekuje JSON body: { source?, payload_json, ai_json? }\n * payload_json = pełny obiekt z ParseAndRoute + pola maila (jak w automail).\n * Nagłówek: Authorization: Bearer <HITL_WEBHOOK_SECRET>\n */\nfunction uuidv4() {\n  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {\n    const r = (Math.random() * 16) | 0;\n    const v = c === 'x' ? r : (r & 0x3) | 0x8;\n    return v.toString(16);\n  });\n}\nconst item = $input.first().json;\nconst headers = item.headers || {};\nconst auth = String(headers.authorization || headers.Authorization || '').trim();\nlet secret = '';\ntry { secret = String($env.HITL_WEBHOOK_SECRET || '').trim(); } catch (e) {}\nif (!secret || auth !== 'Bearer ' + secret) {\n  return [{ json: { unauthorized: true } }];\n}\nconst body = item.body;\nif (!body || typeof body !== 'object') {\n  return [{ json: { unauthorized: true, bad_body: true } }];\n}\nconst source = String(body.source || 'mail');\nconst payload_json = body.payload_json != null ? body.payload_json : body;\nconst ai_json = body.ai_json != null ? body.ai_json : null;\nlet chatId = '';\ntry { chatId = String($env.TELEGRAM_OPERATOR_CHAT_ID || '').trim(); } catch (e) {}\nif (!chatId) throw new Error('Ustaw TELEGRAM_OPERATOR_CHAT_ID (env)');\nconst lead_id = uuidv4();\nconst subj = String(payload_json.emailSubject || '').slice(0, 100);\nconst from = String(payload_json.emailFrom || payload_json.client_to_email || '').slice(0, 80);\nconst text =\n  'Nowe zapytanie (HITL) — zatwierdz wysylke\\n\\n' +\n  'ID: ' + lead_id + '\\n' +\n  'Zrodlo: ' + source + '\\n' +\n  'Temat: ' + subj + '\\n' +\n  'Od: ' + from + '\\n\\n' +\n  'Akceptuj / Odrzuc — przyciski ponizej.';\nreturn [{\n  json: {\n    unauthorized: false,\n    lead_id,\n    source,\n    payload_json,\n    ai_json,\n    chatId,\n    telegram_text: text,\n    callback_approve: 'ap:' + lead_id,\n    callback_reject: 'rj:' + lead_id,\n  },\n}];"
+        "jsCode": "/**\n * Auth + lead_id + payload. Bez treści Telegram — robi Perplexity + Code_Format.\n */\nfunction uuidv4() {\n  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {\n    const r = (Math.random() * 16) | 0;\n    const v = c === 'x' ? r : (r & 0x3) | 0x8;\n    return v.toString(16);\n  });\n}\nconst item = $input.first().json;\nconst headers = item.headers || {};\nconst auth = String(headers.authorization || headers.Authorization || '').trim();\nlet secret = '';\ntry { secret = String($env.HITL_WEBHOOK_SECRET || '').trim(); } catch (e) {}\nif (!secret || auth !== 'Bearer ' + secret) {\n  return [{ json: { unauthorized: true } }];\n}\nconst body = item.body;\nif (!body || typeof body !== 'object') {\n  return [{ json: { unauthorized: true, bad_body: true } }];\n}\nconst source = String(body.source || 'mail');\nconst payload_json = body.payload_json != null ? body.payload_json : body;\nconst ai_json = body.ai_json != null ? body.ai_json : null;\nlet chatId = '';\ntry { chatId = String($env.TELEGRAM_OPERATOR_CHAT_ID || '').trim(); } catch (e) {}\nif (!chatId) throw new Error('Ustaw TELEGRAM_OPERATOR_CHAT_ID (env)');\nconst lead_id = uuidv4();\nreturn [{\n  json: {\n    unauthorized: false,\n    lead_id,\n    source,\n    payload_json,\n    ai_json,\n    chatId,\n    callback_approve: 'ap:' + lead_id,\n    callback_reject: 'rj:' + lead_id,\n    callback_modify: 'md:' + lead_id,\n  },\n}];"
       },
       "id": "code-hitl-auth",
       "name": "Code_AuthAndPrepare",
@@ -62,7 +62,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ ok: false, error: \"unauthorized\" }) }}",
+        "responseBody": "={{ { ok: false, error: 'unauthorized' } }}",
         "options": { "responseCode": 401 }
       },
       "id": "resp-401",
@@ -70,6 +70,42 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [920, 160]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.perplexity.ai/chat/completions",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Accept", "value": "application/json" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + String($env.PERPLEXITY_API_KEY || $env.PPLX_API_KEY || '').trim() }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => { const p = $('Code_AuthAndPrepare').first().json.payload_json || {}; const subj = String(p.emailSubject || ''); const bod = String(p.emailBodyForAi || p.emailBody || '').slice(0, 3500); const meta = JSON.stringify({ venue_or_city: p.venue_or_city, event_date_start: p.event_date_start, event_date_end: p.event_date_end, event_kind: p.event_kind, is_event_inquiry: p.is_event_inquiry, date_ok: p.date_ok, raw_quote: p.raw_quote }, null, 0); return JSON.stringify({ model: 'sonar', temperature: 0.25, max_tokens: 900, messages: [{ role: 'system', content: 'Jesteś copywriterem biura Imprezja (DJ / wodzirej / wesela). Napisz KRÓTKĄ, gotową propozycję odpowiedzi e-mailem do klienta PO POLSKU. Ton: profesjonalny, ciepły. Jeśli w danych jest konkretna data imprezy — możesz zacząć od linii typu \"ODP: DD.MM.RRRR — …\" z datą z pól JSON (Europe/Warsaw). Jeśli NIE masz pewności co do wolnego terminu (brak potwierdzenia w danych), NIE obiecuj że dzień jest wolny — napisz że wrócisz z potwierdzeniem po sprawdzeniu kalendarza. Bez markdown, bez cudzysłowów wokół całości — sam tekst maila, max ok. 900 znaków.' }, { role: 'user', content: 'Temat: ' + subj + '\\n\\nTreść zapytania:\\n' + bod + '\\n\\nPola (JSON): ' + meta }] }); })() }}",
+        "options": {}
+      },
+      "id": "http-perplexity-draft",
+      "name": "HTTP_Perplexity_DraftReply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [920, 380],
+      "notesInFlow": true,
+      "notes": "Env **PERPLEXITY_API_KEY** (lub PPLX_API_KEY). N8N_BLOCK_ENV_ACCESS_IN_NODE = false."
+    },
+    {
+      "parameters": {
+        "jsCode": "const prep = $('Code_AuthAndPrepare').first().json;\nconst item = $input.first().json;\nconst root = item.body && typeof item.body === 'object' ? item.body : item;\nlet draft = '';\ntry {\n  const raw = root.choices && root.choices[0] && root.choices[0].message && root.choices[0].message.content;\n  draft = typeof raw === 'string' ? raw.trim() : '';\n} catch (e) {}\nif (!draft) draft = '(Perplexity nie zwrócił treści — ułóż odpowiedź ręcznie po akceptacji.)';\nconst p = prep.payload_json || {};\nconst subj = String(p.emailSubject || '(brak tematu)').slice(0, 200);\nconst bodyRaw = String(p.emailBodyForAi || p.emailBody || '').replace(/\\s+/g, ' ').trim();\nconst bodyPrev = bodyRaw.length > 1200 ? bodyRaw.slice(0, 1200) + '…' : bodyRaw;\nconst from = String(p.emailFrom || p.client_to_email || '').slice(0, 120);\nconst phone = String(p.wp_form_phone || '').slice(0, 40);\nconst name = String(p.wp_form_name || '').slice(0, 80);\nconst idShort = String(prep.lead_id || '').slice(0, 8);\nlet telegram_text =\n  'ZAPYTANIE (formularz)\\n' +\n  'Temat: ' + subj + '\\n' +\n  'Od: ' + from + (name ? ' | ' + name : '') + (phone ? ' | tel. ' + phone : '') + '\\n\\n' +\n  'TRESC:\\n' + (bodyPrev || '(brak tresci)') + '\\n\\n' +\n  'PROPOZYCJA ODPOWIEDZI (Perplexity):\\n' + draft + '\\n\\n' +\n  'ID (skrot): ' + idShort + '… | Akceptuj / Odrzuc / Modyfikuj — przyciski ponizej.';\nif (telegram_text.length > 4090) telegram_text = telegram_text.slice(0, 4087) + '...';\nconst aiMerged = Object.assign({}, prep.ai_json && typeof prep.ai_json === 'object' ? prep.ai_json : {}, {\n  proposed_email_reply: draft,\n  hitl_enqueue_version: '2-perplexity-telegram',\n});\nreturn [{\n  json: {\n    lead_id: prep.lead_id,\n    source: prep.source,\n    payload_json: prep.payload_json,\n    ai_json: aiMerged,\n    chatId: prep.chatId,\n    callback_approve: prep.callback_approve,\n    callback_reject: prep.callback_reject,\n    callback_modify: prep.callback_modify,\n    telegram_text,\n  },\n}];"
+      },
+      "id": "code-fmt-tg",
+      "name": "Code_FormatTelegramMessage",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1140, 380]
     },
     {
       "parameters": {
@@ -83,9 +119,9 @@
       "name": "Postgres_InsertLead",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [920, 380],
+      "position": [1360, 380],
       "notesInFlow": true,
-      "notes": "Przypisz credential Postgres (ta sama baza co schema-lead-queue.sql). Gdy queryReplacement nie działa w Twojej wersji n8n, zamień na Insert przez UI lub ręczny SQL w dokumentacji."
+      "notes": "Ta sama baza co schema-lead-queue.sql."
     },
     {
       "parameters": {
@@ -93,26 +129,26 @@
         "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ chat_id: Number($('Code_AuthAndPrepare').first().json.chatId), text: $('Code_AuthAndPrepare').first().json.telegram_text, reply_markup: { inline_keyboard: [[{ text: 'Akceptuj', callback_data: $('Code_AuthAndPrepare').first().json.callback_approve }, { text: 'Odrzuć', callback_data: $('Code_AuthAndPrepare').first().json.callback_reject }]] } }) }}",
+        "jsonBody": "={{ JSON.stringify({ chat_id: Number($('Code_FormatTelegramMessage').first().json.chatId), text: $('Code_FormatTelegramMessage').first().json.telegram_text, reply_markup: { inline_keyboard: [[{ text: 'Akceptuj', callback_data: $('Code_FormatTelegramMessage').first().json.callback_approve }, { text: 'Odrzuć', callback_data: $('Code_FormatTelegramMessage').first().json.callback_reject }, { text: 'Modyfikuj', callback_data: $('Code_FormatTelegramMessage').first().json.callback_modify }]] } }) }}",
         "options": {}
       },
       "id": "http-tg-send",
       "name": "HTTP_Telegram_SendMessage",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1140, 380]
+      "position": [1580, 380]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ ok: true, lead_id: $('Code_AuthAndPrepare').first().json.lead_id }) }}",
+        "responseBody": "={{ { ok: true, lead_id: $('Code_AuthAndPrepare').first().json.lead_id } }}",
         "options": { "responseCode": 200 }
       },
       "id": "resp-200",
       "name": "Respond_OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1360, 380]
+      "position": [1800, 380]
     }
   ],
   "connections": {
@@ -121,9 +157,11 @@
     "If_Unauthorized": {
       "main": [
         [{ "node": "Respond_401", "type": "main", "index": 0 }],
-        [{ "node": "Postgres_InsertLead", "type": "main", "index": 0 }]
+        [{ "node": "HTTP_Perplexity_DraftReply", "type": "main", "index": 0 }]
       ]
     },
+    "HTTP_Perplexity_DraftReply": { "main": [[{ "node": "Code_FormatTelegramMessage", "type": "main", "index": 0 }]] },
+    "Code_FormatTelegramMessage": { "main": [[{ "node": "Postgres_InsertLead", "type": "main", "index": 0 }]] },
     "Postgres_InsertLead": { "main": [[{ "node": "HTTP_Telegram_SendMessage", "type": "main", "index": 0 }]] },
     "HTTP_Telegram_SendMessage": { "main": [[{ "node": "Respond_OK", "type": "main", "index": 0 }]] }
   },

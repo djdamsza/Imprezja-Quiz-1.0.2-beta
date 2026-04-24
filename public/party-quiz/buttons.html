@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/img/icon-32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/img/icon-180.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="/img/icon-192.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="/img/icon-512.png">
+    <meta name="viewport" content="width=device-width, height=device-height, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Party Quiz">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#000000">
+    <title>Party Quiz – Przyciski</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/lib/nosleep.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+            width: 100%; height: 100%; overflow: hidden;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            background: #000;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            color: #fff;
+        }
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        #buzzer-wrap {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            align-items: center;
+            justify-content: space-evenly;
+            padding: 4vh 2vw;
+        }
+        .buzzer-col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2.5vh;
+            flex: 1;
+            max-width: 50%;
+        }
+        .buzzer {
+            position: relative;
+            width: min(42vw, 52vh);
+            height: min(42vw, 52vh);
+            border-radius: 50%;
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            transition: transform 0.08s ease-out, filter 0.08s ease-out;
+            will-change: transform, filter;
+            background:
+                radial-gradient(circle at 50% 45%, #f0f0f0 0%, #d0d0d0 35%, #9a9a9a 60%, #6a6a6a 85%, #3a3a3a 100%);
+            box-shadow:
+                0 10px 30px rgba(0, 0, 0, 0.85),
+                0 2px 6px rgba(0, 0, 0, 0.7),
+                inset 0 2px 4px rgba(255, 255, 255, 0.35),
+                inset 0 -4px 8px rgba(0, 0, 0, 0.45);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .buzzer::before {
+            content: '';
+            position: absolute;
+            inset: 9%;
+            border-radius: 50%;
+            background: var(--dome-bg);
+            box-shadow:
+                inset 0 0 30px rgba(0, 0, 0, 0.55),
+                inset 0 -10px 25px rgba(0, 0, 0, 0.4),
+                0 0 0 2px rgba(0, 0, 0, 0.3);
+            transition: box-shadow 0.1s ease-out, background 0.1s ease-out;
+            z-index: 1;
+        }
+        .buzzer::after {
+            content: '';
+            position: absolute;
+            top: 14%;
+            left: 18%;
+            width: 42%;
+            height: 30%;
+            border-radius: 50%;
+            background: radial-gradient(ellipse at center,
+                rgba(255, 255, 255, 0.55) 0%,
+                rgba(255, 255, 255, 0.18) 55%,
+                transparent 100%);
+            filter: blur(2px);
+            pointer-events: none;
+            transition: opacity 0.1s ease-out;
+            z-index: 2;
+        }
+        .buzzer.blue {
+            --dome-bg: radial-gradient(circle at 38% 30%,
+                #9ac6ff 0%, #4a90ff 25%, #1a5fd0 55%, #0b3a90 85%, #062055 100%);
+        }
+        .buzzer.red {
+            --dome-bg: radial-gradient(circle at 38% 30%,
+                #ff9aa8 0%, #e34058 25%, #b01026 55%, #730014 85%, #3a0008 100%);
+        }
+        body.swap-colors .buzzer.blue {
+            --dome-bg: radial-gradient(circle at 38% 30%,
+                #ff9aa8 0%, #e34058 25%, #b01026 55%, #730014 85%, #3a0008 100%);
+        }
+        body.swap-colors .buzzer.red {
+            --dome-bg: radial-gradient(circle at 38% 30%,
+                #9ac6ff 0%, #4a90ff 25%, #1a5fd0 55%, #0b3a90 85%, #062055 100%);
+        }
+        .buzzer:active, .buzzer.pressed {
+            transform: translateY(2px) scale(0.98);
+            filter: brightness(0.9);
+        }
+        .buzzer:active::before, .buzzer.pressed::before {
+            box-shadow:
+                inset 0 0 45px rgba(0, 0, 0, 0.75),
+                inset 0 -6px 18px rgba(0, 0, 0, 0.5),
+                0 0 0 2px rgba(0, 0, 0, 0.4);
+            filter: brightness(0.8);
+        }
+        .buzzer:active::after, .buzzer.pressed::after { opacity: 0.35; }
+        .buzzer.disabled { filter: grayscale(0.55) brightness(0.55); pointer-events: none; }
+
+        .buzzer-label {
+            font-family: 'Pixelify Sans', monospace;
+            font-size: clamp(1.1rem, 3.2vw, 2rem);
+            font-weight: 700;
+            color: #ffe033;
+            text-shadow: 0 0 8px rgba(255, 224, 51, 0.8), 0 0 18px rgba(255, 224, 51, 0.35);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-align: center;
+            white-space: nowrap;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding: 0 8px;
+        }
+
+        #flash-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 100; pointer-events: none; opacity: 0;
+            transition: opacity 0.3s ease-out;
+        }
+        #flash-overlay.visible { opacity: 1; }
+        #flash-overlay.fade-out { transition: opacity 3s ease-out; opacity: 0; }
+
+        #fs-btn {
+            position: fixed; bottom: 12px; right: 12px; z-index: 200;
+            background: rgba(0, 0, 0, 0.55); color: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            padding: 9px 14px; border-radius: 8px; font-size: 13px;
+            cursor: pointer; backdrop-filter: blur(6px);
+        }
+        #fs-btn:hover { background: rgba(0, 0, 0, 0.8); color: #fff; }
+
+        #https-warn {
+            position: fixed; top: 10px; left: 50%;
+            transform: translateX(-50%); z-index: 250; display: none;
+            background: rgba(200, 70, 30, 0.9); color: #fff;
+            padding: 10px 14px; border-radius: 10px; font-size: 13px;
+            max-width: 92vw; text-align: center;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5); line-height: 1.35;
+        }
+        #https-warn a { color: #fff; font-weight: 700; text-decoration: underline; }
+        #https-warn.visible { display: block; }
+
+        #conn-status {
+            position: fixed; top: 12px; left: 12px; z-index: 200;
+            display: flex; align-items: center; gap: 6px;
+            color: rgba(255, 255, 255, 0.85); font-size: 12px;
+            pointer-events: none; user-select: none;
+        }
+        #conn-status .dot {
+            width: 10px; height: 10px; border-radius: 50%;
+            background: #2ecc71;
+            box-shadow: 0 0 8px rgba(46, 204, 113, 0.7);
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        #conn-status.disconnected .dot {
+            background: #e74c3c;
+            box-shadow: 0 0 8px rgba(231, 76, 60, 0.8);
+            animation: connDotPulse 1s ease-in-out infinite;
+        }
+        #conn-status.disconnected .label { color: #ffb199; }
+        @keyframes connDotPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        #reconnect-overlay {
+            position: fixed; inset: 0; z-index: 260;
+            display: none; align-items: center; justify-content: center;
+            background: rgba(0, 0, 0, 0.78);
+            backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+            color: #fff; font-size: clamp(1rem, 3vw, 1.4rem);
+            text-align: center; padding: 20px; line-height: 1.5;
+        }
+        #reconnect-overlay.visible { display: flex; }
+        #reconnect-overlay .spinner {
+            width: 48px; height: 48px;
+            border: 4px solid rgba(255, 255, 255, 0.18);
+            border-top-color: #fff; border-radius: 50%;
+            animation: spin 0.9s linear infinite; margin-bottom: 14px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #reconnect-overlay .hint { margin-top: 10px; font-size: 0.8em; color: rgba(255, 255, 255, 0.6); }
+
+        @media (max-width: 520px) and (orientation: portrait) {
+            #buzzer-wrap { flex-direction: column; padding: 3vh 4vw; }
+            .buzzer-col { max-width: 100%; }
+            .buzzer { width: min(70vw, 40vh); height: min(70vw, 40vh); }
+        }
+    </style>
+</head>
+<body>
+    <div id="conn-status"><span class="dot"></span><span class="label">OK</span></div>
+    <div id="reconnect-overlay">
+        <div>
+            <div class="spinner"></div>
+            <div>Łączenie z serwerem…</div>
+            <div class="hint">Trzymaj tablet w zasięgu sieci Wi-Fi.<br>Po odzyskaniu połączenia przyciski wrócą automatycznie.</div>
+        </div>
+    </div>
+    <div id="https-warn"></div>
+    <button id="fs-btn" type="button">⛶ Pełny ekran</button>
+    <div id="flash-overlay"></div>
+
+    <div id="buzzer-wrap">
+        <div class="buzzer-col">
+            <div class="buzzer blue" id="btn-blue" data-team="blue" role="button" aria-label="Niebiescy"></div>
+            <div class="buzzer-label" id="btn-label-blue">NIEBIESCY</div>
+        </div>
+        <div class="buzzer-col">
+            <div class="buzzer red" id="btn-red" data-team="red" role="button" aria-label="Czerwoni"></div>
+            <div class="buzzer-label" id="btn-label-red">CZERWONI</div>
+        </div>
+    </div>
+
+    <script>
+        // Auto-redirect na HTTPS (Wake Lock wymaga secure context).
+        (function maybeRedirectHttps() {
+            try {
+                if (location.protocol !== 'http:') return;
+                if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return;
+                if (sessionStorage.getItem('party_https_redirect_tried') === '1') return;
+                fetch('/api/server-info', { cache: 'no-store' })
+                    .then(r => r.ok ? r.json() : null)
+                    .then(info => {
+                        if (!info || !info.https || !info.https.available || !info.https.port) return;
+                        sessionStorage.setItem('party_https_redirect_tried', '1');
+                        const url = 'https://' + location.hostname + ':' + info.https.port + location.pathname + location.search + location.hash;
+                        location.replace(url);
+                    })
+                    .catch(() => {});
+            } catch (_) {}
+        })();
+
+        const socket = io({
+            reconnection: true,
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 500,
+            reconnectionDelayMax: 4000,
+            timeout: 8000,
+            transports: ['websocket', 'polling']
+        });
+
+        const btnBlue = document.getElementById('btn-blue');
+        const btnRed  = document.getElementById('btn-red');
+        const flashOverlay = document.getElementById('flash-overlay');
+        const httpsWarn = document.getElementById('https-warn');
+        const connStatus = document.getElementById('conn-status');
+        const connLabel = connStatus.querySelector('.label');
+        const reconnectOverlay = document.getElementById('reconnect-overlay');
+
+        let buttonsEnabled = true;   // domyślnie: aktywne (rozgrywka nie wymaga inicjacji ze strony przycisku)
+        let colorsSwapped = false;
+
+        function applyColorSwap(swapped) {
+            colorsSwapped = !!swapped;
+            document.body.classList.toggle('swap-colors', colorsSwapped);
+        }
+
+        function setConnected(connected) {
+            connStatus.classList.toggle('disconnected', !connected);
+            connLabel.textContent = connected ? 'OK' : 'Łączę…';
+            reconnectOverlay.classList.toggle('visible', !connected);
+        }
+        setConnected(false);
+
+        socket.on('connect', () => { setConnected(true); socket.emit('set_game_mode', 'party'); });
+        socket.on('reconnect', () => { setConnected(true); socket.emit('set_game_mode', 'party'); });
+        socket.on('disconnect', () => { setConnected(false); });
+        socket.on('connect_error', () => setConnected(false));
+        socket.on('reconnect_error', () => setConnected(false));
+        if (socket.connected) { setConnected(true); }
+
+        function setTeamLabels(blueName, redName) {
+            const lb = document.getElementById('btn-label-blue');
+            const lr = document.getElementById('btn-label-red');
+            const nb = (blueName && String(blueName).trim()) ? String(blueName).toUpperCase() : 'NIEBIESCY';
+            const nr = (redName && String(redName).trim()) ? String(redName).toUpperCase() : 'CZERWONI';
+            if (lb) lb.textContent = nb;
+            if (lr) lr.textContent = nr;
+            btnBlue.setAttribute('aria-label', nb);
+            btnRed.setAttribute('aria-label', nr);
+        }
+
+        function setButtonsEnabled(enabled) {
+            buttonsEnabled = enabled;
+            btnBlue.classList.toggle('disabled', !enabled);
+            btnRed.classList.toggle('disabled', !enabled);
+        }
+
+        function showFlash(team) {
+            const blueGrad = 'radial-gradient(circle at 50% 50%, #3a7dff 0%, #0b3a90 55%, #041a44 100%)';
+            const redGrad  = 'radial-gradient(circle at 50% 50%, #ff4560 0%, #9a0a1e 55%, #3d0008 100%)';
+            // Przy swap: wizualnie „niebiescy" to czerwony gradient itd.
+            const visualBlue = colorsSwapped ? 'red' : 'blue';
+            flashOverlay.style.background = team === visualBlue ? blueGrad : redGrad;
+            flashOverlay.classList.remove('fade-out');
+            flashOverlay.style.transition = 'none';
+            flashOverlay.style.opacity = '1';
+            flashOverlay.classList.add('visible');
+            setTimeout(() => {
+                flashOverlay.classList.add('fade-out');
+                flashOverlay.style.opacity = '0';
+                setTimeout(() => flashOverlay.classList.remove('visible', 'fade-out'), 3000);
+            }, 5000);
+        }
+
+        function sendPress(team) {
+            if (!buttonsEnabled || !socket.connected) return;
+            socket.emit('party_button_press', { team });
+            setButtonsEnabled(false);
+            const btn = team === 'blue' ? btnBlue : btnRed;
+            btn.classList.add('pressed');
+            if (navigator.vibrate) { try { navigator.vibrate(30); } catch (_) {} }
+            setTimeout(() => btn.classList.remove('pressed'), 220);
+        }
+
+        socket.on('party_button_flash', (data) => {
+            setButtonsEnabled(false);
+            if (data && data.team) showFlash(data.team);
+        });
+        socket.on('party_buttons_reset', () => {
+            setButtonsEnabled(true);
+        });
+        // Synchronizacja z party_state: nazwy drużyn, czy ktoś już nacisnął, swap kolorów.
+        socket.on('party_state', (ps) => {
+            if (!ps) return;
+            if (ps.teams) {
+                const bn = ps.teams.blue && ps.teams.blue.name;
+                const rn = ps.teams.red  && ps.teams.red.name;
+                setTeamLabels(bn, rn);
+            }
+            if (typeof ps.swapped === 'boolean') applyColorSwap(ps.swapped);
+            // Gdy w rundzie ktoś już nacisnął — zablokuj; gdy reset/nowa runda — odblokuj.
+            setButtonsEnabled(!ps.buttonUsedThisRound);
+        });
+
+        function bindBuzzer(el, team) {
+            el.addEventListener('touchstart', (e) => { e.preventDefault(); sendPress(team); }, { passive: false });
+            el.addEventListener('click', () => sendPress(team));
+        }
+        bindBuzzer(btnBlue, 'blue');
+        bindBuzzer(btnRed,  'red');
+
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+                document.getElementById('fs-btn').textContent = '✕ Wyjdź';
+            } else {
+                document.exitFullscreen();
+                document.getElementById('fs-btn').textContent = '⛶ Pełny ekran';
+            }
+        }
+        document.getElementById('fs-btn').addEventListener('click', toggleFullScreen);
+
+        // Wake Lock — niegasnący ekran.
+        let wakeLock = null, noSleep = null;
+        async function requestWakeLock() {
+            if (window.isSecureContext && 'wakeLock' in navigator && document.visibilityState === 'visible') {
+                try {
+                    if (wakeLock) { try { await wakeLock.release(); } catch (_) {} wakeLock = null; }
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    wakeLock.addEventListener('release', () => { wakeLock = null; });
+                    if (noSleep) { try { noSleep.disable(); } catch (_) {} noSleep = null; }
+                    hideHttpsWarn();
+                    return;
+                } catch (_) {}
+            }
+            if (!noSleep && typeof NoSleep !== 'undefined') {
+                try { noSleep = new NoSleep(); noSleep.enable(); } catch (_) {}
+            }
+            if (!window.isSecureContext && location.protocol === 'http:') maybeShowHttpsWarn();
+        }
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') requestWakeLock();
+        });
+        function enableKeepAwake() {
+            requestWakeLock();
+            document.removeEventListener('click', enableKeepAwake);
+            document.removeEventListener('touchstart', enableKeepAwake);
+        }
+        document.addEventListener('click', enableKeepAwake, { once: true });
+        document.addEventListener('touchstart', enableKeepAwake, { once: true });
+
+        function hideHttpsWarn() { httpsWarn.classList.remove('visible'); httpsWarn.textContent = ''; }
+        function maybeShowHttpsWarn() {
+            fetch('/api/server-info', { cache: 'no-store' })
+                .then(r => r.ok ? r.json() : null)
+                .then(info => {
+                    if (info && info.https && info.https.available && info.https.port) {
+                        const url = 'https://' + location.hostname + ':' + info.https.port + location.pathname;
+                        httpsWarn.innerHTML = 'Ekran może gasnąć. <a href="' + url + '">Otwórz przez HTTPS</a> — wtedy zablokujemy wygaszanie.';
+                        httpsWarn.classList.add('visible');
+                    } else {
+                        httpsWarn.textContent = 'Uwaga: ekran może gasnąć (brak HTTPS). Nie blokuj wygaszacza telefonu.';
+                        httpsWarn.classList.add('visible');
+                    }
+                })
+                .catch(() => {});
+        }
+    </script>
+</body>
+</html>

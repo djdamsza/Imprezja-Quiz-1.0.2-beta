@@ -120,8 +120,6 @@
         let active = false;
         let currentBankIndex = 0;
         let playingTrackId = null;
-        let justStoppedId = null;
-
         function ensureBanks() {
             if (!config.banks || !config.banks.length) {
                 const oldTracks = config.tracks || [];
@@ -169,7 +167,7 @@
             if (slider) slider.value = Math.round(vol * 100);
         });
         socket.on('imprezator_ended', (payload) => {
-            if (payload && payload.trackId) {
+            if (payload && payload.trackId != null) {
                 playingTrackId = null;
                 render();
             }
@@ -196,7 +194,7 @@
             const emptyMsg = trackList.length === 0 ? '<p style="text-align:center;color:rgba(255,255,255,0.6);font-size:1rem;padding:24px;">Brak utworów</p>' : '';
             tracks.innerHTML = emptyMsg + trackList.map((t) => {
                 const label = (t.displayName || t.audio?.replace(/^.*\//, '').replace(/\.[^.]+$/, '') || 'Utwór').replace(/</g, '&lt;');
-                const isPlaying = playingTrackId === t.id;
+                const isPlaying = playingTrackId != null && String(t.id) === playingTrackId;
                 const icon = isPlaying ? '⏸' : '▶';
                 return `
                     <div class="track-item ${isPlaying ? 'playing' : ''}" data-id="${t.id}" onclick="handleTrackClick('${t.id}')">
@@ -208,17 +206,16 @@
 
         function handleTrackClick(id) {
             if (!active) return;
-            if (justStoppedId === id) return;
-            if (playingTrackId === id) {
-                socket.emit('imprezator_stop', id);
+            const sid = id != null ? String(id) : '';
+            if (!sid) return;
+            if (playingTrackId === sid) {
+                socket.emit('imprezator_stop', sid);
                 playingTrackId = null;
-                justStoppedId = id;
-                setTimeout(() => { justStoppedId = null; }, 2000);
                 render();
             } else {
-                playingTrackId = id;
+                playingTrackId = sid;
                 render();
-                socket.emit('imprezator_play', id);
+                socket.emit('imprezator_play', sid);
             }
         }
 
