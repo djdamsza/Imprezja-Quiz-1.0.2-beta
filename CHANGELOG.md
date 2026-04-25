@@ -2,6 +2,24 @@
 
 ---
 
+## v1.2.5 (kwiecień 2026) — wydanie stabilne
+
+### Party Quiz (admin, TV, buzzery)
+- **Buzzery Familiady (`/familiada/buttons.html`) przy aktywnym Party Quiz** – dla pytań **FAMILIADA / LETTER / FAST_LIST** działają jak opcjonalne buzzery Party (bez modyfikacji stanu klasycznej Familiady); synchronizacja z `party_state` (`activePartyQuestionType`, `buttonUsedThisRound`).
+- **Rejestracja buzzerów Familiady** – przy roli `buttons` brak rozgłaszania `familiada_request_intro_state` do całego pokoju (mniej kolizji z TV podczas Party).
+- **LETTER / FAST_LIST** – po „Następna litera” / „Następna pozycja” (szybka lista) reset buzzera i `party_buttons_reset` tam, gdzie potrzeba.
+- **Złota lista – panel admina** – nagłówek i podgląd odpowiedzi jak przy rozwiniętym wierszu listy pytań; drobne zmniejszenie czcionek w tym bloku.
+- **TV – ekran końcowy** – przed outrem wyłączana jest m.in. muzyka tła szybkiej listy i pozostałe kanały dźwięku kolidujące z outrem.
+- **Serwer** – `getActivePartyQuestionForParty()` najpierw uwzględnia pytanie ze złotej listy (`currentGoldenIndex`).
+
+### Sklep Stripe / licencje (jak w 1.2.4)
+- Bez zmian funkcjonalnych względem opisu w **v1.2.4** (odnowienia, Machine ID, idempotencja webhooka).
+
+### Strona sklepu / WordPress / Stripe-shop
+- Zaktualizowane linki pobierania i znaczniki wersji do **v1.2.5** – m.in. `stripe-shop/public/pobierz.html`, `stripe-shop/public/success.html`, `docs/wordpress/sukces.html`, `sukces-wklej.html`, `stripe-cennik.html`, `imprezja-quiz-produkt-pelna-tresc.html`, `imprezja-quiz-sklep-pelna-strona.html`, `09-pobierz-1.2.5.html`, `LINKI-1.2.5-WORDPRESS.md`.
+
+---
+
 ## v1.2.4 (kwiecień 2026) — wydanie stabilne
 
 ### Sklep Stripe / licencje (stripe-shop, backend)

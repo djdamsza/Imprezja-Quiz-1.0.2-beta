@@ -190,6 +190,18 @@
         return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
+    /** Tablica pytań albo { questions | data | items } albo jedno { question, answers } — jak w API Familiady. */
+    function normalizeFamiliadaImportArray(data) {
+        if (data == null) return [];
+        if (Array.isArray(data)) return data;
+        if (typeof data !== 'object') return [];
+        if (Array.isArray(data.questions)) return data.questions;
+        if (Array.isArray(data.data)) return data.data;
+        if (Array.isArray(data.items)) return data.items;
+        if (typeof data.question === 'string' || Array.isArray(data.answers)) return [data];
+        return [];
+    }
+
     let goldenList = [];
     const MAX_GOLDEN = 10;
     /** Gdy true, wczytano "Złota lista" – ukrywamy przyciski "DODAJ DO ZŁOTEJ LISTY" i dolną sekcję złotej listy (żeby nie dublować pytań). */
@@ -669,8 +681,9 @@
         const raw = document.getElementById('pasteArea').value.trim();
         if (!raw) return showStatus('Wklej treść JSON lub XML', 'error');
         let arr = [];
-        const looksLikeXml = raw.startsWith('<?xml') || raw.startsWith('<familiada');
-        const looksLikeText = (!raw.trim().startsWith('{') && !raw.trim().startsWith('[')) &&
+        const t = raw.replace(/^\uFEFF/, '').trimStart();
+        const looksLikeXml = t.startsWith('<?xml') || /^<\s*familiada[\s>]/i.test(t);
+        const looksLikeText = (!t.startsWith('{') && !t.startsWith('[')) &&
             (/Pytanie\s+\d+\s*:/i.test(raw) || /^.+\?[\s\n]/m.test(raw) || /^.+\?$/m.test(raw));
         try {
             if (looksLikeXml) {
@@ -679,7 +692,7 @@
                 arr = parseTextFamiliada(raw);
             } else {
                 const data = JSON.parse(raw);
-                arr = Array.isArray(data) ? data : (data.questions || data.data || []);
+                arr = normalizeFamiliadaImportArray(data);
             }
         } catch (err) {
             if (looksLikeXml) {
@@ -717,8 +730,38 @@
         const r = new FileReader();
         r.onload = () => {
             try {
-                const data = JSON.parse(r.result);
-                const arr = Array.isArray(data) ? data : (data.questions || data.data || []);
+                const content = r.result;
+                const str = String(content).replace(/^\uFEFF/, '');
+                const t = str.trimStart();
+                const looksLikeXml = t.startsWith('<?xml') || /^<\s*familiada[\s>]/i.test(t);
+                const looksLikeText = !t.startsWith('{') && !t.startsWith('[') &&
+                    (/Pytanie\s+\d+\s*:/i.test(str) || /^.+\?[\s\n]/m.test(str) || /^.+\?$/m.test(str));
+                let arr = [];
+                let label = 'JSON';
+                if (looksLikeXml) {
+                    arr = parseXmlFamiliada(str);
+                    label = 'XML';
+                } else if (looksLikeText) {
+                    arr = parseTextFamiliada(str);
+                    label = 'tekstu';
+                } else {
+                    try {
+                        const data = JSON.parse(str);
+                        arr = normalizeFamiliadaImportArray(data);
+                    } catch (jsonErr) {
+                        if (/^<\s*familiada[\s>]/i.test(t) || (t.includes('<question') && t.includes('<answer'))) {
+                            arr = parseXmlFamiliada(str);
+                            label = 'XML';
+                        } else {
+                            try {
+                                arr = parseTextFamiliada(str);
+                                label = 'tekstu';
+                            } catch (e) {
+                                throw jsonErr;
+                            }
+                        }
+                    }
+                }
                 document.getElementById('questions-container').innerHTML = '';
                 if (arr.length > 0) {
                     arr.forEach(q => addQuestion(q));
@@ -727,7 +770,7 @@
                 }
                 const base = file.name.replace(/\.json$/i, '');
                 document.getElementById('filename').value = base;
-                showStatus('Wczytano ' + arr.length + ' pytań z pliku', 'success');
+                showStatus('Wczytano ' + arr.length + ' pytań z pliku (' + label + ')', 'success');
             } catch (err) {
                 showStatus('Błąd pliku: ' + err.message, 'error');
             }
@@ -793,17 +836,20 @@
 
     /** Konwersja z formatu XML Familiady: <familiada><question text="..."><answer count="N">...</answer></question></familiada> */
     function parseXmlFamiliada(xmlString) {
+        const src = String(xmlString || '').replace(/^\uFEFF/, '').trimStart();
         const parser = new DOMParser();
-        const doc = parser.parseFromString(xmlString, 'text/xml');
+        const doc = parser.parseFromString(src, 'application/xml');
         const parseError = doc.querySelector('parsererror');
         if (parseError) throw new Error('Błąd parsowania XML: ' + (parseError.textContent || 'nieznany'));
         const questions = [];
-        let questionEls = doc.querySelectorAll('familiada question, familiada > question');
-        if (questionEls.length === 0) questionEls = doc.querySelectorAll('question');
+        let questionEls = Array.from(doc.getElementsByTagName('question'));
+        if (questionEls.length === 0) questionEls = Array.from(doc.getElementsByTagName('Question'));
         questionEls.forEach(qEl => {
             const text = (qEl.getAttribute('text') || qEl.getAttribute('Text') || '').trim();
             const answers = [];
-            qEl.querySelectorAll('answer').forEach(aEl => {
+            let answerEls = Array.from(qEl.getElementsByTagName('answer'));
+            if (answerEls.length === 0) answerEls = Array.from(qEl.getElementsByTagName('Answer'));
+            answerEls.forEach(aEl => {
                 const count = parseInt(aEl.getAttribute('count') || aEl.getAttribute('Count') || '0', 10) || 0;
                 const ansText = (aEl.textContent || '').trim();
                 if (ansText) answers.push({ text: ansText, points: count });
@@ -830,18 +876,29 @@
             try {
                 let arr;
                 const content = r.result;
-                const looksLikeXml = typeof content === 'string' && (content.trim().startsWith('<?xml') || content.trim().startsWith('<familiada'));
-                const looksLikeText = typeof content === 'string' && !content.trim().startsWith('{') && !content.trim().startsWith('[') &&
-                    (/Pytanie\s+\d+\s*:/i.test(content) || /^.+\?[\s\n]/m.test(content) || /^.+\?$/m.test(content));
+                const str = typeof content === 'string' ? content.replace(/^\uFEFF/, '') : '';
+                const t = str.trimStart();
+                const looksLikeXml = t.startsWith('<?xml') || /^<\s*familiada[\s>]/i.test(t);
+                const looksLikeText = str && !t.startsWith('{') && !t.startsWith('[') &&
+                    (/Pytanie\s+\d+\s*:/i.test(str) || /^.+\?[\s\n]/m.test(str) || /^.+\?$/m.test(str));
                 const useXml = forceXml || (!forceJson && looksLikeXml);
                 const useText = !forceJson && !useXml && looksLikeText;
                 if (useXml) {
-                    arr = parseXmlFamiliada(content);
+                    arr = parseXmlFamiliada(str);
                 } else if (useText) {
-                    arr = parseTextFamiliada(content);
+                    arr = parseTextFamiliada(str);
                 } else {
-                    const data = JSON.parse(content);
-                    arr = Array.isArray(data) ? data : (data.questions || data.data || []);
+                    try {
+                        const data = JSON.parse(str);
+                        arr = normalizeFamiliadaImportArray(data);
+                    } catch (jsonErr) {
+                        if (forceJson) throw jsonErr;
+                        if (looksLikeXml || (t.includes('<question') && t.includes('<answer'))) {
+                            arr = parseXmlFamiliada(str);
+                        } else {
+                            arr = parseTextFamiliada(str);
+                        }
+                    }
                 }
                 document.getElementById('questions-container').innerHTML = '';
                 if (arr.length > 0) {

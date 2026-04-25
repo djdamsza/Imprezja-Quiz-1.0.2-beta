@@ -272,7 +272,7 @@
         @keyframes blinkX { 0% { transform: scale(1.5); opacity:0; } 100% { transform: scale(1); opacity:1; } }
         @keyframes shake { 0% { transform: translate(2px, 2px); } 50% { transform: translate(-2px, -2px); } 100% { transform: translate(2px, -2px); } }
 
-        #familiada-intro { position: fixed; top: 0; left: 0; width: 100%; height: 100%; max-height: 100dvh; background: #000; z-index: 300; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: clamp(12px, 2vh, 24px) 16px; overflow-y: auto; overflow-x: hidden; box-sizing: border-box; }
+        #familiada-intro { position: fixed; top: 0; left: 0; width: 100%; height: 100%; max-height: 100dvh; background: #000; z-index: 300; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: clamp(12px, 2vh, 24px) 16px; overflow-y: auto; overflow-x: hidden; box-sizing: border-box; }
         #familiada-intro::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none;
             background: linear-gradient(105deg, rgba(0, 80, 180, 0.7) 0%, rgba(0, 60, 140, 0.45) 50%, transparent 75%),
                         linear-gradient(255deg, rgba(180, 0, 0, 0.7) 0%, rgba(140, 0, 0, 0.45) 50%, transparent 75%);
@@ -322,13 +322,24 @@
         #button-flash-pixel-title .pixel-letter { gap: 0.4vw; }
         #button-flash-pixel-title .pixel-row { gap: 0.4vw; }
         #familiada-intro > * { position: relative; z-index: 1; }
-        #familiada-intro .intro-title { font-size: clamp(1.4rem, 4vw, 2rem); font-weight: bold; margin-bottom: 16px; color: var(--led-yellow); }
+        /* Start: duży pikselowy napis FAMILIADA (jak wcześniej), nie nagłówek tekstowy „Panel pilota”. */
+        #familiada-intro .intro-pixel-wrap {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            margin-bottom: clamp(16px, 4vh, 40px);
+            flex-shrink: 0;
+        }
+        #familiada-intro #intro-pixel-title .pixel-tile { width: 1.5vw; height: 1.5vw; }
+        #familiada-intro #intro-pixel-title .pixel-letter { gap: 0.4vw; }
+        #familiada-intro #intro-pixel-title .pixel-row { gap: 0.4vw; }
         #familiada-intro .qr-row { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; align-items: flex-start; max-width: 100%; margin-bottom: 16px; }
         #familiada-intro .qr-admin-box { flex: 1 1 240px; min-width: 200px; max-width: 340px; display: flex; flex-direction: column; align-items: center; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 12px; border: 1px solid rgba(255,204,0,0.35); }
         #familiada-intro .qr-admin-box img { width: clamp(140px, 14vw, 200px); height: clamp(140px, 14vw, 200px); object-fit: contain; border-radius: 10px; border: 4px solid #fff; padding: 8px; margin: 8px 0; background: #fff; }
         #familiada-intro .qr-admin-label { font-size: 0.95rem; font-weight: 700; margin-bottom: 4px; color: #e67e22; }
         #familiada-intro .qr-buttons-label { color: #3498db; }
-        #familiada-intro .intro-btn-row { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; align-items: center; margin-top: 20px; }
+        #familiada-intro .intro-btn-row { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; align-items: center; margin-top: 0; }
         #familiada-intro .intro-editor-btn { display: inline-block; padding: 12px 24px; font-size: 0.95rem; font-weight: 600; border-radius: 10px; border: none; cursor: pointer; text-decoration: none; transition: all 0.2s; margin: 0; }
         #familiada-intro .intro-editor-btn:hover { transform: scale(1.05); }
         #familiada-intro .intro-editor-btn[href="/familiada/editor.html"] { background: #3498db; color: #fff; }
@@ -353,7 +364,9 @@
     </div>
 
     <div id="familiada-intro">
-        <div class="intro-title">FAMILIADA – Panel pilota</div>
+        <div class="intro-pixel-wrap" aria-hidden="true">
+            <div class="pixel-title-wrap" id="intro-pixel-title"></div>
+        </div>
         <div class="intro-btn-row">
             <button type="button" class="intro-editor-btn intro-admin-btn" onclick="window.open('/familiada/admin.html','_blank')">Admin na komputerze</button>
             <button type="button" class="intro-editor-btn intro-start-btn" onclick="startGame()">▶️ Rozpocznij grę</button>
@@ -432,6 +445,7 @@
                 wrap.appendChild(letter);
             });
         }
+        renderPixelTitle('intro-pixel-title');
 
         let gameActive = false;
 

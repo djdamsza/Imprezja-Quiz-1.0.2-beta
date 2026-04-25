@@ -726,13 +726,13 @@ function loadFamiliadaData() {
     try {
         if (fs.existsSync(familiadaDataPath)) {
             const raw = fs.readFileSync(familiadaDataPath, 'utf8');
-            familiadaQuestions = JSON.parse(raw);
+            familiadaQuestions = parseFamiliadaQuestionsFromJsonString(raw);
             console.log(`✅ Familiada: załadowano ${familiadaQuestions.length} pytań`);
         } else {
             const appPathForData = process.env.IMPREZJA_APP_PATH || __dirname;
             const fallback = path.join(appPathForData, 'public', 'familiada', 'data.json');
             if (fs.existsSync(fallback)) {
-                familiadaQuestions = JSON.parse(fs.readFileSync(fallback, 'utf8'));
+                familiadaQuestions = parseFamiliadaQuestionsFromJsonString(fs.readFileSync(fallback, 'utf8'));
                 console.log(`✅ Familiada: załadowano ${familiadaQuestions.length} pytań z data.json`);
             }
         }
@@ -3096,6 +3096,19 @@ app.get('/api/familiada/files', (req, res) => {
     }
 });
 
+/** JSON z edytora / eksportów: tablica albo { questions | data | items } albo jedno pytanie { question, answers }. */
+function parseFamiliadaQuestionsFromJsonString(raw) {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed;
+    if (parsed && typeof parsed === 'object') {
+        if (Array.isArray(parsed.questions)) return parsed.questions;
+        if (Array.isArray(parsed.data)) return parsed.data;
+        if (Array.isArray(parsed.items)) return parsed.items;
+        if (typeof parsed.question === 'string' || Array.isArray(parsed.answers)) return [parsed];
+    }
+    return [];
+}
+
 function resolveFamiliadaFilePath(filename) {
     const name = (filename && typeof filename === 'string') ? filename.trim() : '';
     if (!name || name.includes('..') || name.includes('/') || !name.toLowerCase().endsWith('.json')) return null;
@@ -3128,7 +3141,7 @@ app.get('/api/familiada/data', (req, res) => {
         const filePath = file ? resolveFamiliadaFilePath(file) : null;
         if (filePath) {
             const raw = fs.readFileSync(filePath, 'utf8');
-            const data = JSON.parse(raw);
+            const data = parseFamiliadaQuestionsFromJsonString(raw);
             return res.json(Array.isArray(data) ? data : []);
         }
         loadFamiliadaData();
@@ -5840,16 +5853,20 @@ io.on('connection', (socket) => {
     socket.on('set_game_mode', (mode) => {
         if (mode === 'quiz') gameMode = 'quiz';
         else if (mode === 'party') {
-            partyRestoreGameStateQuestionsIfExtended();
+            const wasAlreadyParty = gameMode === 'party';
             gameMode = 'party';
-            // Reset listy „rozegranych" pytań przy każdej aktywacji trybu (nowa rozgrywka).
-            // Wynik drużyn też resetujemy — świeża runda startuje od 0:0.
-            partyState.askedIndices = [];
-            partyState.teams.blue.score = 0;
-            partyState.teams.red.score = 0;
-            partyState.currentIndex = -1;
-            partyState.questionAwarded = false;
-            partyState.finalScreenVisible = false;
+            // Pełny reset tylko przy wejściu z innego trybu (np. quiz / familiada). Buzzery
+            // (party-quiz/buttons.html) wysyłają set_game_mode('party') przy każdym connect/reconnect —
+            // nie wolno wtedy zerować punktów ani indeksu pytania (ekran końcowy musi pokazywać sumę z całej gry).
+            if (!wasAlreadyParty) {
+                partyRestoreGameStateQuestionsIfExtended();
+                partyState.askedIndices = [];
+                partyState.teams.blue.score = 0;
+                partyState.teams.red.score = 0;
+                partyState.currentIndex = -1;
+                partyState.questionAwarded = false;
+                partyState.finalScreenVisible = false;
+            }
             // Wyślij aktualny stan Party Quiz do wszystkich (Screen.html musi wiedzieć, że ma rysować pasek drużyn)
             broadcastPartyState();
         }
