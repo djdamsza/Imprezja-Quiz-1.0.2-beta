@@ -8,6 +8,7 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="/css/admin-editor-shared.css">
     <script src="/socket.io/socket.io.js"></script>
+    <script src="/lib/games-volume-bar.js"></script>
     <style>
         * {
             margin: 0;
@@ -571,18 +572,12 @@
             </div>
         </section>
 
-        <!-- Start/Stop muzyka + głośność master (wyśrodkowane) -->
+        <!-- Start/Stop muzyka (głośność gier – suwak na dole strony) -->
         <section class="wifi-generator" style="display: flex; flex-direction: column; align-items: center;">
-            <h2>🔊 Muzyka i głośność</h2>
+            <h2>🔊 Muzyka</h2>
             <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 12px; width: 100%; max-width: 360px;">
                 <button type="button" id="btn-music-toggle" onclick="toggleIntroMusic()" class="btn btn-secondary">▶️ Start muzyka</button>
-                <div class="volume-slider-wrap" style="justify-content: center; width: 100%;">
-                    <label for="master-volume">Głośność (master):</label>
-                    <input type="range" id="master-volume" min="0" max="100" value="80" oninput="setMasterVolume(this.value)" style="flex: 1; min-width: 140px;">
-                    <span id="master-volume-value">80</span>%
-                </div>
             </div>
-            <p style="font-size: 0.8rem; color: var(--text-muted); text-align: center;">Suwak zmienia głośność na ekranie TV w czasie rzeczywistym.</p>
         </section>
 
         <!-- PANEL KONTROLNY -->
@@ -933,8 +928,10 @@
             document.getElementById('rozgrywka-section').style.display = 'block';
             localStorage.setItem('adminActiveSection', 'rozgrywka');
             if (typeof socket !== 'undefined' && socket.connected) socket.emit('screen_switch', { mode: 'quiz' });
-            var slider = document.getElementById('master-volume');
-            if (slider && typeof setMasterVolume === 'function') setMasterVolume(slider.value);
+            var gv = document.getElementById('games-volume-bar-slider');
+            if (gv && typeof socket !== 'undefined' && socket.connected) {
+                socket.emit('games_volume', { volume: parseFloat(gv.value) / 100 });
+            }
             window.scrollTo(0, 0);
         }
         function goToAdmin() {
@@ -957,7 +954,8 @@
             socket.emit('admin_toggle_send_images_to_phones');
         }
         function playIntroMusic() {
-            const vol = parseInt(document.getElementById('master-volume').value, 10) || 80;
+            const gv = document.getElementById('games-volume-bar-slider');
+            const vol = gv ? parseInt(gv.value, 10) : 80;
             socket.emit('admin_play_intro_music', { volume: Math.round(vol * 0.7) });
         }
         let introMusicActive = false;
@@ -973,21 +971,6 @@
                 if (btn) { btn.textContent = '⏹ Stop muzyka'; btn.style.background = '#c0392b'; }
             }
         }
-        function applyMasterVolumeUI(val) {
-            const v = Math.max(0, Math.min(100, parseInt(val, 10)));
-            const slider = document.getElementById('master-volume');
-            const label = document.getElementById('master-volume-value');
-            if (slider) slider.value = v;
-            if (label) label.textContent = v;
-            localStorage.setItem('adminMasterVolume', String(v));
-        }
-        function setMasterVolume(val) {
-            applyMasterVolumeUI(val);
-            const v = Math.max(0, Math.min(100, parseInt(val, 10)));
-            if (typeof socket !== 'undefined' && socket.connected) {
-                socket.emit('admin_set_master_volume', v);
-            }
-        }
         window.addEventListener('DOMContentLoaded', () => {
             const isPhone = window.innerWidth < 768 || (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
             const section = isPhone ? 'admin' : (localStorage.getItem('adminActiveSection') || 'admin');
@@ -996,12 +979,8 @@
                 document.getElementById('rozgrywka-section').style.display = 'block';
                 if (typeof socket !== 'undefined' && socket.connected) socket.emit('screen_switch', { mode: 'quiz' });
             }
-            const savedVol = localStorage.getItem('adminMasterVolume');
-            if (savedVol != null) applyMasterVolumeUI(savedVol);
-            var masterSlider = document.getElementById('master-volume');
-            if (masterSlider) {
-                masterSlider.addEventListener('input', function() { setMasterVolume(this.value); });
-                masterSlider.addEventListener('change', function() { setMasterVolume(this.value); });
+            if (typeof ImprezjaGamesVolume !== 'undefined' && typeof socket !== 'undefined') {
+                ImprezjaGamesVolume.mount(socket);
             }
             });
 
@@ -1070,13 +1049,9 @@
             const banner = document.getElementById('disconnect-banner');
             if (banner) banner.style.display = 'none';
             socket.emit('admin_login', isAdminFromComputer() ? { isComputer: true } : undefined);
-            socket.emit('master_volume_request');
+            if (typeof ImprezjaGamesVolume !== 'undefined') ImprezjaGamesVolume.mount(socket);
             const roz = document.getElementById('rozgrywka-section');
             if (roz && roz.style.display !== 'none') socket.emit('screen_switch', { mode: 'quiz' });
-        });
-        socket.on('master_volume', (d) => {
-            const pct = Math.round(((d && typeof d.volume === 'number') ? d.volume : 1) * 100);
-            applyMasterVolumeUI(pct);
         });
 
         socket.on('qr_codes_on_phones', (data) => {

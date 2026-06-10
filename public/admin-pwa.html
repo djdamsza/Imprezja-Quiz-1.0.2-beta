@@ -22,7 +22,7 @@
             color: var(--imp-text, #fff);
             min-height: 100vh;
             padding: 12px 6px;
-            padding-bottom: env(safe-area-inset-bottom, 12px);
+            padding-bottom: calc(128px + env(safe-area-inset-bottom, 12px));
         }
         h1 {
             font-size: 1.4rem;
@@ -176,16 +176,6 @@
             align-items: center;
             min-width: 0;
         }
-        .music-swipe-zone { display: none !important; }
-        .music-embed-frame .music-swipe-zone.visible {
-            display: flex !important;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 16px;
-            border-bottom: 1px solid rgba(255,255,255,0.08);
-            background: rgba(0,0,0,0.25);
-        }
-        .music-swipe-zone .swipe-arrow { font-size: 2rem; font-weight: 800; color: #f1c40f; text-shadow: 0 0 12px rgba(241,196,15,0.8); }
         .music-embed-frame .bank-tab { padding: 6px 12px; border-radius: 8px; border: 2px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.06); color: #fff; cursor: pointer; font-size: 0.85rem; }
         .music-embed-frame .bank-tab:hover { border-color: rgba(155,89,182,0.6); background: rgba(155,89,182,0.15); }
         .music-embed-frame .bank-tab.active { border-color: #9b59b6; background: rgba(155,89,182,0.3); }
@@ -253,6 +243,43 @@
         }
         .status.connected { color: #2ecc71; }
         .status.disconnected { color: #e74c3c; }
+        .pwa-audio-dock {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 9000;
+            padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+            background: linear-gradient(180deg, rgba(26,26,46,0.92) 0%, rgba(13,13,20,0.98) 100%);
+            border-top: 1px solid rgba(241,196,15,0.25);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        .pwa-audio-dock .vol-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+        .pwa-audio-dock .vol-row:last-child { margin-bottom: 0; }
+        .pwa-audio-dock .vol-label {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: rgba(255,255,255,0.85);
+            min-width: 82px;
+            text-align: left;
+        }
+        .pwa-audio-dock input[type="range"] {
+            flex: 1;
+            height: 8px;
+            accent-color: #f1c40f;
+        }
+        .pwa-audio-dock .vol-pct {
+            font-size: 0.78rem;
+            color: rgba(255,255,255,0.65);
+            min-width: 38px;
+            text-align: right;
+        }
         /* Baner braku połączenia (jak w vote.html) */
         #connection-lost-banner {
             display: none;
@@ -303,6 +330,24 @@
             border-color: rgba(241,196,15,0.5);
         }
         .btn-fullscreen-panel:fullscreen { top: auto; right: auto; }
+        #admin-https-warn {
+            position: fixed;
+            top: 10px; left: 50%;
+            transform: translateX(-50%);
+            z-index: 250;
+            display: none;
+            background: rgba(200, 70, 30, 0.92);
+            color: #fff;
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-size: 13px;
+            max-width: 92vw;
+            text-align: center;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+            line-height: 1.35;
+        }
+        #admin-https-warn a { color: #fff; font-weight: 700; text-decoration: underline; }
+        #admin-https-warn.visible { display: block; }
     </style>
 </head>
 <body class="imp-admin-editor">
@@ -311,6 +356,7 @@
         Brak połączenia z serwerem.
         <button type="button" class="retry-btn" id="connection-retry-btn">Ponów</button>
     </div>
+    <div id="admin-https-warn" role="alert"></div>
     <button type="button" class="btn-fullscreen-panel" id="btn-fullscreen-panel" title="Pełny ekran" aria-label="Pełny ekran">⛶</button>
     <div id="main-content">
     <h1>📱 Imprezja Admin</h1>
@@ -387,7 +433,6 @@
                 <button type="button" class="btn-close" id="music-embed-close">Zamknij</button>
                 <div class="bank-tabs-wrap" id="sampler-bank-tabs"></div>
             </div>
-            <div class="music-swipe-zone" id="sampler-swipe-zone"><span class="swipe-arrow">←</span><span class="swipe-arrow">→</span></div>
             <div class="music-embed-iframe-wrap">
                 <iframe id="music-panel-iframe" src="" title="Panel"></iframe>
             </div>
@@ -520,32 +565,47 @@
                 </div>
                 <a href="/statki-solo/admin.html" target="_blank" class="btn-apply" style="display:block;text-align:center;text-decoration:none;margin:12px;">Otwórz</a>
             </div>
-            <div class="setup-card" id="setup-volume">
-                <div class="setup-card-header" data-toggle="setup-volume">
-                    <span class="icon">🔊</span>
-                    <span class="label">Mikser głośności</span>
-                    <span class="chevron">▼</span>
-                </div>
-                <div class="setup-card-master" style="padding:12px 16px;border-top:1px solid rgba(255,255,255,0.08);">
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        <span style="font-size:0.8rem;color:rgba(255,255,255,0.7);min-width:90px;">Master</span>
-                        <input type="range" id="master-volume" min="0" max="100" value="100" style="flex:1;accent-color:#f1c40f;">
-                        <span id="master-volume-label" style="font-size:0.9rem;min-width:40px;">100%</span>
-                    </div>
-                </div>
-                <div class="setup-card-body" id="setup-volume-body" style="padding:12px 16px;">
-                    <div id="mixer-channels" style="display:grid;gap:10px;font-size:0.85rem;"></div>
-                </div>
-            </div>
         </div>
     </div>
 
     <p id="status" class="status">Łączenie...</p>
     </div>
 
+    <div class="pwa-audio-dock" id="pwa-audio-dock" aria-label="Głośność">
+        <div class="vol-row">
+            <span class="vol-label">🎮 Gry</span>
+            <input type="range" id="games-volume" min="0" max="100" value="100" title="Quiz, Familiada, Party, Sampler, Śpiewaj Dalej, Bitwa, Statki">
+            <span class="vol-pct" id="games-volume-label">100%</span>
+        </div>
+        <div class="vol-row">
+            <span class="vol-label">🎵 Imprezator</span>
+            <input type="range" id="imprezator-volume" min="0" max="100" value="100" title="Muzyka do animacji tanecznych">
+            <span class="vol-pct" id="imprezator-volume-label">100%</span>
+        </div>
+    </div>
+
     <input type="file" id="welcome-image-input" accept="image/*" style="display:none">
 
+    <script src="/lib/nosleep.min.js"></script>
     <script>
+        // Auto-przekierowanie HTTP → HTTPS (Wake Lock wymaga secure context)
+        (function maybeRedirectHttps() {
+            try {
+                if (location.protocol !== 'http:') return;
+                if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return;
+                if (sessionStorage.getItem('imprezja_https_redirect_tried') === '1') return;
+                fetch('/api/server-info', { cache: 'no-store' })
+                    .then(r => r.ok ? r.json() : null)
+                    .then(info => {
+                        if (!info || !info.https || !info.https.available || !info.https.port) return;
+                        if (info.https.certExpired) return;
+                        sessionStorage.setItem('imprezja_https_redirect_tried', '1');
+                        location.replace('https://' + location.hostname + ':' + info.https.port + location.pathname + location.search + location.hash);
+                    })
+                    .catch(() => {});
+            } catch (_) {}
+        })();
+
         const socket = io({
             transports: ['websocket', 'polling'],
             reconnection: true,
@@ -587,6 +647,8 @@
             try {
                 localStorage.setItem('imprezja_admin_server', window.location.origin);
             } catch (_) {}
+            socket.emit('games_volume_request');
+            socket.emit('imprezator_volume_request');
         });
         socket.on('disconnect', (reason) => {
             statusEl.textContent = reason === 'io server disconnect' ? 'Rozłączono' : 'Łączenie...';
@@ -622,28 +684,75 @@
             }
         });
 
-        // Wake Lock – ekran admina nie gaśnie (wymaga HTTPS lub localhost)
+        // Wake Lock + NoSleep – ekran admina PWA nie gaśnie (wymaga HTTPS lub localhost)
         let adminWakeLock = null;
+        let adminNoSleep = null;
+        const adminHttpsWarn = document.getElementById('admin-https-warn');
+
+        function hideAdminHttpsWarn() {
+            if (!adminHttpsWarn) return;
+            adminHttpsWarn.classList.remove('visible');
+            adminHttpsWarn.textContent = '';
+        }
+
+        function maybeShowAdminHttpsWarn() {
+            if (!adminHttpsWarn) return;
+            fetch('/api/server-info', { cache: 'no-store' })
+                .then(r => r.ok ? r.json() : null)
+                .then(info => {
+                    if (info && info.https && info.https.certExpired) {
+                        adminHttpsWarn.textContent = 'Certyfikat HTTPS wygasł — ekran może gasnąć. Wygeneruj nowy cert w folderze certs/ na komputerze z quizem i zrestartuj aplikację.';
+                        adminHttpsWarn.classList.add('visible');
+                        return;
+                    }
+                    if (info && info.https && info.https.available && info.https.port && location.protocol === 'http:') {
+                        const url = 'https://' + location.hostname + ':' + info.https.port + location.pathname;
+                        adminHttpsWarn.innerHTML = 'Ekran może gasnąć na HTTP. <a href="' + url + '">Otwórz przez HTTPS</a> (port ' + info.https.port + ') — wtedy blokujemy wygaszanie.';
+                        adminHttpsWarn.classList.add('visible');
+                        return;
+                    }
+                    if (!window.isSecureContext) {
+                        adminHttpsWarn.textContent = 'Ekran może gasnąć — brak HTTPS. W ustawieniach telefonu wyłącz auto-blokadę ekranu dla tej aplikacji.';
+                        adminHttpsWarn.classList.add('visible');
+                    }
+                })
+                .catch(() => {
+                    if (!window.isSecureContext && adminHttpsWarn) {
+                        adminHttpsWarn.textContent = 'Ekran może gasnąć (brak HTTPS).';
+                        adminHttpsWarn.classList.add('visible');
+                    }
+                });
+        }
+
         async function requestAdminWakeLock() {
-            if (!('wakeLock' in navigator) || document.visibilityState !== 'visible') return;
-            try {
-                if (adminWakeLock) { try { await adminWakeLock.release(); } catch (e) {} adminWakeLock = null; }
-                adminWakeLock = await navigator.wakeLock.request('screen');
-                adminWakeLock.addEventListener('release', () => { adminWakeLock = null; });
-            } catch (err) {
-                if (window.isSecureContext === false) console.warn('Wake Lock: wymaga HTTPS lub localhost');
+            if (window.isSecureContext && 'wakeLock' in navigator && document.visibilityState === 'visible') {
+                try {
+                    if (adminWakeLock) { try { await adminWakeLock.release(); } catch (e) {} adminWakeLock = null; }
+                    adminWakeLock = await navigator.wakeLock.request('screen');
+                    adminWakeLock.addEventListener('release', () => { adminWakeLock = null; });
+                    if (adminNoSleep) { try { adminNoSleep.disable(); } catch (e) {} adminNoSleep = null; }
+                    hideAdminHttpsWarn();
+                    return;
+                } catch (err) { /* fallback NoSleep */ }
+            }
+            if (!adminNoSleep && typeof NoSleep !== 'undefined') {
+                try {
+                    adminNoSleep = new NoSleep();
+                    adminNoSleep.enable();
+                } catch (e) {}
+            }
+            if (!window.isSecureContext || !adminWakeLock) {
+                maybeShowAdminHttpsWarn();
             }
         }
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') requestAdminWakeLock();
         });
-        function requestAdminWakeLockOnce() {
+        function enableAdminKeepAwake() {
             requestAdminWakeLock();
-            document.removeEventListener('click', requestAdminWakeLockOnce);
-            document.removeEventListener('touchstart', requestAdminWakeLockOnce);
         }
-        document.addEventListener('click', requestAdminWakeLockOnce, { once: true });
-        document.addEventListener('touchstart', requestAdminWakeLockOnce, { once: true });
+        document.addEventListener('click', enableAdminKeepAwake, { once: false });
+        document.addEventListener('touchstart', enableAdminKeepAwake, { once: false, passive: true });
         if (document.visibilityState === 'visible') requestAdminWakeLock();
 
         // Kamera – stream z telefonu na TV (optymalizowane pod sieć lokalną)
@@ -852,8 +961,9 @@
             prezPlayPauseBtn.style.background = prezPlaying ? '#e74c3c' : '#2ecc71';
         }
         socket.on('prezentacja_playing', (d)=>{ prezPlaying = !!d.playing; updatePrezPlayPauseBtn(); });
-        socket.on('prezentacja_state', (d)=>{ prezPlaying = !!d.playing; updatePrezPlayPauseBtn(); });
-        socket.on('prezentacja_loaded', ()=>{ prezPlaying = false; updatePrezPlayPauseBtn(); });
+        socket.on('prezentacja_state', (d)=>{ prezPlaying = !!d.playing; updatePrezPlayPauseBtn(); if (d && typeof d.loop === 'boolean') { const el = document.getElementById('prez-loop'); if (el) el.checked = d.loop; } });
+        socket.on('prezentacja_loaded', (d)=>{ prezPlaying = false; updatePrezPlayPauseBtn(); if (d && typeof d.loop === 'boolean') { const el = document.getElementById('prez-loop'); if (el) el.checked = d.loop; } });
+        socket.on('prezentacja_loop', (d)=>{ const el = document.getElementById('prez-loop'); if (el && d) el.checked = d.loop !== false; });
         prezPlayPauseBtn.onclick = ()=> {
             prezPlaying = !prezPlaying;
             socket.emit(prezPlaying ? 'prezentacja_play' : 'prezentacja_pause');
@@ -942,45 +1052,42 @@
             updateOverlayButtons();
         };
 
-        // Mikser: Master + kanały (zapamiętywane)
-        const volSlider = document.getElementById('master-volume');
-        const volLabel = document.getElementById('master-volume-label');
-        const mixerChannels = document.getElementById('mixer-channels');
-        const CHANNELS = [
-            { id: 'quiz', label: 'Quiz' },
-            { id: 'familiada', label: 'Familiada' },
-            { id: 'statki', label: 'Statki' },
-            { id: 'prezentacja', label: 'Prezentacja' },
-            { id: 'sampler', label: 'NJR Sampler' },
-            { id: 'spiewaj', label: 'Śpiewaj Dalej' },
-            { id: 'bitwa', label: 'Bitwa wokalna' },
-            { id: 'whitney', label: 'Whitney' },
-            { id: 'imprezator', label: 'Imprezator' }
-        ];
-        let volumes = { master: 1, quiz: 1, familiada: 1, statki: 1, prezentacja: 1, sampler: 1, spiewaj: 1, bitwa: 1, whitney: 1, imprezator: 1 };
-        function renderMixerChannels() {
-            if (!mixerChannels) return;
-            mixerChannels.innerHTML = CHANNELS.map(ch => {
-                const v = Math.round((volumes[ch.id] ?? 1) * 100);
-                return `<div style="display:flex;align-items:center;gap:8px;"><span style="min-width:100px;">${ch.label}</span><input type="range" data-channel="${ch.id}" min="0" max="100" value="${v}" style="flex:1;accent-color:#f1c40f;"><span data-label="${ch.id}" style="min-width:36px;">${v}%</span></div>`;
-            }).join('');
-            mixerChannels.querySelectorAll('input[data-channel]').forEach(inp => {
-                inp.oninput = () => {
-                    const v = inp.value / 100;
-                    const ch = inp.dataset.channel;
-                    volumes[ch] = v;
-                    const lab = mixerChannels.querySelector(`[data-label="${ch}"]`);
-                    if (lab) lab.textContent = inp.value + '%';
-                    socket.emit('channel_volume', { channel: ch, volume: v });
-                };
+        // Głośność – dwa suwaki (gry wspólne + Imprezator)
+        const gamesVolSlider = document.getElementById('games-volume');
+        const gamesVolLabel = document.getElementById('games-volume-label');
+        const imprezVolSlider = document.getElementById('imprezator-volume');
+        const imprezVolLabel = document.getElementById('imprezator-volume-label');
+        function applyGamesVolumeUI(v) {
+            const pct = Math.round(Math.max(0, Math.min(1, v)) * 100);
+            if (gamesVolSlider) gamesVolSlider.value = pct;
+            if (gamesVolLabel) gamesVolLabel.textContent = pct + '%';
+        }
+        function applyImprezatorVolumeUI(v) {
+            const pct = Math.round(Math.max(0, Math.min(1, v)) * 100);
+            if (imprezVolSlider) imprezVolSlider.value = pct;
+            if (imprezVolLabel) imprezVolLabel.textContent = pct + '%';
+        }
+        socket.on('games_volume', (d) => applyGamesVolumeUI(d?.volume ?? 1));
+        socket.on('volumes_all', (d) => {
+            if (!d) return;
+            if (typeof d.games === 'number') applyGamesVolumeUI(d.games);
+            if (typeof d.imprezator === 'number') applyImprezatorVolumeUI(d.imprezator);
+        });
+        socket.on('imprezator_volume_sync', (v) => applyImprezatorVolumeUI(v));
+        if (gamesVolSlider) {
+            gamesVolSlider.addEventListener('input', () => {
+                const v = gamesVolSlider.value / 100;
+                applyGamesVolumeUI(v);
+                socket.emit('games_volume', { volume: v });
             });
         }
-        socket.on('master_volume', (d)=>{ const v = (d?.volume ?? 1); volumes.master = v; volSlider.value = Math.round(v*100); volLabel.textContent = Math.round(v*100) + '%'; });
-        socket.on('volumes_all', (d)=>{ if (d) { volumes = { ...volumes, ...d }; volSlider.value = Math.round((volumes.master ?? 1)*100); volLabel.textContent = Math.round((volumes.master ?? 1)*100) + '%'; renderMixerChannels(); } });
-        socket.on('connect', ()=>{ socket.emit('master_volume_request'); socket.emit('volumes_request'); });
-        volSlider.oninput = ()=>{ const v = volSlider.value/100; volLabel.textContent = volSlider.value + '%'; socket.emit('master_volume', { volume: v }); };
-        renderMixerChannels();
-
+        if (imprezVolSlider) {
+            imprezVolSlider.addEventListener('input', () => {
+                const v = imprezVolSlider.value / 100;
+                applyImprezatorVolumeUI(v);
+                socket.emit('imprezator_volume', v);
+            });
+        }
         // Tryby muzyczne – panel w dolnej części (phone = kontrolki, screen = odtwarzanie dźwięku)
         const MUSIC_MODES = {
             sampler: { api: '/api/njr-sampler', iframe: '/njr-sampler/phone.html', screen: '/njr-sampler.html', title: 'NJR Sampler' },
@@ -1008,22 +1115,15 @@
         function renderSamplerBankTabs(config) {
             _lastSamplerPhoneConfig = config || null;
             const wrap = document.getElementById('sampler-bank-tabs');
-            const swipeZone = document.getElementById('sampler-swipe-zone');
             if (!wrap) return;
             const banks = config && config.banks && Array.isArray(config.banks) ? config.banks : [];
             const nonImprezator = banks.filter(b => b.id !== '__imprezator__');
             if (nonImprezator.length <= 1) {
                 wrap.classList.remove('visible');
                 wrap.innerHTML = '';
-                if (swipeZone) swipeZone.classList.remove('visible');
                 return;
             }
             wrap.classList.add('visible');
-            if (swipeZone) {
-                swipeZone.classList.add('visible');
-                setupSamplerSwipe(swipeZone);
-                setupSamplerArrowClicks(swipeZone);
-            }
             const header = document.querySelector('.music-embed-header');
             if (header) setupSamplerSwipe(header);
             wrap.innerHTML = nonImprezator.map((b, i) =>
@@ -1112,8 +1212,137 @@
             tabs.forEach((t, i) => t.classList.toggle('active', i === idx));
         }
 
+        /** Ostatni wybrany bank w adminzie — żeby przy ponownym bootstrapie nie wracać do banku 1. */
+        let _spiewajBitwaActiveBankIdx = {};
+        /** Śpiewaj Dalej / Bitwa wokalna — wiele banków w admin PWA (telefon ma też swipe na liście). */
+        function postSpiewajBitwaSetBank(mode, index) {
+            if ((mode !== 'spiewaj' && mode !== 'bitwa') || typeof index !== 'number') return;
+            const sockEvt = mode === 'spiewaj' ? 'spiewaj_dalej_set_bank' : 'bitwa_wokalna_set_bank';
+            socket.emit(sockEvt, { index });
+            const ifr = document.getElementById('music-panel-iframe');
+            if (!ifr?.contentWindow) return;
+            const typ = mode === 'spiewaj' ? 'spiewaj_dalej_set_bank' : 'bitwa_wokalna_set_bank';
+            try { ifr.contentWindow.postMessage({ type: typ, index }, window.location.origin); } catch (_) {}
+        }
+        function pushSpiewajBitwaBootstrapToIframe(mode, opts) {
+            if ((mode !== 'spiewaj' && mode !== 'bitwa') || activeMusicMode !== mode) return;
+            const ifr = document.getElementById('music-panel-iframe');
+            if (!ifr?.contentWindow) return;
+            const cfg = opts && opts.config;
+            if (!cfg) return;
+            const typeBoot = mode === 'spiewaj' ? 'spiewaj_dalej_bootstrap' : 'bitwa_wokalna_bootstrap';
+            try {
+                ifr.contentWindow.postMessage({
+                    type: typeBoot,
+                    config: cfg,
+                    active: !!(opts && opts.active),
+                    targetBankIndex: (opts && typeof opts.targetBankIndex === 'number') ? opts.targetBankIndex : undefined
+                }, window.location.origin);
+            } catch (_) {}
+        }
+        function renderSpiewajBitwaBankTabs(mode, cfg, highlightIndex) {
+            const wrap = document.getElementById('sampler-bank-tabs');
+            if (!wrap) return;
+            const banks = cfg && cfg.banks && Array.isArray(cfg.banks) ? cfg.banks : [];
+            if (!banks.length) {
+                wrap.classList.remove('visible');
+                wrap.innerHTML = '';
+                return;
+            }
+            const hi = typeof highlightIndex === 'number' && Number.isFinite(highlightIndex)
+                ? Math.max(0, Math.min(banks.length - 1, Math.floor(highlightIndex)))
+                : 0;
+            wrap.classList.add('visible');
+            const header = document.querySelector('.music-embed-header');
+            if (header && banks.length > 1) setupSpiewajBitwaSwipe(header, mode);
+            wrap.innerHTML = banks.map((b, i) =>
+                `<button type="button" class="bank-tab${i === hi ? ' active' : ''}" data-bank-index="${i}" title="Kliknij, aby przełączyć bank">${(b.name || 'Bank ' + (i + 1)).replace(/</g, '&lt;')}</button>`
+            ).join('');
+            wrap.querySelectorAll('.bank-tab').forEach(btn => {
+                btn.onclick = () => {
+                    const idx = parseInt(btn.dataset.bankIndex, 10);
+                    if (isNaN(idx)) return;
+                    wrap.querySelectorAll('.bank-tab').forEach(t => t.classList.remove('active'));
+                    btn.classList.add('active');
+                    _spiewajBitwaActiveBankIdx[mode] = idx;
+                    postSpiewajBitwaSetBank(mode, idx);
+                };
+            });
+        }
+        function setupSpiewajBitwaSwipe(el, mode) {
+            if (!el || el._spiewajBitwaSwipeSetup === mode) return;
+            el._spiewajBitwaSwipeSetup = mode;
+            let startX = 0, startY = 0;
+            const THRESHOLD = 60;
+            const sockDelta = mode === 'spiewaj' ? 'spiewaj_dalej_bank_delta' : 'bitwa_wokalna_bank_delta';
+            el.addEventListener('touchstart', (e) => {
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+            }, { passive: true });
+            el.addEventListener('touchend', (e) => {
+                if (!e.changedTouches?.[0]) return;
+                const dx = e.changedTouches[0].clientX - startX;
+                const dy = e.changedTouches[0].clientY - startY;
+                if (Math.abs(dx) > THRESHOLD && Math.abs(dx) > Math.abs(dy)) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const d = dx > 0 ? -1 : 1;
+                    socket.emit(sockDelta, { delta: d });
+                    updateSpiewajBitwaBankTabActive(mode, d);
+                }
+            }, { passive: false });
+        }
+        function updateSpiewajBitwaBankTabActive(mode, delta) {
+            const wrap = document.getElementById('sampler-bank-tabs');
+            if (!wrap || !wrap.classList.contains('visible')) return;
+            const tabs = wrap.querySelectorAll('.bank-tab');
+            const active = wrap.querySelector('.bank-tab.active');
+            const idx = active ? Array.from(tabs).indexOf(active) : 0;
+            const next = Math.max(0, Math.min(tabs.length - 1, idx + delta));
+            tabs.forEach((t, i) => t.classList.toggle('active', i === next));
+            _spiewajBitwaActiveBankIdx[mode] = next;
+            postSpiewajBitwaSetBank(mode, next);
+        }
+        function syncSpiewajBitwaBankTabFromIframe(index) {
+            const wrap = document.getElementById('sampler-bank-tabs');
+            if (!wrap || !wrap.classList.contains('visible')) return;
+            const tabs = wrap.querySelectorAll('.bank-tab');
+            const idx = Math.max(0, Math.min(tabs.length - 1, Math.floor(index)));
+            if (activeMusicMode === 'spiewaj' || activeMusicMode === 'bitwa')
+                _spiewajBitwaActiveBankIdx[activeMusicMode] = idx;
+            tabs.forEach((t, i) => t.classList.toggle('active', i === idx));
+        }
+        function bootstrapSpiewajBitwaIframe(musicMode) {
+            if (musicMode !== 'spiewaj' && musicMode !== 'bitwa') return;
+            const api = musicMode === 'spiewaj' ? '/api/spiewaj-dalej/config' : '/api/bitwa-wokalna/config';
+            fetch(api + '?_=' + Date.now(), { cache: 'no-store' })
+                .then(r => r.json())
+                .then(d => {
+                    if (!d || !d.config) return;
+                    const pref = _spiewajBitwaActiveBankIdx[musicMode];
+                    const serverBi = typeof d.activeBankIndex === 'number' ? d.activeBankIndex : null;
+                    const bi = typeof pref === 'number' && Number.isFinite(pref)
+                        ? pref
+                        : (typeof serverBi === 'number' ? serverBi : 0);
+                    renderSpiewajBitwaBankTabs(musicMode, d.config, bi);
+                    pushSpiewajBitwaBootstrapToIframe(musicMode, {
+                        config: d.config,
+                        active: !!d.active,
+                        targetBankIndex: bi
+                    });
+                })
+                .catch(() => {});
+        }
+
         window.addEventListener('message', (ev) => {
             if (ev.origin !== window.location.origin) return;
+            if (!ev.data) return;
+            if ((activeMusicMode === 'bitwa' && ev.data.type === 'bitwa_wokalna_bank_tab') ||
+                (activeMusicMode === 'spiewaj' && ev.data.type === 'spiewaj_dalej_bank_tab')) {
+                if (typeof ev.data.index !== 'number' || !Number.isFinite(ev.data.index)) return;
+                syncSpiewajBitwaBankTabFromIframe(ev.data.index);
+                return;
+            }
             if (!ev.data || activeMusicMode !== 'sampler') return;
             if (ev.data.type === 'imprezja_sampler_iframe_ready') {
                 /** Iframe zarejestrował listenery — dociążamy aktualny config od razu, bez czekania na jego event load (niektóre PWA/Androidy). */
@@ -1137,23 +1366,6 @@
                 return;
             }
         });
-
-        function setupSamplerArrowClicks(swipeZone) {
-            if (!swipeZone || swipeZone._samplerArrowClicks) return;
-            swipeZone._samplerArrowClicks = true;
-            swipeZone.querySelectorAll('.swipe-arrow').forEach((el, i) => {
-                el.style.cursor = 'pointer';
-                el.setAttribute('role', 'button');
-                el.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const dir = i === 0 ? -1 : 1;
-                    socket.emit('njr_sampler_bank_delta', dir);
-                    postSamplerIframe({ type: 'njr_sampler_bank_delta', delta: dir });
-                    updateBankTabActive(dir);
-                });
-            });
-        }
 
         /** Zapobiega „zawieszeniu” iframe na tym samym URL (po zamknięciu / resecie PWA) – wymusza pełne przeładowanie phone.html. */
         function musicPanelUrlWithCacheBust(path) {
@@ -1198,6 +1410,7 @@
                 if (finished) return;
                 finished = true;
                 bootstrapSamplerIframe();
+                if (musicMode === 'spiewaj' || musicMode === 'bitwa') bootstrapSpiewajBitwaIframe(musicMode);
             };
             const fallbackMs = 1500;
             const t = setTimeout(finish, fallbackMs);
@@ -1207,6 +1420,10 @@
                 if (musicMode === 'sampler') {
                     setTimeout(bootstrapSamplerIframe, 250);
                     setTimeout(bootstrapSamplerIframe, 900);
+                }
+                if (musicMode === 'spiewaj' || musicMode === 'bitwa') {
+                    setTimeout(() => bootstrapSpiewajBitwaIframe(musicMode), 250);
+                    setTimeout(() => bootstrapSpiewajBitwaIframe(musicMode), 900);
                 }
             }, { once: true });
             iframe.src = busted;
@@ -1223,7 +1440,12 @@
             document.getElementById('music-audio-iframe').src = '';
             document.getElementById('sampler-bank-tabs').classList.remove('visible');
             document.getElementById('sampler-bank-tabs').innerHTML = '';
-            document.getElementById('sampler-swipe-zone').classList.remove('visible');
+            const embedHeader = document.querySelector('.music-embed-header');
+            if (embedHeader) {
+                delete embedHeader._spiewajBitwaSwipeSetup;
+                delete embedHeader._swipeSetup;
+            }
+            _spiewajBitwaActiveBankIdx = {};
             document.querySelectorAll('.music-tile.active').forEach(t => t.classList.remove('active'));
             activeMusicMode = null;
         }
@@ -1251,6 +1473,12 @@
                 const audioIframe = document.getElementById('music-audio-iframe');
                 /** Ustawiamy activeMusicMode PRZED loadem iframe, bo phone.html może zdążyć wysłać 'imprezja_sampler_iframe_ready' zanim uzyskamy szansę na przypisanie — a listener w tym pliku odfiltrowuje wiadomości gdy activeMusicMode !== 'sampler'. */
                 activeMusicMode = mode;
+                if (mode === 'spiewaj' || mode === 'bitwa') {
+                    _spiewajBitwaActiveBankIdx[mode] = 0;
+                    const w = document.getElementById('sampler-bank-tabs');
+                    w.innerHTML = '';
+                    w.classList.remove('visible');
+                }
                 loadMusicPanelIframe(cfg.iframe, mode);
                 audioIframe.src = '';
                 document.querySelectorAll('.music-tile.active').forEach(t => t.classList.remove('active'));
@@ -1264,10 +1492,10 @@
                     socket.emit('music_mode_screen', { graphicUrl: '' });
                 }
                 socket.emit('screen_switch', { mode });
-                if (mode !== 'sampler') {
+                /* Zakładki banków: sampler | śpiewaj | bitwa; dla pozostałych modów czyścimy */
+                if (mode !== 'sampler' && mode !== 'spiewaj' && mode !== 'bitwa') {
                     document.getElementById('sampler-bank-tabs').classList.remove('visible');
                     document.getElementById('sampler-bank-tabs').innerHTML = '';
-                    document.getElementById('sampler-swipe-zone').classList.remove('visible');
                 }
             } catch (err) {
                 alert('Błąd: ' + (err.message || 'Nie udało się uruchomić'));
@@ -1284,6 +1512,9 @@
             if (embed && embed.style.display !== 'none') {
                 loadMusicPanelIframe(cfg.iframe, activeMusicMode);
             }
+            if (activeMusicMode === 'spiewaj' || activeMusicMode === 'bitwa') {
+                bootstrapSpiewajBitwaIframe(activeMusicMode);
+            }
         });
 
         // SETUP – rozwijanie kart
@@ -1296,7 +1527,6 @@
         document.getElementById('setup-powitanie')?.classList.add('collapsed');
         document.getElementById('setup-prezentacja')?.classList.add('collapsed');
         document.getElementById('setup-kamera')?.classList.add('collapsed');
-        document.getElementById('setup-volume')?.classList.add('collapsed');
 
         // Pełny ekran całego panelu admina
         (function() {

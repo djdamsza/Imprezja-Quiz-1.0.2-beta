@@ -4,7 +4,7 @@
  */
 (function (global) {
     'use strict';
-    var CAP = 0.85;
+    var CAP = Math.pow(10, -3 / 20);
     function clampDigitalOutputLinear(v) {
         var n = Number(v);
         if (!isFinite(n) || n <= 0) return 0;

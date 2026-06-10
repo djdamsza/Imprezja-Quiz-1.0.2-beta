@@ -9,13 +9,7 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{width:100%;height:100%;overflow:hidden;background:var(--imp-bg);color:var(--imp-text);font-family:var(--imp-font);user-select:none}
-body{padding-top:52px;padding-top:calc(52px + env(safe-area-inset-top))}
-
-.volume-bar{position:fixed;top:0;left:0;right:0;z-index:100;padding:12px 16px;padding-top:max(12px,env(safe-area-inset-top));background:#000c1a;border-bottom:1px solid rgba(255,255,255,.1)}
-.volume-bar input[type=range]{width:100%;height:8px;-webkit-appearance:none;appearance:none;background:rgba(255,255,255,.2);border-radius:4px;outline:none}
-.volume-bar input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;background:#0ea5e9;border-radius:50%;cursor:pointer}
-
-.fullscreen-btn{position:fixed;bottom:max(16px,env(safe-area-inset-bottom));right:max(16px,env(safe-area-inset-right));width:48px;height:48px;border-radius:8px;background:rgba(14,165,233,.9);border:2px solid rgba(255,255,255,.3);color:#fff;font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1000;box-shadow:0 2px 12px rgba(0,0,0,.4)}
+body{padding-bottom:calc(52px + env(safe-area-inset-bottom))}{position:fixed;bottom:max(16px,env(safe-area-inset-bottom));right:max(16px,env(safe-area-inset-right));width:48px;height:48px;border-radius:8px;background:rgba(14,165,233,.9);border:2px solid rgba(255,255,255,.3);color:#fff;font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1000;box-shadow:0 2px 12px rgba(0,0,0,.4)}
 .fullscreen-btn:hover,.fullscreen-btn:active{background:rgba(14,165,233,1)}
 
 .screen{position:fixed;inset:0;display:none;flex-direction:column}
@@ -85,10 +79,6 @@ body{padding-top:52px;padding-top:calc(52px + env(safe-area-inset-top))}
 </style>
 </head>
 <body class="imp-admin-editor">
-
-<div class="volume-bar">
-    <input type="range" id="volume" min="0" max="100" value="65" title="Głośność">
-</div>
 
 <!-- Ładowanie -->
 <div class="screen active" id="s-loading">
@@ -164,6 +154,7 @@ body{padding-top:52px;padding-top:calc(52px + env(safe-area-inset-top))}
 
 <audio id="audio-bg" loop></audio>
 <script src="/socket.io/socket.io.js"></script>
+<script src="/lib/games-volume-bar.js"></script>
 <script>
 const socket = io();
 const LETTERS = 'ABCDEFGHIJ';
@@ -313,14 +304,8 @@ function renderStartScreen() {
     if (config.soundtrack) document.getElementById('music-panel').style.display = 'block';
 }
 
-// ── Głośność — regulator na górze ───────────────────────────
-const volSlider = document.getElementById('volume');
-function emitVolume() {
-    const v = parseFloat(volSlider.value) / 100;
-    socket.emit('ships_solo_volume', { volume: v });
-}
-volSlider.oninput = emitVolume;
-socket.on('ships_solo_volume', (d) => { if (d && typeof d.volume === 'number') { volSlider.value = Math.round(d.volume * 100); } });
+// ── Głośność gier (suwak na dole) ───────────────────────────
+if (typeof ImprezjaGamesVolume !== 'undefined') ImprezjaGamesVolume.mount(socket, { bodyPadding: false });
 function toggleMusic() {
     if (!config || !config.soundtrack) return;
     musicPlaying = !musicPlaying;
@@ -515,7 +500,7 @@ function renderMiniBoard(lastR, lastC) {
 // ── Socket ─────────────────────────────────────────────────
 socket.on('connect', () => {
     socket.emit('ships_solo_get_state');
-    emitVolume();
+    if (typeof ImprezjaGamesVolume !== 'undefined') ImprezjaGamesVolume.mount(socket, { bodyPadding: false });
 });
 socket.on('ships_solo_state', (g) => { if (g && gameRunning) shots = g.shots || {}; });
 

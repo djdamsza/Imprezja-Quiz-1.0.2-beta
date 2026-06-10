@@ -40,66 +40,21 @@
             min-height: 100%;
             height: 100%;
         }
-        .volume-bar {
-            flex-shrink: 0;
-            padding: 12px 16px;
-            padding-top: max(12px, env(safe-area-inset-top));
-            background: #0d0d14;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-        .volume-bar input[type="range"] {
-            width: 100%;
-            height: 8px;
-            -webkit-appearance: none;
-            appearance: none;
-            background: rgba(255,255,255,0.2);
-            border-radius: 4px;
-            outline: none;
-        }
-        .volume-bar input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 24px;
-            height: 24px;
-            background: #9b59b6;
-            border-radius: 50%;
-            cursor: pointer;
-        }
         .bank-switcher {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            padding: 12px 8px;
+            justify-content: center;
+            padding: 12px 16px;
             background: rgba(0,0,0,0.2);
             border-bottom: 1px solid rgba(255,255,255,0.1);
             flex-shrink: 0;
+            touch-action: pan-y;
         }
-        .bank-arrow {
-            width: 52px;
-            height: 52px;
-            min-width: 52px;
-            min-height: 52px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2rem;
-            font-weight: 800;
-            color: #f1c40f;
-            cursor: pointer;
-            -webkit-tap-highlight-color: transparent;
-            border: 2px solid #f1c40f;
-            border-radius: 10px;
-            background: rgba(241,196,15,0.25);
-            box-shadow: 0 0 10px rgba(241,196,15,0.3);
-        }
-        .bank-arrow:active { opacity: 0.7; }
-        .bank-arrow.hidden { visibility: hidden; pointer-events: none; }
         .bank-name {
-            flex: 1;
             font-size: 1.2rem;
             font-weight: 700;
             color: #fff;
             text-align: center;
-            padding: 0 8px;
         }
         .tiles-container {
             display: grid;
@@ -207,13 +162,8 @@
     </style>
 </head>
 <body>
-    <div class="volume-bar">
-        <input type="range" id="volume" min="0" max="100" value="100">
-    </div>
     <div class="bank-switcher" id="bank-switcher" style="display:none;">
-        <button type="button" class="bank-arrow" id="bank-arrow-left" aria-label="Poprzedni bank">←</button>
         <span class="bank-name" id="bank-name">—</span>
-        <button type="button" class="bank-arrow" id="bank-arrow-right" aria-label="Następny bank">→</button>
     </div>
 
     <div class="wait-screen" id="wait-screen">
@@ -357,17 +307,6 @@
                 setTimeout(() => { fetchStateViaREST(); }, 500);
             }
         });
-        socket.on('njr_sampler_volume_sync', (v) => {
-            const vol = Math.max(0, Math.min(1, v));
-            const slider = document.getElementById('volume');
-            if (slider) slider.value = Math.round(vol * 100);
-        });
-
-        document.getElementById('volume').addEventListener('input', (e) => {
-            const v = e.target.value / 100;
-            socket.emit('njr_sampler_volume', v);
-        });
-
         let playingBankIndex = null;
         socket.on('njr_sampler_playing', (payload) => {
             const p = typeof payload === 'object' ? payload : { tileId: payload };
@@ -413,11 +352,6 @@
             if (!switcher) return;
             bankNameEl.textContent = bankName;
             switcher.style.display = 'flex';
-            const leftBtn = document.getElementById('bank-arrow-left');
-            const rightBtn = document.getElementById('bank-arrow-right');
-            const many = currentSamplerBankIndices().length > 1;
-            if (leftBtn) leftBtn.classList.toggle('hidden', !many);
-            if (rightBtn) rightBtn.classList.toggle('hidden', !many);
         }
 
         function render() {
@@ -511,12 +445,32 @@
             render();
         }
 
-        document.getElementById('bank-arrow-left')?.addEventListener('click', () => {
-            socket.emit('njr_sampler_bank_delta', -1);
-        });
-        document.getElementById('bank-arrow-right')?.addEventListener('click', () => {
-            socket.emit('njr_sampler_bank_delta', 1);
-        });
+        function emitBankDelta(delta) {
+            if (delta !== 1 && delta !== -1) return;
+            if (currentSamplerBankIndices().length <= 1) return;
+            socket.emit('njr_sampler_bank_delta', delta);
+        }
+
+        let bankSwipeStartX = 0;
+        let bankSwipeStartY = 0;
+        function setupBankSwipe(el) {
+            if (!el || el._bankSwipeSetup) return;
+            el._bankSwipeSetup = true;
+            el.addEventListener('touchstart', (e) => {
+                if (!e.touches?.[0]) return;
+                bankSwipeStartX = e.touches[0].clientX;
+                bankSwipeStartY = e.touches[0].clientY;
+            }, { passive: true });
+            el.addEventListener('touchend', (e) => {
+                if (!e.changedTouches?.[0]) return;
+                const dx = e.changedTouches[0].clientX - bankSwipeStartX;
+                const dy = e.changedTouches[0].clientY - bankSwipeStartY;
+                if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) {
+                    emitBankDelta(dx > 0 ? -1 : 1);
+                }
+            }, { passive: true });
+        }
+        setupBankSwipe(document.getElementById('bank-switcher'));
 
         function handleTileTap(e) {
             e.stopPropagation();
@@ -554,6 +508,12 @@
             const t = e.changedTouches[0];
             const dx = t.clientX - tileTouchPan.x0;
             const dy = t.clientY - tileTouchPan.y0;
+            if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) && currentSamplerBankIndices().length > 1) {
+                tileTouchPan = null;
+                tileIgnoreClicksUntil = Date.now() + 450;
+                emitBankDelta(dx > 0 ? -1 : 1);
+                return;
+            }
             const moved = tileTouchPan.moved || Math.hypot(dx, dy) > TILE_TAP_MAX_MOVE_PX;
             tileTouchPan = null;
             if (moved) {

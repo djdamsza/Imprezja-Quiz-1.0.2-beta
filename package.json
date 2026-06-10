@@ -1,7 +1,7 @@
 {
   "name": "votebattle",
   "description": "Imprezja Quiz – quiz i głosowanie w sieci lokalnej (działa offline)",
-  "version": "1.2.5",
+  "version": "1.2.7",
   "author": "Damian Nowaczyk",
   "main": "electron-main.js",
   "scripts": {
@@ -16,7 +16,7 @@
     "electron": "npm run kill-port && node scripts/sleep.js 2000 && electron .",
     "dist": "electron-builder",
     "build": "electron-builder",
-    "build:mac": "electron-builder --mac",
+    "build:mac": "node scripts/build-mac-native.js",
     "build:mac:universal": "electron-builder --mac --universal",
     "build:mac:x64": "node scripts/prepare-cloudflared-for-mac-x64.js && electron-builder --mac --x64 --publish never",
     "build:mac:intel": "node scripts/prepare-cloudflared-for-mac-x64.js && electron-builder --mac --x64 --publish never",

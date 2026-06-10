@@ -56,19 +56,86 @@ const io = socketIo(server, {
 const PORT = 3000;
 const PORT_HTTPS = 3443;
 
-// Certyfikaty HTTPS – dla Wake Lock (niegasnący ekran) w Familiada admin i przyciski
+// Certyfikaty HTTPS – dla Wake Lock (niegasnący ekran) w admin PWA i Familiada
 let httpsOptions = null;
-const certsDir = path.join(__dirname, 'certs');
-const keyPath = path.join(certsDir, 'key.pem');
-const certPath = path.join(certsDir, 'cert.pem');
+function getDefaultDataDir() {
+    const home = os.homedir();
+    if (process.platform === 'darwin') return path.join(home, 'Library', 'Application Support', 'Imprezja Quiz');
+    if (process.platform === 'win32') return path.join(process.env.APPDATA || home, 'Imprezja Quiz');
+    return path.join(home, '.config', 'Imprezja Quiz');
+}
+let certsDir = path.join(__dirname, 'certs');
+let keyPath = path.join(certsDir, 'key.pem');
+let certPath = path.join(certsDir, 'cert.pem');
+
+function resolveCertsPaths() {
+    const bundledDir = path.join(__dirname, 'certs');
+    const bundledKey = path.join(bundledDir, 'key.pem');
+    const bundledCert = path.join(bundledDir, 'cert.pem');
+    const writableDir = path.join(process.env.IMPREZJA_DATA_DIR || getDefaultDataDir(), 'certs');
+    const writableKey = path.join(writableDir, 'key.pem');
+    const writableCert = path.join(writableDir, 'cert.pem');
+
+    // Spakowana aplikacja (asar) — certy muszą być w katalogu zapisywalnym
+    if (process.env.IMPREZJA_APP_PATH) {
+        if (fs.existsSync(writableKey) && fs.existsSync(writableCert)) {
+            return { dir: writableDir, keyPath: writableKey, certPath: writableCert };
+        }
+        if (fs.existsSync(bundledKey) && fs.existsSync(bundledCert)) {
+            try {
+                if (!fs.existsSync(writableDir)) fs.mkdirSync(writableDir, { recursive: true });
+                fs.copyFileSync(bundledKey, writableKey);
+                fs.copyFileSync(bundledCert, writableCert);
+                console.log('✅ Skopiowano certyfikaty HTTPS do', writableDir);
+                return { dir: writableDir, keyPath: writableKey, certPath: writableCert };
+            } catch (copyErr) {
+                console.warn('⚠️ Nie udało się skopiować certów do katalogu danych:', copyErr.message);
+            }
+        }
+        return { dir: writableDir, keyPath: writableKey, certPath: writableCert };
+    }
+
+    if (fs.existsSync(bundledKey) && fs.existsSync(bundledCert)) {
+        return { dir: bundledDir, keyPath: bundledKey, certPath: bundledCert };
+    }
+    return { dir: writableDir, keyPath: writableKey, certPath: writableCert };
+}
+
+function getHttpsCertMeta() {
+    try {
+        if (!fs.existsSync(certPath)) return null;
+        const { X509Certificate } = require('crypto');
+        const cert = new X509Certificate(fs.readFileSync(certPath));
+        const validToMs = Date.parse(cert.validTo);
+        return {
+            validTo: cert.validTo,
+            expired: Number.isFinite(validToMs) && Date.now() > validToMs
+        };
+    } catch (_) {
+        return null;
+    }
+}
+
 function loadHttpsCerts() {
     try {
+        const resolved = resolveCertsPaths();
+        certsDir = resolved.dir;
+        keyPath = resolved.keyPath;
+        certPath = resolved.certPath;
+
         if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
             httpsOptions = {
                 key: fs.readFileSync(keyPath),
                 cert: fs.readFileSync(certPath)
             };
             console.log('✅ Certyfikaty HTTPS załadowane z', certsDir);
+            const meta = getHttpsCertMeta();
+            if (meta && meta.expired) {
+                console.warn('⚠️ Certyfikat HTTPS WYGASŁ (' + meta.validTo + ') — telefony na HTTPS mogą odrzucać połączenie; Wake Lock nie zadziała. Wygeneruj nowy cert w certs/.');
+            } else if (meta && meta.validTo) {
+                const daysLeft = Math.floor((Date.parse(meta.validTo) - Date.now()) / 86400000);
+                if (daysLeft <= 30) console.warn('⚠️ Certyfikat HTTPS wygasa za ' + daysLeft + ' dni (' + meta.validTo + ')');
+            }
             return;
         }
         if (!fs.existsSync(certsDir)) fs.mkdirSync(certsDir, { recursive: true });
@@ -86,7 +153,7 @@ function loadHttpsCerts() {
         console.log('✅ Wygenerowano certyfikaty HTTPS w', certsDir);
     } catch (err) {
         console.warn('⚠️ HTTPS niedostępny:', err.message);
-        console.warn('   Wake Lock w Familiada admin/przyciski wymaga HTTPS. Użyj tunelu (działa) lub: openssl req -x509 -newkey rsa:2048 -nodes -subj "/CN=localhost" -keyout certs/key.pem -out certs/cert.pem');
+        console.warn('   Wake Lock w admin PWA / Familiada wymaga HTTPS. QR panelu na telefonie użyje wtedy HTTP (ekran może gasnąć).');
     }
 }
 loadHttpsCerts();
@@ -149,12 +216,6 @@ console.log('   ═════════════════════�
 // W aplikacji spakowanej (asar) __dirname jest tylko do odczytu – quizy i uploady w katalogu danych
 // Gdy IMPREZJA_DATA_DIR nie jest ustawiony (npm start), używamy tego samego katalogu co Electron,
 // żeby NJR Sampler i Śpiewaj Dalej nie traciły list przy przełączaniu trybów.
-function getDefaultDataDir() {
-    const home = os.homedir();
-    if (process.platform === 'darwin') return path.join(home, 'Library', 'Application Support', 'Imprezja Quiz');
-    if (process.platform === 'win32') return path.join(process.env.APPDATA || home, 'Imprezja Quiz');
-    return path.join(home, '.config', 'Imprezja Quiz');
-}
 const dataDir = process.env.IMPREZJA_DATA_DIR || getDefaultDataDir();
 const VOLUMES_FILE = path.join(dataDir, 'imprezja-volumes.json');
 const quizzesDir = path.join(dataDir, 'quizzes');
@@ -322,69 +383,90 @@ let prezentacjaPlaying = false;
 let prezentacjaLoop = true;
 const PREZENTACJE_LAST_FILE = path.join(path.dirname(quizzesDir), 'prezentacje-last.json');
 
-// Sufit liniowy sygnału do ekranów audio (headroom cyfrowy — ↓ przester przy pełnym kanał×master + normalizacja).
-const DIGITAL_OUTPUT_LINEAR_CAP = 0.85;
+// Sufit liniowy sygnału (−3 dB headroom — suwak 100% nie przekracza ~0,708 liniowo).
+const DIGITAL_OUTPUT_LINEAR_CAP = Math.pow(10, -3 / 20);
 function digitalOutputClamp(linear) {
     const x = Number(linear);
     if (!isFinite(x) || x <= 0) return 0;
     return Math.min(DIGITAL_OUTPUT_LINEAR_CAP, x);
 }
+function clampVolume01(v) {
+    const n = Number(v);
+    if (!isFinite(n)) return 0;
+    return Math.max(0, Math.min(1, n));
+}
 
-// Model miksera: Master (globalny mnożnik) + kanały (per-tryb). Wyjście = kanał × master.
-// Kanały zapamiętywane – ostatnie ustawienie przywracane przy starcie trybu.
-let masterVolume = 1;
-let quizVolume = 1;
-let familiadaVolume = 1;
-let statkiVolume = 1;
-let prezentacjaVolume = 1;
-// njrSamplerVolume, whitneyVolume, spiewajDalejVolume, bitwaWokalnaVolume, imprezatorVolume – poniżej
+// Dwa poziomy głośności: wspólny dla gier + osobny Imprezator (muzyka taneczna).
+let gamesVolume = 1;
+let imprezatorVolume = 1;
 
 function loadVolumes() {
     try {
-        if (fs.existsSync(VOLUMES_FILE)) {
-            const raw = fs.readFileSync(VOLUMES_FILE, 'utf8');
-            const v = JSON.parse(raw);
-            if (typeof v.master === 'number') masterVolume = Math.max(0, Math.min(1, v.master));
-            if (typeof v.quiz === 'number') quizVolume = Math.max(0, Math.min(1, v.quiz));
-            if (typeof v.familiada === 'number') familiadaVolume = Math.max(0, Math.min(1, v.familiada));
-            if (typeof v.statki === 'number') statkiVolume = Math.max(0, Math.min(1, v.statki));
-            if (typeof v.prezentacja === 'number') prezentacjaVolume = Math.max(0, Math.min(1, v.prezentacja));
-            if (typeof v.sampler === 'number') njrSamplerVolume = Math.max(0, Math.min(1, v.sampler));
-            if (typeof v.whitney === 'number') whitneyVolume = Math.max(0, Math.min(1, v.whitney));
-            if (typeof v.spiewaj === 'number') spiewajDalejVolume = Math.max(0, Math.min(1, v.spiewaj));
-            if (typeof v.bitwa === 'number') bitwaWokalnaVolume = Math.max(0, Math.min(1, v.bitwa));
-            if (typeof v.imprezator === 'number') imprezatorVolume = Math.max(0, Math.min(1, v.imprezator));
-            console.log('   🔊 Głośności załadowane z', VOLUMES_FILE);
+        if (!fs.existsSync(VOLUMES_FILE)) return;
+        const raw = fs.readFileSync(VOLUMES_FILE, 'utf8');
+        const v = JSON.parse(raw);
+        if (typeof v.games === 'number') {
+            gamesVolume = clampVolume01(v.games);
+        } else {
+            const master = typeof v.master === 'number' ? clampVolume01(v.master) : 1;
+            const legacyKeys = ['familiada', 'quiz', 'sampler', 'spiewaj', 'bitwa', 'statki', 'prezentacja', 'whitney'];
+            for (const k of legacyKeys) {
+                if (typeof v[k] === 'number') {
+                    gamesVolume = clampVolume01(v[k] * master);
+                    break;
+                }
+            }
         }
+        if (typeof v.imprezator === 'number') {
+            if (typeof v.games === 'number') {
+                imprezatorVolume = clampVolume01(v.imprezator);
+            } else {
+                const master = typeof v.master === 'number' ? clampVolume01(v.master) : 1;
+                imprezatorVolume = clampVolume01(v.imprezator * master);
+            }
+        }
+        console.log('   🔊 Głośności załadowane z', VOLUMES_FILE, '(gry:', gamesVolume, 'imprezator:', imprezatorVolume + ')');
     } catch (e) { console.warn('⚠️ loadVolumes:', e.message); }
 }
 function saveVolumes() {
     try {
         const dir = path.dirname(VOLUMES_FILE);
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-        fs.writeFileSync(VOLUMES_FILE, JSON.stringify({
-            master: masterVolume, quiz: quizVolume, familiada: familiadaVolume, statki: statkiVolume,
-            prezentacja: prezentacjaVolume, sampler: njrSamplerVolume, whitney: whitneyVolume,
-            spiewaj: spiewajDalejVolume, bitwa: bitwaWokalnaVolume, imprezator: imprezatorVolume
-        }, null, 2), 'utf8');
+        fs.writeFileSync(VOLUMES_FILE, JSON.stringify({ games: gamesVolume, imprezator: imprezatorVolume }, null, 2), 'utf8');
     } catch (e) { console.warn('⚠️ saveVolumes:', e.message); }
 }
+function setGamesVolume(v) {
+    gamesVolume = clampVolume01(v);
+    saveVolumes();
+    broadcastEffectiveVolumes();
+}
+function setImprezatorVolume(v) {
+    imprezatorVolume = clampVolume01(v);
+    saveVolumes();
+    broadcastEffectiveVolumes();
+}
 function broadcastEffectiveVolumes() {
-    io.emit('quiz_volume', { volume: quizVolume });
-    io.to('familiada').emit('familiada_volume', familiadaVolume);
-    io.emit('ships_solo_volume', { volume: statkiVolume });
-    io.emit('prezentacja_volume', { volume: prezentacjaVolume });
-    const eff = (ch) => digitalOutputClamp(ch * masterVolume);
-    io.to('njr_sampler_screen').emit('njr_sampler_volume', eff(njrSamplerVolume));
-    io.to('njr_sampler_phone').emit('njr_sampler_volume_sync', njrSamplerVolume);
-    io.to('whitney_screen').emit('whitney_volume', eff(whitneyVolume));
-    io.to('whitney_phone').emit('whitney_volume_sync', whitneyVolume);
-    io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_volume', eff(spiewajDalejVolume));
-    io.to('spiewaj_dalej_phone').emit('spiewaj_dalej_volume_sync', spiewajDalejVolume);
-    io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_volume', eff(bitwaWokalnaVolume));
-    io.to('bitwa_wokalna_phone').emit('bitwa_wokalna_volume_sync', bitwaWokalnaVolume);
-    io.to('imprezator_screen').emit('imprezator_volume', eff(imprezatorVolume));
+    const gEff = digitalOutputClamp(gamesVolume);
+    const iEff = digitalOutputClamp(imprezatorVolume);
+    io.emit('games_volume', { volume: gamesVolume });
+    io.emit('quiz_volume', { volume: gamesVolume });
+    io.to('familiada').emit('familiada_volume', gamesVolume);
+    io.emit('ships_solo_volume', { volume: gamesVolume });
+    io.emit('prezentacja_volume', { volume: gamesVolume });
+    io.to('njr_sampler_screen').emit('njr_sampler_volume', gEff);
+    io.to('njr_sampler_phone').emit('njr_sampler_volume_sync', gamesVolume);
+    io.to('whitney_screen').emit('whitney_volume', gEff);
+    io.to('whitney_phone').emit('whitney_volume_sync', gamesVolume);
+    io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_volume', gEff);
+    io.to('spiewaj_dalej_phone').emit('spiewaj_dalej_volume_sync', gamesVolume);
+    io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_volume', gEff);
+    io.to('bitwa_wokalna_phone').emit('bitwa_wokalna_volume_sync', gamesVolume);
+    io.to('imprezator_screen').emit('imprezator_volume', iEff);
     io.to('imprezator_phone').emit('imprezator_volume_sync', imprezatorVolume);
+    // Kompatybilność ze starymi klientami (master = wspólna głośność gier)
+    io.emit('master_volume', { volume: gamesVolume });
+    io.emit('admin_master_volume', Math.round(gamesVolume * 100));
+    io.emit('volumes_all', { games: gamesVolume, imprezator: imprezatorVolume });
 }
 
 // Tryb gry: null | 'quiz' | 'familiada' | 'party'
@@ -661,15 +743,11 @@ function loadFamiliadaGoldenData() {
         const publicGolden = path.join(appPathForGolden, 'public', 'familiada', FAMILIADA_GOLDEN_FILE);
         if (fs.existsSync(familiadaGoldenPath)) {
             const raw = fs.readFileSync(familiadaGoldenPath, 'utf8');
-            familiadaGoldenQuestions = JSON.parse(raw);
-            if (!Array.isArray(familiadaGoldenQuestions)) familiadaGoldenQuestions = [];
-            familiadaGoldenQuestions = familiadaGoldenQuestions.slice(0, 10);
+            familiadaGoldenQuestions = normalizeFamiliadaQuestionsList(JSON.parse(raw));
             console.log(`✅ Familiada Złota Lista: załadowano ${familiadaGoldenQuestions.length} pytań z ${familiadaGoldenPath}`);
         } else if (fs.existsSync(publicGolden)) {
             const raw = fs.readFileSync(publicGolden, 'utf8');
-            familiadaGoldenQuestions = JSON.parse(raw);
-            if (!Array.isArray(familiadaGoldenQuestions)) familiadaGoldenQuestions = [];
-            familiadaGoldenQuestions = familiadaGoldenQuestions.slice(0, 10);
+            familiadaGoldenQuestions = normalizeFamiliadaQuestionsList(JSON.parse(raw));
             if (!fs.existsSync(familiadaDir)) fs.mkdirSync(familiadaDir, { recursive: true });
             fs.writeFileSync(familiadaGoldenPath, JSON.stringify(familiadaGoldenQuestions, null, 2), 'utf8');
             console.log(`✅ Familiada Złota Lista: skopiowano ${familiadaGoldenQuestions.length} pytań z public`);
@@ -778,7 +856,6 @@ let njrSamplerActive = false;
 let njrSamplerPlayingTile = null; // jedyny aktywny kafelek Samplera (jeden strumień audio)
 let njrSamplerPlayingBankIndex = null;
 let njrSamplerPlayingImprezatorTrack = null; // utwór z banku Imprezator w samplerze
-let njrSamplerVolume = 1; // 0–1, master z telefonu
 let imprezatorCurrentlyPlaying = false;    // standalone imprezator odtwarza utwór
 let imprezatorCurrentTrackId = null;     // jaki utwór gra na ekranie Imprezatora (telefon → ekran)
 let audioMonitorLast = null;               // ostatnio odtwarzane: { type, ...data } – dla play-last
@@ -1173,7 +1250,6 @@ const WHITNEY_DEFAULT_PATH = path.join(appRootForDefaults, 'public', 'njr-sample
 let whitneyConfig = { tileCount: 8, tiles: [] };
 let whitneyActive = false;
 let whitneyPlayingTile = null;
-let whitneyVolume = 1;
 
 function loadWhitneyConfig() {
     try {
@@ -1434,69 +1510,119 @@ loadWhitneyConfig();
 // Middleware
 app.use(express.json());
 
-// === HELPERS: referencje plików w quizach (używane przez REST i socket) ===
-function _extractFilePath(url) {
-    if (!url) return null;
-    const match = url.match(/\/uploads\/([^\/]+)$/);
-    if (match) return match[1];
-    if (!url.includes('/') && !url.includes('http')) return url;
-    return null;
-}
+// === HELPERS: referencje plików w uploads (quizy + Party + sampler + Imprezator + …) ===
 function _getThumbnailPath(filePath) {
     if (!filePath) return null;
     return filePath.replace(/\.[^.]+$/, '-thumb.webp');
 }
+/** Wszystkie wystąpienia ścieżek /uploads/... w dowolnym tekście (+ miniatury -thumb przy obrazach). */
+function _addUploadRefsFromText(str, used) {
+    if (!str || typeof str !== 'string') return;
+    const matches = str.matchAll(/\/uploads\/([^"'\s,\\]+)/g);
+    for (const m of matches) {
+        let rel = (m[1] || '').split(/[\\?#]/)[0].replace(/^\/+/, '');
+        if (!rel || rel.includes('..')) continue;
+        rel = rel.split(/[/\\]/).join('/');
+        used.add(rel);
+        const t = _getThumbnailPath(rel);
+        if (t) used.add(t);
+    }
+    const bare = str.matchAll(/"file"\s*:\s*"([^"]+\.(mp3|wav|ogg|vdjsample|flac|aac|m4a|webp|jpg|jpeg|png|gif))"/gi);
+    for (const m of bare) {
+        if (m[1] && !m[1].includes('..')) used.add(m[1]);
+    }
+}
+function _readTextIfExists(filePath, used, label) {
+    try {
+        if (!filePath || !fs.existsSync(filePath)) return;
+        _addUploadRefsFromText(fs.readFileSync(filePath, 'utf8'), used);
+    } catch (_) {}
+}
+function _scanJsonDirectoryRecursive(dirAbs, used) {
+    if (!dirAbs || !fs.existsSync(dirAbs)) return;
+    const walkDir = (d) => {
+        let ents;
+        try { ents = fs.readdirSync(d, { withFileTypes: true }); } catch (_) { return; }
+        for (const e of ents) {
+            const full = path.join(d, e.name);
+            if (e.isDirectory()) walkDir(full);
+            else if (e.isFile() && e.name.toLowerCase().endsWith('.json')) {
+                try { _addUploadRefsFromText(fs.readFileSync(full, 'utf8'), used); } catch (_) {}
+            }
+        }
+    };
+    walkDir(dirAbs);
+}
+/** Rekurencyjnie: ścieżki względne uploads (np. sfx/foo.mp3, 177.webp), separatory posix. */
+function _listRelativeFilesInUploadsTree(uploadRoot) {
+    const out = [];
+    if (!uploadRoot || !fs.existsSync(uploadRoot)) return out;
+    const walk = (rel) => {
+        const abs = rel ? path.join(uploadRoot, rel) : uploadRoot;
+        let ents;
+        try { ents = fs.readdirSync(abs, { withFileTypes: true }); } catch (_) { return; }
+        for (const e of ents) {
+            const name = e.name;
+            if (name.startsWith('.')) continue;
+            const subRel = rel ? `${rel}${path.sep}${name}` : name;
+            if (e.isDirectory()) walk(subRel);
+            else out.push(subRel.split(path.sep).join('/'));
+        }
+    };
+    walk('');
+    return out;
+}
+
 function getAllFilesReferencedByQuizzes(excludeFilename) {
     const used = new Set();
+    const cfgRoot = path.dirname(quizzesDir);
 
-    // --- Quizy ---
+    // --- Quizy Imprezja ---
     let quizFiles = [];
     try { quizFiles = fs.readdirSync(quizzesDir).filter(f => f.toLowerCase().endsWith('.json')); } catch (_) {}
     for (const qf of quizFiles) {
         if (excludeFilename && qf === excludeFilename) continue;
-        try {
-            const data = JSON.parse(fs.readFileSync(path.join(quizzesDir, qf), 'utf8'));
-            const questions = Array.isArray(data) ? data : (data.questions || []);
-            questions.forEach(q => {
-                for (const field of ['media', 'image', 'imageSmall', 'audio', 'imageA', 'imageB', 'imageSmallA', 'imageSmallB', 'bgMusic']) {
-                    const fp = _extractFilePath(q[field]);
-                    if (fp) { used.add(fp); const t = _getThumbnailPath(fp); if (t) used.add(t); }
-                }
-                if (Array.isArray(q.photos)) {
-                    q.photos.forEach(p => {
-                        const fp = _extractFilePath(p.url);
-                        if (fp) { used.add(fp); const t = _getThumbnailPath(fp); if (t) used.add(t); }
-                    });
-                }
-            });
-            if (data.options && data.options.bgMusic) {
-                const fp = _extractFilePath(data.options.bgMusic); if (fp) used.add(fp);
-            }
-        } catch (_) {}
+        _readTextIfExists(path.join(quizzesDir, qf), used);
     }
 
-    // --- Inne konfiguracje (sampler, śpiewaj dalej, bitwa wokalna) ---
+    // --- Party Quiz (osobny katalog — wcześniej nie skanowany → fałszywe orphans) ---
+    try {
+        for (const pf of fs.readdirSync(partyQuizzesDir).filter(f => f.toLowerCase().endsWith('.json'))) {
+            if (excludeFilename && pf === excludeFilename) continue;
+            _readTextIfExists(path.join(partyQuizzesDir, pf), used);
+        }
+    } catch (_) {}
+
+    // --- Konfiguracje modułów (sampler, śpiewaj, bitwa, Imprezator, prezentacje) ---
     const extraDirs = [
         path.join(dataDir, 'njr-sampler-configs'),
         path.join(dataDir, 'spiewaj-dalej-configs'),
         path.join(dataDir, 'bitwa-wokalna-configs'),
+        IMPREZATOR_CONFIGS_DIR,
+        PREZENTACJE_CONFIGS_DIR,
+        familiadaDir,
     ];
-    function addFromStr(str) {
-        // Wyciągnij wszystkie ścieżki /uploads/... z JSON stringa
-        const matches = str.matchAll(/\/uploads\/([^"'\s,\]\\]+)/g);
-        for (const m of matches) { used.add(m[1]); }
-        // Pliki bez ścieżki (np. w samplerkonfigach przechowywane jako czysta nazwa)
-        const bare = str.matchAll(/"file"\s*:\s*"([^"]+\.(mp3|wav|ogg|vdjsample|flac|aac|m4a|webp|jpg|jpeg|png|gif))"/gi);
-        for (const m of bare) { used.add(m[1]); }
-    }
     for (const dir of extraDirs) {
-        if (!fs.existsSync(dir)) continue;
-        try {
-            for (const cf of fs.readdirSync(dir).filter(f => f.toLowerCase().endsWith('.json'))) {
-                try { addFromStr(fs.readFileSync(path.join(dir, cf), 'utf8')); } catch (_) {}
-            }
-        } catch (_) {}
+        if (!dir || !fs.existsSync(dir)) continue;
+        _scanJsonDirectoryRecursive(dir, used);
     }
+
+    // --- Pojedyncze pliki JSON (ostatnia konfiguracja, ustawienia, banki) ---
+    [
+        NJR_SAMPLER_LAST_FILE,
+        NJR_SAMPLER_BANK_ASSIGNMENT_FILE,
+        SPIEWAJ_DALEJ_LAST_FILE,
+        BITWA_WOKALNA_LAST_FILE,
+        IMPREZATOR_LAST_FILE,
+        IMPREZATOR_SETTINGS_FILE,
+        path.join(cfgRoot, 'njr-sampler-config.json'),
+        familiadaDataPath,
+        familiadaScreenPrefsPath,
+        WHITNEY_CONFIG_FILE,
+        PREZENTACJE_LAST_FILE,
+        path.join(__dirname, 'statki-solo-config.json'),
+        path.join(cfgRoot, 'imprezja-volumes.json'),
+    ].forEach((p) => _readTextIfExists(p, used));
 
     used.delete(null); used.delete(undefined); used.delete('');
     return used;
@@ -1542,10 +1668,7 @@ app.delete('/api/upload/:filename', async (req, res) => {
 app.get('/api/uploads/orphans', (req, res) => {
     try {
         const usedFiles = getAllFilesReferencedByQuizzes();
-        const allFiles = fs.readdirSync(uploadsDir).filter(f => {
-            if (f.startsWith('.')) return false;
-            return fs.statSync(path.join(uploadsDir, f)).isFile();
-        });
+        const allFiles = _listRelativeFilesInUploadsTree(uploadsDir);
         const orphans = allFiles.filter(f => !usedFiles.has(f));
         const totalSize = orphans.reduce((sum, f) => {
             try { return sum + fs.statSync(path.join(uploadsDir, f)).size; } catch (_) { return sum; }
@@ -1560,15 +1683,13 @@ app.get('/api/uploads/orphans', (req, res) => {
 app.delete('/api/uploads/orphans', async (req, res) => {
     try {
         const usedFiles = getAllFilesReferencedByQuizzes();
-        const allFiles = fs.readdirSync(uploadsDir).filter(f => {
-            if (f.startsWith('.')) return false;
-            return fs.statSync(path.join(uploadsDir, f)).isFile();
-        });
+        const allFiles = _listRelativeFilesInUploadsTree(uploadsDir);
         const orphans = allFiles.filter(f => !usedFiles.has(f));
         let deleted = [], errors = [];
         for (const f of orphans) {
             try {
-                await moveUserPathsToTrash(path.join(uploadsDir, f));
+                const segments = String(f).replace(/\\/g, '/').split('/').filter(Boolean);
+                await moveUserPathsToTrash(path.join(uploadsDir, ...segments));
                 removeFileFromIndex(f);
                 await devSyncDelete(`public/uploads/${f}`);
                 deleted.push(f);
@@ -2027,9 +2148,49 @@ app.get('/api/whitney/audio-files', (req, res) => {
 // === ŚPIEWAJ DALEJ – listy fragmentów muzycznych ===
 let spiewajDalejConfig = { tracks: [] };
 let spiewajDalejActive = false;
-let spiewajDalejVolume = 1;
 let spiewajDalejUsedIds = new Set();
 let spiewajDalejScreenTrackId = null;
+/** Aktywny bank (runda) — synchronizowany między telefonami i admin PWA. */
+let spiewajDalejActiveBankIndex = 0;
+
+function clampMusicGameBankIndex(config, idx) {
+    const banks = config && config.banks && Array.isArray(config.banks) ? config.banks : [];
+    if (!banks.length) return 0;
+    return Math.max(0, Math.min(banks.length - 1, Math.floor(Number(idx)) || 0));
+}
+
+function getSpiewajDalejStatePayload(forPhone) {
+    const payload = {
+        active: spiewajDalejActive,
+        config: spiewajDalejConfig,
+        activeBankIndex: clampMusicGameBankIndex(spiewajDalejConfig, spiewajDalejActiveBankIndex)
+    };
+    if (forPhone) payload.usedIds = Array.from(spiewajDalejUsedIds);
+    return payload;
+}
+
+function broadcastSpiewajDalejBankIndex(index) {
+    spiewajDalejActiveBankIndex = clampMusicGameBankIndex(spiewajDalejConfig, index);
+    const banks = spiewajDalejConfig.banks || [];
+    const bank = banks[spiewajDalejActiveBankIndex];
+    const msg = {
+        index: spiewajDalejActiveBankIndex,
+        name: (bank && bank.name) || ('Bank ' + (spiewajDalejActiveBankIndex + 1))
+    };
+    io.to('spiewaj_dalej_phone').emit('spiewaj_dalej_set_bank', msg);
+    io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_set_bank', msg);
+}
+
+function findSpiewajDalejTrackInActiveBank(trackId) {
+    const tid = String(trackId).trim();
+    if (!tid) return null;
+    const banks = spiewajDalejConfig.banks && Array.isArray(spiewajDalejConfig.banks) ? spiewajDalejConfig.banks : null;
+    if (banks && banks.length) {
+        const bank = banks[clampMusicGameBankIndex(spiewajDalejConfig, spiewajDalejActiveBankIndex)];
+        return (bank && bank.tracks || []).find(t => String(t.id) === tid) || null;
+    }
+    return (spiewajDalejConfig.tracks || []).find(t => String(t.id) === tid) || null;
+}
 
 function getSpiewajDalejConfigPath(name) {
     return path.join(SPIEWAJ_DALEJ_CONFIGS_DIR, safeConfigName(name) + '.json');
@@ -2095,14 +2256,15 @@ app.get('/api/spiewaj-dalej/config', (req, res) => {
             }
         }
     }
-    res.json({ config: spiewajDalejConfig, active: spiewajDalejActive });
+    res.json({ config: spiewajDalejConfig, active: spiewajDalejActive, activeBankIndex: spiewajDalejActiveBankIndex });
 });
 
-app.post('/api/spiewaj-dalej/config', (req, res) => {
+app.post('/api/spiewaj-dalej/config', async (req, res) => {
     const { config, name } = req.body || {};
     const hasTracks = config && Array.isArray(config.tracks);
     const hasBanks = config && Array.isArray(config.banks) && config.banks.length > 0;
     if (config && (hasTracks || hasBanks)) {
+        await normalizeMusicGameConfigTracks(config);
         spiewajDalejConfig = config;
         const cfgName = name ? safeConfigName(name) : 'domyslna';
         if (!fs.existsSync(SPIEWAJ_DALEJ_CONFIGS_DIR)) fs.mkdirSync(SPIEWAJ_DALEJ_CONFIGS_DIR, { recursive: true });
@@ -2147,8 +2309,9 @@ app.post('/api/spiewaj-dalej/start', (req, res) => {
     stopOtherMusicGames('spiewaj');
     spiewajDalejActive = true;
     spiewajDalejUsedIds.clear();
-    io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_state', { active: true, config: spiewajDalejConfig });
-    io.to('spiewaj_dalej_phone').emit('spiewaj_dalej_state', { active: true, config: spiewajDalejConfig });
+    spiewajDalejActiveBankIndex = 0;
+    io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_state', getSpiewajDalejStatePayload(false));
+    io.to('spiewaj_dalej_phone').emit('spiewaj_dalej_state', getSpiewajDalejStatePayload(true));
     res.json({ success: true });
 });
 
@@ -2266,9 +2429,42 @@ app.delete('/api/spiewaj-dalej/config', async (req, res) => {
 // === BITWA WOKALNA – klon Śpiewaj Dalej ===
 let bitwaWokalnaConfig = { tracks: [] };
 let bitwaWokalnaActive = false;
-let bitwaWokalnaVolume = 1;
 let bitwaWokalnaUsedIds = new Set();
 let bitwaWokalnaScreenTrackId = null;
+let bitwaWokalnaActiveBankIndex = 0;
+
+function getBitwaWokalnaStatePayload(forPhone) {
+    const payload = {
+        active: bitwaWokalnaActive,
+        config: bitwaWokalnaConfig,
+        activeBankIndex: clampMusicGameBankIndex(bitwaWokalnaConfig, bitwaWokalnaActiveBankIndex)
+    };
+    if (forPhone) payload.usedIds = Array.from(bitwaWokalnaUsedIds);
+    return payload;
+}
+
+function broadcastBitwaWokalnaBankIndex(index) {
+    bitwaWokalnaActiveBankIndex = clampMusicGameBankIndex(bitwaWokalnaConfig, index);
+    const banks = bitwaWokalnaConfig.banks || [];
+    const bank = banks[bitwaWokalnaActiveBankIndex];
+    const msg = {
+        index: bitwaWokalnaActiveBankIndex,
+        name: (bank && bank.name) || ('Bank ' + (bitwaWokalnaActiveBankIndex + 1))
+    };
+    io.to('bitwa_wokalna_phone').emit('bitwa_wokalna_set_bank', msg);
+    io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_set_bank', msg);
+}
+
+function findBitwaWokalnaTrackInActiveBank(trackId) {
+    const tid = String(trackId).trim();
+    if (!tid) return null;
+    const banks = bitwaWokalnaConfig.banks && Array.isArray(bitwaWokalnaConfig.banks) ? bitwaWokalnaConfig.banks : null;
+    if (banks && banks.length) {
+        const bank = banks[clampMusicGameBankIndex(bitwaWokalnaConfig, bitwaWokalnaActiveBankIndex)];
+        return (bank && bank.tracks || []).find(t => String(t.id) === tid) || null;
+    }
+    return (bitwaWokalnaConfig.tracks || []).find(t => String(t.id) === tid) || null;
+}
 
 function getBitwaWokalnaConfigPath(name) {
     return path.join(BITWA_WOKALNA_CONFIGS_DIR, safeConfigName(name) + '.json');
@@ -2362,14 +2558,15 @@ app.get('/api/bitwa-wokalna/config', (req, res) => {
             }
         }
     }
-    res.json({ config: bitwaWokalnaConfig, active: bitwaWokalnaActive });
+    res.json({ config: bitwaWokalnaConfig, active: bitwaWokalnaActive, activeBankIndex: bitwaWokalnaActiveBankIndex });
 });
 
-app.post('/api/bitwa-wokalna/config', (req, res) => {
+app.post('/api/bitwa-wokalna/config', async (req, res) => {
     const { config, name } = req.body || {};
     const hasTracks = config && Array.isArray(config.tracks);
     const hasBanks = config && Array.isArray(config.banks) && config.banks.length > 0;
     if (config && (hasTracks || hasBanks)) {
+        await normalizeMusicGameConfigTracks(config);
         bitwaWokalnaConfig = config;
         const cfgName = name ? safeConfigName(name) : 'domyslna';
         if (!fs.existsSync(BITWA_WOKALNA_CONFIGS_DIR)) fs.mkdirSync(BITWA_WOKALNA_CONFIGS_DIR, { recursive: true });
@@ -2438,8 +2635,9 @@ app.post('/api/bitwa-wokalna/start', (req, res) => {
     stopOtherMusicGames('bitwa');
     bitwaWokalnaActive = true;
     bitwaWokalnaUsedIds.clear();
-    io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_state', { active: true, config: bitwaWokalnaConfig });
-    io.to('bitwa_wokalna_phone').emit('bitwa_wokalna_state', { active: true, config: bitwaWokalnaConfig });
+    bitwaWokalnaActiveBankIndex = 0;
+    io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_state', getBitwaWokalnaStatePayload(false));
+    io.to('bitwa_wokalna_phone').emit('bitwa_wokalna_state', getBitwaWokalnaStatePayload(true));
     res.json({ success: true });
 });
 
@@ -2533,7 +2731,6 @@ app.delete('/api/bitwa-wokalna/config', async (req, res) => {
 // === IMPREZATOR – muzyka do tańca dla animatorów ===
 let imprezatorConfig = { tracks: [] };
 let imprezatorActive = false;
-let imprezatorVolume = 1;
 
 function getImprezatorConfigPath(name) {
     return path.join(IMPREZATOR_CONFIGS_DIR, safeConfigName(name) + '.json');
@@ -2590,8 +2787,8 @@ app.post('/api/imprezator/config', async (req, res) => {
             ? (config.banks || []).flatMap(b => b.tracks || [])
             : (config.tracks || []);
         for (const t of tracks) {
-            if (t.audio && (t.audio.startsWith('http://') || t.audio.startsWith('https://')) && typeof t.normalizedGain !== 'number') {
-                t.normalizedGain = await analyzeLoudnessForUrl(t.audio);
+            if (t.audio && typeof t.normalizedGain !== 'number') {
+                await ensureMusicTrackNormalizedGain(t);
             }
         }
         imprezatorConfig = config;
@@ -2925,6 +3122,8 @@ app.post('/api/imprezator/native-open-directory', async (req, res) => {
     }
 });
 
+// Przeglądarka: wgrywa kopię jako imprez-${stamp}-… w uploads. Aplikacja Electron / natywny picker
+// zapisuje bezpośrednio ścieżki dyskowe w konfiguracji (bez duplikatu w uploads).
 const imprezatorAudioUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 150 * 1024 * 1024 } });
 app.post('/api/imprezator/upload-audio', imprezatorAudioUpload.array('files', 80), (req, res) => {
     try {
@@ -3109,6 +3308,33 @@ function parseFamiliadaQuestionsFromJsonString(raw) {
     return [];
 }
 
+/** Punkty odpowiedzi Familiady — zachowuje 0 (np. odpowiedzi-pułapki na złotej liście). */
+function familiadaAnswerPointsValue(raw) {
+    const p = Number(raw);
+    return Number.isFinite(p) ? Math.max(0, Math.floor(p)) : 0;
+}
+
+function normalizeFamiliadaQuestion(q) {
+    if (!q || typeof q !== 'object') return { question: '', answers: [] };
+    const answers = (Array.isArray(q.answers) ? q.answers : [])
+        .map(a => {
+            if (!a || typeof a !== 'object') return null;
+            const text = String(a.text || '').trim();
+            if (!text) return null;
+            return { text, points: familiadaAnswerPointsValue(a.points) };
+        })
+        .filter(Boolean);
+    return { question: String(q.question || '').trim(), answers };
+}
+
+function normalizeFamiliadaQuestionsList(list) {
+    if (!Array.isArray(list)) return [];
+    return list
+        .map(normalizeFamiliadaQuestion)
+        .filter(q => q.question && q.answers.length > 0)
+        .slice(0, 10);
+}
+
 function resolveFamiliadaFilePath(filename) {
     const name = (filename && typeof filename === 'string') ? filename.trim() : '';
     if (!name || name.includes('..') || name.includes('/') || !name.toLowerCase().endsWith('.json')) return null;
@@ -3170,7 +3396,7 @@ app.post('/api/familiada/save', (req, res) => {
         const valid = data.filter(q => q && (q.question || '').trim());
         const isGolden = filename && filename.toLowerCase() === FAMILIADA_GOLDEN_FILE.toLowerCase();
         if (isGolden) {
-            const goldenValid = valid.slice(0, 10);
+            const goldenValid = normalizeFamiliadaQuestionsList(valid);
             familiadaGoldenQuestions = goldenValid;
             if (!fs.existsSync(familiadaDir)) fs.mkdirSync(familiadaDir, { recursive: true });
             fs.writeFileSync(familiadaGoldenPath, JSON.stringify(familiadaGoldenQuestions, null, 2), 'utf8');
@@ -3233,8 +3459,7 @@ app.post('/api/familiada/golden', (req, res) => {
         if (!Array.isArray(data)) {
             return res.status(400).json({ error: 'Oczekiwana tablica pytań' });
         }
-        const valid = data.slice(0, 10).filter(q => q && (q.question || '').trim());
-        familiadaGoldenQuestions = valid;
+        familiadaGoldenQuestions = normalizeFamiliadaQuestionsList(data);
         if (!fs.existsSync(familiadaDir)) fs.mkdirSync(familiadaDir, { recursive: true });
         fs.writeFileSync(familiadaGoldenPath, JSON.stringify(familiadaGoldenQuestions, null, 2), 'utf8');
         io.to('familiada').emit('familiada_golden_updated', familiadaGoldenQuestions);
@@ -3612,9 +3837,15 @@ app.get('/favicon.ico', (req, res) => {
 // (Wake Lock API wymaga secure context, więc telefon musi być na HTTPS albo localhost).
 app.get('/api/server-info', (req, res) => {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    const certMeta = getHttpsCertMeta();
     res.json({
         http: { available: true, port: PORT },
-        https: { available: !!httpsServer, port: httpsServer ? PORT_HTTPS : null },
+        https: {
+            available: !!httpsServer,
+            port: httpsServer ? PORT_HTTPS : null,
+            certValidTo: certMeta ? certMeta.validTo : null,
+            certExpired: !!(certMeta && certMeta.expired)
+        },
         ip: IP
     });
 });
@@ -4309,7 +4540,115 @@ app.post('/import-url', async (req, res) => {
     });
 });
 
-// --- ANALIZA GŁOŚNOŚCI (dla linkowanych URL – ffmpeg volumedetect) ---
+// --- ANALIZA GŁOŚNOŚCI (ffmpeg volumedetect – URL i pliki lokalne) ---
+function gainFromVolumedetectStderr(stderr) {
+    const m = (stderr || '').match(/max_volume:\s*([-\d.]+)\s*dB/);
+    if (!m) return 1;
+    const maxDb = parseFloat(m[1]);
+    const targetDb = -3;
+    let gain = Math.pow(10, (targetDb - maxDb) / 20);
+    return Math.max(0.3, Math.min(2.5, gain));
+}
+
+function resolveLocalAudioFilePath(audioRef) {
+    if (!audioRef || typeof audioRef !== 'string') return null;
+    let p = audioRef.trim();
+    if (p.startsWith('/api/audio/stream?path=')) {
+        try {
+            const u = new URL(p, 'http://local');
+            p = decodeURIComponent(u.searchParams.get('path') || '');
+        } catch (_) { return null; }
+    }
+    p = sanitizeAudioPath(p.replace(/^\/+/, ''));
+    const name = path.basename(p);
+    if (!name) return null;
+    const dirs = [uploadsDir, path.join(__dirname, 'public', 'uploads')];
+    if (vdjRecordingsBank) dirs.push(vdjRecordingsBank);
+    for (const d of dirs) {
+        const fp = path.join(d, name);
+        if (fs.existsSync(fp) && fs.statSync(fp).isFile()) return fp;
+    }
+    if (fs.existsSync(p) && fs.statSync(p).isFile()) return p;
+    return null;
+}
+
+async function runFfmpegVolumedetect(inputPath) {
+    const proc = spawn('ffmpeg', ['-i', inputPath, '-af', 'volumedetect', '-f', 'null', '-'], { stdio: ['ignore', 'pipe', 'pipe'] });
+    let stderr = '';
+    proc.stderr.on('data', d => { stderr += d.toString(); });
+    await new Promise((resolve, reject) => {
+        proc.on('close', () => resolve());
+        proc.on('error', (e) => reject(e));
+    });
+    return gainFromVolumedetectStderr(stderr);
+}
+
+async function analyzeLoudnessForFilePath(filePath) {
+    if (!filePath || !fs.existsSync(filePath)) return 1;
+    let inputPath = filePath;
+    let tmpPath = null;
+    try {
+        if (isVdjOrOggPath(filePath)) {
+            const oggsOffset = findOggsOffset(filePath);
+            const stat = fs.statSync(filePath);
+            if (oggsOffset > 0 && stat.size > oggsOffset) {
+                tmpPath = path.join(os.tmpdir(), `imprezja-loudness-${Date.now()}.ogg`);
+                const fd = fs.openSync(filePath, 'r');
+                try {
+                    const buf = Buffer.alloc(stat.size - oggsOffset);
+                    fs.readSync(fd, buf, 0, buf.length, oggsOffset);
+                    fs.writeFileSync(tmpPath, buf);
+                    inputPath = tmpPath;
+                } finally {
+                    fs.closeSync(fd);
+                }
+            }
+        }
+        return await runFfmpegVolumedetect(inputPath);
+    } catch (err) {
+        console.warn('⚠️ analyze-loudness file:', err.message);
+        return 1;
+    } finally {
+        if (tmpPath && fs.existsSync(tmpPath)) try { fs.unlinkSync(tmpPath); } catch (_) {}
+    }
+}
+
+function iterMusicGameTracks(config) {
+    const out = [];
+    if (!config) return out;
+    if (Array.isArray(config.banks)) {
+        for (const b of config.banks) {
+            for (const t of (b.tracks || [])) out.push(t);
+        }
+    } else if (Array.isArray(config.tracks)) {
+        for (const t of config.tracks) out.push(t);
+    }
+    return out;
+}
+
+async function ensureMusicTrackNormalizedGain(track) {
+    if (!track || !track.audio) return 1;
+    if (typeof track.normalizedGain === 'number' && track.normalizedGain > 0) {
+        return track.normalizedGain;
+    }
+    const audioRef = track.audio;
+    let gain = 1;
+    if (audioRef.startsWith('http://') || audioRef.startsWith('https://')) {
+        gain = await analyzeLoudnessForUrl(audioRef);
+    } else {
+        const localPath = resolveLocalAudioFilePath(audioRef);
+        if (localPath) gain = await analyzeLoudnessForFilePath(localPath);
+    }
+    track.normalizedGain = gain;
+    return gain;
+}
+
+async function normalizeMusicGameConfigTracks(config) {
+    for (const t of iterMusicGameTracks(config)) {
+        await ensureMusicTrackNormalizedGain(t);
+    }
+}
+
 async function analyzeLoudnessForUrl(url) {
     if (!url || typeof url !== 'string' || (!url.startsWith('http://') && !url.startsWith('https://'))) return 1;
     let tmpPath = null;
@@ -4327,22 +4666,7 @@ async function analyzeLoudnessForUrl(url) {
         const ext = (url.match(/\.(mp3|wav|m4a|ogg|aac|flac)(\?|$)/i) || ['', 'mp3'])[1] || 'mp3';
         tmpPath = path.join(os.tmpdir(), `imprezja-loudness-${Date.now()}.${ext}`);
         fs.writeFileSync(tmpPath, buf);
-        const proc = spawn('ffmpeg', ['-i', tmpPath, '-af', 'volumedetect', '-f', 'null', '-'], { stdio: ['ignore', 'pipe', 'pipe'] });
-        let stderr = '';
-        proc.stderr.on('data', d => { stderr += d.toString(); });
-        await new Promise((resolve, reject) => {
-            proc.on('close', (code) => resolve(code));
-            proc.on('error', (e) => reject(e));
-        });
-        const m = stderr.match(/max_volume:\s*([-\d.]+)\s*dB/);
-        let gain = 1;
-        if (m) {
-            const maxDb = parseFloat(m[1]);
-            const targetDb = -3;
-            gain = Math.pow(10, (targetDb - maxDb) / 20);
-            gain = Math.max(0.3, Math.min(2.5, gain));
-        }
-        return gain;
+        return await runFfmpegVolumedetect(tmpPath);
     } catch (err) {
         console.warn('⚠️ analyze-loudness:', err.message);
         return 1;
@@ -4754,15 +5078,24 @@ async function generateAdminQR() {
 // === QR DO PANELU ADMIN PWA – ten sam host, ścieżka /admin-pwa.html (instalacja lub połączenie) ===
 async function generateAdminPWAQR() {
     try {
-        const proto = httpsServer ? 'https' : 'http';
-        const port = httpsServer ? PORT_HTTPS : PORT;
         const adminHost = httpsServer ? IP : getAdminHost();
-        const adminPwaUrl = `${proto}://${adminHost}:${port}/admin-pwa.html`;
-        console.log('📱 Generuję QR admin PWA:', adminPwaUrl);
+        const httpsUrl = `https://${adminHost}:${PORT_HTTPS}/admin-pwa.html`;
+        const httpUrl = `http://${getAdminHost()}:${PORT}/admin-pwa.html`;
+        const adminPwaUrl = httpsServer ? httpsUrl : httpUrl;
+        console.log('📱 Generuję QR admin PWA:', adminPwaUrl, httpsServer ? '(HTTPS)' : '(HTTP — brak certów, ekran może gasnąć)');
         const qrCode = await QRCode.toDataURL(adminPwaUrl, {
             width: 300, margin: 2, color: { dark: '#000000', light: '#FFFFFF' }
         });
-        return { qrCode: qrCode, url: adminPwaUrl };
+        const certMeta = getHttpsCertMeta();
+        return {
+            qrCode,
+            url: adminPwaUrl,
+            protocol: httpsServer ? 'https' : 'http',
+            httpsAvailable: !!httpsServer,
+            httpsUrl: httpsServer ? httpsUrl : null,
+            httpUrl,
+            certExpired: !!(certMeta && certMeta.expired)
+        };
     } catch (err) {
         console.error('❌ Błąd generowania QR admin PWA:', err);
         return null;
@@ -5561,9 +5894,9 @@ function performShipsQuizNextTurn(questionId, reason) {
 
 io.on('connection', (socket) => {
     resetOrphanedGameState();
-    socket.emit('master_volume', { volume: masterVolume });
-    socket.emit('quiz_volume', { volume: quizVolume });
-    socket.emit('ships_solo_volume', { volume: statkiVolume });
+    socket.emit('games_volume', { volume: gamesVolume });
+    socket.emit('quiz_volume', { volume: gamesVolume });
+    socket.emit('ships_solo_volume', { volume: gamesVolume });
 
     // === SCREEN CONTROLLER (ekran główny sterowany z Admin PWA) ===
     socket.on('screen_join', () => {
@@ -5630,7 +5963,8 @@ io.on('connection', (socket) => {
 
     // === PREZENTACJA ===
     socket.on('prezentacja_join', () => {
-        socket.emit('prezentacja_volume', { volume: prezentacjaVolume });
+        socket.emit('prezentacja_volume', { volume: gamesVolume });
+        socket.emit('games_volume', { volume: gamesVolume });
         socket.emit('prezentacja_state', {
             config: prezentacjaConfig,
             index: prezentacjaIndex,
@@ -5646,10 +5980,12 @@ io.on('connection', (socket) => {
         if (!fs.existsSync(fp)) return;
         try {
             prezentacjaConfig = JSON.parse(fs.readFileSync(fp, 'utf8'));
+            prezentacjaLoop = prezentacjaConfig.loop !== false;
             prezentacjaIndex = 0;
             prezentacjaPlaying = false;
             if (PREZENTACJE_LAST_FILE) fs.writeFileSync(PREZENTACJE_LAST_FILE, JSON.stringify({ name }), 'utf8');
-            io.emit('prezentacja_loaded', { config: prezentacjaConfig, index: 0 });
+            io.emit('prezentacja_loaded', { config: prezentacjaConfig, index: 0, loop: prezentacjaLoop });
+            io.emit('prezentacja_loop', { loop: prezentacjaLoop });
         } catch (_) {}
     });
     const VIZ_INTERNAL_CYCLE_PRESETS = new Set([
@@ -5730,47 +6066,46 @@ io.on('connection', (socket) => {
         });
     });
 
-    // === MIK SER – Master (globalny mnożnik) + kanały (per-tryb). Wyjście = kanał × master ===
+    // === GŁOŚNOŚĆ – dwa suwaki: gry (wspólny) + Imprezator ===
+    socket.on('games_volume', (data) => {
+        const v = parseFloat(data && data.volume);
+        if (!isNaN(v) && v >= 0 && v <= 1) setGamesVolume(v);
+    });
+    socket.on('games_volume_request', () => {
+        socket.emit('games_volume', { volume: gamesVolume });
+    });
+    socket.on('imprezator_volume_set', (data) => {
+        const v = parseFloat(data && data.volume);
+        if (!isNaN(v) && v >= 0 && v <= 1) setImprezatorVolume(v);
+    });
+    socket.on('imprezator_volume_request', () => {
+        socket.emit('imprezator_volume_sync', imprezatorVolume);
+    });
+    // Kompatybilność wsteczna (stary mikser / admin.html)
     socket.on('master_volume', (data) => {
         const v = parseFloat(data && data.volume);
-        if (!isNaN(v) && v >= 0 && v <= 1) {
-            masterVolume = v;
-            saveVolumes();
-            io.emit('master_volume', { volume: masterVolume });
-            broadcastEffectiveVolumes();
-        }
+        if (!isNaN(v) && v >= 0 && v <= 1) setGamesVolume(v);
     });
     socket.on('master_volume_request', () => {
-        socket.emit('master_volume', { volume: masterVolume });
+        socket.emit('games_volume', { volume: gamesVolume });
+        socket.emit('master_volume', { volume: gamesVolume });
     });
     socket.on('volumes_request', () => {
-        socket.emit('volumes_all', {
-            master: masterVolume, quiz: quizVolume, familiada: familiadaVolume, statki: statkiVolume,
-            prezentacja: prezentacjaVolume, sampler: njrSamplerVolume, whitney: whitneyVolume,
-            spiewaj: spiewajDalejVolume, bitwa: bitwaWokalnaVolume, imprezator: imprezatorVolume
-        });
+        socket.emit('volumes_all', { games: gamesVolume, imprezator: imprezatorVolume });
     });
     socket.on('channel_volume', (data) => {
         const ch = data && data.channel;
         const v = parseFloat(data && data.volume);
         if (isNaN(v) || v < 0 || v > 1) return;
-        const set = (name, setter) => { setter(v); saveVolumes(); broadcastEffectiveVolumes(); };
-        if (ch === 'quiz') set('quiz', x => { quizVolume = x; });
-        else if (ch === 'familiada') set('familiada', x => { familiadaVolume = x; });
-        else if (ch === 'statki') set('statki', x => { statkiVolume = x; });
-        else if (ch === 'prezentacja') set('prezentacja', x => { prezentacjaVolume = x; });
-        else if (ch === 'sampler') set('sampler', x => { njrSamplerVolume = x; });
-        else if (ch === 'whitney') set('whitney', x => { whitneyVolume = x; });
-        else if (ch === 'spiewaj') set('spiewaj', x => { spiewajDalejVolume = x; });
-        else if (ch === 'bitwa') set('bitwa', x => { bitwaWokalnaVolume = x; });
-        else if (ch === 'imprezator') set('imprezator', x => { imprezatorVolume = x; });
+        if (ch === 'imprezator') setImprezatorVolume(v);
+        else setGamesVolume(v);
     });
 
     // === FAMILIADA ===
     socket.on('register_familiada', (data) => {
         socket.familiadaRole = (data && data.role) || null;
         socket.join('familiada');
-        socket.emit('familiada_volume', familiadaVolume);
+        socket.emit('familiada_volume', gamesVolume);
         if (socket.familiadaRole === 'screen' && familiadaShowStartScreenOnConnect) {
             familiadaShowStartScreenOnConnect = false;
             socket.emit('familiada_show_start_screen');
@@ -5876,13 +6211,13 @@ io.on('connection', (socket) => {
     socket.on('njr_sampler_join_screen', () => {
         socket.join('njr_sampler_screen');
         socket.emit('njr_sampler_state', { active: njrSamplerActive, config: njrSamplerConfig });
-        socket.emit('njr_sampler_volume', digitalOutputClamp(njrSamplerVolume * masterVolume));
+        socket.emit('njr_sampler_volume', digitalOutputClamp(gamesVolume));
     });
     socket.on('njr_sampler_join_phone', () => {
         socket.join('njr_sampler_phone');
         const phoneConfig = buildNjrSamplerStateForPhone();
         socket.emit('njr_sampler_state', { active: njrSamplerActive, config: phoneConfig });
-        socket.emit('njr_sampler_volume_sync', njrSamplerVolume); // telefon ustawia suwak
+        socket.emit('njr_sampler_volume_sync', gamesVolume); // telefon ustawia suwak
     });
     socket.on('njr_sampler_set_bank', (payload) => {
         if (!njrSamplerActive) return;
@@ -5937,12 +6272,7 @@ io.on('connection', (socket) => {
         }
         emitAudioMonitorState();
     });
-    socket.on('njr_sampler_volume', (vol) => {
-        njrSamplerVolume = Math.max(0, Math.min(1, vol));
-        saveVolumes();
-        io.to('njr_sampler_screen').emit('njr_sampler_volume', digitalOutputClamp(njrSamplerVolume * masterVolume));
-        io.to('njr_sampler_phone').emit('njr_sampler_volume_sync', njrSamplerVolume);
-    });
+    socket.on('njr_sampler_volume', (vol) => setGamesVolume(vol));
 
     socket.on('njr_sampler_imprezator_toggle', (trackId) => {
         if (!njrSamplerActive || !trackId) return;
@@ -5976,7 +6306,7 @@ io.on('connection', (socket) => {
             const audioUrl = '/api/imprezator/stream?path=' + encodeURIComponent(track.audio);
             io.to('njr_sampler_screen').emit('njr_sampler_imprezator_play', {
                 url: audioUrl,
-                volume: digitalOutputClamp(njrSamplerVolume * masterVolume),
+                volume: digitalOutputClamp(gamesVolume),
                 trackId
             });
             io.to('njr_sampler_phone').emit('njr_sampler_imprezator_playing', trackId);
@@ -6054,7 +6384,7 @@ io.on('connection', (socket) => {
             if (!track || !track.audio) return;
             njrSamplerPlayingImprezatorTrack = last.trackId;
             const audioUrl = '/api/imprezator/stream?path=' + encodeURIComponent(track.audio);
-            io.to('njr_sampler_screen').emit('njr_sampler_imprezator_play', { url: audioUrl, volume: digitalOutputClamp(njrSamplerVolume * masterVolume), trackId: last.trackId });
+            io.to('njr_sampler_screen').emit('njr_sampler_imprezator_play', { url: audioUrl, volume: digitalOutputClamp(gamesVolume), trackId: last.trackId });
             io.to('njr_sampler_phone').emit('njr_sampler_imprezator_playing', last.trackId);
         } else if (last.type === 'imprezator') {
             let track = null;
@@ -6071,7 +6401,7 @@ io.on('connection', (socket) => {
                 : '/api/imprezator/stream?path=' + encodeURIComponent(track.audio);
             const displayName = track.displayName || track.audio.replace(/^.*[/\\]/, '').replace(/\.[^.]+$/, '') || 'Utwór';
             const ng = typeof track.normalizedGain === 'number' ? track.normalizedGain : undefined;
-            io.to('imprezator_screen').emit('imprezator_play', { url: audioUrl, volume: digitalOutputClamp(imprezatorVolume * masterVolume), trackId: last.trackId, displayName, ...(ng != null && { normalizedGain: ng }) });
+            io.to('imprezator_screen').emit('imprezator_play', { url: audioUrl, volume: digitalOutputClamp(imprezatorVolume), trackId: last.trackId, displayName, ...(ng != null && { normalizedGain: ng }) });
         }
         emitAudioMonitorState();
     });
@@ -6080,12 +6410,12 @@ io.on('connection', (socket) => {
     socket.on('whitney_join_screen', () => {
         socket.join('whitney_screen');
         socket.emit('whitney_state', { active: whitneyActive, config: whitneyConfig });
-        socket.emit('whitney_volume', digitalOutputClamp(whitneyVolume * masterVolume));
+        socket.emit('whitney_volume', digitalOutputClamp(gamesVolume));
     });
     socket.on('whitney_join_phone', () => {
         socket.join('whitney_phone');
         socket.emit('whitney_state', { active: whitneyActive, config: whitneyConfig });
-        socket.emit('whitney_volume_sync', whitneyVolume);
+        socket.emit('whitney_volume_sync', gamesVolume);
     });
     socket.on('whitney_toggle', (payload) => {
         if (!whitneyActive) return;
@@ -6117,36 +6447,39 @@ io.on('connection', (socket) => {
         }
         emitAudioMonitorState();
     });
-    socket.on('whitney_volume', (vol) => {
-        whitneyVolume = Math.max(0, Math.min(1, vol));
-        saveVolumes();
-        io.to('whitney_screen').emit('whitney_volume', digitalOutputClamp(whitneyVolume * masterVolume));
-    });
+    socket.on('whitney_volume', (vol) => setGamesVolume(vol));
 
     // Śpiewaj Dalej – ekran (komputer) i telefon
     socket.on('spiewaj_dalej_join_screen', () => {
         socket.join('spiewaj_dalej_screen');
-        socket.emit('spiewaj_dalej_state', { active: spiewajDalejActive, config: spiewajDalejConfig });
-        socket.emit('spiewaj_dalej_volume', digitalOutputClamp(spiewajDalejVolume * masterVolume));
+        socket.emit('spiewaj_dalej_state', getSpiewajDalejStatePayload(false));
+        socket.emit('spiewaj_dalej_volume', digitalOutputClamp(gamesVolume));
     });
     socket.on('spiewaj_dalej_join_phone', () => {
         socket.join('spiewaj_dalej_phone');
-        socket.emit('spiewaj_dalej_state', { active: spiewajDalejActive, config: spiewajDalejConfig, usedIds: Array.from(spiewajDalejUsedIds) });
-        socket.emit('spiewaj_dalej_volume_sync', spiewajDalejVolume);
+        socket.emit('spiewaj_dalej_state', getSpiewajDalejStatePayload(true));
+        socket.emit('spiewaj_dalej_volume_sync', gamesVolume);
     });
-    socket.on('spiewaj_dalej_play', (trackId) => {
+    socket.on('spiewaj_dalej_set_bank', (payload) => {
+        if (!spiewajDalejActive) return;
+        const raw = typeof payload === 'number' ? payload : (payload && payload.index);
+        broadcastSpiewajDalejBankIndex(raw);
+    });
+    socket.on('spiewaj_dalej_bank_delta', (payload) => {
+        if (!spiewajDalejActive) return;
+        const delta = typeof payload === 'number' ? payload : (payload && payload.delta);
+        const d = delta === 1 || delta === -1 ? delta : 0;
+        if (!d) return;
+        const banks = spiewajDalejConfig.banks || [];
+        if (banks.length <= 1) return;
+        const next = Math.max(0, Math.min(banks.length - 1, spiewajDalejActiveBankIndex + d));
+        broadcastSpiewajDalejBankIndex(next);
+    });
+    socket.on('spiewaj_dalej_play', async (trackId) => {
         if (!spiewajDalejActive || !trackId) return;
         const tid = String(trackId).trim();
         if (!tid) return;
-        let track = null;
-        if (spiewajDalejConfig.banks && Array.isArray(spiewajDalejConfig.banks)) {
-            for (const b of spiewajDalejConfig.banks) {
-                track = (b.tracks || []).find(t => String(t.id) === tid);
-                if (track) break;
-            }
-        } else {
-            track = (spiewajDalejConfig.tracks || []).find(t => String(t.id) === tid);
-        }
+        const track = findSpiewajDalejTrackInActiveBank(tid);
         if (!track || !track.audio) return;
         const playingKey = spiewajDalejScreenTrackId != null ? String(spiewajDalejScreenTrackId) : null;
         if (playingKey === tid) {
@@ -6165,8 +6498,8 @@ io.on('connection', (socket) => {
         }
         spiewajDalejScreenTrackId = tid;
         spiewajDalejUsedIds.add(tid);
-        const ng = typeof track.normalizedGain === 'number' ? track.normalizedGain : undefined;
-        io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_play', { url: audioUrl, volume: digitalOutputClamp(spiewajDalejVolume * masterVolume), trackId: tid, ...(ng != null && { normalizedGain: ng }) });
+        const ng = await ensureMusicTrackNormalizedGain(track);
+        io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_play', { url: audioUrl, volume: digitalOutputClamp(gamesVolume), trackId: tid, normalizedGain: ng });
         io.to('spiewaj_dalej_phone').emit('spiewaj_dalej_used', { trackId: tid });
         emitAudioMonitorState();
     });
@@ -6183,36 +6516,39 @@ io.on('connection', (socket) => {
         io.to('spiewaj_dalej_phone').emit('spiewaj_dalej_ended', data);
         emitAudioMonitorState();
     });
-    socket.on('spiewaj_dalej_volume', (vol) => {
-        spiewajDalejVolume = Math.max(0, Math.min(1, vol));
-        saveVolumes();
-        io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_volume', digitalOutputClamp(spiewajDalejVolume * masterVolume));
-    });
+    socket.on('spiewaj_dalej_volume', (vol) => setGamesVolume(vol));
 
     // Bitwa wokalna – ekran (komputer) i telefon
     socket.on('bitwa_wokalna_join_screen', () => {
         socket.join('bitwa_wokalna_screen');
-        socket.emit('bitwa_wokalna_state', { active: bitwaWokalnaActive, config: bitwaWokalnaConfig });
-        socket.emit('bitwa_wokalna_volume', digitalOutputClamp(bitwaWokalnaVolume * masterVolume));
+        socket.emit('bitwa_wokalna_state', getBitwaWokalnaStatePayload(false));
+        socket.emit('bitwa_wokalna_volume', digitalOutputClamp(gamesVolume));
     });
     socket.on('bitwa_wokalna_join_phone', () => {
         socket.join('bitwa_wokalna_phone');
-        socket.emit('bitwa_wokalna_state', { active: bitwaWokalnaActive, config: bitwaWokalnaConfig, usedIds: Array.from(bitwaWokalnaUsedIds) });
-        socket.emit('bitwa_wokalna_volume_sync', bitwaWokalnaVolume);
+        socket.emit('bitwa_wokalna_state', getBitwaWokalnaStatePayload(true));
+        socket.emit('bitwa_wokalna_volume_sync', gamesVolume);
     });
-    socket.on('bitwa_wokalna_play', (trackId) => {
+    socket.on('bitwa_wokalna_set_bank', (payload) => {
+        if (!bitwaWokalnaActive) return;
+        const raw = typeof payload === 'number' ? payload : (payload && payload.index);
+        broadcastBitwaWokalnaBankIndex(raw);
+    });
+    socket.on('bitwa_wokalna_bank_delta', (payload) => {
+        if (!bitwaWokalnaActive) return;
+        const delta = typeof payload === 'number' ? payload : (payload && payload.delta);
+        const d = delta === 1 || delta === -1 ? delta : 0;
+        if (!d) return;
+        const banks = bitwaWokalnaConfig.banks || [];
+        if (banks.length <= 1) return;
+        const next = Math.max(0, Math.min(banks.length - 1, bitwaWokalnaActiveBankIndex + d));
+        broadcastBitwaWokalnaBankIndex(next);
+    });
+    socket.on('bitwa_wokalna_play', async (trackId) => {
         if (!bitwaWokalnaActive || !trackId) return;
         const tid = String(trackId).trim();
         if (!tid) return;
-        let track = null;
-        if (bitwaWokalnaConfig.banks && Array.isArray(bitwaWokalnaConfig.banks)) {
-            for (const b of bitwaWokalnaConfig.banks) {
-                track = (b.tracks || []).find(t => String(t.id) === tid);
-                if (track) break;
-            }
-        } else {
-            track = (bitwaWokalnaConfig.tracks || []).find(t => String(t.id) === tid);
-        }
+        const track = findBitwaWokalnaTrackInActiveBank(tid);
         if (!track || !track.audio) return;
         const playingKey = bitwaWokalnaScreenTrackId != null ? String(bitwaWokalnaScreenTrackId) : null;
         if (playingKey === tid) {
@@ -6231,8 +6567,8 @@ io.on('connection', (socket) => {
         }
         bitwaWokalnaScreenTrackId = tid;
         bitwaWokalnaUsedIds.add(tid);
-        const ng = typeof track.normalizedGain === 'number' ? track.normalizedGain : undefined;
-        io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_play', { url: audioUrl, volume: digitalOutputClamp(bitwaWokalnaVolume * masterVolume), trackId: tid, ...(ng != null && { normalizedGain: ng }) });
+        const ng = await ensureMusicTrackNormalizedGain(track);
+        io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_play', { url: audioUrl, volume: digitalOutputClamp(gamesVolume), trackId: tid, normalizedGain: ng });
         io.to('bitwa_wokalna_phone').emit('bitwa_wokalna_used', { trackId: tid });
         emitAudioMonitorState();
     });
@@ -6249,17 +6585,13 @@ io.on('connection', (socket) => {
         io.to('bitwa_wokalna_phone').emit('bitwa_wokalna_ended', data);
         emitAudioMonitorState();
     });
-    socket.on('bitwa_wokalna_volume', (vol) => {
-        bitwaWokalnaVolume = Math.max(0, Math.min(1, vol));
-        saveVolumes();
-        io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_volume', digitalOutputClamp(bitwaWokalnaVolume * masterVolume));
-    });
+    socket.on('bitwa_wokalna_volume', (vol) => setGamesVolume(vol));
 
     // Imprezator – muzyka do tańca
     socket.on('imprezator_join_screen', () => {
         socket.join('imprezator_screen');
         socket.emit('imprezator_state', { active: imprezatorActive, config: imprezatorConfig });
-        socket.emit('imprezator_volume', digitalOutputClamp(imprezatorVolume * masterVolume));
+        socket.emit('imprezator_volume', digitalOutputClamp(imprezatorVolume));
     });
     socket.on('imprezator_join_phone', () => {
         socket.join('imprezator_phone');
@@ -6300,7 +6632,7 @@ io.on('connection', (socket) => {
         imprezatorCurrentlyPlaying = true;
         imprezatorCurrentTrackId = tid;
         audioMonitorLast = { type: 'imprezator', trackId: tid };
-        io.to('imprezator_screen').emit('imprezator_play', { url: audioUrl, volume: digitalOutputClamp(imprezatorVolume * masterVolume), trackId: tid, displayName, ...(ng != null && { normalizedGain: ng }) });
+        io.to('imprezator_screen').emit('imprezator_play', { url: audioUrl, volume: digitalOutputClamp(imprezatorVolume), trackId: tid, displayName, ...(ng != null && { normalizedGain: ng }) });
         emitAudioMonitorState();
     });
     socket.on('imprezator_stop', (payload) => {
@@ -6316,11 +6648,7 @@ io.on('connection', (socket) => {
         io.to('imprezator_phone').emit('imprezator_ended', data);
         emitAudioMonitorState();
     });
-    socket.on('imprezator_volume', (vol) => {
-        imprezatorVolume = Math.max(0, Math.min(1, vol));
-        saveVolumes();
-        io.to('imprezator_screen').emit('imprezator_volume', digitalOutputClamp(imprezatorVolume * masterVolume));
-    });
+    socket.on('imprezator_volume', (vol) => setImprezatorVolume(vol));
 
     socket.on('select_question', (index) => {
         if (socket.familiadaRole !== 'admin') return;
@@ -6336,14 +6664,18 @@ io.on('connection', (socket) => {
     });
     socket.on('select_golden_question', (index) => {
         if (socket.familiadaRole !== 'admin') return;
-        if (familiadaGoldenQuestions[index]) {
-            familiadaCurrentGoldenIndex = index;
+        loadFamiliadaGoldenData();
+        const idx = Number(index);
+        if (!Number.isInteger(idx) || idx < 0) return;
+        const question = familiadaGoldenQuestions[idx];
+        if (question) {
+            familiadaCurrentGoldenIndex = idx;
             familiadaCurrentQuestionIndex = null;
             familiadaRoundAwardedTo = null;
             familiadaRoundAwardedPoints = null;
             familiadaQuestionActive = true;
             familiadaButtonUsedThisRound = false;
-            io.to('familiada').emit('board_update', { type: 'NEW_ROUND', data: familiadaGoldenQuestions[index], team1: familiadaTeam1Name, team2: familiadaTeam2Name });
+            io.to('familiada').emit('board_update', { type: 'NEW_ROUND', data: question, team1: familiadaTeam1Name, team2: familiadaTeam2Name });
         }
     });
     socket.on('familiada_reset_buttons', () => {
@@ -6437,10 +6769,7 @@ io.on('connection', (socket) => {
     });
     socket.on('familiada_volume', (vol) => {
         if (socket.familiadaRole !== 'admin') return;
-        const v = Math.max(0, Math.min(1, parseFloat(vol) || 0));
-        familiadaVolume = v;
-        saveVolumes();
-        io.to('familiada').emit('familiada_volume', v);
+        setGamesVolume(parseFloat(vol) || 0);
     });
     socket.on('familiada_stop_all', () => {
         if (socket.familiadaRole !== 'admin') return;
@@ -6479,18 +6808,15 @@ io.on('connection', (socket) => {
         });
         console.log('⛔ Familiada: zakończono grę – przyciski rozłączone, dźwięk wyłączony');
     });
+    /** „ZERUJ PUNKTY” w panelu admina — tylko wyzerowanie wyników; bez FULL_RESET na TV
+     * (FULL_RESET ustawiało planszę na „OCZEKIWANIE...” i chowało overlay startowy). */
     socket.on('reset_game', () => {
         if (socket.familiadaRole !== 'admin') return;
         familiadaTeam1Score = 0;
         familiadaTeam2Score = 0;
         familiadaRoundAwardedTo = null;
         familiadaRoundAwardedPoints = null;
-        familiadaQuestionActive = false;
-        familiadaButtonUsedThisRound = false;
-        familiadaCurrentQuestionIndex = null;
-        familiadaCurrentGoldenIndex = null;
         io.to('familiada').emit('update_scores', { t1: 0, t2: 0, roundAwarded: false, team1: familiadaTeam1Name, team2: familiadaTeam2Name });
-        io.to('familiada').emit('board_update', { type: 'FULL_RESET', team1: familiadaTeam1Name, team2: familiadaTeam2Name });
     });
     socket.on('familiada_screen_reset', () => {
         familiadaTeam1Score = 0;
@@ -7435,11 +7761,7 @@ io.on('connection', (socket) => {
     });
     socket.on('admin_set_master_volume', (vol) => {
         const v = Math.max(0, Math.min(100, parseInt(vol, 10))) / 100;
-        masterVolume = v;
-        saveVolumes();
-        io.emit('master_volume', { volume: masterVolume });
-        io.emit('admin_master_volume', Math.round(v * 100)); // kompatybilność z admin.html
-        broadcastEffectiveVolumes(); // jak master_volume z PWA – odśwież eff na ekranach (Sampler, Whitney, …)
+        setGamesVolume(v);
     });
 
     // === TEAM BATTLE MODE ===
@@ -7558,68 +7880,30 @@ io.on('connection', (socket) => {
     });
 
     // Funkcje pomocnicze dla usuwania (muszą być przed handlerami które ich używają)
-    function extractFilePath(url) {
-        if (!url) return null;
-        // Jeśli to URL lokalny (/uploads/...), wyciągnij nazwę pliku
-        const match = url.match(/\/uploads\/([^\/]+)$/);
-        if (match) return match[1];
-        // Jeśli to już sama nazwa pliku (bez ścieżki)
-        if (!url.includes('/') && !url.includes('http')) return url;
-        return null;
-    }
+    // Tekstowy skan jak getAllFilesReferencedByQuizzes — obejmuje welcome, opcje i zagnieżdżone pola + ścieżki wielopoziomowe (uploads/sfx/…).
 
-    function getThumbnailPath(filePath) {
-        if (!filePath) return null;
-        // Zamień rozszerzenie na -thumb.webp
-        return filePath.replace(/\.[^.]+$/, '-thumb.webp');
-    }
-
-    // Zbiera wszystkie pliki używane przez INNE quizy (z wyjątkiem excludeFilename)
+    // Zbiera wszystkie pliki uploads używane przez INNE quizy Imprezji ORAZ przez Party Quiz (współdzielone grafiki/audio)
     function getFilesUsedByOtherQuizzes(excludeFilename) {
         const used = new Set();
         let quizFiles = [];
         try { quizFiles = fs.readdirSync(quizzesDir).filter(f => f.toLowerCase().endsWith('.json')); } catch (_) {}
         for (const qf of quizFiles) {
             if (qf === excludeFilename) continue;
-            try {
-                const raw = fs.readFileSync(path.join(quizzesDir, qf), 'utf8');
-                const data = JSON.parse(raw);
-                const questions = Array.isArray(data) ? data : (data.questions || []);
-                questions.forEach(q => {
-                    for (const field of ['media', 'image', 'imageSmall', 'audio', 'imageA', 'imageB', 'imageSmallA', 'imageSmallB', 'bgMusic']) {
-                        const fp = extractFilePath(q[field]);
-                        if (fp) { used.add(fp); used.add(getThumbnailPath(fp)); }
-                    }
-                    // WYBORCZY photos
-                    if (Array.isArray(q.photos)) {
-                        q.photos.forEach(p => { const fp = extractFilePath(p.url); if (fp) { used.add(fp); used.add(getThumbnailPath(fp)); } });
-                    }
-                });
-                // top-level bgMusic (options)
-                if (data.options && data.options.bgMusic) { const fp = extractFilePath(data.options.bgMusic); if (fp) used.add(fp); }
-            } catch (_) {}
+            try { _addUploadRefsFromText(fs.readFileSync(path.join(quizzesDir, qf), 'utf8'), used); } catch (_) {}
         }
+        try {
+            for (const pf of fs.readdirSync(partyQuizzesDir).filter(f => f.toLowerCase().endsWith('.json'))) {
+                try { _addUploadRefsFromText(fs.readFileSync(path.join(partyQuizzesDir, pf), 'utf8'), used); } catch (_) {}
+            }
+        } catch (_) {}
         used.delete(null); used.delete(undefined);
         return used;
     }
 
-    // Wyciąga wszystkie pliki mediów z quizu
+    /** Wszystkie referencje /uploads/ z jednego pliku quizu (Imprezja). */
     function getFilesFromQuiz(filePath) {
         const files = new Set();
-        try {
-            const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-            const questions = Array.isArray(data) ? data : (data.questions || []);
-            questions.forEach(q => {
-                for (const field of ['media', 'image', 'imageSmall', 'audio', 'imageA', 'imageB', 'imageSmallA', 'imageSmallB', 'bgMusic']) {
-                    const fp = extractFilePath(q[field]);
-                    if (fp) { files.add(fp); const t = getThumbnailPath(fp); if (t && fs.existsSync(path.join(uploadsDir, t))) files.add(t); }
-                }
-                if (Array.isArray(q.photos)) {
-                    q.photos.forEach(p => { const fp = extractFilePath(p.url); if (fp) { files.add(fp); const t = getThumbnailPath(fp); if (t && fs.existsSync(path.join(uploadsDir, t))) files.add(t); } });
-                }
-            });
-            if (data.options && data.options.bgMusic) { const fp = extractFilePath(data.options.bgMusic); if (fp) files.add(fp); }
-        } catch (_) {}
+        try { _addUploadRefsFromText(fs.readFileSync(filePath, 'utf8'), files); } catch (_) {}
         return files;
     }
 
@@ -7782,15 +8066,8 @@ io.on('connection', (socket) => {
                 socket.emit('party_editor_related_files', { files: [], safeFiles: [], sharedFiles: [] });
                 return;
             }
-            const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-            const questions = Array.isArray(data) ? data : (data.questions || []);
             const files = new Set();
-            questions.forEach(q => {
-                for (const field of ['media', 'image', 'imageSmall', 'audio']) {
-                    const fp = extractFilePath ? extractFilePath(q[field]) : (q[field] && String(q[field]).match(/\/uploads\/([^\/]+)$/) || [])[1];
-                    if (fp) files.add(fp);
-                }
-            });
+            _addUploadRefsFromText(fs.readFileSync(filePath, 'utf8'), files);
             const allFiles = Array.from(files);
             socket.emit('party_editor_related_files', {
                 files: allFiles,
@@ -7818,22 +8095,14 @@ io.on('connection', (socket) => {
             const deletedFiles = [];
             if (deleteRelated) {
                 try {
-                    const d = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-                    const qs = Array.isArray(d) ? d : (d.questions || []);
+                    const txt = fs.readFileSync(filePath, 'utf8');
                     const uploads = new Set();
-                    qs.forEach(q => {
-                        for (const field of ['media', 'image', 'imageSmall', 'audio']) {
-                            const v = q[field];
-                            if (v && typeof v === 'string') {
-                                const m = v.match(/\/uploads\/([^\/]+)$/);
-                                if (m) uploads.add(m[1]);
-                            }
-                        }
-                    });
-                    for (const name of uploads) {
-                        const fp = path.join(uploadsDir, name);
+                    _addUploadRefsFromText(txt, uploads);
+                    for (const rel of uploads) {
+                        const segments = String(rel).replace(/\\/g, '/').split('/').filter(Boolean);
+                        const fp = path.join(uploadsDir, ...segments);
                         if (fs.existsSync(fp)) {
-                            try { await moveUserPathsToTrash(fp); deletedFiles.push(name); }
+                            try { await moveUserPathsToTrash(fp); deletedFiles.push(rel); }
                             catch (_) {}
                         }
                     }
@@ -7862,6 +8131,11 @@ io.on('connection', (socket) => {
     socket.emit('party_state', buildPartyStatePayload());
     socket.emit('party_golden_list', partyQuizGoldenQuestions);
 
+    /** TV zatrzymał muzykę startową przy wejściu w pytanie — zsynchronizuj przycisk w panelu Party Quiz. */
+    socket.on('party_intro_music_auto_stopped', () => {
+        io.emit('party_intro_music_auto_stopped');
+    });
+
     // Wczytanie pliku Party Quiz jako aktywnego — kopiuje questions do gameState.questions,
     // żeby móc delegować do istniejącego admin_start_question dla QUIZ/MUSIC/OPEN/LETTER/ESTIMATION/SHIPS.
     socket.on('party_load_quiz', (filename) => {
@@ -7883,8 +8157,18 @@ io.on('connection', (socket) => {
         // ale render i tak robimy ręcznie przez party_familiada_round.
         gameState.questions = loaded.questions;
         gameState.quizOptions = Object.assign({}, gameState.quizOptions, loaded.options || {}, { disableTimePoints: true });
+        // TV (Screen.html): pokaż intro z logo + nazwą pliku — wymaga gameMode + type INTRO (inaczej zostaje stary typ np. GAME i brak ekranu powitalnego).
+        gameMode = 'party';
+        const _base = String(filename).replace(/\\/g, '/').split('/').pop() || filename;
+        gameState.quizTitle = _base.replace(/\.json$/i, '') || 'Imprezja Quiz';
+        gameState.type = 'INTRO';
+        gameState.activeQuestionIndex = -1;
+        gameState.activeQuestion = null;
+        gameState.showZarazZaczynamy = false;
+        gameState.showPlayersWithQR = false;
         console.log(`🥳 party_load_quiz: "${filename}" (${loaded.questions.length} pytań)`);
         broadcastPartyState();
+        broadcastStateImmediate();
     });
 
     // Rdzeń uruchomienia pytania Party (lista główna lub złota lista — bez mutacji wczytanego quizu przy złotej).
@@ -8342,6 +8626,7 @@ io.on('connection', (socket) => {
         const count = (data && typeof data.count === 'number') ? Math.max(1, Math.min(3, data.count)) : 1;
         if (team === 'center') {
             io.emit('party_fam_sound', 'bad');
+            io.emit('party_fam_center_x_flash');
             return;
         }
         if (team !== 'blue' && team !== 'red') return;
@@ -9191,11 +9476,8 @@ io.on('connection', (socket) => {
     /** Admin reguluje głośność soundtracku SHIPS_SOLO – zapis w kanale statki */
     socket.on('ships_solo_volume', (data) => {
         const v = parseFloat(data && data.volume);
-        if (!isNaN(v) && v >= 0 && v <= 1) {
-            statkiVolume = v;
-            saveVolumes();
-        }
-        io.emit('ships_solo_volume', { volume: statkiVolume });
+        if (!isNaN(v) && v >= 0 && v <= 1) setGamesVolume(v);
+        else io.emit('ships_solo_volume', { volume: gamesVolume });
     });
 
     /** Admin kończy grę solo */

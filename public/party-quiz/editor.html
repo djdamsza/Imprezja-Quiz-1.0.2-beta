@@ -46,6 +46,34 @@
         .btn-info { background: #3498db; color: white; }
         .btn-dark { background: rgba(0,0,0,0.5); color: var(--text-white); border: 1px solid var(--glass-border); }
         .btn-secondary { background: var(--glass-bg); color: var(--text-white); border: 1px solid var(--glass-border); }
+        .btn-star { padding: 6px 10px; font-size: 11px; font-weight: 700; background: var(--glass-bg); border: 1px solid var(--accent-gold); border-radius: 6px; cursor: pointer; color: var(--accent-gold); transition: all 0.2s; white-space: nowrap; }
+        .btn-star:hover { background: rgba(241, 196, 15, 0.2); }
+        .btn-star.in-golden { background: rgba(241, 196, 15, 0.22); color: #ffe082; }
+        /* Gwiazdka przy pytaniu — jak Familiada: sama ikona ☆ / ☆, wygodny cel dotyku */
+        .btn-party-star {
+            min-width: 42px;
+            min-height: 42px;
+            padding: 6px 8px;
+            font-size: 1.35rem;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-party-star .party-star-glyph { user-select: none; }
+        body.party-editor-golden-file .btn-party-star { display: none !important; }
+        .party-golden-filename-hint {
+            display: none;
+            margin: 10px auto 18px;
+            max-width: 720px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid rgba(241, 196, 15, 0.35);
+            background: rgba(241, 196, 15, 0.1);
+            color: var(--text-muted);
+            font-size: 0.9em;
+            line-height: 1.45;
+        }
         .btn-full { width: 100%; margin-top: 10px; }
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center; }
         .modal { background: rgba(26, 26, 46, 0.98); padding: 25px; border-radius: 12px; border: 1px solid var(--glass-border); width: 90%; max-width: 600px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: flex; flex-direction: column; color: var(--text-white); }
@@ -85,6 +113,10 @@
     <h1>🥳 Edytor Party Quiz</h1>
     <p style="text-align:center; color: var(--text-muted); margin: -10px 0 25px; font-size: 0.95em;">
         Hybryda Quizu i Familiady — pytania ABCD, otwarte, z literą, szacowanie, Statki Solo oraz typ <strong style="color:#00bcd4;">Familiada</strong>. Wszystko w jednym pliku.
+        Przy każdym pytaniu: <strong title="Analogicznie do edytora Familiady"><span aria-hidden="true">☆</span>/★ obok nagłówka</strong> dodaje lub usuwa kopię na złotej liście Party (<code>party-quiz-golden.json</code>, osobno od Familiady — max 10).
+    </p>
+    <p id="party-golden-filename-hint" class="party-golden-filename-hint" role="status">
+        <strong>Edytujesz złotą listę</strong> (<code>party-quiz-golden.json</code>) — przyciski złotej gwiazdki są ukryte (nie duplikujesz listy w liście). Zapisz plik po edycji.
     </p>
 
     <div class="control-panel">
@@ -471,6 +503,7 @@
         const defaultPointsEl = document.getElementById('defaultPoints');
         if (defaultPointsEl) defaultPointsEl.value = flat.defaultPoints;
         processData(flat);
+        refreshPartyGoldenFilenameMode();
     });
 
     socket.on('party_editor_save_status', (status) => { if (window.showEditorStatus) window.showEditorStatus(status.message, status.success ? 'success' : 'error'); });
@@ -498,6 +531,20 @@
             .replace(/"/g, '&quot;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;');
+    }
+
+    /** Plik nazwy bez .json dla złotej listy Party (jak familiada-golden vs reszta). */
+    function isEditingPartyGoldenFile() {
+        const raw = ((document.getElementById('filename') || {}).value || '').trim().toLowerCase();
+        const base = raw.endsWith('.json') ? raw.slice(0, -5) : raw;
+        return base === 'party-quiz-golden';
+    }
+
+    function refreshPartyGoldenFilenameMode() {
+        const on = isEditingPartyGoldenFile();
+        document.body.classList.toggle('party-editor-golden-file', on);
+        const hint = document.getElementById('party-golden-filename-hint');
+        if (hint) hint.style.display = on ? 'block' : 'none';
     }
 
     function addQuestion(type = 'QUIZ', data = null) {
@@ -791,7 +838,8 @@
         <div class="question-card" id="card-${qId}" data-type="${type}" data-question-number="${questionNumber}">
             <div class="card-header">
                 <span class="q-number">Pytanie ${questionNumber}: ${type === 'FAMILIADA' ? '🎤 FAMILIADA' : (type === 'FAST_LIST' ? '⚡ FAST_LIST' : (type + (type === 'MUSIC' ? ' (5 odp)' : '')))}</span>
-                <div style="display: flex; gap: 6px; align-items: center;">
+                <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
+                    <button type="button" class="btn btn-star btn-party-star" id="party-star-${qId}" onclick="togglePartyQuizGolden('${qId}')" title="Złota lista Party (max 10)" aria-label="Dodaj lub usuń w złotej liście Party"><span class="party-star-glyph" aria-hidden="true">☆</span></button>
                     <button class="btn btn-secondary btn-move" onclick="moveQuestionUp('${qId}')" title="Przesuń w górę"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 14l5-5 5 5z"/></svg></button>
                     <button class="btn btn-secondary btn-move" onclick="moveQuestionDown('${qId}')" title="Przesuń w dół"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg></button>
                     <button class="btn btn-danger btn-sm" onclick="removeQuestion('${qId}')">Usuń</button>
@@ -1211,6 +1259,7 @@
                 qNumberEl.textContent = `Pytanie ${number}: ${typeText}`;
             }
         });
+        try { syncAllPartyGoldenStars(); } catch (e) {}
     }
 
     // --- UPLOAD PLIKÓW (Z AUTOMATYCZNĄ MINIATURĄ) ---
@@ -1382,12 +1431,7 @@
     }
 
     // --- ZBIERANIE DANYCH ---
-    function collectData() {
-        const filename = document.getElementById('filename').value.trim();
-        if (!filename) { if (window.showEditorStatus) window.showEditorStatus('Podaj nazwę pliku!', 'error'); return null; }
-
-        const questions = [];
-        document.querySelectorAll('.question-card').forEach(card => {
+    function collectOneQuestionCard(card) {
             const type = card.dataset.type;
             const qId = card.id.replace('card-', '');
             
@@ -1600,7 +1644,16 @@
                 qData.correct = -1; // Brak poprawnej odpowiedzi
             }
 
-            questions.push(qData);
+            return qData;
+    }
+
+    function collectData() {
+        const filename = document.getElementById('filename').value.trim();
+        if (!filename) { if (window.showEditorStatus) window.showEditorStatus('Podaj nazwę pliku!', 'error'); return null; }
+
+        const questions = [];
+        document.querySelectorAll('.question-card').forEach(card => {
+            questions.push(collectOneQuestionCard(card));
         });
 
         // Zbierz dane ekranu końcowego
@@ -1629,6 +1682,97 @@
             questions: questions,
             thanksScreen: thanksScreen
         };
+    }
+
+    // --- Złota lista Party Quiz (party-quiz-golden.json), analogicznie do gwiazdki w edytorze Familiady ---
+    const PARTY_GOLDEN_MAX = 10;
+    let partyQuizGoldenList = [];
+
+    function partyQuizQuestionKey(q) {
+        if (!q || typeof q !== 'object') return '';
+        const o = JSON.parse(JSON.stringify(q));
+        delete o.id;
+        return JSON.stringify(o);
+    }
+
+    function isPartyQuestionInEditorGoldenList(q) {
+        const k = partyQuizQuestionKey(q);
+        return partyQuizGoldenList.some(g => partyQuizQuestionKey(g) === k);
+    }
+
+    function syncAllPartyGoldenStars() {
+        document.querySelectorAll('.question-card').forEach(card => {
+            const star = card.querySelector('.btn-party-star');
+            if (!star) return;
+            const q = collectOneQuestionCard(card);
+            const inList = isPartyQuestionInEditorGoldenList(q);
+            let glyph = star.querySelector('.party-star-glyph');
+            if (!glyph) {
+                glyph = document.createElement('span');
+                glyph.className = 'party-star-glyph';
+                glyph.setAttribute('aria-hidden', 'true');
+                star.innerHTML = '';
+                star.appendChild(glyph);
+            }
+            glyph.textContent = inList ? '★' : '☆';
+            star.classList.toggle('in-golden', inList);
+            star.setAttribute('aria-pressed', inList ? 'true' : 'false');
+            star.title = inList ? 'W złotej liście Party — kliknij aby usunąć' : 'Dodaj do złotej listy Party (max 10)';
+        });
+    }
+
+    async function togglePartyQuizGolden(qId) {
+        const card = document.getElementById('card-' + qId);
+        if (!card) return;
+        const q = collectOneQuestionCard(card);
+        if (!q || !String(q.question || '').trim()) {
+            if (window.showEditorStatus) window.showEditorStatus('Uzupełnij treść pytania', 'error');
+            return;
+        }
+        const k = partyQuizQuestionKey(q);
+        const idx = partyQuizGoldenList.findIndex(g => partyQuizQuestionKey(g) === k);
+        if (idx >= 0) {
+            partyQuizGoldenList.splice(idx, 1);
+        } else {
+            if (partyQuizGoldenList.length >= PARTY_GOLDEN_MAX) {
+                if (window.showEditorStatus) window.showEditorStatus('Złota lista Party: max ' + PARTY_GOLDEN_MAX + ' pytań', 'error');
+                return;
+            }
+            partyQuizGoldenList.push(q);
+        }
+        try {
+            const res = await fetch('/api/party-quiz/golden', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(partyQuizGoldenList)
+            });
+            const j = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error((j && j.error) || 'Błąd zapisu');
+            if (window.showEditorStatus) {
+                const c = (j && typeof j.count === 'number') ? j.count : partyQuizGoldenList.length;
+                window.showEditorStatus('Złota lista Party: ' + c + '/' + PARTY_GOLDEN_MAX, 'success');
+            }
+        } catch (e) {
+            if (window.showEditorStatus) window.showEditorStatus(e.message || 'Błąd', 'error');
+            try {
+                const r2 = await fetch('/api/party-quiz/golden');
+                partyQuizGoldenList = await r2.json();
+                if (!Array.isArray(partyQuizGoldenList)) partyQuizGoldenList = [];
+            } catch (_) {}
+        }
+        syncAllPartyGoldenStars();
+    }
+
+    window.togglePartyQuizGolden = togglePartyQuizGolden;
+
+    function loadPartyEditorGoldenList() {
+        return fetch('/api/party-quiz/golden')
+            .then(r => r.json())
+            .then(list => {
+                partyQuizGoldenList = Array.isArray(list) ? list : [];
+                syncAllPartyGoldenStars();
+            })
+            .catch(() => { partyQuizGoldenList = []; });
     }
 
     /** Walidacja quizu przed zapisem. Zwraca { errors: [], warnings: [] }, każdy element: { index, title, message }. */
@@ -1894,6 +2038,7 @@
         if (fileSelect) fileSelect.value = '';
         const deleteBtn = document.getElementById('delete-btn');
         if (deleteBtn) deleteBtn.disabled = true;
+        refreshPartyGoldenFilenameMode();
         window.scrollTo({ top: 0, behavior: 'smooth' });
         if (window.showEditorStatus) window.showEditorStatus('Nowy quiz — edytor wyczyszczony', 'success');
     }
@@ -2074,6 +2219,8 @@
         });
         // Aktualizuj numerację po załadowaniu wszystkich pytań
         updateQuestionNumbers();
+        refreshPartyGoldenFilenameMode();
+        loadPartyEditorGoldenList();
     }
 
     function loadFromFile(input) {
@@ -2579,6 +2726,16 @@
         clearTimeout(window._deleteFilesTimeout);
         socket.emit('party_editor_delete_file', { filename, deleteRelated });
     }
+
+    loadPartyEditorGoldenList();
+    (function bindPartyGoldenFilenameField() {
+        const fn = document.getElementById('filename');
+        if (fn) {
+            fn.addEventListener('input', refreshPartyGoldenFilenameMode);
+            fn.addEventListener('change', refreshPartyGoldenFilenameMode);
+        }
+        refreshPartyGoldenFilenameMode();
+    })();
 </script>
     <script>
         if ('serviceWorker' in navigator && !navigator.userAgent.includes('Electron')) {

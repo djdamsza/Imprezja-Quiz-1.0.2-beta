@@ -121,8 +121,7 @@
         let countdownTimerId = null;
         let countdownEndTime = null;
         let countdownReachedZeroIndex = -1;
-        let prezentacjaChannelVolume = 1;
-        let masterVolume = 1;
+        let gamesVolume = 1;
         let logoBouncerStream = null;
         let logoBouncerAnimationId = null;
         let vizWebvsStream = null;
@@ -141,7 +140,7 @@
         let vizAudioMotionPresetIndex = 0;
         let liveOverlayState = { type: 'none', countdownMinutes: 3, text: '', textPosition: 'center' };
 
-        function getPrezentacjaEffectiveVolume() { return clampDigitalOutputLinear(prezentacjaChannelVolume * masterVolume); }
+        function getPrezentacjaEffectiveVolume() { return clampDigitalOutputLinear(gamesVolume); }
         function applyVideoVolumes() {
             const eff = getPrezentacjaEffectiveVolume();
             document.querySelectorAll('#slides-wrapper .slide-video video').forEach(v => {
@@ -1268,7 +1267,12 @@
         function getSlideDuration(index) {
             if (!config || !config.slides || !config.slides[index]) return DEFAULT_SLIDE_DURATION;
             const s = config.slides[index];
-            if (s.type === 'image' && typeof s.duration === 'number') return s.duration * 1000;
+            if (s.type === 'image') {
+                const g = typeof config.globalImageDurationSec === 'number' ? config.globalImageDurationSec : 0;
+                if (g > 0) return Math.min(120, Math.max(1, g)) * 1000;
+                if (typeof s.duration === 'number') return Math.min(120, Math.max(1, s.duration)) * 1000;
+                return DEFAULT_SLIDE_DURATION;
+            }
             if (s.type === 'visualization') return (typeof s.duration === 'number' && s.duration > 0) ? s.duration * 1000 : 3600000;
             if (s.type === 'logo-bouncer') return (typeof s.duration === 'number' && s.duration > 0) ? s.duration * 1000 : 3600000;
             if (s.type === 'countdown') return 86400000;
@@ -1335,6 +1339,8 @@
             currentIndex = 0;
             playing = false;
             countdownReachedZeroIndex = -1;
+            if (typeof data.loop === 'boolean') loop = data.loop;
+            else loop = (data.config && data.config.loop) !== false;
             renderAll();
             syncVideoPlayback();
             updateBackgroundMusic();
@@ -1360,6 +1366,10 @@
 
         socket.on('prezentacja_loop', (data) => {
             loop = data.loop !== false;
+            if (playing) {
+                stopAutoAdvance();
+                startAutoAdvance();
+            }
         });
 
         socket.on('prezentacja_overlay', (data) => {
@@ -1414,23 +1424,19 @@
 
         socket.on('connect', () => {
             socket.emit('prezentacja_join');
-            socket.emit('master_volume_request');
+            socket.emit('games_volume_request');
         });
 
-        socket.on('master_volume', (d) => {
-            const v = parseFloat(d && d.volume);
-            if (!isNaN(v) && v >= 0 && v <= 1) {
-                masterVolume = v;
+        function setPrezentacjaGamesVolume(v) {
+            const n = parseFloat(v);
+            if (!isNaN(n) && n >= 0 && n <= 1) {
+                gamesVolume = n;
                 applyVideoVolumes();
             }
-        });
-        socket.on('prezentacja_volume', (d) => {
-            const v = parseFloat(d && d.volume);
-            if (!isNaN(v) && v >= 0 && v <= 1) {
-                prezentacjaChannelVolume = v;
-                applyVideoVolumes();
-            }
-        });
+        }
+        socket.on('games_volume', (d) => setPrezentacjaGamesVolume(d && d.volume));
+        socket.on('master_volume', (d) => setPrezentacjaGamesVolume(d && d.volume));
+        socket.on('prezentacja_volume', (d) => setPrezentacjaGamesVolume(d && d.volume));
 
         renderAll();
         } catch (e) {

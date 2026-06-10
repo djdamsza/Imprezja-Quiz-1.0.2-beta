@@ -7,6 +7,7 @@
     <title>Familiada – Pilot</title>
     <link rel="stylesheet" href="/css/admin-editor-shared.css">
     <script src="/socket.io/socket.io.js"></script>
+    <script src="/lib/games-volume-bar.js"></script>
     <script src="/lib/nosleep.min.js"></script>
     <script src="/familiada/suchary.js"></script>
     <style>
@@ -122,18 +123,7 @@
         </div>
         <button class="btn-audio" style="background: #8e44ad; width: 100%; margin-top: 6px; padding: 12px;" onclick="resetFamiliadaButtons()" title="Jeśli ktoś przez przypadek nacisnął – pozwala jeszcze raz użyć przycisków dla danego pytania">🔄 RESET PRZYCISKÓW</button>
         <div style="background:#111;border-radius:8px;padding:10px 12px;margin-top:6px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-                <span style="font-size:13px;font-weight:bold;color:var(--imp-accent);">🔊 Głośność master</span>
-                <span id="vol-val" style="font-size:14px;font-weight:900;color:#fff;min-width:38px;text-align:right;">80%</span>
-            </div>
-            <input type="range" id="vol-slider" min="0" max="100" value="80"
-                style="width:100%;accent-color:var(--imp-accent);height:6px;cursor:pointer;">
-            <div style="display:flex;justify-content:space-between;font-size:10px;color:#666;margin-top:3px;">
-                <span>Wyciszony</span>
-                <span style="color:#888;font-size:10px;">intro/outro -10%</span>
-                <span>Max</span>
-            </div>
-            <button type="button" id="btn-fam-color-swap" class="btn-audio" style="background:#34495e;width:100%;margin-top:10px;padding:12px;font-size:14px;" onclick="toggleFamiliadaColorSides()" title="Odwraca tła niebieski/czerwony na ekranie TV; nazwy drużyn i punkty bez zmian">🔄 Kolory stron (TV): normalnie</button>
+            <button type="button" id="btn-fam-color-swap" class="btn-audio" style="background:#34495e;width:100%;padding:12px;font-size:14px;" onclick="toggleFamiliadaColorSides()" title="Odwraca tła niebieski/czerwony na ekranie TV; nazwy drużyn i punkty bez zmian">🔄 Kolory stron (TV): normalnie</button>
         </div>
 
         <h3>😄 SUCHARY</h3>
@@ -195,7 +185,9 @@
             if (urlEl && data && data.url) urlEl.textContent = data.url;
         });
         if (socket.connected) registerAdmin();
+        if (socket.connected && typeof ImprezjaGamesVolume !== 'undefined') ImprezjaGamesVolume.mount(socket);
         socket.on('connect', () => {
+            if (typeof ImprezjaGamesVolume !== 'undefined') ImprezjaGamesVolume.mount(socket);
             registerAdmin();
             // Pokaż powiadomienie o przywróceniu połączenia (nie przy pierwszym połączeniu)
             if (document.readyState === 'complete') {
@@ -301,6 +293,12 @@
             renderGoldenList();
         });
         let activeGoldenIdx = null;
+
+        function familiadaAnswerPoints(ans) {
+            const p = Number(ans && ans.points);
+            return Number.isFinite(p) ? Math.max(0, Math.floor(p)) : 0;
+        }
+
         function renderGoldenList() {
             const container = document.getElementById('golden-questions-list');
             container.innerHTML = '';
@@ -377,10 +375,11 @@
             `;
             const ansList = document.getElementById('golden-ans-list');
             q.answers.forEach((ans, ai) => {
+                const pts = familiadaAnswerPoints(ans);
                 const aDiv = document.createElement('div');
                 aDiv.className = 'ans-item';
-                aDiv.dataset.points = ans.points;
-                aDiv.innerHTML = `<span>${ai + 1}. ${escapeHtml(ans.text)}</span><span class="ans-pts">${ans.points}</span>`;
+                aDiv.dataset.points = String(pts);
+                aDiv.innerHTML = `<span>${ai + 1}. ${escapeHtml(ans.text)}</span><span class="ans-pts">${pts}</span>`;
                 aDiv.onclick = () => revealAnswer(ai + 1, aDiv);
                 ansList.appendChild(aDiv);
             });
@@ -614,10 +613,11 @@
             `;
             const ansList = document.getElementById('active-ans-list');
             q.answers.forEach((ans, ai) => {
+                const pts = familiadaAnswerPoints(ans);
                 const aDiv = document.createElement('div');
                 aDiv.className = 'ans-item';
-                aDiv.dataset.points = ans.points;
-                aDiv.innerHTML = `<span>${ai + 1}. ${escapeHtml(ans.text)}</span><span class="ans-pts">${ans.points}</span>`;
+                aDiv.dataset.points = String(pts);
+                aDiv.innerHTML = `<span>${ai + 1}. ${escapeHtml(ans.text)}</span><span class="ans-pts">${pts}</span>`;
                 aDiv.onclick = () => revealAnswer(ai + 1, aDiv);
                 ansList.appendChild(aDiv);
             });
@@ -694,31 +694,6 @@
             const t2 = document.getElementById('fam-team-2').value.trim() || 'Czerwoni';
             socket.emit('familiada_set_team_names', { team1: t1, team2: t2 });
         }
-
-        // ── Głośność master ──────────────────────────────────────────
-        (function initVolumeSlider() {
-            const slider = document.getElementById('vol-slider');
-            const valEl  = document.getElementById('vol-val');
-            if (!slider) return;
-            // Przywróć zapisaną wartość
-            const saved = parseFloat(localStorage.getItem('familiada_master_vol') || '0.8');
-            const pct = Math.round(saved * 100);
-            slider.value = pct;
-            valEl.textContent = pct + '%';
-
-            let emitTimer = null;
-            slider.addEventListener('input', () => {
-                const v = parseInt(slider.value);
-                valEl.textContent = v + '%';
-                // Debounce – emituj max co 80ms
-                clearTimeout(emitTimer);
-                emitTimer = setTimeout(() => {
-                    const normalized = v / 100;
-                    localStorage.setItem('familiada_master_vol', normalized);
-                    socket.emit('familiada_volume', normalized);
-                }, 80);
-            });
-        })();
 
         const LS_FAM_COLOR_SWAP = 'imprezjaFamiliadaColorSwap';
         let familiadaColorSwapped = false;

@@ -95,6 +95,21 @@
     </div>
 
     <div class="section">
+        <h2>⏱ Odtwarzanie slajdów (zdjęcia)</h2>
+        <div class="form-row">
+            <label>Globalny czas wyświetlania zdjęć (sekundy)</label>
+            <input type="number" id="preset-global-img-dur" value="0" min="0" max="120" step="1" placeholder="0">
+            <p style="font-size:0.8rem;color:rgba(255,255,255,0.6);margin-top:8px;">
+                <strong>0</strong> — każde zdjęcie ma swój czas (edycja slajdu). <strong>1–120</strong> — na ekranie <strong>wszystkie zdjęcia</strong> pokazują się przez tyle sekund (automatyczne przejście dalej), niezależnie od wartości w edycji pojedynczego zdjęcia.
+            </p>
+        </div>
+        <div class="form-row" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+            <button type="button" class="btn" id="btn-apply-dur-all-images" title="Zapisuje ten czas w każdym slajdzie &quot;image&quot; w pliku">🖼 Ustaw ten czas we wszystkich zdjęciach</button>
+        </div>
+        <div class="form-row"><label class="checkbox-row"><input type="checkbox" id="preset-slides-loop" checked> <strong>Pętla slajdów</strong> — po ostatnim slajdzie wraca do pierwszego (gdy wyłączone, autoodtwarzanie zatrzyma się na końcu)</label></div>
+    </div>
+
+    <div class="section">
         <h2>Slajdy</h2>
         <div class="slide-list" id="slide-list"></div>
         <div style="margin-top:16px;">
@@ -125,6 +140,39 @@
         let slides = [];
         let editingIndex = -1;
         const REVEAL_TRANSITIONS = ['none','fade','slide','convex','concave','zoom'];
+
+        function readGlobalImageDurationSec() {
+            const el = document.getElementById('preset-global-img-dur');
+            if (!el) return 0;
+            const v = parseInt(el.value, 10);
+            if (!Number.isFinite(v) || v < 1) return 0;
+            return Math.min(120, Math.max(1, v));
+        }
+
+        function getDefaultImageDurationForNewSlide() {
+            const g = readGlobalImageDurationSec();
+            return g > 0 ? g : 8;
+        }
+
+        function buildPresentationConfig(name) {
+            const transition = document.querySelector('input[name="transition"]:checked').value;
+            const bgMusic = (document.getElementById('preset-bg-music') || {}).value || '';
+            const bgLoop = (document.getElementById('preset-bg-loop') || {}).checked !== false;
+            const logo = (document.getElementById('preset-logo') || {}).value || '';
+            const gDur = readGlobalImageDurationSec();
+            const slidesLoop = (document.getElementById('preset-slides-loop') || {}).checked !== false;
+            const config = {
+                name,
+                slides,
+                transition,
+                loop: slidesLoop,
+                backgroundMusic: bgMusic || undefined,
+                backgroundMusicLoop: bgLoop,
+                logo: logo || undefined
+            };
+            if (gDur > 0) config.globalImageDurationSec = gDur;
+            return config;
+        }
 
         function renderSlides() {
             const list = document.getElementById('slide-list');
@@ -443,7 +491,7 @@
                     const isLogoBouncer = editingIndex >= 0 && slides[editingIndex]?.type === 'logo-bouncer';
                     if (paths.length > 1 && forType === 'image' && !isLogoBouncer) {
                         for (let i = 1; i < paths.length; i++) {
-                            slides.splice(editingIndex + i, 0, { type: 'image', src: paths[i], caption: '', duration: 8 });
+                            slides.splice(editingIndex + i, 0, { type: 'image', src: paths[i], caption: '', duration: getDefaultImageDurationForNewSlide() });
                         }
                         renderSlides();
                     }
@@ -464,7 +512,7 @@
                 for (const f of files) {
                     try {
                         const path = await uploadSingleFile(f, forType);
-                        slides.push({ type: forType, src: path, caption: '', duration: forType === 'image' ? 8 : undefined });
+                        slides.push({ type: forType, src: path, caption: '', duration: forType === 'image' ? getDefaultImageDurationForNewSlide() : undefined });
                     } catch (err) {
                         console.warn('Upload failed:', f.name, err);
                         alert('Nie udało się wgrać: ' + f.name);
@@ -548,6 +596,10 @@
             if (bgEl) bgEl.value = cfg.backgroundMusic || '';
             const loopEl = document.getElementById('preset-bg-loop');
             if (loopEl) loopEl.checked = cfg.backgroundMusicLoop !== false;
+            const gDurEl = document.getElementById('preset-global-img-dur');
+            if (gDurEl) gDurEl.value = (typeof cfg.globalImageDurationSec === 'number' && cfg.globalImageDurationSec > 0) ? String(cfg.globalImageDurationSec) : '0';
+            const slideLoopEl = document.getElementById('preset-slides-loop');
+            if (slideLoopEl) slideLoopEl.checked = cfg.loop !== false;
             renderSlides();
         }
 
@@ -560,11 +612,7 @@
         document.getElementById('btn-save').onclick = async ()=>{
             const name = document.getElementById('preset-name').value.trim();
             if (!name) { alert('Podaj nazwę prezentacji'); return; }
-            const transition = document.querySelector('input[name="transition"]:checked').value;
-            const bgMusic = (document.getElementById('preset-bg-music') || {}).value || '';
-            const bgLoop = (document.getElementById('preset-bg-loop') || {}).checked !== false;
-            const logo = (document.getElementById('preset-logo') || {}).value || '';
-            const config = { name, slides, transition, loop: true, backgroundMusic: bgMusic || undefined, backgroundMusicLoop: bgLoop, logo: logo || undefined };
+            const config = buildPresentationConfig(name);
             const r = await fetch('/api/prezentacje/save', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name, config }) });
             const j = await r.json();
             if (j.success) { alert('Zapisano: ' + name); refreshPresetList(); } else alert('Błąd: ' + (j.error||''));
@@ -574,11 +622,7 @@
             const newName = prompt('Zapisz jako (nowa nazwa):', document.getElementById('preset-name').value.trim() || 'Prezentacja');
             if (!newName || !newName.trim()) return;
             const name = newName.trim();
-            const transition = document.querySelector('input[name="transition"]:checked').value;
-            const bgMusic = (document.getElementById('preset-bg-music') || {}).value || '';
-            const bgLoop = (document.getElementById('preset-bg-loop') || {}).checked !== false;
-            const logo = (document.getElementById('preset-logo') || {}).value || '';
-            const config = { name, slides, transition, loop: true, backgroundMusic: bgMusic || undefined, backgroundMusicLoop: bgLoop, logo: logo || undefined };
+            const config = buildPresentationConfig(name);
             const r = await fetch('/api/prezentacje/save', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name, config }) });
             const j = await r.json();
             if (j.success) { alert('Zapisano jako: ' + name); document.getElementById('preset-name').value = name; refreshPresetList(); } else alert('Błąd: ' + (j.error||''));
@@ -600,6 +644,23 @@
                     refreshPresetList();
                 } else alert('Błąd: ' + (j.error || r.status));
             } catch (e) { alert('Błąd: ' + e.message); }
+        };
+
+        document.getElementById('btn-apply-dur-all-images').onclick = () => {
+            const g = readGlobalImageDurationSec();
+            if (g < 1) {
+                alert('Ustaw najpierw globalny czas na co najmniej 1 s (pole powyżej).');
+                return;
+            }
+            let n = 0;
+            slides.forEach(s => {
+                if (s.type === 'image') {
+                    s.duration = g;
+                    n++;
+                }
+            });
+            renderSlides();
+            alert(n ? ('Zaktualizowano ' + n + ' slajd(ów) zdjęć do ' + g + ' s.') : 'Brak slajdów typu „image” na liście.');
         };
 
         document.getElementById('btn-load').onclick = async ()=>{

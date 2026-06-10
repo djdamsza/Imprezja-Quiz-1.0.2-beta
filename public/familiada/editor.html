@@ -135,10 +135,10 @@
 
     <div id="golden-list-panel" class="control-panel" style="margin-top: 30px; border-left: 5px solid var(--imp-accent); display: none;">
         <h3 style="margin: 0 0 15px 0; color: var(--imp-accent);">⭐ Złota lista (max 10)</h3>
-        <p style="font-size: 0.9em; color: var(--imp-text-muted); margin-bottom: 15px;">Edytowalna jak każda inna lista. Wyświetla się w panelu admina na dole strony i można z niej korzystać w każdej rozgrywce.</p>
+        <p style="font-size: 0.9em; color: var(--imp-text-muted); margin-bottom: 15px;">Edytowalna jak każda inna lista. Wyświetla się w panelu admina na dole strony. <strong>Po zmianie punktów kliknij „Zapisz złotą listę”</strong> — wczytanie innego pliku bez zapisu cofnie zmiany.</p>
         <div id="golden-questions-container"></div>
         <div class="panel-row" style="margin-top: 15px;">
-            <button class="btn btn-primary btn-sm" onclick="addGoldenQuestion()" style="margin-right:10px;">➕ Dodaj pytanie</button>
+            <button class="btn btn-primary btn-sm" onclick="addGoldenQuestion(); markGoldenPanelDirty();" style="margin-right:10px;">➕ Dodaj pytanie</button>
             <button class="btn btn-success" onclick="saveGoldenList()">💾 Zapisz złotą listę</button>
         </div>
     </div>
@@ -206,22 +206,74 @@
     const MAX_GOLDEN = 10;
     /** Gdy true, wczytano "Złota lista" – ukrywamy przyciski "DODAJ DO ZŁOTEJ LISTY" i dolną sekcję złotej listy (żeby nie dublować pytań). */
     let isEditingGoldenList = false;
+    /** Niezapisane zmiany w sekcji „Złota lista” (dolny panel) – chroni przed nadpisaniem przy wczytywaniu pliku. */
+    let goldenPanelDirty = false;
 
-    function getQuestionDataFromCard(card) {
-        if (!card) return null;
-        const qText = (card.querySelector('.q-text')?.value ?? '').trim();
-        const answers = [];
-        card.querySelectorAll('.answer-row').forEach(row => {
-            const text = (row.querySelector('.ans-text')?.value ?? '').trim();
-            const points = parseInt(row.querySelector('.ans-points')?.value, 10) || 0;
-            if (text) answers.push({ text, points });
-        });
-        return { question: qText, answers: answers.length ? answers : [{ text: '', points: 40 }] };
-    }
+        function familiadaAnswerPointsValue(raw) {
+            const p = Number(raw);
+            return Number.isFinite(p) ? Math.max(0, Math.floor(p)) : 0;
+        }
+
+        function parseAnswerPointsInput(val) {
+            if (val === '' || val == null) return 0;
+            const p = parseInt(String(val), 10);
+            return Number.isNaN(p) ? 0 : Math.max(0, p);
+        }
+
+        function updateGoldenPanelVisibility() {
+            const goldenPanel = document.getElementById('golden-list-panel');
+            if (goldenPanel) goldenPanel.style.display = isEditingGoldenList ? 'none' : 'block';
+        }
+
+        function markGoldenPanelDirty() {
+            goldenPanelDirty = true;
+        }
+
+        function clearGoldenPanelDirty() {
+            goldenPanelDirty = false;
+        }
+
+        /** Klucz pytania – złota lista ma własne punkty, niezależne od pliku głównego. */
+        function goldenQuestionKey(q) {
+            return String(q && q.question || '').trim().toLowerCase();
+        }
+
+        /** Zawsze czytaj aktualne punkty z formularza złotej listy przed zapisem / gwiazdką. */
+        function syncGoldenListFromDom() {
+            if (!document.querySelector('#golden-questions-container .question-card')) return;
+            goldenListFromDom(false);
+        }
+
+        async function confirmDiscardGoldenEdits(actionLabel) {
+            if (!goldenPanelDirty) return true;
+            return confirm(
+                'Masz niezapisane zmiany punktów w złotej liście (sekcja na dole).\n\n' +
+                'Kliknij OK, aby kontynuować bez zapisu („' + actionLabel + '”), lub Anuluj i najpierw „Zapisz złotą listę”.'
+            );
+        }
+
+        function getQuestionDataFromCard(card) {
+            if (!card) return null;
+            const qText = (card.querySelector('.q-text')?.value ?? '').trim();
+            const answers = [];
+            card.querySelectorAll('.answer-row').forEach(row => {
+                const text = (row.querySelector('.ans-text')?.value ?? '').trim();
+                const points = parseAnswerPointsInput(row.querySelector('.ans-points')?.value);
+                if (text) answers.push({ text, points });
+            });
+            return { question: qText, answers: answers.length ? answers : [{ text: '', points: 40 }] };
+        }
 
     function isQuestionInGolden(q) {
-        if (!q || !q.question) return false;
-        return goldenList.some(g => g.question === q.question && JSON.stringify(g.answers) === JSON.stringify(q.answers));
+        const key = goldenQuestionKey(q);
+        if (!key) return false;
+        return goldenList.some(g => goldenQuestionKey(g) === key);
+    }
+
+    function findGoldenIndexByQuestion(q) {
+        const key = goldenQuestionKey(q);
+        if (!key) return -1;
+        return goldenList.findIndex(g => goldenQuestionKey(g) === key);
     }
 
     function updateGoldenStars() {
@@ -236,12 +288,14 @@
     }
 
     async function toggleGolden(qId) {
+        syncGoldenListFromDom();
         const card = document.getElementById('card-' + qId);
         if (!card) return;
         const q = getQuestionDataFromCard(card);
         if (!q.question.trim()) return showStatus('Dodaj treść pytania przed dodaniem do złotej listy', 'error');
-        if (isQuestionInGolden(q)) {
-            goldenList = goldenList.filter(g => !(g.question === q.question && JSON.stringify(g.answers) === JSON.stringify(q.answers)));
+        const existingIdx = findGoldenIndexByQuestion(q);
+        if (existingIdx >= 0) {
+            goldenList.splice(existingIdx, 1);
         } else if (goldenList.length >= MAX_GOLDEN) {
             showStatus('Złota lista może mieć max ' + MAX_GOLDEN + ' pytań', 'error');
             return;
@@ -250,6 +304,7 @@
         }
         try {
             await saveGoldenListToServer();
+            renderGoldenList();
             updateGoldenStars();
             showStatus('Złota lista: ' + goldenList.length + '/' + MAX_GOLDEN + ' (zapisano)', 'success');
         } catch (err) {
@@ -261,13 +316,16 @@
         const qId = 'g_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
         const q = data || { question: '', answers: [{ text: '', points: 40 }] };
         if (!q.answers || q.answers.length === 0) q.answers = [{ text: '', points: 40 }];
-        const answersHtml = q.answers.map((a) => `
+        const answersHtml = q.answers.map((a) => {
+            const pts = familiadaAnswerPointsValue(a.points);
+            return `
             <div class="answer-row">
                 <input type="text" class="ans-text" value="${escapeHtmlAttr(a.text)}" placeholder="Odpowiedź">
-                <input type="number" class="ans-points" value="${a.points || 0}" min="0" placeholder="Pkt">
+                <input type="number" class="ans-points" value="${pts}" min="0" placeholder="Pkt">
                 <button class="btn btn-danger btn-sm" onclick="this.closest('.answer-row').remove()">✕</button>
             </div>
-        `).join('');
+        `;
+        }).join('');
         const num = document.querySelectorAll('#golden-questions-container .question-card').length + 1;
         const card = document.createElement('div');
         card.className = 'question-card';
@@ -299,7 +357,8 @@
 
     function removeGoldenQuestion(qId) {
         document.getElementById('card-' + qId)?.remove();
-        goldenListFromDom();
+        syncGoldenListFromDom();
+        markGoldenPanelDirty();
         updateGoldenNumbers();
     }
 
@@ -309,7 +368,8 @@
         const prev = card.previousElementSibling;
         if (!prev || !prev.classList.contains('question-card')) return;
         card.parentNode.insertBefore(card, prev);
-        goldenListFromDom();
+        syncGoldenListFromDom();
+        markGoldenPanelDirty();
         updateGoldenNumbers();
     }
 
@@ -319,7 +379,8 @@
         const next = card.nextElementSibling;
         if (!next || !next.classList.contains('question-card')) return;
         card.parentNode.insertBefore(next, card);
-        goldenListFromDom();
+        syncGoldenListFromDom();
+        markGoldenPanelDirty();
         updateGoldenNumbers();
     }
 
@@ -330,37 +391,41 @@
         });
     }
 
-    function goldenListFromDom() {
+    function goldenListFromDom(updateStars = true) {
         goldenList = [];
         document.querySelectorAll('#golden-questions-container .question-card').forEach(card => {
             const q = getQuestionDataFromCard(card);
             goldenList.push(JSON.parse(JSON.stringify(q || { question: '', answers: [{ text: '', points: 40 }] })));
         });
         goldenList = goldenList.filter(q => q.question.trim());
-        updateGoldenStars();
+        if (updateStars) updateGoldenStars();
     }
 
     function renderGoldenList() {
         const container = document.getElementById('golden-questions-container');
         container.innerHTML = '';
         goldenList.forEach(q => addGoldenQuestion(q));
+        clearGoldenPanelDirty();
     }
 
-    async function loadGoldenList() {
+    async function loadGoldenList(force) {
+        if (!force && !(await confirmDiscardGoldenEdits('wczytanie z serwera'))) return;
         try {
-            const res = await fetch('/api/familiada/golden');
+            const res = await fetch('/api/familiada/golden?_=' + Date.now());
             goldenList = await res.json();
             if (!Array.isArray(goldenList)) goldenList = [];
             goldenList = goldenList.slice(0, MAX_GOLDEN);
             renderGoldenList();
             updateGoldenStars();
+            updateGoldenPanelVisibility();
         } catch (err) {
             console.error('Błąd ładowania złotej listy:', err);
         }
     }
 
-    /** Zapisuje aktualną tablicę goldenList na serwer (bez odczytu z DOM). */
+    /** Zapisuje złotą listę – zawsze najpierw czyta aktualne punkty z formularza. */
     async function saveGoldenListToServer() {
+        syncGoldenListFromDom();
         const valid = goldenList.filter(q => q && (q.question || '').trim()).slice(0, MAX_GOLDEN);
         const res = await fetch('/api/familiada/golden', {
             method: 'POST',
@@ -370,11 +435,11 @@
         const result = await res.json();
         if (!res.ok) throw new Error(result.error || 'Błąd zapisu');
         goldenList = valid;
+        clearGoldenPanelDirty();
         return result;
     }
 
     async function saveGoldenList() {
-        goldenListFromDom();
         try {
             const result = await saveGoldenListToServer();
             renderGoldenList();
@@ -390,13 +455,16 @@
         const q = data || { question: '', answers: [{ text: '', points: 40 }] };
         if (!q.answers || q.answers.length === 0) q.answers = [{ text: '', points: 40 }];
 
-        const answersHtml = q.answers.map((a) => `
+        const answersHtml = q.answers.map((a) => {
+            const pts = familiadaAnswerPointsValue(a.points);
+            return `
             <div class="answer-row">
                 <input type="text" class="ans-text" value="${escapeHtmlAttr(a.text)}" placeholder="Odpowiedź">
-                <input type="number" class="ans-points" value="${a.points || 0}" min="0" placeholder="Pkt">
+                <input type="number" class="ans-points" value="${pts}" min="0" placeholder="Pkt">
                 <button class="btn btn-danger btn-sm" onclick="this.closest('.answer-row').remove()">✕</button>
             </div>
-        `).join('');
+        `;
+        }).join('');
 
         const num = document.querySelectorAll('#questions-container .question-card').length + 1;
         const showStarBtn = !isEditingGoldenList;
@@ -550,7 +618,7 @@
             const answers = [];
             card.querySelectorAll('.answer-row').forEach(row => {
                 const text = (row.querySelector('.ans-text')?.value ?? '').trim();
-                const points = parseInt(row.querySelector('.ans-points')?.value, 10) || 0;
+                const points = parseAnswerPointsInput(row.querySelector('.ans-points')?.value);
                 if (text) answers.push({ text, points });
             });
             questions.push({ question: qText, answers });
@@ -580,6 +648,7 @@
     }
 
     async function loadFromServer() {
+        if (!(await confirmDiscardGoldenEdits('wczytanie innego pliku'))) return;
         const file = document.getElementById('server-files-list').value;
         const url = file ? '/api/familiada/data?file=' + encodeURIComponent(file) : '/api/familiada/data';
         showStatus('Ładowanie...', 'loading');
@@ -595,8 +664,8 @@
                 addQuestion();
             }
             if (file) document.getElementById('filename').value = file.replace('.json', '');
-            const goldenPanel = document.getElementById('golden-list-panel');
-            if (goldenPanel) goldenPanel.style.display = 'none';
+            updateGoldenPanelVisibility();
+            if (!isEditingGoldenList) await loadGoldenList(true);
             const mainListDesc = document.getElementById('main-list-desc');
             if (mainListDesc) mainListDesc.textContent = isEditingGoldenList
                 ? 'Edytujesz złotą listę. Zmiany zapisuj przyciskiem „Zapisz” poniżej.'
@@ -654,7 +723,7 @@
                 document.getElementById('server-files-list').value = filename;
                 const isGolden = filename && filename.toLowerCase() === 'familiada-golden.json';
                 document.getElementById('delete-btn').disabled = isGolden;
-                if (isGolden) await loadGoldenList();
+                if (isGolden) await loadGoldenList(true);
             }
             showStatus('Zapisano ' + result.count + ' pytań', 'success');
         } catch (err) {
@@ -1086,9 +1155,19 @@
     }
 
     document.addEventListener('DOMContentLoaded', async () => {
+        const goldenContainer = document.getElementById('golden-questions-container');
+        if (goldenContainer) {
+            goldenContainer.addEventListener('input', (e) => {
+                if (e.target.matches('.q-text, .ans-text, .ans-points')) markGoldenPanelDirty();
+            });
+            goldenContainer.addEventListener('click', (e) => {
+                if (e.target.closest('.answer-row .btn-danger') || e.target.closest('.btn-auto-points')) {
+                    markGoldenPanelDirty();
+                }
+            });
+        }
         await refreshFilesList();
-        loadFromServer();
-        await loadGoldenList();
+        await loadFromServer();
     });
 </script>
 </body>

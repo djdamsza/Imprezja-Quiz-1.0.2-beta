@@ -541,13 +541,12 @@
         document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') requestWakeLock(); });
         if (document.visibilityState === 'visible') requestWakeLock();
 
-        // ── Głośność: kanał × master (model miksera) ─────────────────────────
+        // ── Głośność gier (wspólny suwak PWA) ─────────────────────────
         const INTRO_VOL_FACTOR = 0.9; // intro/outro grają o 10% ciszej
-        let familiadaChannelVolume = 1;
-        let masterVolume = 1;
+        let gamesVolume = 1;
 
         function applyVolumes() {
-            const eff = clampDigitalOutputLinear(familiadaChannelVolume * masterVolume);
+            const eff = clampDigitalOutputLinear(gamesVolume);
             Object.entries(audioFiles).forEach(([name, a]) => {
                 const isBg = (name === 'intro' || name === 'outro');
                 const gain = familiadaGainCache[name] ?? 1;
@@ -658,11 +657,15 @@
             }
         });
         socket.on('familiada_volume', (v) => {
-            familiadaChannelVolume = Math.max(0, Math.min(1, v));
+            gamesVolume = Math.max(0, Math.min(1, v));
+            applyVolumes();
+        });
+        socket.on('games_volume', (d) => {
+            gamesVolume = (d && d.volume != null) ? Math.max(0, Math.min(1, d.volume)) : 1;
             applyVolumes();
         });
         socket.on('master_volume', (d) => {
-            masterVolume = (d && d.volume != null) ? Math.max(0, Math.min(1, d.volume)) : 1;
+            gamesVolume = (d && d.volume != null) ? Math.max(0, Math.min(1, d.volume)) : 1;
             applyVolumes();
         });
         socket.on('familiada_stop_all', stopAllAudio);
@@ -723,6 +726,11 @@
             document.fonts.ready.then(() => fitQuestionText()).catch(() => {});
         }
         window.addEventListener('load', () => fitQuestionText());
+
+        function familiadaAnswerPoints(raw) {
+            const p = Number(raw);
+            return Number.isFinite(p) ? Math.max(0, Math.floor(p)) : 0;
+        }
 
         function applyAnswerScaling(count) {
             if (!displayWrapper) return;
@@ -787,7 +795,7 @@
                     if (ans) {
                         el.style.display = 'flex';
                         el.querySelector('.revealed-text').innerText = ans.text;
-                        el.querySelector('.row-points').innerText = ans.points;
+                        el.querySelector('.row-points').innerText = familiadaAnswerPoints(ans.points);
                     } else { el.style.display = 'none'; }
                 }
             }

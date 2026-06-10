@@ -19,55 +19,80 @@
             --surface: rgba(255, 255, 255, 0.04);
             --surface-hover: rgba(255, 255, 255, 0.08);
             --border: rgba(255, 255, 255, 0.1);
+            /* Telefon: czytelna baza; boki 1–2px (+ safe-area) — więcej miejsca na 2 kolumny Familiady */
+            --pq-font-base: 16px;
+            --pq-pad-h: 2px;
         }
         * { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; }
-        html { height: 100%; }
-        body.party-quiz-admin {
+        /* Jeden widok wysokości; treść w .wrap (overflow:auto). Bez tego body rosło (min-height z shared.css) + overflow:hidden = obcięcie. */
+        html {
+            height: 100%;
+            min-height: 100dvh;
+            max-height: 100dvh;
+            overflow: hidden;
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
+        }
+        @supports (height: 100dvh) {
+            html { min-height: unset; height: 100dvh; max-height: 100dvh; }
+        }
+        /* admin-editor-shared.css: .imp-admin-editor { min-height:100vh } — wyłączamy rozrost, żeby flex + .wrap mogły przewijać. */
+        body.imp-admin-editor.party-quiz-admin {
             font-family: var(--imp-font, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif);
             background: var(--imp-bg-gradient, var(--bg-grad));
             color: var(--imp-text, #fff);
-            height: 100vh;
+            min-height: 0 !important;
+            height: 100%;
+            max-height: 100%;
             margin: 0;
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            padding: 12px 0 16px;
-            font-size: 25px;
-            letter-spacing: 0.035em;
+            padding: 8px 0 max(12px, env(safe-area-inset-bottom, 0px));
+            padding-top: max(8px, env(safe-area-inset-top, 0px));
+            font-size: var(--pq-font-base);
+            line-height: 1.45;
+            letter-spacing: 0.02em;
         }
         .wrap {
-            max-width: 100vw;
+            position: relative;
+            z-index: 0;
+            max-width: 100%;
             width: 100%;
             margin: 0 auto;
             box-sizing: border-box;
-            flex: 1;
+            flex: 1 1 0;
             min-height: 0;
+            min-width: 0;
             overflow-y: auto;
-            overflow-x: auto;
+            overflow-x: hidden;
             -webkit-overflow-scrolling: touch;
-            padding-left: 16px;
-            padding-right: 16px;
+            overscroll-behavior-y: contain;
+            padding-left: max(var(--pq-pad-h), env(safe-area-inset-left, 0px));
+            padding-right: max(var(--pq-pad-h), env(safe-area-inset-right, 0px));
         }
 
         header {
             display: flex;
             align-items: center;
             justify-content: flex-start;
-            gap: 12px;
-            padding: 10px 14px;
+            gap: 8px;
+            padding: 8px 10px;
             background: var(--card-bg);
             border: 1px solid var(--border);
             border-radius: 12px;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
+            min-width: 0;
         }
         header h1 {
             margin: 0;
-            font-size: 28px;
+            font-size: clamp(1.1rem, 4.2vw, 1.55rem);
             font-weight: 800;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            line-height: 1.2;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: break-word;
             background: var(--party-accent);
             -webkit-background-clip: text;
             background-clip: text;
@@ -96,13 +121,13 @@
             display: flex;
             flex-wrap: wrap;
             align-items: center;
-            gap: 10px;
-            padding: 8px 14px;
+            gap: 8px;
+            padding: 8px 10px;
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: 10px;
-            margin-bottom: 12px;
-            font-size: 15px;
+            margin-bottom: 10px;
+            font-size: clamp(12px, 3.2vw, 14px);
         }
         .dot {
             display: inline-block;
@@ -135,15 +160,16 @@
             background: var(--card-bg);
             border: 1px solid var(--border);
             border-radius: 12px;
-            padding: 14px 16px;
-            margin-bottom: 12px;
+            padding: 10px 2px;
+            margin-bottom: 10px;
             width: 100%;
             max-width: none;
+            min-width: 0;
             box-sizing: border-box;
         }
         .card h2 {
-            margin: 0 0 10px;
-            font-size: 18px;
+            margin: 0 0 8px;
+            font-size: clamp(0.85rem, 3.4vw, 1rem);
             color: var(--gold);
             letter-spacing: 0.3px;
             text-transform: uppercase;
@@ -154,9 +180,9 @@
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            padding: 8px 14px;
+            padding: 8px 12px;
             border-radius: 8px;
-            font-size: 18px;
+            font-size: clamp(0.9rem, 3.2vw, 1rem);
             font-weight: 600;
             text-decoration: none;
             border: 1px solid var(--border);
@@ -187,11 +213,11 @@
         body.teams-swapped .award-row { direction: rtl; }
         body.teams-swapped .award-row > * { direction: ltr; }
         .btn-award {
-            padding: 18px 14px;
-            font-size: 17px;
+            padding: 14px 10px;
+            font-size: clamp(0.85rem, 2.8vw, 0.95rem);
             font-weight: 800;
             text-align: center;
-            letter-spacing: 0.3px;
+            letter-spacing: 0.2px;
             border-radius: 12px;
             border: 2px solid transparent;
             cursor: pointer;
@@ -201,7 +227,7 @@
         }
         .btn-award .award-pts {
             display: block;
-            font-size: 22px;
+            font-size: clamp(1.05rem, 4.5vw, 1.35rem);
             font-weight: 900;
             margin-top: 2px;
             font-variant-numeric: tabular-nums;
@@ -218,8 +244,9 @@
             border-radius: 8px;
             background: rgba(0, 0, 0, 0.25);
             color: #fff;
-            font-size: 15px;
-            min-width: 140px;
+            font-size: max(16px, 0.95rem);
+            min-width: 0;
+            max-width: 100%;
         }
         select:focus, input:focus { outline: none; border-color: var(--gold); }
         label { font-size: 14px; color: var(--muted); font-weight: 600; }
@@ -322,14 +349,12 @@
             40% { opacity: 0.85; }
             100% { opacity: 0; }
         }
-        @media (max-width: 640px) {
-            .buzzer-panel { grid-template-columns: 1fr; }
-            .buzzer-qr-box { align-items: flex-start; }
-        }
-
         /* ═══ Questions list ═══ */
-        .file-picker { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-        .file-picker select { flex: 1; min-width: 200px; }
+        .file-picker { display: flex; flex-direction: column; gap: 10px; width: 100%; align-items: stretch; }
+        .file-picker .file-picker-row--select { display: flex; gap: 8px; align-items: stretch; width: 100%; min-width: 0; }
+        .file-picker .file-picker-row--select select { flex: 1; min-width: 0; width: 100%; }
+        .file-picker .file-picker-row--load { display: flex; width: 100%; }
+        .file-picker .file-picker-row--load .btn#btn-load-file { width: 100%; justify-content: center; padding: 12px 16px; font-size: 1rem; font-weight: 700; }
 
         .questions-list {
             max-height: none;
@@ -339,10 +364,10 @@
             padding: 6px 0;
             background: rgba(0, 0, 0, 0.2);
             box-sizing: border-box;
-            margin-left: -16px;
-            margin-right: -16px;
-            width: calc(100% + 32px);
-            max-width: none;
+            margin: 0;
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
         }
         .party-q-item {
             scroll-margin-top: 14px;
@@ -351,8 +376,8 @@
         .party-q-item .pq-head {
             display: flex;
             align-items: flex-start;
-            gap: 10px;
-            flex-wrap: nowrap;
+            gap: 8px;
+            flex-wrap: wrap;
             flex: 1;
             text-align: left;
             width: 100%;
@@ -393,11 +418,11 @@
         .party-q-item.type-FAMILIADA .q-badge { background: linear-gradient(135deg, #00bcd4, #0097a7); }
         .party-q-item.type-FAST_LIST .q-badge { background: linear-gradient(135deg, #ff6f00, #f4511e); }
         .pq-head .pq-title-flow {
-            flex: 1;
+            flex: 1 1 12rem;
             min-width: 0;
-            font-size: 19px;
+            font-size: clamp(0.95rem, 3.4vw, 1.1rem);
             color: #eaf2f8;
-            line-height: 1.38;
+            line-height: 1.35;
             display: block;
             text-align: left;
         }
@@ -434,9 +459,24 @@
         /* ═══ Current question card ═══ */
         .current-question-wrap {
             min-height: 120px;
+            width: 100%;
             max-width: 100%;
             min-width: 0;
             box-sizing: border-box;
+        }
+        #party-current-detail-host {
+            display: block;
+            width: 100%;
+        }
+        .party-q-panel,
+        .party-detail-slot,
+        .party-q-panel .party-q-live-detail {
+            max-width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+        }
+        .party-detail-slot .current-question-wrap {
+            width: 100%;
         }
         #party-detail-host-holder {
             max-width: 100%;
@@ -455,23 +495,27 @@
             gap: 10px;
             margin-bottom: 10px;
             flex-wrap: wrap;
+            min-width: 0;
         }
         .cq-title {
-            font-size: 20px;
+            font-size: clamp(1rem, 3.8vw, 1.2rem);
             font-weight: 700;
-            line-height: 1.35;
+            line-height: 1.32;
             color: #fff;
-            flex: 1;
+            flex: 1 1 0;
             min-width: 0;
             max-width: 100%;
-            overflow-wrap: anywhere;
-            word-break: break-word;
+            /* Nie `anywhere` — przy szerokości ~0 łamie co znak. Zwykłe słowa + łamanie w potrzebie. */
+            overflow-wrap: break-word;
+            word-break: normal;
         }
         .cq-meta {
             display: flex;
             gap: 6px;
             align-items: center;
             flex-wrap: wrap;
+            flex: 0 0 auto;
+            min-width: 0;
         }
         /* Styl odpowiedzi – wzorowany na Imprezja admin (#active-q-answers) */
         .cq-answers {
@@ -484,7 +528,7 @@
         }
         /* Szybka lista — przewijanie samej listy pozycji */
         .cq-answers.cq-answers-fastlist-scroll {
-            max-height: min(52vh, 680px);
+            max-height: min(38vh, 480px);
             overflow-y: auto;
             overflow-x: hidden;
             width: 100%;
@@ -494,15 +538,15 @@
         .cq-answer {
             background: rgba(255, 255, 255, 0.04);
             border: 2px solid rgba(255, 255, 255, 0.1);
-            padding: 12px 14px;
+            padding: 10px 12px;
             border-radius: 10px;
-            font-size: 22px;
+            font-size: clamp(0.95rem, 3.4vw, 1.1rem);
             font-weight: 600;
             color: #fff;
             display: flex;
             align-items: flex-start;
-            gap: 10px;
-            flex-wrap: nowrap;
+            gap: 8px;
+            flex-wrap: wrap;
             width: 100%;
             max-width: 100%;
             box-sizing: border-box;
@@ -574,23 +618,34 @@
         .cq-fast-under-nav .award-row {
             margin-top: 0;
         }
+        /* FAST_LIST — jak TV: sama pozycja (bez „Sterowanie TV”), treść jak .party-fl-prompt / .party-fl-progress na screen */
+        .cq-fast-progress-label {
+            font-size: clamp(1.9rem, 3.6vw, 2.3rem);
+            font-weight: 700;
+            color: var(--gold, #f1c40f);
+            letter-spacing: 0.12em;
+            text-align: center;
+            margin: 0 0 12px;
+        }
         .cq-fast-head .cq-letter-label {
             margin-bottom: 8px;
         }
         .cq-fast-nav-text {
-            font-size: 12px;
+            /* −40 % względem poprzedniego rozmiaru w panelu (~60 % z clamp(3.6rem,10vw,8rem)) */
+            font-size: clamp(2.16rem, 6vw, 4.8rem);
+            font-weight: 900;
+            line-height: 1.15;
             color: var(--imp-text, #fff);
             text-align: center;
             width: 100%;
             max-width: 100%;
-            margin: 0 auto 10px;
-            line-height: 1.45;
+            margin: 0 auto 14px;
             white-space: normal;
             overflow-wrap: anywhere;
             word-break: break-word;
         }
         .cq-fast-ans-line {
-            font-size: 0.92em;
+            font-size: clamp(1.84rem, 4vw, 2.46rem);
             color: var(--muted);
             margin-bottom: 12px;
             text-align: center;
@@ -626,6 +681,15 @@
             padding: 3px 10px;
             background: rgba(0, 0, 0, 0.25);
             border-radius: 999px;
+        }
+        /* Szybka lista — aktywne pytanie: zielona ramka wokół całego wiersza (bez etykiety „na antenie”) */
+        .cq-answer.cq-answer-fast {
+            align-items: flex-start;
+        }
+        .cq-answer.cq-answer-fast.cq-fast-row-live {
+            border: 2px solid #27ae60;
+            box-shadow: 0 0 0 1px rgba(39, 174, 96, 0.4), 0 4px 14px rgba(39, 174, 96, 0.2);
+            background: rgba(46, 204, 113, 0.09);
         }
         .cq-answer.fam .pts { color: var(--gold); background: rgba(241, 196, 15, 0.15); font-size: 14px; }
         .cq-answer.correct .pts { color: var(--green); background: rgba(46, 204, 113, 0.2); }
@@ -669,7 +733,7 @@
             margin-bottom: 12px;
         }
         .cq-letter-big {
-            font-size: 72px;
+            font-size: clamp(2.5rem, 16vw, 4.2rem);
             font-weight: 900;
             color: var(--gold);
             line-height: 1;
@@ -730,32 +794,64 @@
         /* Nowy układ X/XX/XXX 1:1 z Familiadą (blue|red kolumny, 3 przyciski X + reset) */
         .fam-controls-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 14px;
-            margin-bottom: 12px;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+        /* Ta sama logika co przy „Zamień strony” — odbicie kolejności kolumn (niebieski | czerwony) */
+        body.teams-swapped .fam-controls-grid {
+            direction: rtl;
+        }
+        body.teams-swapped .fam-controls-grid > .fam-team-col {
+            direction: ltr;
+        }
+        .fam-swap-sides-row {
+            display: flex;
+            justify-content: center;
+            margin: 0 0 12px;
+            flex-wrap: wrap;
+            gap: 8px;
         }
         .fam-team-col {
-            padding: 14px;
-            border-radius: 12px;
+            padding: 6px 4px;
+            border-radius: 10px;
             border: 2px solid rgba(255,255,255,0.08);
             background: rgba(255,255,255,0.03);
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 8px;
             align-items: stretch;
+            min-width: 0;
+            /* Skalowanie nazwy od szerokości kolumny (wąskie ½ ekranu) */
+            container-type: inline-size;
+            container-name: fam-team;
         }
         .fam-team-col.fam-team-blue { border-color: rgba(52, 152, 219, 0.5); background: rgba(52, 152, 219, 0.1); }
         .fam-team-col.fam-team-red  { border-color: rgba(231, 76, 60, 0.5);  background: rgba(231, 76, 60, 0.1); }
         .fam-team-title {
-            font-size: 15px;
+            /* cqi = % szerokości kafelka drużyny; długie nazwy ładnie się zmniejszają */
+            font-size: clamp(7px, 4.1cqi, 0.9rem);
             font-weight: 900;
             text-transform: uppercase;
-            letter-spacing: 0.08em;
+            letter-spacing: 0.04em;
             text-align: center;
             color: #fff;
+            line-height: 1.15;
+            min-width: 0;
+            max-width: 100%;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            hyphens: manual;
+        }
+        /* Gdy brak wsparcia container queries — cqi ignorowane, clamp i vw wystarczą */
+        @supports not (container-type: inline-size) {
+            .fam-team-title {
+                font-size: clamp(7px, 1.7vw, 0.9rem);
+            }
         }
         .fam-team-col.fam-team-blue .fam-team-title { color: #5dade2; }
         .fam-team-col.fam-team-red  .fam-team-title { color: #ff6b6b; }
+        /* Jedna pionowa kolumna na stronę: Niebiescy = lewa, Czerwoni = prawa (fam-controls-grid 1fr|1fr) */
         .fam-team-btns-row {
             display: flex;
             flex-direction: column;
@@ -1050,7 +1146,18 @@
         .btn-info { background: rgba(52, 152, 219, 0.18); border-color: rgba(52, 152, 219, 0.45); color: #c9e7ff; }
         .btn-info:hover:not(:disabled) { background: rgba(52, 152, 219, 0.3); color: #fff; }
 
-        .cq-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; gap: 8px; flex-wrap: wrap; }
+        .cq-nav {
+            display: flex;
+            justify-content: stretch;
+            align-items: stretch;
+            margin-top: 12px;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .cq-nav .btn {
+            flex: 1 1 calc(50% - 6px);
+            min-width: min(100%, 140px);
+        }
 
         .cq-badge-live {
             padding: 3px 10px;
@@ -1066,13 +1173,16 @@
         @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.6;} }
 
         .guard-banner {
-            margin-top: 10px;
-            padding: 10px 12px;
+            margin-top: 8px;
+            padding: 8px 10px;
             border-radius: 8px;
             background: rgba(241, 196, 15, 0.12);
             border: 1px solid rgba(241, 196, 15, 0.3);
-            font-size: 12px;
+            font-size: clamp(11px, 2.8vw, 12px);
+            line-height: 1.4;
             color: var(--gold);
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
 
         /* ═══ Welcome preview ═══ */
@@ -1147,6 +1257,12 @@
             background: #c0392b;
             color: #fff;
             border-color: #c0392b;
+        }
+        .party-music-btn-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
         }
 
         /* Lista jak Familiada / Imprezja: przycisk + panel pod spodem */
@@ -1266,27 +1382,70 @@
         }
         #party-detail-host-holder { margin-top: 12px; }
 
-        /* Telefon: lista pytań i panel statków mieszczą się w viewport + przewijanie */
+        /* Szeroki ekran: nawigacja pytania nie rozciąga się na pół ekranu */
+        @media (min-width: 769px) {
+            .cq-header {
+                flex-direction: row;
+                align-items: flex-start;
+            }
+            .cq-title {
+                flex: 1 1 auto;
+                /* Nie pozwól zwęzić tytułu do zera, gdy obok jest długa .cq-meta */
+                min-width: min(100%, 12ch);
+            }
+            .cq-meta {
+                width: auto;
+            }
+            .cq-nav {
+                justify-content: space-between;
+                align-items: center;
+            }
+            .cq-nav .btn {
+                flex: 0 1 auto;
+            }
+        }
+
+        /* Telefon / wąski ekran: brak poziomego przewijania całej karty, Familiada w jednej kolumnie */
         @media (max-width: 768px) {
+            /* Boki 1–2px jak na całym adminie; na telefonie nie zwiększamy (wcześniej 10px marnowało miejsce na 2 kolumny) */
+            :root { --pq-font-base: 15px; --pq-pad-h: 2px; }
             .grid { min-width: 0; }
             .card { max-width: 100%; }
+            .party-q-btn { padding: 12px; font-size: 0.92rem; }
+            .buzzer-panel { grid-template-columns: 1fr; }
+            .buzzer-qr-box { align-items: center; max-width: 100%; }
+            .buzzer-qr-box img { max-width: min(200px, 70vw); height: auto; }
             .party-q-panel.visible { max-width: 100%; min-width: 0; box-sizing: border-box; }
-            .questions-list {
-                width: 100%;
-                max-width: 100%;
-                margin-left: 0;
-                margin-right: 0;
-                box-sizing: border-box;
-            }
+            .questions-list { width: 100%; max-width: 100%; box-sizing: border-box; }
             .party-detail-slot,
             .party-q-panel .party-detail-slot .party-q-live-detail,
             #party-current-detail-host,
             #party-detail-host-holder {
                 max-width: 100%;
                 min-width: 0;
-                overflow-x: auto;
+                overflow-x: hidden;
                 -webkit-overflow-scrolling: touch;
             }
+            /* Nagłówek pytania: unikamy zwinięcia .cq-title do ~0 (jedna litera na wiersz) */
+            .cq-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .cq-title {
+                flex: 0 0 auto;
+                min-width: 0;
+            }
+            .cq-meta {
+                flex: 0 0 auto;
+                width: 100%;
+                justify-content: flex-start;
+            }
+            /* Familiada: dwie kolumny (niebiescy | czerwoni); minimalny odstęp między nimi */
+            .fam-controls-grid {
+                grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+                gap: 4px;
+            }
+            .fam-errors-row { grid-template-columns: 1fr; }
             #party-current-detail-host .pq-ships-admin {
                 max-width: 100%;
                 min-width: 0;
@@ -1302,19 +1461,19 @@
                 width: 100%;
                 touch-action: pan-x pan-y;
             }
-            #party-current-detail-host .pq-ships-admin .cq-ships-grid-wrap {
-                max-width: none;
-            }
+            #party-current-detail-host .pq-ships-admin .cq-ships-grid-wrap { max-width: none; }
             #party-current-detail-host .pq-ships-admin .cq-ships-cell {
                 width: 28px;
                 height: 28px;
                 font-size: 12px;
             }
-            #party-current-detail-host .pq-ships-admin .cq-ships-cell.header {
-                font-size: 11px;
-            }
+            #party-current-detail-host .pq-ships-admin .cq-ships-cell.header { font-size: 11px; }
+            .cq-controls .btn { min-width: 0; flex: 1 1 100%; }
+            .volume-slider-wrap { flex-wrap: wrap; }
+            .volume-slider-wrap label { min-width: 0; flex: 1 1 100%; max-width: 100%; }
         }
         @media (max-width: 400px) {
+            .cq-answers.cq-answers-fastlist-scroll { max-height: min(32vh, 360px); }
             #party-current-detail-host .pq-ships-admin .cq-ships-cell {
                 width: 24px;
                 height: 24px;
@@ -1340,20 +1499,12 @@
         </div>
 
         <div class="card" id="party-admin-top-tools">
-            <h2>🔊 Głośność TV · 🔔 Buzzery</h2>
-            <p class="hint" style="margin:0 0 10px;">Suwak działa na ekranie TV w czasie rzeczywistym.</p>
+            <h2>🔔 Buzzery · 🎵 Muzyka</h2>
             <div class="party-admin-toolbar">
                 <div class="pt-vol">
                     <div class="volume-card-inner" style="align-items: stretch; max-width:none;">
-                        <div class="row" style="margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+                        <div class="row party-music-btn-row">
                             <button type="button" id="btn-music-toggle" class="btn">▶️ Start muzyka</button>
-                        </div>
-                        <div class="party-vol-stack">
-                            <label for="master-volume">Głośność (master) na ekranie TV</label>
-                            <div class="volume-range-row">
-                                <input type="range" id="master-volume" min="0" max="100" value="80">
-                                <span id="master-volume-value">80</span><span>%</span>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -1377,14 +1528,25 @@
 
         <div class="card">
             <h2>📂 Wybór pliku</h2>
-            <div class="file-picker">
-                <select id="file-select">
-                    <option value="">-- wybierz plik Party Quiz --</option>
-                </select>
-                <button class="btn btn-sm" id="btn-reload-files" title="Odśwież listę">🔄</button>
-                <button class="btn btn-primary btn-sm" id="btn-load-file">📥 Wczytaj</button>
+            <div class="file-picker" id="party-file-picker">
+                <div class="file-picker-row--select">
+                    <select id="file-select" aria-label="Wybierz plik JSON">
+                        <option value="">-- wybierz plik Party Quiz --</option>
+                    </select>
+                    <button type="button" class="btn btn-sm" id="btn-reload-files" title="Odśwież listę plików">🔄</button>
+                </div>
+                <div class="file-picker-row--load">
+                    <button type="button" class="btn btn-primary" id="btn-load-file">📥 Wczytaj plik</button>
+                </div>
             </div>
             <div id="welcome-preview" style="margin-top: 10px; display: none;"></div>
+            <h3 style="margin: 18px 0 10px; font-size: 1.05rem; color: var(--imp-accent, #f1c40f);">🎛️ Sterowanie TV</h3>
+            <div class="row" style="flex-wrap: wrap; gap: 10px; align-items: center;">
+                <button type="button" class="btn btn-primary" id="btn-party-screen-tv" title="Jak kafelek Party Quiz w admin PWA: tryb gry + widok ekranu (Screen)">📺 Włącz Party Quiz na ekranie TV</button>
+            </div>
+            <div class="row" style="margin-top: 12px; flex-wrap: wrap; gap: 8px; align-items: center;">
+                <button type="button" class="btn" id="btn-show-welcome" title="">👋 Pokaż powitanie</button>
+            </div>
         </div>
 
         <div class="card section" style="border-color: rgba(52,152,219,0.35);">
@@ -1449,7 +1611,7 @@
             </div>
         </div>
 
-        <div class="grid">
+        <div class="grid" style="grid-template-columns: 1fr;">
             <div class="card">
                 <h2>📋 Lista pytań (<span id="q-count">0</span>)</h2>
                 <div id="questions-list" class="questions-list party-q-list">
@@ -1457,16 +1619,6 @@
                 </div>
                 <div id="party-detail-host-holder"><div id="party-current-detail-host" class="current-question-wrap"></div></div>
                 <p class="hint">Kliknij pytanie — panel; <strong>Uruchom na tablicy</strong>. Sterowanie pytania pojawia się pod przyciskiem (jak w Familiadzie).</p>
-            </div>
-
-            <div class="card">
-                <h2>🎛️ Sterowanie TV</h2>
-                <div class="row">
-                    <button type="button" class="btn" id="btn-show-welcome" title="">👋 Pokaż powitanie</button>
-                    <button class="btn btn-ghost btn-sm" id="btn-hide-final">Ukryj wyniki</button>
-                    <button class="btn btn-ghost btn-sm" id="btn-reset-screen">↩️ Powrót do Menu</button>
-                </div>
-                <p class="hint">Tryb Party na tablicy włączasz z aplikacji admin (kafelek Party). Tutaj sterujesz powitaniem i kończeniem rundy.</p>
             </div>
         </div>
 
@@ -1489,6 +1641,7 @@
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
+    <script src="/lib/games-volume-bar.js"></script>
     <script src="/lib/nosleep.min.js"></script>
     <script>
     (function () {
@@ -1534,6 +1687,26 @@
                     if (!row) return;
                     const panel = list.querySelector('#party-q-panel-' + idx);
                     const target = (panel && panel.classList.contains('visible')) ? panel : row;
+                    try {
+                        target.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'auto' });
+                    } catch (_) {
+                        target.scrollIntoView(false);
+                    }
+                });
+            });
+        }
+
+        /** Po rozwinięciu złotej listy — ten sam UX co główna lista (`scrollPartyQuestionsListItemIntoView`). */
+        function scrollPartyGoldenListItemIntoView(idx) {
+            if (typeof idx !== 'number' || idx < 0) return;
+            const list = document.getElementById('party-golden-questions-list');
+            if (!list) return;
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    const panel = document.getElementById('party-golden-panel-' + idx);
+                    const row = panel && panel.parentElement;
+                    if (!row || !panel) return;
+                    const target = panel.classList.contains('visible') ? panel : row;
                     try {
                         target.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'auto' });
                     } catch (_) {
@@ -1817,7 +1990,6 @@
         socket.on('party_golden_updated', (list) => {
             partyGoldenList = Array.isArray(list) ? list : [];
             renderPartyGoldenList();
-            renderCurrentQuestion();
         });
 
         // ═══ Files list ═══
@@ -1974,6 +2146,8 @@
             container.innerHTML = '';
             if (!partyGoldenList.length) {
                 container.innerHTML = '<div style="padding:12px;color:#888;font-size:14px;">Brak pozycji w złotej liście. Dodaj wpisy do <code>party-quiz-golden.json</code> lub z edytora Party (jak w Familiadzie).</div>';
+                mountPartyQuestionDetailHost();
+                renderCurrentQuestion();
                 return;
             }
             partyGoldenList.forEach((q, idx) => {
@@ -1982,18 +2156,28 @@
                 const btn = document.createElement('button');
                 btn.type = 'button';
                 const onTvGolden = typeof state.server.currentGoldenIndex === 'number' && state.server.currentGoldenIndex === idx;
-                btn.className = 'party-q-btn' + (activePartyGoldenIdx === idx ? ' active' : '') + (onTvGolden ? ' active-on-tv' : '');
+                const expandedGolden = (activePartyGoldenIdx === idx) || onTvGolden;
+                btn.className = 'party-q-btn' + (expandedGolden ? ' active' : '') + (onTvGolden ? ' active-on-tv' : '');
                 btn.textContent = (idx + 1) + '. ' + ((q.question || '').trim() || '(bez treści)');
                 btn.addEventListener('click', () => {
+                    if (onTvGolden) {
+                        activePartyGoldenIdx = idx;
+                        renderPartyGoldenList();
+                        scrollPartyGoldenListItemIntoView(idx);
+                        return;
+                    }
                     activePartyGoldenIdx = (activePartyGoldenIdx === idx) ? null : idx;
                     renderPartyGoldenList();
+                    if (activePartyGoldenIdx !== null) scrollPartyGoldenListItemIntoView(activePartyGoldenIdx);
                 });
                 const panel = document.createElement('div');
-                panel.className = 'party-q-panel' + (activePartyGoldenIdx === idx ? ' visible' : '');
+                panel.className = 'party-q-panel' + (expandedGolden ? ' visible' : '');
                 panel.id = 'party-golden-panel-' + idx;
+                const detailSlot = onTvGolden ? '<div class="party-detail-slot"></div>' : '';
                 panel.innerHTML =
                     '<p class="party-q-panel-meta" style="margin-top:0;">⭐ Złota lista Party — osobny zbiór od Familiady.</p>' +
-                    '<button type="button" class="pq-run-tv" id="party-golden-run-' + idx + '">🎬 Uruchom na tablicy</button>';
+                    '<button type="button" class="pq-run-tv" id="party-golden-run-' + idx + '">🎬 Uruchom na tablicy</button>' +
+                    detailSlot;
                 item.appendChild(btn);
                 item.appendChild(panel);
                 container.appendChild(item);
@@ -2002,6 +2186,10 @@
                     runBtn.addEventListener('click', () => emit('party_run_golden_question', idx));
                 }
             });
+            mountPartyQuestionDetailHost();
+            renderCurrentQuestion();
+            const gLive = state.server.currentGoldenIndex;
+            if (typeof gLive === 'number') scrollPartyGoldenListItemIntoView(gLive);
         }
 
         // ═══ Render: widok aktualnego pytania – wzorowany na Imprezja admin #question-control ═══
@@ -2014,10 +2202,17 @@
             let q = null;
             let idx = state.server.currentIndex;
             let isLive = false;
-            if (gIdx !== null && typeof gIdx === 'number' && partyGoldenList[gIdx]) {
-                q = partyGoldenList[gIdx];
-                idx = gIdx;
-                isLive = true;
+            if (gIdx !== null && typeof gIdx === 'number') {
+                if (partyGoldenList[gIdx]) {
+                    q = partyGoldenList[gIdx];
+                    idx = gIdx;
+                    isLive = true;
+                } else {
+                    dh.innerHTML =
+                        '<div class="current-question-empty">⏳ Ładowanie złotej listy… Odśwież panel, jeśli to się nie zmieni.</div>';
+                    dh.classList.remove('party-golden-live-host');
+                    return;
+                }
             } else if (idx >= 0 && idx < qs.length) {
                 q = qs[idx];
                 isLive = true;
@@ -2063,12 +2258,17 @@
                 }).join('');
             } else if (type === 'FAMILIADA') {
                 const famRound = (state.server && state.server.familiadaRound) || null;
-                const famRevealed = famRound && Array.isArray(famRound.answers) ? famRound.answers.map(a => !!a.revealed) : [];
+                const famRevealed = famRound && Array.isArray(famRound.answers) ? famRound.answers.map(ea => !!ea.revealed) : [];
                 answersHtml += (q.answers || []).map((a, i) => {
                     const isRevealed = !!famRevealed[i];
                     const cls = 'cq-answer fam cq-clickable' + (isRevealed ? ' revealed' : '');
+                    const titleFam = isRevealed
+                        ? (isAwarded ? 'Odkryte na ekranie' : 'Klik — odkryj na TV')
+                        : (isAwarded
+                            ? 'Klik — pokaż tę odpowiedź na TV (punkty już przekazane; nie zmienia wyniku)'
+                            : 'Klik — odkryj na TV');
                     return (
-                        '<li class="' + cls + '" data-fam-index="' + i + '" title="Klik — odkryj na TV">' +
+                        '<li class="' + cls + '" data-fam-index="' + i + '" title="' + escapeHtml(titleFam) + '">' +
                             '<span class="letter">' + (i + 1) + '</span>' +
                             '<span class="text">' + escapeHtml(a && a.text) + '</span>' +
                         '</li>'
@@ -2089,10 +2289,9 @@
                 answersHtml += items.map((it, i) => {
                     const hi = i === cur;
                     return (
-                        '<li class="cq-answer cq-answer-fast' + (hi ? ' selected' : '') + '">' +
+                        '<li class="cq-answer cq-answer-fast' + (hi ? ' cq-fast-row-live' : '') + '">' +
                             '<span class="letter">' + (i + 1) + '</span>' +
                             '<span class="text">' + escapeHtml((it && it.question) || '') + '</span>' +
-                            (hi ? '<span class="pts">● na antenie</span>' : '') +
                         '</li>'
                     );
                 }).join('');
@@ -2143,8 +2342,22 @@
                 const ciMain = state.server.currentIndex;
                 const hasNext = !lgAward && ciMain >= 0 && ciMain < qs.length - 1;
                 const lbOn = !!state.server.teamLeaderboardVisible;
+                let familiadaAfterAwardExtra = '';
+                if (type === 'FAMILIADA' && Array.isArray(q.answers) && state.server.familiadaRound && Array.isArray(state.server.familiadaRound.answers)) {
+                    const n = q.answers.length;
+                    const fa = state.server.familiadaRound.answers;
+                    let hidden = 0;
+                    for (let fi = 0; fi < n; fi++) {
+                        if (fa[fi] && !fa[fi].revealed) hidden++;
+                    }
+                    if (hidden > 0) {
+                        familiadaAfterAwardExtra =
+                            '<div class="guard-banner" style="margin-top:10px">🎤 <strong>Familiada:</strong> Jeszcze ' + hidden + ' odpowiedzi niepokazanych na ekranie — kliknij wiersz powyżej, aby ujawnić widowni (jak w telewizyjnej Familiadzie po przekazaniu punktów). Bez zmiany wyniku.</div>';
+                    }
+                }
                 awardBlock =
                     '<div class="guard-banner">✅ Pytanie zamknięte. Przejdź do kolejnego po kliknięciu „Następne". Możesz też pokazać widowni bieżącą tablicę punktów (jak w Imprezji Quiz — drużyny + muzyka).</div>' +
+                    familiadaAfterAwardExtra +
                     '<div class="cq-nav">' +
                         '<button type="button" class="btn btn-primary" id="btn-show-team-results" data-lb-on="' + (lbOn ? '1' : '0') + '">' +
                             (lbOn ? '📺 Ukryj wyniki na TV' : '📊 Pokaż wyniki') +
@@ -2338,6 +2551,10 @@
                             '</div>' +
                         '</div>' +
                     '</div>' +
+                    '<div class="fam-swap-sides-row">' +
+                        '<button type="button" class="btn btn-ghost btn-sm" id="btn-fam-swap-sides" title="Zamień miejscami lewą i prawą kolumnę błędów">' +
+                        '🔄 Zamień strony kolumn (Niebiescy ↔ Czerwoni)</button>' +
+                    '</div>' +
                     '<div class="fam-center-row">' +
                         '<button type="button" class="btn-x btn-x-center" id="btn-fam-err-center" title="X (ŚRODEK) — tylko dźwięk">' +
                         '<span class="fam-center-x-glyph">X</span><span class="fam-center-x-sub">(ŚRODEK)</span></button>' +
@@ -2361,10 +2578,13 @@
                 const tot = (fl && typeof fl.total === 'number') ? fl.total : 0;
                 const nextDisabled = !tot || idxPos >= tot;
                 const ix = (fl && typeof fl.itemIndex === 'number') ? fl.itemIndex : 0;
-                const flAwardPanelVisible = openPartyListIdx === idx;
+                /* Złota lista: `idx` to indeks złota, a `openPartyListIdx` dotyczy tylko listy głównej (przy golden jest null) — bez tego panel +5 pkt był ukryty i punkty nie „szły” do wyniku. */
+                const flAwardPanelVisible =
+                    (typeof state.server.currentGoldenIndex === 'number' && state.server.currentGoldenIndex === idx) ||
+                    (typeof state.server.currentGoldenIndex !== 'number' && openPartyListIdx === idx);
                 typeSpecificBlock =
                     '<div class="cq-letter-block cq-fast-head" style="border-color: rgba(255,152,0,0.35); max-width:100%;">' +
-                        '<div class="cq-letter-label">Sterowanie TV — pozycja ' + idxPos + (tot ? '/' + tot : '') + '</div>' +
+                        '<div class="cq-fast-progress-label">' + idxPos + (tot ? ' / ' + tot : '') + '</div>' +
                         '<div class="cq-fast-nav-text">' + escapeHtml(prompt) + '</div>' +
                         '<div class="cq-fast-ans-line">Odpowiedź: ' +
                             (shown ? ('<strong style="color:#2ecc71;">' + escapeHtml(answer) + '</strong>') : '<em>(ukryta na TV)</em>') +
@@ -2602,6 +2822,25 @@
                 // X (ŚRODEK) — tylko dźwięk bad (brak przypisania do drużyny).
                 const bCenter = document.getElementById('btn-fam-err-center');
                 if (bCenter) bCenter.addEventListener('click', () => emit('party_familiada_error', { team: 'center' }));
+                const bFamSwapSides = document.getElementById('btn-fam-swap-sides');
+                if (bFamSwapSides) {
+                    bFamSwapSides.addEventListener('click', () => {
+                        if (!window.confirm('Czy na pewno zamienić strony? Kolumna Niebieskich i Czerwonych zamieni się miejscami (tak samo jak przy „Zamień strony” w sekcji drużyn).')) return;
+                        emit('party_swap_teams');
+                    });
+                }
+            }
+
+            // FAMILIADA: po przekazaniu punktów (pytanie „zamknięte”) — nadal można odkrywać niewyświetlone
+            // odpowiedzi na TV, 1:1 z behavior Familiady (pula już przekazana, bez wpływu na wynik).
+            if (type === 'FAMILIADA' && isAwarded) {
+                dh.querySelectorAll('.cq-answer.fam.cq-clickable:not(.revealed)').forEach(li => {
+                    li.addEventListener('click', () => {
+                        const i = parseInt(li.getAttribute('data-fam-index'), 10);
+                        if (isNaN(i)) return;
+                        emit('party_familiada_reveal', { index: i });
+                    });
+                });
             }
 
             // SHIPS: klik na komórkę = strzał, + ręczne przełączenie tury, + zakończ rundę
@@ -2832,79 +3071,58 @@
                 partyWelcomeTvActive = true;
             } else {
                 /* mode `party` → w screen-controller.html mapowane na `quiz` = iframe Screen.html */
+                emit('set_game_mode', 'party');
                 emit('screen_switch', { mode: 'party' });
                 partyWelcomeTvActive = false;
             }
             updatePartyWelcomeToggleUI();
         }
 
-        function hidePartyWelcomeReturnToGame() {
-            emit('screen_switch', { mode: 'party' });
-            partyWelcomeTvActive = false;
-            updatePartyWelcomeToggleUI();
-        }
-
         document.getElementById('btn-show-welcome').addEventListener('click', togglePartyWelcomeScreen);
-        document.getElementById('btn-reset-screen').addEventListener('click', hidePartyWelcomeReturnToGame);
+        const bPartyScreenTv = document.getElementById('btn-party-screen-tv');
+        if (bPartyScreenTv) {
+            bPartyScreenTv.addEventListener('click', () => {
+                emit('set_game_mode', 'party');
+                emit('screen_switch', { mode: 'party' });
+            });
+        }
         document.getElementById('btn-show-final').addEventListener('click', () => {
             if (!confirm('Pokazać na TV pełny ekran wyników końcowych?\n\nSpowoduje to jednocześnie zakończenie bieżącej rozgrywki Party Quiz na tablicy (widok końcowy).')) return;
             emit('party_show_final');
         });
-        document.getElementById('btn-hide-final').addEventListener('click', () => emit('party_hide_final'));
 
-        // ═══ Regulacja głośności + Start/Stop muzyki (klon logiki z /admin.html) ═══
-        // Server-side eventy: `admin_set_master_volume`, `admin_play_intro_music`, `admin_stop_music`,
-        // oraz broadcast `master_volume` (echo przy połączeniu).
-        (function setupVolumeControls() {
-            const slider = document.getElementById('master-volume');
-            const label = document.getElementById('master-volume-value');
+        // ═══ Start/Stop muzyki (głośność gier – suwak na dole strony) ═══
+        (function setupMusicControls() {
             const btnMusic = document.getElementById('btn-music-toggle');
-            if (!slider || !label || !btnMusic) return;
+            if (!btnMusic) return;
 
-            function applyMasterVolumeUI(val) {
-                const v = Math.max(0, Math.min(100, parseInt(val, 10) || 0));
-                slider.value = v;
-                label.textContent = v;
-                try { localStorage.setItem('partyMasterVolume', String(v)); } catch (_) {}
-                return v;
+            window.__partyQuizIntroPlaying = false;
+            function syncPartyIntroMusicBtn(playing) {
+                window.__partyQuizIntroPlaying = !!playing;
+                btnMusic.textContent = playing ? '⏹ Stop muzyka' : '▶️ Start muzyka';
+                btnMusic.classList.toggle('playing', !!playing);
             }
-            function setMasterVolume(val) {
-                const v = applyMasterVolumeUI(val);
-                if (socket.connected) socket.emit('admin_set_master_volume', v);
-            }
-            slider.addEventListener('input', () => setMasterVolume(slider.value));
-            slider.addEventListener('change', () => setMasterVolume(slider.value));
-
-            // Start/Stop muzyka intro (ta sama muzyka co Imprezja Quiz – serwer ją puszcza na TV)
-            let introMusicActive = false;
             btnMusic.addEventListener('click', () => {
-                if (introMusicActive) {
+                if (window.__partyQuizIntroPlaying) {
                     if (socket.connected) socket.emit('admin_stop_music');
-                    introMusicActive = false;
-                    btnMusic.textContent = '▶️ Start muzyka';
-                    btnMusic.classList.remove('playing');
+                    syncPartyIntroMusicBtn(false);
                 } else {
-                    const vol = parseInt(slider.value, 10) || 80;
-                    if (socket.connected) socket.emit('admin_play_intro_music', { volume: Math.round(vol * 0.7) });
-                    introMusicActive = true;
-                    btnMusic.textContent = '⏹ Stop muzyka';
-                    btnMusic.classList.add('playing');
+                    const gv = document.getElementById('games-volume-bar-slider');
+                    const vol = gv ? parseInt(gv.value, 10) : 80;
+                    const w = state.quiz && state.quiz.meta && state.quiz.meta.welcome;
+                    const introUrl = (w && typeof w.introMusicUrl === 'string' && w.introMusicUrl.trim())
+                        ? w.introMusicUrl.trim()
+                        : '/uploads/sfx/intro_loop.mp3';
+                    if (socket.connected) socket.emit('admin_play_intro_music', {
+                        volume: Math.round(vol * 0.7),
+                        url: introUrl
+                    });
+                    syncPartyIntroMusicBtn(true);
                 }
             });
+            socket.on('party_intro_music_auto_stopped', () => syncPartyIntroMusicBtn(false));
 
-            // Przywróć zapamiętaną głośność
-            try {
-                const saved = localStorage.getItem('partyMasterVolume');
-                if (saved != null) applyMasterVolumeUI(saved);
-            } catch (_) {}
-
-            // Echo z serwera (jeśli inny admin zmieni głośność)
-            socket.on('master_volume', (d) => {
-                const pct = (d && typeof d.percent === 'number') ? d.percent : (typeof d === 'number' ? d : null);
-                if (pct != null) applyMasterVolumeUI(pct);
-            });
-            socket.on('connect', () => { socket.emit('master_volume_request'); });
-            if (socket.connected) socket.emit('master_volume_request');
+            if (typeof ImprezjaGamesVolume !== 'undefined') ImprezjaGamesVolume.mount(socket);
         })();
 
         // Pełny ekran (jak Familiada)

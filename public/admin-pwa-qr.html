@@ -60,12 +60,35 @@
         .back-link:hover { text-decoration: underline; }
         .loading { color: rgba(255,255,255,0.6); }
         .error { color: #e74c3c; margin-bottom: 16px; }
+        .https-badge {
+            display: inline-block;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            padding: 4px 10px;
+            border-radius: 999px;
+            margin-bottom: 12px;
+        }
+        .https-badge.ok { background: rgba(46, 204, 113, 0.2); color: #2ecc71; }
+        .https-badge.warn { background: rgba(231, 76, 60, 0.2); color: #e74c3c; }
+        .https-note {
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.75);
+            max-width: 340px;
+            margin-bottom: 16px;
+            line-height: 1.45;
+        }
+        .https-note a { color: #f1c40f; }
+        .https-note strong { color: #fff; }
     </style>
 </head>
 <body class="imp-admin-editor">
     <a href="/start.html" class="back-link">← Powrót do wyboru trybu</a>
     <h1>📱 Panel na telefonie</h1>
     <p class="desc">Zeskanuj kod QR telefonem, aby otworzyć panel sterowania na urządzeniu mobilnym.</p>
+    <div id="https-badge"></div>
+    <div id="https-note" class="https-note"></div>
     <div id="qr-container">
         <p class="loading">Ładowanie QR…</p>
     </div>
@@ -73,14 +96,28 @@
 
     <script>
         (async function() {
-            const container = document.getElementById('qr-url');
+            const urlEl = document.getElementById('qr-url');
             const qrContainer = document.getElementById('qr-container');
+            const badgeEl = document.getElementById('https-badge');
+            const noteEl = document.getElementById('https-note');
             try {
                 const r = await fetch('/api/admin-pwa-qr');
                 const d = await r.json();
                 if (d.qrCode) {
                     qrContainer.innerHTML = '<div class="qr-wrap"><img src="' + d.qrCode + '" alt="QR"></div>';
-                    container.textContent = d.url || '';
+                    urlEl.textContent = d.url || '';
+                    if (d.httpsAvailable && d.protocol === 'https') {
+                        badgeEl.innerHTML = '<span class="https-badge ok">HTTPS · port ' + (d.url.match(/:(\d+)/) || [, '3443'])[1] + '</span>';
+                        noteEl.innerHTML = 'Po zeskanowaniu telefon może poprosić o <strong>zaakceptowanie certyfikatu</strong> (bezpieczne w sieci lokalnej). Dzięki HTTPS ekran nie będzie gasnął podczas prowadzenia.';
+                    } else {
+                        badgeEl.innerHTML = '<span class="https-badge warn">HTTP — ekran może gasnąć</span>';
+                        let note = 'Kod QR wskazuje HTTP, bo serwer HTTPS nie wystartował. Zrestartuj aplikację.';
+                        if (d.httpsUrl) {
+                            note += ' Możesz też otworzyć ręcznie: <a href="' + d.httpsUrl + '">' + d.httpsUrl + '</a>';
+                        }
+                        if (d.certExpired) note += ' Certyfikat HTTPS wygasł — wygeneruj nowy w folderze certs/.';
+                        noteEl.innerHTML = note;
+                    }
                 } else {
                     qrContainer.innerHTML = '<p class="error">' + (d.error || 'Błąd generowania QR') + '</p>';
                 }

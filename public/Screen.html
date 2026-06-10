@@ -1134,7 +1134,7 @@
             text-align: center;
         }
         .party-fl-round-title {
-            font-size: clamp(1.1rem, 2.2vw, 1.5rem);
+            font-size: clamp(2.2rem, 4.4vw, 3rem);
             font-weight: 700;
             color: rgba(255, 255, 255, 0.88);
             text-transform: uppercase;
@@ -1142,13 +1142,13 @@
             max-width: 90%;
         }
         .party-fl-progress {
-            font-size: clamp(0.95rem, 1.8vw, 1.15rem);
+            font-size: clamp(1.9rem, 3.6vw, 2.3rem);
             font-weight: 700;
             color: #f1c40f;
             letter-spacing: 0.12em;
         }
         .party-fl-prompt {
-            font-size: clamp(1.8rem, 5vw, 4rem);
+            font-size: clamp(3.6rem, 10vw, 8rem);
             font-weight: 900;
             line-height: 1.15;
             color: #fff;
@@ -1156,7 +1156,7 @@
             text-wrap: balance;
         }
         .party-fl-answer-hint {
-            font-size: clamp(1rem, 2vw, 1.25rem);
+            font-size: clamp(2rem, 4vw, 2.5rem);
             color: rgba(255, 255, 255, 0.45);
             font-style: italic;
             margin-top: 8px;
@@ -1170,14 +1170,14 @@
             max-width: 92%;
         }
         .party-fl-answer-label {
-            font-size: clamp(0.75rem, 1.2vw, 0.9rem);
+            font-size: clamp(1.5rem, 2.4vw, 1.8rem);
             text-transform: uppercase;
             letter-spacing: 0.15em;
             color: rgba(255, 255, 255, 0.65);
             margin-bottom: 8px;
         }
         .party-fl-answer {
-            font-size: clamp(1.4rem, 3.5vw, 2.75rem);
+            font-size: clamp(2.8rem, 7vw, 5.5rem);
             font-weight: 800;
             color: #2ecc71;
             line-height: 1.2;
@@ -1962,9 +1962,21 @@
         const podiumPlayer = document.getElementById('audio-podium');
         const shipsBGPlayer = document.getElementById('audio-ships-bg');
         let audioEnabled = false;
-        var quizChannelVolume = 1;
-        var masterVolume = 1;
-        function getQuizEffectiveVolume() { return clampDigitalOutputLinear(quizChannelVolume * masterVolume); }
+        var gamesVolume = 1;
+        function getQuizEffectiveVolume() { return clampDigitalOutputLinear(gamesVolume); }
+        function applyQuizVolumeToPlayers() {
+            const ev = getQuizEffectiveVolume();
+            if (musicPlayer) musicPlayer.volume = ev;
+            if (sfxPlayer) sfxPlayer.volume = ev;
+            if (typeof wybScreenBgAudio !== 'undefined' && wybScreenBgAudio) wybScreenBgAudio.volume = ev;
+            if (typeof _hncBgAudio !== 'undefined' && _hncBgAudio) _hncBgAudio.volume = ev;
+            if (shipsBGPlayer) shipsBGPlayer.volume = ev;
+            if (typeof updatePartyFamSoundVolumes === 'function') updatePartyFamSoundVolumes();
+        }
+        function setGamesVolumeFromServer(v) {
+            gamesVolume = (v != null) ? Math.max(0, Math.min(1, v)) : 1;
+            applyQuizVolumeToPlayers();
+        }
         let currentPodiumStep = -1;
         let wakeLock = null;
         let lastStateType = null;
@@ -2392,6 +2404,8 @@
             if (intro) intro.style.display = 'flex';
         });
         function stopAllAudio() {
+            const hadPartyIntro = !!window.__partyIntroMusicPlaying;
+            if (musicPlayer) musicPlayer.loop = false;
             musicPlayer.pause(); musicPlayer.currentTime=0;
             sfxPlayer.pause(); sfxPlayer.currentTime=0;
             clockPlayer.pause(); clockPlayer.currentTime=0;
@@ -2402,6 +2416,10 @@
             // Wyborczy (WYBORCZY): wybScreenBgAudio nie było tu zatrzymywane — przy IDLE/pauzie return był przed blokiem wasWybActive, muzyka grała dalej
             if (typeof stopWyborczyQuestionMedia === 'function') stopWyborczyQuestionMedia();
             else if (typeof stopWybBgMusic === 'function') stopWybBgMusic();
+            if (hadPartyIntro) {
+                window.__partyIntroMusicPlaying = false;
+                try { socket.emit('party_intro_music_auto_stopped'); } catch (_) {}
+            }
         }
         async function startShipsBG() {
             if (!audioEnabled || !shipsBGPlayer) return;
@@ -2561,43 +2579,20 @@
             musicPlayer.volume = clampDigitalOutputLinear(getQuizEffectiveVolume() * gain);
             musicPlayer.loop = true;
             musicPlayer.src = fullUrl;
+            window.__partyIntroMusicPlaying = true;
             musicPlayer.play().catch(function(e) { console.warn('Intro muzyka:', e.message || e); });
         });
-        socket.on('master_volume', (d) => {
-            const v = (d && d.volume != null) ? Math.max(0, Math.min(1, d.volume)) : 1;
-            masterVolume = v;
-            const ev = getQuizEffectiveVolume();
-            if (musicPlayer) musicPlayer.volume = ev;
-            if (sfxPlayer) sfxPlayer.volume = ev;
-            if (typeof wybScreenBgAudio !== 'undefined' && wybScreenBgAudio) wybScreenBgAudio.volume = ev;
-            if (typeof _hncBgAudio !== 'undefined' && _hncBgAudio) _hncBgAudio.volume = ev;
-            if (shipsBGPlayer) shipsBGPlayer.volume = ev;
-            if (typeof updatePartyFamSoundVolumes === 'function') updatePartyFamSoundVolumes();
-        });
-        socket.on('quiz_volume', (d) => {
-            const v = (d && d.volume != null) ? Math.max(0, Math.min(1, d.volume)) : 1;
-            quizChannelVolume = v;
-            const ev = getQuizEffectiveVolume();
-            if (musicPlayer) musicPlayer.volume = ev;
-            if (sfxPlayer) sfxPlayer.volume = ev;
-            if (typeof wybScreenBgAudio !== 'undefined' && wybScreenBgAudio) wybScreenBgAudio.volume = ev;
-            if (typeof _hncBgAudio !== 'undefined' && _hncBgAudio) _hncBgAudio.volume = ev;
-            if (shipsBGPlayer) shipsBGPlayer.volume = ev;
-        });
+        socket.on('games_volume', (d) => setGamesVolumeFromServer(d && d.volume));
+        socket.on('master_volume', (d) => setGamesVolumeFromServer(d && d.volume));
+        socket.on('quiz_volume', (d) => setGamesVolumeFromServer(d && d.volume));
         socket.on('admin_master_volume', (vol) => {
             const v = parseInt(vol, 10);
-            if (!isNaN(v)) masterVolume = Math.min(1, Math.max(0, v / 100));
-            const ev = getQuizEffectiveVolume();
-            if (musicPlayer) musicPlayer.volume = ev;
-            if (sfxPlayer) sfxPlayer.volume = ev;
-            if (typeof wybScreenBgAudio !== 'undefined' && wybScreenBgAudio) wybScreenBgAudio.volume = ev;
-            if (typeof _hncBgAudio !== 'undefined' && _hncBgAudio) _hncBgAudio.volume = ev;
-            if (shipsBGPlayer) shipsBGPlayer.volume = ev;
-            if (typeof updatePartyFamSoundVolumes === 'function') updatePartyFamSoundVolumes();
+            if (!isNaN(v)) setGamesVolumeFromServer(v / 100);
         });
         socket.on('admin_stop_music', () => {
             if (sfxPlayer) { sfxPlayer.pause(); sfxPlayer.currentTime = 0; }
             if (musicPlayer) { musicPlayer.pause(); musicPlayer.currentTime = 0; }
+            window.__partyIntroMusicPlaying = false;
             if (typeof stopWybBgMusic === 'function') stopWybBgMusic();
             if (typeof _hncStopBg === 'function') _hncStopBg();
         });
@@ -2729,10 +2724,19 @@
         function syncPartyIntroScreenCopy() {
             if (!document.body.classList.contains('party-active')) return;
             const introTxt = document.getElementById('intro-txt');
+            const introLogo = document.getElementById('intro-logo');
             const pw = window.partyWelcome || {};
             const fileTitle = getPartyQuizFileDisplayTitle();
             const line = fileTitle || ((pw.subtitle && pw.subtitle.trim()) ? pw.subtitle.trim() : 'ZARAZ ZACZYNAMY');
             if (introTxt) introTxt.textContent = line;
+            if (introLogo) {
+                const u = (pw && typeof pw.logoUrl === 'string' && pw.logoUrl.trim()) ? pw.logoUrl.trim() : '';
+                if (u) {
+                    introLogo.src = (u.startsWith('http://') || u.startsWith('https://') || u.startsWith('/')) ? u : ('/' + u.replace(/^\/+/, ''));
+                } else {
+                    introLogo.src = '/img/logo_imprezja.png';
+                }
+            }
         }
 
         // ========================
@@ -2897,25 +2901,12 @@
                     if (zarazOverlay) zarazOverlay.style.display='none';
                     if (playersQrScreenIdle) playersQrScreenIdle.style.display='none';
                 }
-                // Party Quiz: podmień tekst i logo na dane z partyWelcome + odtwórz muzykę intro.
+                // Party Quiz: podmień tekst i logo — muzyka startowa tylko z przycisku Start/Stop w panelu admina (admin_play_intro_music).
                 if (document.body.classList.contains('party-active')) {
                     const pw = window.partyWelcome || {};
                     syncPartyIntroScreenCopy();
                     const introLogo = document.getElementById('intro-logo');
                     if (introLogo && pw.logoUrl) introLogo.src = pw.logoUrl;
-                    // Muzyka intro — tylko gdy nie gra już intro_loop (uniknij restartu)
-                    const wantedUrl = pw.introMusicUrl || '/uploads/sfx/intro_loop.mp3';
-                    if (typeof sfxPlayer !== 'undefined' && sfxPlayer) {
-                        if (sfxPlayer.paused || !(sfxPlayer.src || '').includes('intro_loop')) {
-                            try { stopAllAudio(); } catch (_) {}
-                            try {
-                                sfxPlayer.src = wantedUrl;
-                                sfxPlayer.loop = true;
-                                sfxPlayer.volume = 0.5;
-                                const p = sfxPlayer.play(); if (p && p.catch) p.catch(() => {});
-                            } catch (_) {}
-                        }
-                    }
                 }
                 return;
             }
@@ -3005,10 +2996,17 @@
 
             // INTRO
             if(state.type==='INTRO') {
-                document.getElementById('intro-txt').innerText = state.quizTitle || 'Imprezja Quiz';
-                if(sfxPlayer.paused || !sfxPlayer.src.includes('intro_loop')) {
-                    stopAllAudio();
-                    playSFX('intro_loop');
+                const introTxtEl = document.getElementById('intro-txt');
+                if (document.body.classList.contains('party-active') && typeof syncPartyIntroScreenCopy === 'function') {
+                    syncPartyIntroScreenCopy();
+                } else if (introTxtEl) {
+                    introTxtEl.innerText = state.quizTitle || 'Imprezja Quiz';
+                }
+                if (!document.body.classList.contains('party-active')) {
+                    if(sfxPlayer.paused || !sfxPlayer.src.includes('intro_loop')) {
+                        stopAllAudio();
+                        playSFX('intro_loop');
+                    }
                 }
                 return;
             }
@@ -3755,10 +3753,26 @@
             }
             // GAME LOGIC
             const q = state.activeQuestion;
+            // Party Quiz: po rozpoczęciu pytania wyłącz muzykę startową (nawet gdy brak własnego tła dla pytania, np. Familiada).
+            if (document.body.classList.contains('party-active') && q && window.__partyIntroMusicPlaying) {
+                try {
+                    if (musicPlayer) {
+                        musicPlayer.pause();
+                        musicPlayer.currentTime = 0;
+                        musicPlayer.loop = false;
+                    }
+                } catch (_) {}
+                window.__partyIntroMusicPlaying = false;
+                try {
+                    socket.emit('party_intro_music_auto_stopped');
+                } catch (_) {}
+            }
             // Party Quiz — Statki: ukryj duży tytuł pytania w nagłówku (zwalnia miejsce + usuwa duplikat tekstu).
             document.body.classList.toggle('party-ships-compact', !!(document.body.classList.contains('party-active') && q?.type === 'SHIPS'));
             // Party Quiz — Familiada: pytanie jest na planszy (.party-fam-question); ukryj duplikat w #main-q.
             document.body.classList.toggle('party-familiada-compact', !!(document.body.classList.contains('party-active') && q?.type === 'FAMILIADA'));
+            /** Party Quiz Familiada — układ jak /familiada/screen.html (LED + górny pasek z punktami z całego Party Quiz). */
+            document.body.classList.toggle('party-familiada-tv', !!(document.body.classList.contains('party-active') && q?.type === 'FAMILIADA'));
             document.body.classList.toggle('party-fastlist-compact', !!(document.body.classList.contains('party-active') && q?.type === 'FAST_LIST'));
             if ((!q || q.type !== 'FAST_LIST') && typeof stopPartyFastListBg === 'function') stopPartyFastListBg();
             if (q?.type !== 'SHIPS' && currentMode === 'SHIPS') stopShipsBG();
@@ -3907,7 +3921,7 @@
                     renderPartyFamiliadaBoard(q, state);
                 }
                 const grid = document.getElementById('quiz-grid');
-                grid.style.cssText = 'display: flex !important; flex-direction: column !important; width: 100% !important; flex: 1 !important; min-height: 0 !important; overflow: auto !important;';
+                grid.style.cssText = 'display: flex !important; flex-direction: column !important; justify-content: flex-start !important; align-items: stretch !important; width: 100% !important; flex: 1 !important; min-height: 0 !important; overflow: auto !important;';
                 grid.classList.remove('show-correct', 'show-stats');
                 return; // Nie kontynuuj w dalszej ścieżce (DOM grid już obsłużony)
             } else if (q?.type === 'FAST_LIST' && document.body.classList.contains('party-active')) {
@@ -6325,6 +6339,16 @@
             padding-top: 10px;
             padding-bottom: 18px;
         }
+        /* Party Familiada — plansza od góry, bez pionowego centrowania całej treści; ciaśniejsze boki */
+        body.party-familiada-compact .content-area {
+            justify-content: flex-start;
+            align-items: stretch;
+            padding: 4px 6px 10px;
+        }
+        body.party-familiada-compact .quiz-grid {
+            justify-content: flex-start;
+            align-content: flex-start;
+        }
         /* Zepchnij całą zawartość Screen.html w dół tak, aby pasek drużyn miał własne miejsce.
            #main-content to flex-kolumna rozciągnięta na 100% wysokości, więc padding-top zsuwa
            nagłówek i grid pytania poniżej paska drużyn (64px). box-sizing keeps layout intact. */
@@ -6353,32 +6377,42 @@
             display: none !important;
         }
         body.party-active #intro-screen {
-            padding-top: 80px;
+            padding: min(5vh, 48px) 2vw 3vh;
             justify-content: center;
         }
         body.party-active #intro-screen .intro-header {
             flex-direction: column;
-            gap: 28px;
+            align-items: center;
+            justify-content: center;
+            gap: min(3vh, 32px);
+            text-align: center;
         }
+        /* Duże logo Imprezja Quiz — dominanta ekranu po wczytaniu pliku Party */
         body.party-active #intro-screen .logo-imprezja {
-            max-width: min(540px, 60vw) !important;
+            max-width: min(720px, 78vw) !important;
+            width: min(720px, 78vw) !important;
             height: auto !important;
-            filter: drop-shadow(0 8px 40px rgba(241, 196, 15, 0.45));
+            filter: drop-shadow(0 10px 48px rgba(241, 196, 15, 0.5));
         }
-        body.party-active #intro-screen .intro-title {
-            font-size: clamp(3rem, 8vw, 7rem) !important;
-            letter-spacing: 0.08em;
+        /* Nazwa pliku .json (bez rozszerzenia) — pod logo, pulsowanie */
+        body.party-active #intro-screen .intro-title#intro-txt {
+            font-size: clamp(1.5rem, 5.5vw, 4.2rem) !important;
+            font-weight: 900 !important;
+            letter-spacing: 0.04em;
+            line-height: 1.15;
             text-transform: none;
+            max-width: 96vw;
+            padding: 0 0.5rem;
             background: linear-gradient(135deg, #f1c40f 0%, #ff9a44 100%);
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
             text-shadow: none;
-            animation: partyIntroPulse 2s ease-in-out infinite;
+            animation: partyIntroPulse 2.2s ease-in-out infinite;
         }
         @keyframes partyIntroPulse {
             0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.03); opacity: 0.92; }
+            50% { transform: scale(1.04); opacity: 0.88; }
         }
         #party-team-bar.swapped { direction: rtl; }
         #party-team-bar.swapped > * { direction: ltr; }
@@ -6819,7 +6853,308 @@
             letter-spacing: 0.05em;
         }
 
-        /* ═════ Party Familiada board — styl TVP "Familiada" (LED dot-matrix) ═════ */
+        /* ═════ Party Quiz Familiada TV — układ jak /familiada/screen.html ═════ */
+        body.party-familiada-tv.party-active {
+            background: #000 !important;
+            color: #ffd833;
+        }
+        body.party-familiada-tv::before {
+            top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important;
+            transform: none !important; background-size: auto !important;
+            z-index: 0 !important;
+            animation: partyFamTvBgPulse 4s ease-in-out infinite !important;
+            background-image:
+                linear-gradient(90deg, rgba(0, 80, 180, 0.65) 0%, rgba(0, 60, 140, 0.45) 30%, transparent 75%),
+                linear-gradient(270deg, rgba(180, 0, 0, 0.65) 0%, rgba(140, 0, 0, 0.45) 30%, transparent 75%) !important;
+            opacity: 1 !important;
+        }
+        body.party-familiada-tv::after { display: none !important; }
+        @keyframes partyFamTvBgPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        body.party-familiada-tv .header,
+        body.party-familiada-tv #party-team-bar { display: none !important; }
+        body.party-familiada-tv #main-content { padding-top: 0 !important; }
+        body.party-familiada-tv .content-area {
+            justify-content: flex-start;
+            align-items: stretch;
+            padding: 0 6px 8px !important;
+            flex: 1;
+            min-height: 0;
+        }
+        body.party-familiada-tv .quiz-grid {
+            justify-content: flex-start;
+            align-content: stretch;
+            flex: 1;
+            min-height: 0 !important;
+        }
+        .party-fam-shell {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            flex: 1;
+            min-height: 0;
+            font-family: 'Familiada', 'Silkscreen', 'VT323', monospace;
+            color: var(--pf-led-yellow, #ffd833);
+            --pf-led-yellow: #ffd833;
+            --pf-led-bright: #fff9c0;
+            --pf-led-off: #3a2d05;
+            position: relative;
+            z-index: 2;
+        }
+        .pf-top-section {
+            min-height: 16vh;
+            max-height: 26vh;
+            display: flex;
+            align-items: stretch;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 4px 2px 8px;
+        }
+        .pf-panel {
+            width: 28%;
+            min-width: 140px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            z-index: 1;
+        }
+        .pf-panel-blue { background: linear-gradient(135deg, rgba(0, 40, 100, 0.35) 0%, transparent 70%); }
+        .pf-panel-red  { background: linear-gradient(225deg, rgba(100, 0, 0, 0.35) 0%, transparent 70%); }
+        .party-fam-shell.familiada-swap-side-colors .pf-panel-blue {
+            background: linear-gradient(225deg, rgba(100, 0, 0, 0.35) 0%, transparent 70%);
+        }
+        .party-fam-shell.familiada-swap-side-colors .pf-panel-red {
+            background: linear-gradient(135deg, rgba(0, 40, 100, 0.35) 0%, transparent 70%);
+        }
+        .pf-team-name {
+            font-size: clamp(14px, 2.1vw, 28px);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: 400;
+            line-height: 1.25;
+            text-shadow: 0 0 1px var(--pf-led-bright), 0 0 3px rgba(255, 216, 51, 0.5);
+        }
+        .pf-score-num {
+            font-size: clamp(28px, 5vw, 72px);
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 2px;
+            text-shadow: 0 0 1px var(--pf-led-bright), 0 0 2px var(--pf-led-yellow), 0 0 6px rgba(255, 216, 51, 0.55);
+        }
+        .pf-question-box {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0 10px;
+            text-align: center;
+            min-width: 0;
+            overflow: hidden;
+        }
+        .pf-question-text {
+            color: var(--pf-led-yellow);
+            font-size: clamp(16px, 2.6vw, 40px);
+            text-transform: uppercase;
+            line-height: 1.2;
+            letter-spacing: 1px;
+            max-width: 98%;
+            word-wrap: break-word;
+            text-shadow: 0 0 1px var(--pf-led-bright), 0 0 3px rgba(255, 216, 51, 0.5);
+        }
+        .pf-main-board {
+            flex: 1;
+            display: flex;
+            align-items: stretch;
+            justify-content: center;
+            min-height: 0;
+            padding: 8px 0 4px;
+        }
+        /* Tablica LED — jak #board-display w /familiada/screen.html */
+        #pf-board-display {
+            flex: 1;
+            background: #050300;
+            margin: 6px 10px 10px;
+            display: flex;
+            flex-direction: column;
+            padding: 18px 22px;
+            position: relative;
+            min-height: 0;
+            overflow: hidden;
+            border-radius: 18px;
+            box-shadow:
+                inset 0 0 60px rgba(0, 0, 0, 0.9),
+                inset 0 0 18px rgba(255, 180, 40, 0.08),
+                0 0 30px rgba(255, 200, 50, 0.10),
+                0 4px 18px rgba(0, 0, 0, 0.6);
+        }
+        #pf-board-display::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            border-radius: 18px;
+            background-image: radial-gradient(circle, rgba(255, 216, 51, 0.06) 22%, transparent 24%);
+            background-size: 7px 7px;
+            z-index: 0;
+        }
+        #pf-board-display::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            border-radius: 18px;
+            background:
+                radial-gradient(ellipse at 50% 35%, transparent 55%, rgba(0,0,0,0.35) 100%),
+                linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, transparent 18%);
+            z-index: 2;
+        }
+        #pf-rows-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-evenly;
+            gap: 0.4vh;
+            min-height: 0;
+            position: relative;
+            z-index: 3;
+        }
+        .pf-answer-row {
+            display: flex;
+            align-items: center;
+            padding: 0.25vh 0;
+            margin-bottom: 0;
+            flex: 1;
+            min-height: 0;
+            font-size: var(--pf-answer-font-size, 3vw);
+            line-height: 1.35;
+            transition: all 0.45s;
+        }
+        .pf-row-num {
+            width: clamp(42px, 4.5vw, 56px);
+            min-width: 42px;
+            text-align: center;
+            color: var(--pf-led-yellow);
+            font-variant-numeric: tabular-nums;
+            margin-right: 10px;
+            flex-shrink: 0;
+            text-shadow: 0 0 1px var(--pf-led-bright), 0 0 3px rgba(255, 216, 51, 0.5);
+        }
+        .pf-row-text {
+            flex: 1;
+            text-transform: uppercase;
+            letter-spacing: var(--pf-answer-spacing, 2px);
+            position: relative;
+            white-space: nowrap;
+            overflow: hidden;
+            font-weight: 400;
+            min-width: 0;
+        }
+        .pf-hidden-mask {
+            display: block;
+            color: var(--pf-led-off);
+            letter-spacing: 4px;
+            opacity: 0.85;
+        }
+        .pf-revealed-text {
+            display: block;
+            color: var(--pf-led-yellow);
+            text-shadow: 0 0 1px var(--pf-led-bright), 0 0 2px var(--pf-led-yellow), 0 0 5px rgba(255, 216, 51, 0.5);
+        }
+        .pf-answer-row:not(.revealed) .pf-revealed-text { display: none; }
+        .pf-answer-row.revealed .pf-hidden-mask { display: none; }
+        .pf-answer-row.revealed .pf-revealed-text { display: block; animation: pfLampIgnite 0.25s ease-out; }
+        @keyframes pfLampIgnite {
+            0%   { opacity: 0.2; }
+            50%  { opacity: 1; }
+            70%  { opacity: 0.85; }
+            100% { opacity: 1; }
+        }
+        .pf-row-points {
+            width: var(--pf-row-pts-width, 72px);
+            min-width: 48px;
+            text-align: right;
+            padding-right: 8px;
+            color: var(--pf-led-yellow);
+            font-variant-numeric: tabular-nums;
+            visibility: hidden;
+            flex-shrink: 0;
+            text-shadow: 0 0 1px var(--pf-led-bright), 0 0 3px rgba(255, 216, 51, 0.5);
+        }
+        .pf-answer-row.revealed .pf-row-points { visibility: visible; }
+        .pf-total-pot {
+            text-align: right;
+            font-size: clamp(16px, 2.6vw, 30px);
+            padding-top: 8px;
+            margin-top: 6px;
+            color: var(--pf-led-yellow);
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 2px;
+            position: relative;
+            z-index: 3;
+            text-shadow: 0 0 1px var(--pf-led-bright), 0 0 2px var(--pf-led-yellow), 0 0 6px rgba(255, 216, 51, 0.55);
+        }
+        .pf-xzone-col {
+            width: 15%;
+            min-width: 56px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding-top: clamp(18px, 5vh, 48px);
+            gap: clamp(10px, 2.2vh, 22px);
+        }
+        .pf-xzone-col .pf-xzone-label {
+            font-size: clamp(13px, 1.35vw, 20px);
+            font-weight: 400;
+            text-align: center;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            opacity: 0.95;
+            text-shadow: 0 0 1px var(--pf-led-bright), 0 0 3px rgba(255, 216, 51, 0.5);
+        }
+        .pf-x-cell {
+            width: clamp(46px, 9vw, 96px);
+            height: clamp(46px, 9vw, 96px);
+            background: #0a0505;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #330808;
+            opacity: 0.4;
+            transition: all 0.2s;
+            font-size: clamp(30px, 6vw, 64px);
+            line-height: 1;
+            font-family: inherit;
+        }
+        .pf-x-cell.active {
+            background: #1a0808;
+            color: var(--pf-led-yellow);
+            opacity: 1;
+            animation: pfXBlink 0.4s ease-out;
+        }
+        @keyframes pfXBlink {
+            0%   { transform: scale(1.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .pf-answer-row.pending {
+            border-radius: 6px;
+            box-shadow: 0 0 24px rgba(241, 196, 15, 0.55), inset 0 0 14px rgba(241, 196, 15, 0.35);
+            animation: pfRowPendingPulse 1.1s ease-in-out infinite;
+        }
+        .pf-answer-row.pending .pf-hidden-mask {
+            color: rgba(241, 196, 15, 0.9);
+            letter-spacing: 10px;
+            text-shadow: 0 0 10px rgba(241, 196, 15, 0.6);
+        }
+        @keyframes pfRowPendingPulse {
+            0%, 100% { box-shadow: 0 0 24px rgba(241, 196, 15, 0.55), inset 0 0 14px rgba(241, 196, 15, 0.35); }
+            50% { box-shadow: 0 0 38px rgba(241, 196, 15, 0.85), inset 0 0 22px rgba(241, 196, 15, 0.55); }
+        }
+        /* Fallback: stara siatka (nieużywana po migracji TV) … */
         .party-fam-wrap {
             display: grid;
             grid-template-columns: auto 1fr auto;
@@ -6828,16 +7163,91 @@
             width: 100%;
             max-width: 1280px;
             margin: 10px auto;
-            align-items: center;
+            align-items: start;
             --led-yellow: #FFD833;
             --led-yellow-bright: #ffea6b;
             --led-off: #332800;
+        }
+        body.party-familiada-compact .party-fam-wrap {
+            margin: 0 auto;
+            max-width: 100%;
+            padding: 4px 2px 8px;
+            gap: 8px 6px;
+        }
+        body.party-familiada-compact .party-fam-xzone {
+            justify-content: flex-start;
+            padding-top: 4px;
+        }
+        body.party-familiada-compact .party-fam-question {
+            padding: 10px 6px;
+            margin-bottom: 4px;
+        }
+        body.party-familiada-compact .party-fam-row {
+            padding: 8px 4px;
+            grid-template-columns: 48px 1fr 88px;
+            gap: 6px 4px;
+        }
+        /* Duży X — jak /familiada/screen.html #center-x-overlay: warstwa w planszy (środkowa kolumna), nie pełny viewport */
+        .party-fam-center-x-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            background: rgba(0, 0, 0, 0.6);
+            pointer-events: none;
+        }
+        #pf-board-display .party-fam-center-x-overlay {
+            border-radius: 14px;
+            z-index: 44;
+        }
+        .pf-x-cell.active .pf-x-pixel {
+            filter: drop-shadow(0 0 8px var(--pf-led-yellow, #ffd833));
+        }
+        .party-fam-giant-x {
+            font-size: min(50vh, 40vw);
+            color: var(--led-yellow);
+            text-shadow: 0 0 8vh var(--led-yellow);
+            font-family: 'Familiada', 'Silkscreen', 'VT323', monospace;
+            line-height: 1;
+            animation: partyFamCenterXWobble 3s ease-in-out;
+        }
+        @keyframes partyFamCenterXWobble {
+            0%, 100% { transform: rotate(-4deg); }
+            20% { transform: rotate(4deg); }
+            40% { transform: rotate(-3deg); }
+            60% { transform: rotate(3deg); }
+            80% { transform: rotate(-2deg); }
+        }
+        /* Fallback, gdy plansza Familiada nie jest w DOM (np. szybka zmiana pytania) */
+        .party-fam-center-x-flash {
+            position: fixed;
+            inset: 0;
+            z-index: 2147483000;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.88);
+        }
+        .party-fam-center-x-flash .party-fam-center-x-glyph {
+            font-family: 'Familiada', 'Courier New', monospace;
+            font-size: min(50vh, 40vw);
+            line-height: 1;
+            font-weight: 900;
+            color: var(--led-yellow, #ffd833);
+            text-shadow: 0 0 5vh #ffd833;
         }
         .party-fam-board {
             display: flex;
             flex-direction: column;
             gap: 8px;
             min-width: 0;
+            position: relative;
         }
         .party-fam-question {
             font-family: 'Familiada', 'Silkscreen', 'VT323', monospace;
@@ -7041,6 +7451,8 @@
         function applyPartyState(ps) {
             if (!ps || !ps.teams) {
                 window.partyActiveFile = null;
+                window.__partyTeamsForFamTV = null;
+                window.__partySwapped = false;
                 document.body.classList.remove('party-active');
                 document.body.classList.remove('party-team-bar-hidden');
                 bar.classList.remove('swapped');
@@ -7057,6 +7469,16 @@
             redName.textContent  = (ps.teams.red  && ps.teams.red.name)  || 'Czerwoni';
             blueScore.textContent = (ps.teams.blue && typeof ps.teams.blue.score === 'number') ? ps.teams.blue.score : 0;
             redScore.textContent  = (ps.teams.red  && typeof ps.teams.red.score  === 'number') ? ps.teams.red.score  : 0;
+            window.__partyTeamsForFamTV = ps.teams;
+            window.__partySwapped = !!ps.swapped;
+            const pfB = document.getElementById('pf-score-blue');
+            const pfR = document.getElementById('pf-score-red');
+            const pfNB = document.getElementById('pf-name-blue');
+            const pfNR = document.getElementById('pf-name-red');
+            if (pfB) pfB.textContent = String(blueScore.textContent);
+            if (pfR) pfR.textContent = String(redScore.textContent);
+            if (pfNB && ps.teams.blue) pfNB.textContent = (ps.teams.blue.name || 'Niebiescy').toUpperCase();
+            if (pfNR && ps.teams.red) pfNR.textContent = (ps.teams.red.name || 'Czerwoni').toUpperCase();
             updatePartyTeamScoresVisibility(ps);
             window.partyActiveFile = ps.activeFile || null;
             // Welcome meta z aktywnego pliku Party — używane w intro screen (logo + tekst + intro music).
@@ -7159,13 +7581,38 @@
                 }
                 const snd = window.partyFamSounds[name];
                 // Dynamicznie respektujemy masterVolume (regulacja głośności w adminie).
-                const mv = (typeof masterVolume === 'number') ? masterVolume : 1;
+                const mv = (typeof gamesVolume === 'number') ? gamesVolume : 1;
                 snd.volume = Math.max(0, Math.min(1, 0.85 * mv));
                 try { snd.pause(); snd.currentTime = 0; } catch (_) {}
                 const p = snd.play(); if (p && p.catch) p.catch(() => {});
             } catch (_) {}
         }
         socket.on('party_fam_sound', (name) => playPartyFamSound(String(name || '').toLowerCase()));
+
+        // Party Familiada — duży X: 1:1 z /familiada/screen.html (board_update ERROR / team 0) — warstwa w .party-fam-board
+        function showPartyFamCenterXFlash() {
+            const o = document.getElementById('party-fam-center-x-overlay');
+            if (o) {
+                o.style.display = 'flex';
+                o.setAttribute('aria-hidden', 'false');
+                clearTimeout(window._partyFamCenterXTimer);
+                window._partyFamCenterXTimer = setTimeout(() => {
+                    try {
+                        o.style.display = 'none';
+                        o.setAttribute('aria-hidden', 'true');
+                    } catch (_) {}
+                }, 3000);
+                return;
+            }
+            const overlay = document.createElement('div');
+            overlay.className = 'party-fam-center-x-flash';
+            overlay.setAttribute('aria-hidden', 'true');
+            overlay.innerHTML = '<div class="party-fam-center-x-glyph" aria-hidden="true">X</div>';
+            document.body.appendChild(overlay);
+            setTimeout(() => { try { overlay.remove(); } catch (_) {} }, 3000);
+        }
+        try { window.showPartyFamCenterXFlash = showPartyFamCenterXFlash; } catch (_) {}
+        socket.on('party_fam_center_x_flash', showPartyFamCenterXFlash);
 
         // Party Quiz — flash na TV gdy ktoś nacisnął buzzer (opcjonalny mechanizm „kto pierwszy").
         // Overlay na ~1.5 s w kolorze drużyny, z napisem „NIEBIESCY / CZERWONI".
@@ -7199,7 +7646,7 @@
         // Aktualizuj głośność już wczytanych dźwięków Familiady gdy admin pokręci suwakiem.
         // (Nowo odtwarzane dźwięki i tak biorą aktualny masterVolume w playPartyFamSound.)
         window.updatePartyFamSoundVolumes = function () {
-            const mv = (typeof masterVolume === 'number') ? masterVolume : 1;
+            const mv = (typeof gamesVolume === 'number') ? gamesVolume : 1;
             const v = Math.max(0, Math.min(1, 0.85 * mv));
             Object.values(window.partyFamSounds || {}).forEach(a => { try { a.volume = v; } catch (_) {} });
         };
@@ -7215,7 +7662,7 @@
                 return shipsCtx;
             }
             function mv() {
-                const x = (typeof masterVolume === 'number') ? masterVolume : 1;
+                const x = (typeof gamesVolume === 'number') ? gamesVolume : 1;
                 return Math.max(0, Math.min(1, x));
             }
             function playShipsWhoosh() {
@@ -7288,18 +7735,71 @@
             } catch (_) {}
         });
 
-        /** Renderuje kolumnę 3 X-ów dla drużyny. active = liczba "zapalonych" krzyżyków (0-3). */
+        /** Kolumna 3× X — jak .x-zone w /familiada/screen.html (Party Quiz TV). */
         function renderXZone(label, active) {
             const boxes = [];
             for (let i = 0; i < 3; i++) {
-                boxes.push('<div class="party-fam-x ' + (i < active ? 'active' : '') + '">X</div>');
+                boxes.push('<div class="pf-x-cell' + (i < active ? ' active' : '') + '"><span class="pf-x-pixel">X</span></div>');
             }
             return (
-                '<div class="party-fam-xzone">' +
-                    '<div class="xzone-label">' + escapeHtml(label) + '</div>' +
+                '<div class="pf-xzone-col">' +
+                    '<div class="pf-xzone-label">' + escapeHtml(label) + '</div>' +
                     boxes.join('') +
                 '</div>'
             );
+        }
+
+        function fitPartyFamTvQuestion() {
+            const el = document.getElementById('pf-qtext');
+            const box = document.querySelector('.party-fam-shell .pf-question-box');
+            if (!el || !box) return;
+            el.style.fontSize = '';
+            el.style.letterSpacing = '';
+            const maxH = Math.max(40, box.clientHeight - 8);
+            const maxW = Math.max(80, box.clientWidth - 12);
+            let fs = parseFloat(getComputedStyle(el).fontSize) || 32;
+            let guard = 45;
+            while ((el.scrollHeight > maxH || el.scrollWidth > maxW) && fs > 10 && guard-- > 0) {
+                fs *= 0.93;
+                el.style.fontSize = fs + 'px';
+            }
+        }
+
+        function applyPartyFamTvRowScale(count) {
+            const wrap = document.getElementById('pf-board-display');
+            if (!wrap || !count) return;
+            const vh = window.innerHeight || 800;
+            const vw = window.innerWidth || 1200;
+            const topSectionH = vh * 0.22;
+            const boardAreaH = Math.max(180, vh - topSectionH - 80);
+            const targetHeightPct = 0.82;
+            const usableH = boardAreaH * targetHeightPct;
+            const gapTotal = (count - 1) * 0.5 * vh / 100;
+            const rowH = (usableH - gapTotal) / count;
+            const lineH = 1.35;
+            const fontSizePx = rowH / lineH;
+            const fontSizeVw = (fontSizePx / vw) * 100;
+            const fontSizeVh = (fontSizePx / vh) * 100;
+            const minFontVw = count >= 10 ? 1.3 : count >= 8 ? 1.6 : count >= 6 ? 2 : 2.5;
+            const maxFontVw = count <= 3 ? 4.8 : count <= 5 ? 4.2 : 3.8;
+            const clampedVw = Math.max(minFontVw, Math.min(maxFontVw, fontSizeVw));
+            const clampedVh = Math.max((count >= 9 ? 2.2 : count >= 7 ? 2.6 : 3), Math.min(count <= 3 ? 5.5 : 4.8, fontSizeVh));
+            const finalSize = count >= 7 ? (clampedVw + 'vw') : (clampedVh + 'vh');
+            wrap.style.setProperty('--pf-answer-font-size', finalSize);
+            wrap.style.setProperty('--pf-answer-spacing', count >= 7 ? '1px' : '2px');
+            wrap.style.setProperty('--pf-row-pts-width', count >= 7 ? '56px' : '72px');
+        }
+
+        window.__partyFamTvFit = function () {
+            fitPartyFamTvQuestion();
+            const n = document.querySelectorAll('#pf-rows-container .pf-answer-row').length;
+            if (n) applyPartyFamTvRowScale(n);
+        };
+        if (!window.__partyFamTvResizeHooked) {
+            window.__partyFamTvResizeHooked = true;
+            window.addEventListener('resize', () => {
+                if (document.body.classList.contains('party-familiada-tv')) window.__partyFamTvFit();
+            });
         }
 
         // Globalna funkcja wywoływana w update_state dla pytania FAMILIADA.
@@ -7426,39 +7926,82 @@
             if (!grid) return;
             const answers = (partyRoundData && Array.isArray(partyRoundData.answers))
                 ? partyRoundData.answers
-                : (q.answers || []).map((a, i) => ({
+                : (q.answers || []).map((a) => ({
                     text: (a && a.text) || '',
                     points: (a && typeof a.points === 'number') ? a.points : 0,
                     revealed: false
                 }));
             const errors = (partyRoundData && partyRoundData.errors) || { blue: 0, red: 0 };
             const pot = (partyRoundData && typeof partyRoundData.pot === 'number') ? partyRoundData.pot : 0;
+            const Pb = window.__partyTeamsForFamTV;
+            let blueScr = Pb && Pb.blue && typeof Pb.blue.score === 'number'
+                ? Pb.blue.score
+                : (parseInt((blueScore && blueScore.textContent) || '0', 10) || 0);
+            let redScr = Pb && Pb.red && typeof Pb.red.score === 'number'
+                ? Pb.red.score
+                : (parseInt((redScore && redScore.textContent) || '0', 10) || 0);
+            let blueNameStr = Pb && Pb.blue && Pb.blue.name
+                ? String(Pb.blue.name)
+                : ((blueName && blueName.textContent) || 'Niebiescy');
+            let redNameStr = Pb && Pb.red && Pb.red.name
+                ? String(Pb.red.name)
+                : ((redName && redName.textContent) || 'Czerwoni');
+            const swapped = !!(window.__partySwapped || (bar && bar.classList.contains('swapped')));
+            const shellsCls = 'party-fam-shell' + (swapped ? ' familiada-swap-side-colors' : '');
+            const maskDots = '• • • • • • • • • • • • • • • •';
             const rows = answers.map((a, i) => {
                 const revealed = !!a.revealed;
-                const cls = revealed ? 'revealed' : 'hidden-row';
+                const pending = !!(a && a.pending);
+                let cls = 'pf-answer-row';
+                if (revealed) cls += ' revealed';
+                if (pending) cls += ' pending';
+                const maskTxt = pending ? '? ? ? ? ?' : maskDots;
                 return (
-                    '<div class="party-fam-row ' + cls + '">' +
-                        '<span class="idx">' + (i + 1) + '</span>' +
-                        '<span class="text">' + escapeHtml(a.text || '') + '</span>' +
-                        '<span class="pts">' + (a.points || 0) + '</span>' +
+                    '<div class="' + cls + '">' +
+                        '<div class="pf-row-num">' + (i + 1) + '</div>' +
+                        '<div class="pf-row-text">' +
+                            '<span class="pf-hidden-mask">' + maskTxt + '</span>' +
+                            '<span class="pf-revealed-text">' + escapeHtml(a.text || '') + '</span>' +
+                        '</div>' +
+                        '<div class="pf-row-points">' + (a.points || 0) + '</div>' +
                     '</div>'
                 );
             }).join('');
-
-            // Nazwy drużyn z aktualnego party_state (w tym po swap).
-            const blueNameStr = (blueName && blueName.textContent) || 'NIEBIESCY';
-            const redNameStr  = (redName  && redName.textContent)  || 'CZERWONI';
-
             grid.innerHTML =
-                '<div class="party-fam-wrap">' +
-                    renderXZone(blueNameStr, errors.blue || 0) +
-                    '<div class="party-fam-board">' +
-                        '<div class="party-fam-question">' + escapeHtml(q.question || '') + '</div>' +
-                        rows +
-                        '<div class="party-fam-pot">SUMA: ' + pot + '</div>' +
+                '<div class="' + shellsCls + '">' +
+                    '<div class="pf-top-section">' +
+                        '<div class="pf-panel pf-panel-blue">' +
+                            '<div class="pf-team-name" id="pf-name-blue">' + escapeHtml(blueNameStr).toUpperCase() + '</div>' +
+                            '<div class="pf-score-num" id="pf-score-blue">' + blueScr + '</div>' +
+                        '</div>' +
+                        '<div class="pf-question-box">' +
+                            '<div id="pf-qtext" class="pf-question-text">' + escapeHtml(q.question || '') + '</div>' +
+                        '</div>' +
+                        '<div class="pf-panel pf-panel-red">' +
+                            '<div class="pf-team-name" id="pf-name-red">' + escapeHtml(redNameStr).toUpperCase() + '</div>' +
+                            '<div class="pf-score-num" id="pf-score-red">' + redScr + '</div>' +
+                        '</div>' +
                     '</div>' +
-                    renderXZone(redNameStr, errors.red || 0) +
+                    '<div class="pf-main-board">' +
+                        renderXZone(blueNameStr, errors.blue || 0) +
+                        '<div id="pf-board-display">' +
+                            '<div id="pf-rows-container">' +
+                                rows +
+                            '</div>' +
+                            '<div class="pf-total-pot">SUMA: ' + pot + '</div>' +
+                            '<div id="party-fam-center-x-overlay" class="party-fam-center-x-overlay" aria-hidden="true" style="display:none">' +
+                                '<div class="party-fam-giant-x">X</div>' +
+                            '</div>' +
+                        '</div>' +
+                        renderXZone(redNameStr, errors.red || 0) +
+                    '</div>' +
                 '</div>';
+            window.requestAnimationFrame(() => {
+                window.__partyFamTvFit();
+                if (document.fonts && document.fonts.ready) {
+                    document.fonts.ready.then(() => window.__partyFamTvFit()).catch(() => {});
+                }
+            });
         };
 
         // ═══════════════════════════════════════════════════════════════════════

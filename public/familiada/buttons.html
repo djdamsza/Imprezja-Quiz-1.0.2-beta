@@ -581,6 +581,11 @@
             fetch('/api/server-info', { cache: 'no-store' })
                 .then(r => r.ok ? r.json() : null)
                 .then(info => {
+                    if (info && info.https && info.https.certExpired) {
+                        httpsWarn.textContent = 'Certyfikat HTTPS wygasł — ekran może gasnąć. Odśwież cert na komputerze z quizem (folder certs/).';
+                        httpsWarn.classList.add('visible');
+                        return;
+                    }
                     if (info && info.https && info.https.available && info.https.port) {
                         const url = 'https://' + location.hostname + ':' + info.https.port + location.pathname;
                         httpsWarn.innerHTML = 'Ekran może gasnąć. <a href="' + url + '">Otwórz przez HTTPS</a> – wtedy zablokujemy wygaszanie.';

@@ -2,6 +2,61 @@
 
 ---
 
+## v1.2.7 (maj 2026) — wydanie stabilne
+
+### Audio — uproszczenie i wyrównanie głośności
+
+- **Dwa suwaki zamiast miksera wielokanałowego** — wspólna głośność **Gry** (`gamesVolume`: Quiz, Familiada, Party Quiz, Sampler, Śpiewaj Dalej, Bitwa wokalna, Statki, Prezentacja, Whitney) oraz osobno **Imprezator**. Zapis w `imprezja-volumes.json` jako `{ games, imprezator }` z migracją ze starego formatu master × kanały.
+- **Sufit cyfrowy −3 dB** — `digitalOutputClamp` na wyjściu (serwer + `public/lib/digital-output-cap.js`) ogranicza szczyty po normalizacji.
+- **Admin PWA** — dwa suwaki na dole strony (`#pwa-audio-dock`); usunięty rozbudowany mikser z ekranu konfiguracji.
+- **Panele admina gier** — dolny suwak **🎮 Gry** (`public/lib/games-volume-bar.js`) w Familiada, Quiz (`admin.html`), Party Quiz i Statki Solo — bez wychodzenia do PWA przy zmianie głośności w trakcie imprezy.
+- **Telefony / panele muzyczne** — usunięte zbędne suwaki głośności (Sampler, Śpiewaj Dalej, Bitwa, Whitney, Imprezator); w PWA wystarczą suwaki na dole.
+- **Bitwa wokalna ≈ Śpiewaj Dalej** — serwer liczy `normalizedGain` przez ffmpeg (`volumedetect`, cel −3 dB) dla plików lokalnych (`.vdjsample`, `/uploads/`, bank VDJ) przy odtwarzaniu i zapisie configu; działa też w Electronie, gdzie klient nie normalizuje samodzielnie.
+
+### Familiada
+
+- **Złota lista** — poprawki punktów, edytor, synchronizacja z serwerem po reloadzie configu.
+- **Wake Lock** — ekran admina Familiady nie gaśnie w trakcie rozgrywki (HTTPS / localhost).
+
+### Śpiewaj Dalej / Bitwa wokalna — banki
+
+- **Synchronizacja banków** między PWA, ekranem TV i telefonami; spójna nazwa **„Bank”** w UI.
+
+### HTTPS, Wake Lock, QR (Admin PWA)
+
+- **Certyfikaty HTTPS** w `userData` dla spakowanej aplikacji — Wake Lock i secure context na telefonach bez ręcznej konfiguracji.
+- **Auto-przekierowanie HTTP → HTTPS** w Admin PWA (z ostrzeżeniem w `admin-pwa-qr.html` gdy cert wygasł).
+- **Ostrzeżenia** przy wygasającym/wygasłym certyfikacie na serwerze.
+
+### UI telefonów (gry muzyczne)
+
+- Usunięte strzałki ←→ i napis „przesuń w lewo/prawo” z `phone.html` i paneli w Admin PWA — nawigacja wyłącznie swipe; to samo w Samplerze.
+
+### Ekrany TV / quiz
+
+- Aktualizacja odbioru głośności na ekranach: `Screen.html`, Familiada, Statki, Prezentacja, tryby muzyczne — spójnie z `gamesVolume` / `imprezatorVolume`.
+
+### Strona sklepu / WordPress / Stripe-shop
+
+- Linki pobierania i znaczniki wersji do **v1.2.7** — m.in. `stripe-shop/public/pobierz.html`, `stripe-shop/public/success.html`, `docs/wordpress/*.html`, `docs/wordpress/LINKI-1.2.7-WORDPRESS.md`.
+
+---
+
+## v1.2.6 (kwiecień 2026) — wydanie stabilne
+
+### Party Quiz (`/party-quiz/admin.html`, `Screen.html`)
+
+- **Złota lista — panel sterowania** — po uruchomieniu pytania ze złotej listy pełny blok sterowania (jak przy liście głównej): slot szczegółu w rozwiniętym wierszu, `mountPartyQuestionDetailHost` + odświeżenie po `party_golden_list` (wcześniej `party_state` przychodził przed listą — brak wpisu w `partyGoldenList` blokował widok). Komunikat przy ładowaniu listy; przewinięcie do aktywnego wiersza złotej listy.
+- **FAST_LIST ze złotej listy — punkty** — widoczny panel **+5 pkt** (nie chowany przez warunek `openPartyListIdx` — przy złotej liście jest `null`); przyznawanie działa jak z listy głównej.
+- **FAST_LIST — typografia TV** — większy numer rundy i treść pytania (oraz spójnie większa odsłona odpowiedzi / tytułu rundy) dla czytelności z dystansu.
+- **FAST_LIST — panel admina** — tylko numer pozycji jak na TV (`np. 3 / 12`, bez napisu „Sterowanie TV — pozycja …”), treść pytania w dużej skali (dopasowana do widoku TV, następnie **−40 %** dla komfortu w panelu); większa linia z podpowiedzią do odpowiedzi.
+
+### Strona sklepu / WordPress / Stripe-shop
+
+- Zaktualizowane linki pobierania i znaczniki wersji do **v1.2.6** — m.in. `stripe-shop/public/pobierz.html`, `stripe-shop/public/success.html`, wybrane `docs/wordpress/*.html`, `docs/wordpress/LINKI-1.2.6-WORDPRESS.md`.
+
+---
+
 ## v1.2.5 (kwiecień 2026) — wydanie stabilne
 
 ### Party Quiz (admin, TV, buzzery)

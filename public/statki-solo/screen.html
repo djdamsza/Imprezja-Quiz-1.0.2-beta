@@ -324,10 +324,9 @@ function playVictory() {
 
 // ── Soundtrack (kanał × master) ────────────────────────────
 let statkiSoundtrackGain = 1;
-let statkiChannelVolume = 1;
-let statkiMasterVolume = 1;
+let gamesVolume = 1;
 function applyStatkiVolume() {
-    soundtrackEl.volume = clampDigitalOutputLinear(Math.min(1, statkiChannelVolume * statkiMasterVolume) * statkiSoundtrackGain);
+    soundtrackEl.volume = clampDigitalOutputLinear(gamesVolume * statkiSoundtrackGain);
 }
 function prepareStatkiSoundtrackForActiveGame() {
     statkiSoundtrackAllowed = true;
@@ -359,8 +358,9 @@ async function startSoundtrack(url) {
     soundtrackEl.loop = gameState && gameState.soundtrackLoop === false ? false : true;
     soundtrackEl.play().catch(()=>{});
 }
-socket.on('ships_solo_volume', d => { statkiChannelVolume = Math.max(0, Math.min(1, d.volume)); applyStatkiVolume(); });
-socket.on('master_volume', d => { statkiMasterVolume = (d && d.volume != null) ? Math.max(0, Math.min(1, d.volume)) : 1; applyStatkiVolume(); });
+socket.on('ships_solo_volume', d => { gamesVolume = Math.max(0, Math.min(1, d.volume)); applyStatkiVolume(); });
+socket.on('games_volume', d => { gamesVolume = (d && d.volume != null) ? Math.max(0, Math.min(1, d.volume)) : 1; applyStatkiVolume(); });
+socket.on('master_volume', d => { gamesVolume = (d && d.volume != null) ? Math.max(0, Math.min(1, d.volume)) : 1; applyStatkiVolume(); });
 socket.on('ships_solo_stop_music', () => stopSoundtrack(true));
 
 // ── Ship legend ────────────────────────────────────────────

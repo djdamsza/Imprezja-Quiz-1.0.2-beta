@@ -50,5 +50,18 @@
       { "text": "W portfelu", "points": 20 },
       { "text": "W lodówce", "points": 20 }
     ]
+  },
+  {
+    "question": "Alkohol bez litery \"W\" w nazwie",
+    "answers": [
+      { "text": "Bimber", "points": 40 },
+      { "text": "Rum", "points": 0 },
+      { "text": "Gin", "points": 0 },
+      { "text": "Tequila", "points": 0 },
+      { "text": "Szampan", "points": 0 },
+      { "text": "Koniak", "points": 0 },
+      { "text": "Likier", "points": 0 },
+      { "text": "Burbon", "points": 0 }
+    ]
   }
 ]
