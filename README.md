@@ -2,6 +2,8 @@
 
 Quiz i głosowanie na imprezach – działa offline w sieci lokalnej.
 
+To repozytorium obejmuje wyłącznie Imprezja Quiz (quizy i gry muzyczne); Home Assistant i inteligentny dom to osobny projekt prywatny — nie należą tutaj.
+
 ## Pobierz
 
 **Wersja 1.2.7** (najnowsza):
