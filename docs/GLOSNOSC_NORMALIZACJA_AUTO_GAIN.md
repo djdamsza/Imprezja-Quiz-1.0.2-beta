@@ -4,6 +4,40 @@
 
 ---
 
+## Zaimplementowane (2026) — gry muzyczne (Sampler, Whitney, Śpiewaj Dalej, Bitwa)
+
+### Wspólny klient: `public/lib/music-screen-audio.js`
+
+Wszystkie cztery moduły na ekranie TV używają **tego samego wzoru**:
+
+```
+volume_element = clampDigitalOutputLinear(tileVolume × gamesVolume × normalizedGain)
+```
+
+| Składnik | Źródło |
+|----------|--------|
+| `gamesVolume` | Suwak **🎮 Gry** (Admin PWA lub `games-volume-bar.js` na panelu gry); surowe 0–1 z serwera |
+| `tileVolume` | Głośność kafelka w edytorze (Sampler/Whitney) lub `1` (Śpiewaj Dalej / Bitwa) |
+| `normalizedGain` | Serwer: ffmpeg `volumedetect` + boost +9 dB (`MUSIC_NORMALIZE_GAIN_SCHEMA = 2`) |
+| `clampDigitalOutputLinear` | Sufit ~−3 dB (`public/lib/digital-output-cap.js`) — **raz** na końcu |
+
+### Serwer (`server.js`)
+
+- `buildMusicScreenPlayPayload(track, audioRef, opts)` — payload przy `njr_sampler_play`, `whitney_play`, `spiewaj_dalej_play`, `bitwa_wokalna_play`.
+- `ensureMusicTrackNormalizedGain()` — cache gain na obiekcie utworu/kafelka w configu.
+- `warmupAllMusicScreenGains()` — przy starcie serwera ponowna analiza (po zmianie schematu gain).
+- `broadcastEffectiveVolumes()` — na ekrany muzyczne wysyła **surowe** `gamesVolume` (nie `digitalOutputClamp`), żeby uniknąć podwójnego tłumienia.
+
+### Electron
+
+W aplikacji desktop klient **nie** dokłada gain z `audio-normalize.js` (Web Audio / decode) — liczy się wyłącznie `normalizedGain` z serwera. Dlatego analiza ffmpeg przy zapisie/odtwarzaniu jest krytyczna.
+
+### Imprezator
+
+Osobny suwak **Imprezator** (`imprezatorVolume`); nadal może używać `digitalOutputClamp` przy emisji na ekran Imprezatora — to inny kanał niż gry muzyczne powyżej.
+
+---
+
 ## Zaimplementowane (2025)
 
 ### Klient – pliki uploadowane i SFX (Web Audio API)

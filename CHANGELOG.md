@@ -2,6 +2,36 @@
 
 ---
 
+## [Niewydane] — zmiany po v1.2.7 (do następnego release)
+
+### Party Quiz — złota lista
+
+- **Osobny plik** `party-quizzes/party-quiz-golden.json` (niezależny od `familiada/familiada-golden.json`) — max 10 pytań typu FAMILIADA; edycja w `/party-quiz/editor.html` (plik `party-quiz-golden`) lub gwiazdka ★ przy pytaniu w edytorze quizu Party.
+- **Zestaw testowy** — 7 pytań Familiady w `public/party-quizzes/party-quiz-golden.json` i wczytywalny quiz `złota-lista-dla-testu.json` (m.in. „Alkohol bez litery W” z **8 odpowiedziami**).
+- **Synchronizacja z `public/`** — przy starcie serwera i przy każdym połączeniu admina Party Quiz: jeśli w folderze danych jest starsza wersja (mniej pytań lub **mniej odpowiedzi w tym samym pytaniu**), plik w danych jest nadpisywany; broadcast `party_golden_updated`.
+- **Panel admina** — podgląd **wszystkich** odpowiedzi Familiady przy rozwinięciu wiersza złotej listy; pełny blok sterowania na antenie (jak lista główna).
+- **API:** `GET/POST /api/party-quiz/golden`; socket: `party_golden_list`, `party_run_golden_question`.
+
+Szczegóły: [docs/PARTY_QUIZ_ZLOTA_LISTA.md](docs/PARTY_QUIZ_ZLOTA_LISTA.md).
+
+### Audio — wspólna głośność gier muzycznych
+
+- **`public/lib/music-screen-audio.js`** — jeden wzór dla **NJR Sampler**, **Whitney**, **Śpiewaj Dalej**, **Bitwa wokalna**: `tileVolume × gamesVolume × normalizedGain` → jeden `clampDigitalOutputLinear` na końcu.
+- **Serwer** — `buildMusicScreenPlayPayload()` wysyła `gamesVolume` (surowe 0–1) + `tileVolume` + `normalizedGain`; `warmupAllMusicScreenGains()` przy starcie; schemat gain **v2** (`MUSIC_NORMALIZE_GAIN_SCHEMA`) z boostem **+9 dB** po analizie ffmpeg (`volumedetect`, cel −3 dBFS).
+- **Naprawa podwójnego tłumienia** — `broadcastEffectiveVolumes()` nie wysyła już `digitalOutputClamp(gamesVolume)` na ekrany muzyczne (wcześniej suwak 100% dawał ~−6 dB ekstra przy każdej zmianie głośności).
+- **Electron** — analiza loudness tylko po stronie serwera (klient `audio-normalize.js` nie dokłada gain w Electronie).
+
+Szczegóły: [docs/GLOSNOSC_NORMALIZACJA_AUTO_GAIN.md](docs/GLOSNOSC_NORMALIZACJA_AUTO_GAIN.md).
+
+### Inne (po v1.2.7)
+
+- **Party Quiz vs Quiz TV** — rozdzielenie `screen_switch` / trybu ekranu; brak wymuszonego `quiz` przy connect TV.
+- **Suwak 🎮 Gry** — ikona pełnego ekranu w docku (`games-volume-bar.js`) na panelach gier.
+- **Statki Solo** — stop muzyki przy wyjściu z gry / reopen admina; mniejsze nakładanie napisów przy trafieniu.
+- **WiFi Analyzer** — przebudowany interfejs (`wifi-analyzer.html`).
+
+---
+
 ## v1.2.7 (maj 2026) — wydanie stabilne
 
 ### Audio — uproszczenie i wyrównanie głośności

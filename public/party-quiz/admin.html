@@ -6,6 +6,7 @@
     <title>Party Quiz – Admin</title>
     <link rel="icon" type="image/x-icon" href="/favicon.ico"><link rel="icon" type="image/png" sizes="32x32" href="/img/icon-32.png"><link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
     <link rel="stylesheet" href="/css/admin-editor-shared.css">
+    <link rel="stylesheet" href="/css/imprezja-wifi-lan-help.css">
     <style>
         :root {
             --bg-grad: radial-gradient(ellipse at center, #1a1a2e 0%, #0d0d14 100%);
@@ -1297,12 +1298,6 @@
         .party-golden-live-host .party-golden-panel-top .party-q-panel-title { font-size: calc(1rem - 2px); }
         .party-golden-live-host .party-golden-panel-top .pq-ans-preview { font-size: calc(0.82rem - 2px); }
         .party-golden-live-badge-wrap { margin-top: 8px; }
-        #btn-fs-pq-admin {
-            position: fixed; bottom: 10px; right: 10px; z-index: 9999;
-            background: rgba(50,50,50,0.85); color: #fff; border: 1px solid #777;
-            padding: 10px 14px; border-radius: 6px; font-size: 12px; cursor: pointer;
-        }
-        #btn-fs-pq-admin:hover { background: #444; }
         .wake-hint { font-size: 11px; color: var(--imp-text-dim, #888); margin-top: 8px; }
 
         /* Głośność na całą szerokość karty, QR buzzerów wyśrodkowany pod spodem */
@@ -1484,7 +1479,6 @@
     <script src="/familiada/suchary.js"></script>
 </head>
 <body class="imp-admin-editor party-quiz-admin">
-    <button type="button" id="btn-fs-pq-admin" title="Pełny ekran">⛶ Pełny ekran</button>
     <div class="wrap">
         <header>
             <h1>Party Quiz – Admin</h1>
@@ -1514,6 +1508,7 @@
                             <img id="party-buttons-qr" src="" alt="QR przyciski Party Quiz">
                             <div class="buzzer-url" id="party-buttons-url">—</div>
                         </div>
+                        <div id="wifi-lan-help-party-buzzer" style="width:100%;"></div>
                         <div class="buzzer-info" style="padding:0; align-items:center;">
                             <div class="buzzer-status" id="buzzer-status" style="font-size: 12px; margin-bottom: 6px;">
                                 <span class="bs-dot"></span>
@@ -1635,12 +1630,13 @@
 
         <div class="card" style="border-color: #b8860b;">
             <h3 style="margin:0 0 8px;color:#daa520;">⭐ Złota lista (Party Quiz)</h3>
-            <p style="color:#888; font-size:13px; margin-bottom:12px;line-height:1.45;">Osobny plik od Familiady — <code>party-quiz-golden.json</code>. Nie miesza się z bazą Familiady.</p>
+            <p style="color:#888; font-size:13px; margin-bottom:12px;line-height:1.45;">Osobny plik <code>party-quiz-golden.json</code> (7 pytań Familiada testowych, m.in. „Alkohol bez litery W” z 8 odpowiedziami). Możesz też wczytać quiz <code>złota-lista-dla-testu.json</code> z listy plików.</p>
             <div id="party-golden-questions-list" class="questions-list party-q-list"></div>
         </div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/imprezja-dom.js"></script>
     <script src="/lib/games-volume-bar.js"></script>
     <script src="/lib/nosleep.min.js"></script>
     <script>
@@ -1737,7 +1733,7 @@
                 }
             } else if (type === 'FAMILIADA' && Array.isArray(ans) && ans.length) {
                 html += '<ul class="pq-ans-preview">';
-                ans.slice(0, 10).forEach((a, j) => {
+                ans.forEach((a, j) => {
                     const t = (a && a.text) ? a.text : '';
                     const p = (a && typeof a.points === 'number') ? a.points : '';
                     html += '<li>' + (j + 1) + '. ' + escapeHtml(t) + (p !== '' ? ' (' + p + ' pkt)' : '') + '</li>';
@@ -1830,14 +1826,6 @@
             if (/^https?:/i.test(s)) return s;
             if (s.startsWith('/')) return location.origin + s;
             return s;
-        }
-        function escapeHtml(s) {
-            return String(s == null ? '' : s)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#39;');
         }
         function getQuestionPoints(q) {
             if (!q) return 0;
@@ -1974,8 +1962,11 @@
             }
         }
 
+        let partyAdminUnloading = false;
+        window.addEventListener('pagehide', () => { partyAdminUnloading = true; });
         socket.on('party_run_error', (data) => {
             log('err', 'party_run_error: ' + (data && data.message));
+            if (partyAdminUnloading) return;
             alert('Błąd: ' + (data && data.message));
         });
         socket.on('party_load_error', (data) => {
@@ -2176,6 +2167,7 @@
                 const detailSlot = onTvGolden ? '<div class="party-detail-slot"></div>' : '';
                 panel.innerHTML =
                     '<p class="party-q-panel-meta" style="margin-top:0;">⭐ Złota lista Party — osobny zbiór od Familiady.</p>' +
+                    partyQuestionPanelPreview(q, q.type || 'FAMILIADA') +
                     '<button type="button" class="pq-run-tv" id="party-golden-run-' + idx + '">🎬 Uruchom na tablicy</button>' +
                     detailSlot;
                 item.appendChild(btn);
@@ -3125,23 +3117,6 @@
             if (typeof ImprezjaGamesVolume !== 'undefined') ImprezjaGamesVolume.mount(socket);
         })();
 
-        // Pełny ekran (jak Familiada)
-        (function bindFullscreen() {
-            const b = document.getElementById('btn-fs-pq-admin');
-            if (!b || b.dataset.bound) return;
-            b.dataset.bound = '1';
-            b.addEventListener('click', () => {
-                const el = document.documentElement;
-                if (!document.fullscreenElement) {
-                    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
-                    if (req) req.call(el).catch(() => {});
-                } else {
-                    const ex = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
-                    if (ex) ex.call(document).catch(() => {});
-                }
-            });
-        })();
-
         // Wake Lock API + fallback NoSleep (HTTPS lub localhost — inaczej przeglądarka może zablokować)
         let wakeLock = null;
         let noSleepObj = null;
@@ -3245,6 +3220,12 @@
 
         log('sys', 'panel załadowany');
     })();
+    </script>
+    <script src="/js/imprezja-wifi-lan-help.js"></script>
+    <script>
+        if (window.ImprezjaWifiLanHelp) {
+            ImprezjaWifiLanHelp.mount('wifi-lan-help-party-buzzer', { center: true });
+        }
     </script>
 </body>
 </html>

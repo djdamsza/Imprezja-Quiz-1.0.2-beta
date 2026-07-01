@@ -8,6 +8,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="/lib/audio-normalize.js"></script>
     <script src="/lib/digital-output-cap.js"></script>
+    <script src="/lib/music-screen-audio.js"></script>
     <style>
         :root {
             --bg: radial-gradient(circle at center, #1a1a2e, #000);
@@ -184,10 +185,19 @@
         let config = { tileCount: TILE_COUNT, tiles: [] };
         let whitneyVolume = 1;
         let currentTileVolume = 1;
+        let currentPlayPayload = null;
+        let currentPlayGain = 1;
 
         function applyVolumes() {
             const a = document.getElementById('whitney-audio');
-            if (a && !a._fadeIntervalId) a.volume = clampDigitalOutputLinear(Math.max(0, currentTileVolume * whitneyVolume));
+            if (a && !a._fadeIntervalId && currentPlayPayload) {
+                const payload = Object.assign({}, currentPlayPayload, { normalizedGain: currentPlayGain });
+                if (typeof ImprezjaMusicScreenAudio !== 'undefined') {
+                    ImprezjaMusicScreenAudio.applyToElement(a, payload, whitneyVolume);
+                } else {
+                    a.volume = clampDigitalOutputLinear(Math.max(0, (currentPlayPayload.tileVolume ?? currentTileVolume ?? 1) * whitneyVolume * currentPlayGain));
+                }
+            }
         }
         function fadeOutAndStop(audioEl, ms, onDone) {
             if (!audioEl || audioEl.paused) {
@@ -222,19 +232,20 @@
             if (s.active) { await loadQRData(); showQRMode(); }
             else (fromEditor ? showEditorMode : showIntroMode)();
         });
-        socket.on('whitney_play', (payload) => {
-            const data = typeof payload === 'string' ? { url: payload, volume: 1, loop: false } : payload;
-            const vol = data.volume ?? 1;
-            const loop = !!data.loop;
-            const gain = (typeof data.normalizedGain === 'number' && data.normalizedGain !== 1) ? data.normalizedGain
-                : (typeof window.AudioNormalize !== 'undefined' ? window.AudioNormalize.getCachedGain(data.url) : 1);
+        socket.on('whitney_play', async (payload) => {
+            const data = typeof payload === 'string' ? { url: payload, gamesVolume: 1, tileVolume: 1, loop: false } : payload;
             const a = document.getElementById('whitney-audio');
             if (!a) return;
             if (a._fadeIntervalId) { clearInterval(a._fadeIntervalId); a._fadeIntervalId = null; }
-            currentTileVolume = vol;
+            currentPlayPayload = data;
+            currentTileVolume = (typeof data.tileVolume === 'number') ? data.tileVolume : (data.volume ?? 1);
+            currentPlayGain = typeof ImprezjaMusicScreenAudio !== 'undefined'
+                ? await ImprezjaMusicScreenAudio.resolveGainAsync(data)
+                : (typeof data.normalizedGain === 'number' ? data.normalizedGain : 1);
+            if (typeof data.gamesVolume === 'number') whitneyVolume = data.gamesVolume;
             a.src = data.url;
-            a.volume = clampDigitalOutputLinear(Math.max(0, vol * whitneyVolume * gain));
-            a.loop = loop;
+            a.loop = !!data.loop;
+            applyVolumes();
             a.play().catch(e => console.warn('Audio:', e));
         });
         socket.on('whitney_stop', (payload) => {
@@ -258,7 +269,7 @@
             if (a) { if (a._fadeIntervalId) { clearInterval(a._fadeIntervalId); a._fadeIntervalId = null; } a.pause(); }
         });
         socket.on('whitney_volume', (v) => {
-            whitneyVolume = v;
+            whitneyVolume = Math.max(0, Math.min(1, Number(v) || 0));
             applyVolumes();
         });
         socket.on('tunnel_started', async () => { await loadQRData(); });

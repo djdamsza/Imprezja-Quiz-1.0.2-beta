@@ -29,9 +29,12 @@ NJR Sampler to tryb zabawy w Imprezja Quiz: panel na telefonie/tablecie z kafelk
 
 ## Głośność
 
-- **Master (telefon)** – suwak na górze reguluje ogólną głośność. Zachowuje proporcje między kafelkami (np. oklaski 100%, podkład 40%).
-- **Per-kafelek** – w edycji ustaw głośność każdego kafelka (0–100%). Np. oklaski 100%, tło muzyczne 40%.
-- **Odsłuch** – przyciski ▶ / ⏹ przy każdym kafelku w edycji do podglądu dźwięku.
+- **Suwak 🎮 Gry** — wspólny dla wszystkich gier (Admin PWA lub pasek na dole ekranu Samplera). Reguluje `gamesVolume` (0–100%).
+- **Per-kafelek** — w edycji ustaw głośność każdego kafelka (0–100%) → `tileVolume` w payloadzie odtwarzania.
+- **Normalizacja** — serwer liczy `normalizedGain` (ffmpeg); klient stosuje wzór przez `music-screen-audio.js`: `tileVolume × gamesVolume × gain` → jeden clamp −3 dB.
+- **Odsłuch** — przyciski ▶ / ⏹ przy każdym kafelku w edycji do podglądu dźwięku.
+
+Szczegóły: [GLOSNOSC_NORMALIZACJA_AUTO_GAIN.md](./GLOSNOSC_NORMALIZACJA_AUTO_GAIN.md).
 
 ## TŁO MUZYCZNE
 

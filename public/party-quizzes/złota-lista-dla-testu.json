@@ -1,0 +1,118 @@
+{
+  "gameMode": "party",
+  "defaultPoints": 10,
+  "disableTimePoints": true,
+  "welcome": {
+    "subtitle": "Złota lista dla testu",
+    "logoUrl": "/img/logo_imprezja.png"
+  },
+  "questions": [
+    {
+      "id": "golden_test_1",
+      "type": "FAMILIADA",
+      "question": "Co zabieramy ze sobą do szkoły?",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        { "text": "Plecak", "points": 40 },
+        { "text": "Książki", "points": 20 },
+        { "text": "Kanapki", "points": 20 },
+        { "text": "Zeszyty", "points": 10 }
+      ],
+      "correct": -1
+    },
+    {
+      "id": "golden_test_2",
+      "type": "FAMILIADA",
+      "question": "Podaj tytuły kultowych polskich komedii",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        { "text": "Sami Swoi", "points": 30 },
+        { "text": "Seksmisja", "points": 24 },
+        { "text": "Miś", "points": 20 }
+      ],
+      "correct": -1
+    },
+    {
+      "id": "golden_test_3",
+      "type": "FAMILIADA",
+      "question": "Europejskie państwo większe od Polski",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        { "text": "Niemcy", "points": 31 },
+        { "text": "Francja", "points": 29 },
+        { "text": "Wielka Brytania", "points": 18 }
+      ],
+      "correct": -1
+    },
+    {
+      "id": "golden_test_4",
+      "type": "FAMILIADA",
+      "question": "Jakie zwierzęta mają więcej niż jedną nogę?",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        { "text": "Świnia", "points": 25 },
+        { "text": "Krowa", "points": 25 },
+        { "text": "Koń", "points": 25 },
+        { "text": "Kura", "points": 25 }
+      ],
+      "correct": -1
+    },
+    {
+      "id": "golden_test_5",
+      "type": "FAMILIADA",
+      "question": "Co Polak robi, gdy się zgubi?",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        { "text": "Pyta o drogę", "points": 40 },
+        { "text": "Dzwoni do mamy", "points": 30 },
+        { "text": "Włącza GPS", "points": 20 },
+        { "text": "Idzie w przeciwną stronę", "points": 10 }
+      ],
+      "correct": -1
+    },
+    {
+      "id": "golden_test_6",
+      "type": "FAMILIADA",
+      "question": "Gdzie nie warto szukać skarbu?",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        { "text": "W piwnicy teściowej", "points": 35 },
+        { "text": "W starym aucie", "points": 25 },
+        { "text": "W portfelu", "points": 20 },
+        { "text": "W lodówce", "points": 20 }
+      ],
+      "correct": -1
+    },
+    {
+      "id": "golden_test_7",
+      "type": "FAMILIADA",
+      "question": "Alkohol bez litery \"W\" w nazwie",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        { "text": "Bimber", "points": 40 },
+        { "text": "Rum", "points": 0 },
+        { "text": "Gin", "points": 0 },
+        { "text": "Tequila", "points": 0 },
+        { "text": "Szampan", "points": 0 },
+        { "text": "Koniak", "points": 0 },
+        { "text": "Likier", "points": 0 },
+        { "text": "Burbon", "points": 0 }
+      ],
+      "correct": -1
+    }
+  ]
+}

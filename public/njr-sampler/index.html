@@ -165,6 +165,11 @@
                     <button type="button" class="btn btn-primary" id="save-as-confirm">Zapisz</button>
                     <button type="button" class="btn" id="save-as-cancel">Anuluj</button>
                 </span>
+                <span id="rename-wrap" style="display:none; align-items:center; gap:8px;">
+                    <input type="text" id="rename-name" placeholder="Nowa nazwa zestawu">
+                    <button type="button" class="btn btn-primary" id="rename-confirm">Zmień nazwę</button>
+                    <button type="button" class="btn" id="rename-cancel">Anuluj</button>
+                </span>
             </div>
             <div class="bank-assignment-section" style="margin-bottom:20px; padding:16px; background:rgba(0,0,0,0.2); border-radius:10px; border:1px solid var(--border);">
                 <h3 style="color:var(--purple); font-size:1rem; margin-bottom:12px;">📋 Przypisanie banków na występ</h3>
@@ -192,6 +197,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="/lib/audio-normalize.js"></script>
     <script src="/lib/digital-output-cap.js"></script>
+    <script src="/lib/music-screen-audio.js"></script>
     <audio id="sampler-audio" style="display:none;"></audio>
     <audio id="sampler-audio-imprezator" style="display:none;"></audio>
     <audio id="preview-audio" style="display:none;"></audio>
@@ -218,11 +224,20 @@
         let configList = ['domyslna'];
         let samplerVolume = 1; // 0–1, master z telefonu
         let currentTileVolume = 1; // 0–1, proporcja kafelka
+        let currentPlayPayload = null;
+        let currentPlayGain = 1;
 
         function applyVolumes() {
             const a = document.getElementById('sampler-audio');
             const ai = document.getElementById('sampler-audio-imprezator');
-            if (a && !a._fadeIntervalId) a.volume = clampDigitalOutputLinear(Math.max(0, currentTileVolume * samplerVolume));
+            if (a && !a._fadeIntervalId && currentPlayPayload) {
+                const payload = Object.assign({}, currentPlayPayload, { normalizedGain: currentPlayGain });
+                if (typeof ImprezjaMusicScreenAudio !== 'undefined') {
+                    ImprezjaMusicScreenAudio.applyToElement(a, payload, samplerVolume);
+                } else {
+                    a.volume = clampDigitalOutputLinear(Math.max(0, (currentPlayPayload.tileVolume ?? currentTileVolume ?? 1) * samplerVolume * currentPlayGain));
+                }
+            }
             if (ai && !ai.paused && !ai._fadeIntervalId) ai.volume = clampDigitalOutputLinear(samplerVolume);
         }
         function fadeOutAndStop(audioEl, ms, onDone) {
@@ -258,19 +273,20 @@
             if (s.active) { await loadQRData(); showQRMode(); }
             else (fromEditor ? showEditorMode : showIntroMode)();
         });
-        socket.on('njr_sampler_play', (payload) => {
-            const data = typeof payload === 'string' ? { url: payload, volume: 1, loop: false } : payload;
-            const vol = data.volume ?? 1;
-            const loop = !!data.loop;
-            const gain = (typeof data.normalizedGain === 'number' && data.normalizedGain !== 1) ? data.normalizedGain
-                : (typeof window.AudioNormalize !== 'undefined' ? window.AudioNormalize.getCachedGain(data.url) : 1);
+        socket.on('njr_sampler_play', async (payload) => {
+            const data = typeof payload === 'string' ? { url: payload, gamesVolume: 1, tileVolume: 1, loop: false } : payload;
             const a = document.getElementById('sampler-audio');
             if (!a) return;
             if (a._fadeIntervalId) { clearInterval(a._fadeIntervalId); a._fadeIntervalId = null; }
-            currentTileVolume = vol;
+            currentPlayPayload = data;
+            currentTileVolume = (typeof data.tileVolume === 'number') ? data.tileVolume : (data.volume ?? 1);
+            currentPlayGain = typeof ImprezjaMusicScreenAudio !== 'undefined'
+                ? await ImprezjaMusicScreenAudio.resolveGainAsync(data)
+                : (typeof data.normalizedGain === 'number' ? data.normalizedGain : 1);
+            if (typeof data.gamesVolume === 'number') samplerVolume = data.gamesVolume;
             a.src = data.url;
-            a.volume = clampDigitalOutputLinear(Math.max(0, vol * samplerVolume * gain));
-            a.loop = loop;
+            a.loop = !!data.loop;
+            applyVolumes();
             a.play().catch(e => console.warn('play:', e));
         });
         socket.on('njr_sampler_stop', (payload) => {
@@ -290,7 +306,7 @@
             }
         });
         socket.on('njr_sampler_volume', (v) => {
-            samplerVolume = v;
+            samplerVolume = Math.max(0, Math.min(1, Number(v) || 0));
             applyVolumes();
         });
         socket.on('njr_sampler_imprezator_play', (data) => {
@@ -499,6 +515,18 @@
             const cancel = document.getElementById('save-as-cancel');
             if (confirm && !confirm._bound) { confirm._bound = true; confirm.addEventListener('click', saveConfigAs); }
             if (cancel && !cancel._bound) { cancel._bound = true; cancel.addEventListener('click', hideSaveAs); }
+            const renameConfirm = document.getElementById('rename-confirm');
+            const renameCancel = document.getElementById('rename-cancel');
+            if (renameConfirm && !renameConfirm._bound) { renameConfirm._bound = true; renameConfirm.addEventListener('click', renameConfig); }
+            if (renameCancel && !renameCancel._bound) { renameCancel._bound = true; renameCancel.addEventListener('click', hideRename); }
+            const renameInput = document.getElementById('rename-name');
+            if (renameInput && !renameInput._bound) {
+                renameInput._bound = true;
+                renameInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); renameConfig(); }
+                    if (e.key === 'Escape') hideRename();
+                });
+            }
             document.getElementById('config-new-btn')?.addEventListener('click', newConfig);
             document.getElementById('config-load-btn')?.addEventListener('click', () => {
                 const sel = document.getElementById('config-select');
@@ -506,7 +534,7 @@
             });
             document.getElementById('config-save-btn')?.addEventListener('click', saveConfig);
             document.getElementById('config-save-as-btn')?.addEventListener('click', showSaveAs);
-            document.getElementById('config-rename-btn')?.addEventListener('click', renameConfig);
+            document.getElementById('config-rename-btn')?.addEventListener('click', showRename);
             document.getElementById('config-delete-btn')?.addEventListener('click', deleteConfig);
             document.getElementById('add-bank-assignment-btn')?.addEventListener('click', addBankAssignment);
             document.getElementById('remove-bank-assignment-btn')?.addEventListener('click', removeBankAssignment);
@@ -514,11 +542,25 @@
             document.getElementById('start-sampler-btn')?.addEventListener('click', startSampler);
             document.getElementById('fullscreen-btn')?.addEventListener('click', toggleFullscreen);
         }
+        function showRename() {
+            hideSaveAs();
+            const wrap = document.getElementById('rename-wrap');
+            const input = document.getElementById('rename-name');
+            if (!wrap || !input) return;
+            wrap.style.display = 'inline-flex';
+            input.value = currentConfigName;
+            input.focus();
+            input.select();
+        }
+        function hideRename() {
+            const wrap = document.getElementById('rename-wrap');
+            if (wrap) wrap.style.display = 'none';
+        }
         async function renameConfig() {
-            const newName = prompt('Nowa nazwa konfiguracji:', currentConfigName);
-            if (!newName || !newName.trim()) return;
-            const trimmed = newName.trim().replace(/[^a-zA-Z0-9_\-\sąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/g, '').replace(/\s+/g, '_') || 'konfiguracja';
-            if (trimmed === currentConfigName) return;
+            const raw = document.getElementById('rename-name')?.value?.trim();
+            if (!raw) { alert('Podaj nazwę.'); return; }
+            const trimmed = raw.replace(/[^a-zA-Z0-9_\-\sąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/g, '').replace(/\s+/g, '_') || 'konfiguracja';
+            if (trimmed === currentConfigName) { hideRename(); return; }
             try {
                 const r = await fetch('/api/njr-sampler/config', {
                     method: 'PATCH',
@@ -539,6 +581,8 @@
                     }
                     sel.value = trimmed;
                 }
+                hideRename();
+                await loadBankAssignment();
                 alert('Zmieniono nazwę na: ' + trimmed);
             } catch (e) { alert('Błąd: ' + e.message); }
         }
@@ -559,6 +603,7 @@
         }
 
         function showSaveAs() {
+            hideRename();
             const wrap = document.getElementById('save-as-wrap');
             wrap.style.display = 'inline-flex';
             document.getElementById('save-as-name').value = currentConfigName + '_kopia';

@@ -310,7 +310,18 @@ function toggleMusic() {
     if (!config || !config.soundtrack) return;
     musicPlaying = !musicPlaying;
     document.getElementById('btn-music-toggle').textContent = musicPlaying ? '⏸ Zatrzymaj muzykę' : '▶ Włącz muzykę';
+    if (musicPlaying) socket.emit('ships_solo_start_music');
+    else socket.emit('ships_solo_stop_music');
 }
+
+function stopStatkiMusicOnLeave() {
+    musicPlaying = false;
+    const btn = document.getElementById('btn-music-toggle');
+    if (btn) btn.textContent = '▶ Włącz muzykę';
+    if (socket && socket.connected) socket.emit('ships_solo_stop_music');
+}
+window.addEventListener('pagehide', stopStatkiMusicOnLeave);
+window.addEventListener('beforeunload', stopStatkiMusicOnLeave);
 
 // ── Start / Koniec ─────────────────────────────────────────
 function startGame() {

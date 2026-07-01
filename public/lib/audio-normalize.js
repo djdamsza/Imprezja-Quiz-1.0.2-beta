@@ -6,8 +6,9 @@
     'use strict';
 
     const TARGET_PEAK = 0.8;
-    const MAX_GAIN = 2.5;
-    const MIN_GAIN = 0.3;
+    const MAX_GAIN = 6.0;
+    const MIN_GAIN = 0.35;
+    const LOUDNESS_BOOST_DB = 9;
     const CACHE_KEY = 'imprezja_audio_normalize';
 
     let cache = null;
@@ -46,13 +47,21 @@
         return peak;
     }
 
+    function applyLoudnessBoost(gain) {
+        const g = Number(gain);
+        if (!isFinite(g) || g <= 0) return 1;
+        const boosted = g * Math.pow(10, LOUDNESS_BOOST_DB / 20);
+        return Math.max(MIN_GAIN, Math.min(MAX_GAIN, boosted));
+    }
+
     /**
-     * Oblicza mnożnik normalizacji: targetPeak / measuredPeak, z ograniczeniami.
+     * Oblicza mnożnik normalizacji: targetPeak / measuredPeak, z ograniczeniami (+9 dB boost).
      */
     function computeGain(peak) {
-        if (!peak || peak < 0.0001) return 1;
+        if (!peak || peak < 0.0001) return applyLoudnessBoost(1);
         let g = TARGET_PEAK / peak;
-        return Math.max(MIN_GAIN, Math.min(MAX_GAIN, g));
+        g = Math.max(MIN_GAIN, Math.min(2.5, g));
+        return applyLoudnessBoost(g);
     }
 
     /**

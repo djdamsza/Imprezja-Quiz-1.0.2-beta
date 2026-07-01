@@ -7,11 +7,13 @@
     <link rel="icon" type="image/x-icon" href="/favicon.ico"><link rel="icon" type="image/png" sizes="32x32" href="/img/icon-32.png"><link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
     <link rel="manifest" href="/manifest.json">
     <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/imprezja-dom.js"></script>
     <script src="/lib/audio-normalize.js"></script>
     <script src="/lib/digital-output-cap.js"></script>
     <!-- Fonty lokalne – aplikacja działa bez internetu -->
     <!-- Czcionka Familiady (LED dot-matrix) — używana w renderPartyFamiliadaBoard dla trybu Party Quiz. -->
     <link href="/fonts/familiada-custom/familiada.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/imprezja-wifi-lan-help.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -1725,7 +1727,7 @@
                 </div>
                 <div class="qr-admin-actions">
                     <div class="qr-wifi-info" style="margin-top: 8px;"><strong>Zeskanuj telefonem/tabletem – zniknie po wejściu</strong></div>
-                    <div class="qr-wifi-info" style="margin-top: 4px;">Telefon i komputer w tej samej sieci WiFi.</div>
+                    <div class="qr-wifi-info" style="margin-top: 4px;">Ta sama sieć Wi‑Fi · wyłącz izolację klientów (AP Isolation) w routerze.</div>
                 </div>
             </div>
         </div>
@@ -1761,6 +1763,7 @@
                 Organizator musi kliknąć <strong style="color: #e74c3c;">czerwony przycisk</strong> „Uruchom tunel" w panelu admina.
             </div>
         </div>
+        <div id="screen-wifi-lan-help"></div>
         <div class="intro-btn-row">
             <a href="/editor.html" target="_blank" rel="noopener" id="btn-editor-intro" class="intro-editor-btn">✏️ Edytor</a>
             <a href="/admin.html" target="_blank" rel="noopener" id="btn-admin-intro" class="intro-editor-btn intro-admin-btn" style="display:none;">Admin na komputerze</a>
@@ -2583,12 +2586,6 @@
             musicPlayer.play().catch(function(e) { console.warn('Intro muzyka:', e.message || e); });
         });
         socket.on('games_volume', (d) => setGamesVolumeFromServer(d && d.volume));
-        socket.on('master_volume', (d) => setGamesVolumeFromServer(d && d.volume));
-        socket.on('quiz_volume', (d) => setGamesVolumeFromServer(d && d.volume));
-        socket.on('admin_master_volume', (vol) => {
-            const v = parseInt(vol, 10);
-            if (!isNaN(v)) setGamesVolumeFromServer(v / 100);
-        });
         socket.on('admin_stop_music', () => {
             if (sfxPlayer) { sfxPlayer.pause(); sfxPlayer.currentTime = 0; }
             if (musicPlayer) { musicPlayer.pause(); musicPlayer.currentTime = 0; }
@@ -2667,7 +2664,6 @@
 
         socket.on('connect', () => {
             log("Connected");
-            socket.emit('set_game_mode', 'quiz');
             socket.emit('request_qr');
             socket.emit('request_qr_wifi');
             socket.emit('request_qr_local');
@@ -8171,15 +8167,13 @@
                 '</div>';
         };
 
-        function escapeHtml(s) {
-            return String(s == null ? '' : s)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#39;');
-        }
     })();
+    </script>
+    <script src="/js/imprezja-wifi-lan-help.js"></script>
+    <script>
+        if (window.ImprezjaWifiLanHelp) {
+            ImprezjaWifiLanHelp.mount('screen-wifi-lan-help', { tv: true, center: true });
+        }
     </script>
 </body>
 </html>

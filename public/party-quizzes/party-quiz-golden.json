@@ -80,5 +80,23 @@
       { "text": "W lodówce", "points": 20 }
     ],
     "correct": -1
+  },
+  {
+    "type": "FAMILIADA",
+    "question": "Alkohol bez litery \"W\" w nazwie",
+    "time": 0,
+    "speedrun": false,
+    "elimination": false,
+    "answers": [
+      { "text": "Bimber", "points": 40 },
+      { "text": "Rum", "points": 0 },
+      { "text": "Gin", "points": 0 },
+      { "text": "Tequila", "points": 0 },
+      { "text": "Szampan", "points": 0 },
+      { "text": "Koniak", "points": 0 },
+      { "text": "Likier", "points": 0 },
+      { "text": "Burbon", "points": 0 }
+    ],
+    "correct": -1
   }
 ]

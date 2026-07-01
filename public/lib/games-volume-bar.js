@@ -1,10 +1,12 @@
 /**
  * Dolny suwak głośności gier (gamesVolume) – wspólny dla paneli admina.
+ * Opcjonalnie: mała ikona pełnego ekranu w prawym dolnym rogu docka.
  */
 (function (global) {
     const DOCK_ID = 'games-volume-dock';
     const SLIDER_ID = 'games-volume-bar-slider';
     const PCT_ID = 'games-volume-bar-pct';
+    const FS_BTN_ID = 'games-volume-fs-btn';
 
     const STYLE = `
 .games-volume-dock {
@@ -12,11 +14,11 @@
     left: 0;
     right: 0;
     bottom: 0;
-    z-index: 9000;
+    z-index: 10050;
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 10px 14px;
+    padding: 10px 12px;
     padding-bottom: max(10px, env(safe-area-inset-bottom));
     background: rgba(8, 12, 24, 0.96);
     border-top: 1px solid rgba(255, 255, 255, 0.12);
@@ -57,7 +59,79 @@
     font-weight: 600;
     color: #cbd5e1;
 }
+.games-volume-dock .games-volume-fs-btn {
+    flex: 0 0 auto;
+    width: 38px;
+    height: 38px;
+    margin-left: 2px;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #e2e8f0;
+    font-size: 1.15rem;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, border-color 0.15s;
+}
+.games-volume-dock .games-volume-fs-btn:hover {
+    background: rgba(102, 126, 234, 0.35);
+    border-color: rgba(102, 126, 234, 0.6);
+}
+.games-volume-dock .games-volume-fs-btn[aria-pressed="true"] {
+    background: rgba(102, 126, 234, 0.45);
+    border-color: #667eea;
+}
 `;
+
+    function fullscreenElement() {
+        return document.fullscreenElement || document.webkitFullscreenElement ||
+            document.mozFullScreenElement || document.msFullscreenElement;
+    }
+
+    function toggleFullscreen() {
+        const el = document.documentElement;
+        if (!fullscreenElement()) {
+            const req = el.requestFullscreen || el.webkitRequestFullscreen ||
+                el.mozRequestFullScreen || el.msRequestFullscreen;
+            if (req) {
+                try {
+                    const p = req.call(el);
+                    if (p && typeof p.catch === 'function') p.catch(function () {});
+                } catch (e) {}
+            }
+        } else {
+            const exit = document.exitFullscreen || document.webkitExitFullscreen ||
+                document.mozCancelFullScreen || document.msExitFullscreen;
+            if (exit) {
+                try {
+                    const p = exit.call(document);
+                    if (p && typeof p.catch === 'function') p.catch(function () {});
+                } catch (e) {}
+            }
+        }
+    }
+
+    function syncFsBtn(btn) {
+        if (!btn) return;
+        const fs = !!fullscreenElement();
+        btn.setAttribute('aria-pressed', fs ? 'true' : 'false');
+        btn.title = fs ? 'Wyjdź z pełnego ekranu' : 'Pełny ekran';
+        btn.textContent = '⊞';
+    }
+
+    function bindFullscreenButton(btn) {
+        if (!btn || btn.dataset.bound) return;
+        btn.dataset.bound = '1';
+        btn.addEventListener('click', toggleFullscreen);
+        ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'].forEach(function (ev) {
+            document.addEventListener(ev, function () { syncFsBtn(btn); });
+        });
+        syncFsBtn(btn);
+    }
 
     function mountGamesVolumeBar(socket, opts) {
         opts = opts || {};
@@ -73,15 +147,18 @@
             dock.id = DOCK_ID;
             dock.className = 'games-volume-dock';
             dock.setAttribute('aria-label', 'Głośność gier');
+            const showFs = opts.fullscreen !== false;
             dock.innerHTML =
                 '<label for="' + SLIDER_ID + '">🎮 Gry</label>' +
                 '<input type="range" id="' + SLIDER_ID + '" min="0" max="100" value="80" title="Quiz, Familiada, Party, Sampler, Śpiewaj Dalej, Bitwa, Statki">' +
-                '<span class="games-volume-pct" id="' + PCT_ID + '">80%</span>';
+                '<span class="games-volume-pct" id="' + PCT_ID + '">80%</span>' +
+                (showFs ? '<button type="button" class="games-volume-fs-btn" id="' + FS_BTN_ID + '" aria-label="Pełny ekran" title="Pełny ekran">⊞</button>' : '');
             document.body.appendChild(dock);
             if (opts.bodyPadding !== false) {
                 const extra = opts.paddingBottom || '52px';
                 document.body.style.paddingBottom = 'calc(' + extra + ' + env(safe-area-inset-bottom))';
             }
+            if (showFs) bindFullscreenButton(document.getElementById(FS_BTN_ID));
         }
 
         const slider = document.getElementById(SLIDER_ID);
@@ -111,15 +188,11 @@
             socket.on('volumes_all', function (d) {
                 if (d && typeof d.games === 'number') apply(d.games);
             });
-            socket.on('master_volume', function (d) {
-                if (d && typeof d.volume === 'number') apply(d.volume);
-                else if (d && typeof d.percent === 'number') apply(d.percent / 100);
-            });
             socket.emit('games_volume_request');
         }
 
-        return { apply: apply, getVolume: getVolume, slider: slider };
+        return { apply: apply, getVolume: getVolume, slider: slider, toggleFullscreen: toggleFullscreen };
     }
 
-    global.ImprezjaGamesVolume = { mount: mountGamesVolumeBar };
+    global.ImprezjaGamesVolume = { mount: mountGamesVolumeBar, toggleFullscreen: toggleFullscreen };
 })(typeof window !== 'undefined' ? window : global);

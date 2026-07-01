@@ -23,6 +23,9 @@ const crypto = require('crypto');
 const license = require('./license.js');
 const { spawn } = require('child_process');
 const trash = require('trash');
+const boothLive = require('./lib/booth-live');
+const log = require('./lib/logger');
+const { escapeHtml } = require('./lib/dom-utils');
 
 require(path.join(__dirname, 'public/js/letter-word-pl-en.js'));
 const letterWordPlEn = globalThis.ImprezjaLetterWord;
@@ -33,12 +36,12 @@ let jimp = null;
 
 try {
     sharp = require('sharp');
-    console.log('✅ Moduł sharp załadowany - szybka optymalizacja obrazów włączona');
+    log.info('✅ Moduł sharp załadowany - szybka optymalizacja obrazów włączona');
 } catch (err) {
     console.warn('⚠️ Moduł sharp nie jest dostępny - próbuję jimp jako alternatywa...');
     try {
         jimp = require('jimp');
-        console.log('✅ Moduł jimp załadowany - optymalizacja obrazów włączona (wolniejsza ale działa wszędzie)');
+        log.info('✅ Moduł jimp załadowany - optymalizacja obrazów włączona (wolniejsza ale działa wszędzie)');
     } catch (err2) {
         console.warn('⚠️ Ani sharp ani jimp nie są dostępne - obrazy nie będą optymalizowane');
         console.warn('   Aby włączyć optymalizację, zainstaluj: npm install sharp (lub npm install jimp)');
@@ -53,8 +56,8 @@ const io = socketIo(server, {
     maxHttpBufferSize: 2e6 // 2 MB – ramki kamery (JPEG) mogą być duże
 });
 
-const PORT = 3000;
-const PORT_HTTPS = 3443;
+const PORT = Number(process.env.IMPREZJA_PORT) || 3000;
+const PORT_HTTPS = Number(process.env.IMPREZJA_PORT_HTTPS) || 3443;
 
 // Certyfikaty HTTPS – dla Wake Lock (niegasnący ekran) w admin PWA i Familiada
 let httpsOptions = null;
@@ -86,7 +89,7 @@ function resolveCertsPaths() {
                 if (!fs.existsSync(writableDir)) fs.mkdirSync(writableDir, { recursive: true });
                 fs.copyFileSync(bundledKey, writableKey);
                 fs.copyFileSync(bundledCert, writableCert);
-                console.log('✅ Skopiowano certyfikaty HTTPS do', writableDir);
+                log.debug('✅ Skopiowano certyfikaty HTTPS do', writableDir);
                 return { dir: writableDir, keyPath: writableKey, certPath: writableCert };
             } catch (copyErr) {
                 console.warn('⚠️ Nie udało się skopiować certów do katalogu danych:', copyErr.message);
@@ -128,7 +131,7 @@ function loadHttpsCerts() {
                 key: fs.readFileSync(keyPath),
                 cert: fs.readFileSync(certPath)
             };
-            console.log('✅ Certyfikaty HTTPS załadowane z', certsDir);
+            log.debug('✅ Certyfikaty HTTPS załadowane z', certsDir);
             const meta = getHttpsCertMeta();
             if (meta && meta.expired) {
                 console.warn('⚠️ Certyfikat HTTPS WYGASŁ (' + meta.validTo + ') — telefony na HTTPS mogą odrzucać połączenie; Wake Lock nie zadziała. Wygeneruj nowy cert w certs/.');
@@ -150,7 +153,7 @@ function loadHttpsCerts() {
             fs.writeFileSync(certPath, pems.cert);
         }
         httpsOptions = { key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) };
-        console.log('✅ Wygenerowano certyfikaty HTTPS w', certsDir);
+        log.debug('✅ Wygenerowano certyfikaty HTTPS w', certsDir);
     } catch (err) {
         console.warn('⚠️ HTTPS niedostępny:', err.message);
         console.warn('   Wake Lock w admin PWA / Familiada wymaga HTTPS. QR panelu na telefonie użyje wtedy HTTP (ekran może gasnąć).');
@@ -184,35 +187,35 @@ function getLicenseStatus() {
     return license.checkLicense();
 }
 let licenseStatus = getLicenseStatus();
-console.log('\n🔐 ═══════════════════════════════════════════════════');
-console.log('   STATUS LICENCJI');
-console.log('   ═══════════════════════════════════════════════════');
+log.debug('\n🔐 ═══════════════════════════════════════════════════');
+log.debug('   STATUS LICENCJI');
+log.debug('   ═══════════════════════════════════════════════════');
 if (process.env.IMPREZJA_SIMULATE_LICENSE_EXPIRED === '1') {
-    console.log('   ⚠️  Symulacja wygasłej licencji (dev) – widoczny ekran „Licencja wymagana”');
+    log.debug('   ⚠️  Symulacja wygasłej licencji (dev) – widoczny ekran „Licencja wymagana”');
 } else if (process.env.IMPREZJA_SIMULATE_TRIAL === '1') {
-    console.log('   ⚠️  Symulacja aktywnego trialu (dev) – aplikacja działa jak w okresie testowym');
+    log.debug('   ⚠️  Symulacja aktywnego trialu (dev) – aplikacja działa jak w okresie testowym');
 }
 if (licenseStatus.valid) {
     if (licenseStatus.type === 'trial') {
-        console.log(`   ✅ Okres testowy aktywny`);
-        console.log(`   📅 Pozostało dni: ${licenseStatus.daysLeft}`);
-        console.log(`   ⚠️  Po wygaśnięciu wymagana będzie pełna licencja`);
+        log.debug(`   ✅ Okres testowy aktywny`);
+        log.debug(`   📅 Pozostało dni: ${licenseStatus.daysLeft}`);
+        log.debug(`   ⚠️  Po wygaśnięciu wymagana będzie pełna licencja`);
     } else {
-        console.log(`   ✅ Pełna licencja aktywna`);
+        log.debug(`   ✅ Pełna licencja aktywna`);
         if (licenseStatus.expires) {
             const expiresDate = new Date(licenseStatus.expires);
-            console.log(`   📅 Wygasa: ${expiresDate.toLocaleDateString()}`);
+            log.debug(`   📅 Wygasa: ${expiresDate.toLocaleDateString()}`);
         } else {
-            console.log(`   📅 Licencja bezterminowa`);
+            log.debug(`   📅 Licencja bezterminowa`);
         }
     }
 } else {
-    console.log(`   ❌ Licencja nieważna: ${licenseStatus.reason || 'Nieznany błąd'}`);
+    log.debug(`   ❌ Licencja nieważna: ${licenseStatus.reason || 'Nieznany błąd'}`);
     if (licenseStatus.trial && !licenseStatus.trial.valid) {
-        console.log(`   ⚠️  Okres testowy wygasł`);
+        log.debug(`   ⚠️  Okres testowy wygasł`);
     }
 }
-console.log('   ═══════════════════════════════════════════════════\n');
+log.debug('   ═══════════════════════════════════════════════════\n');
 // W aplikacji spakowanej (asar) __dirname jest tylko do odczytu – quizy i uploady w katalogu danych
 // Gdy IMPREZJA_DATA_DIR nie jest ustawiony (npm start), używamy tego samego katalogu co Electron,
 // żeby NJR Sampler i Śpiewaj Dalej nie traciły list przy przełączaniu trybów.
@@ -224,7 +227,7 @@ const uploadsDir = path.join(dataDir, 'uploads');
 const vdjRecordingsBank = process.platform === 'darwin'
     ? path.join(os.homedir(), 'Library', 'Application Support', 'VirtualDJ', 'Sampler', 'Recordings.bank')
     : (process.platform === 'win32' ? path.join(process.env.APPDATA || os.homedir(), 'VirtualDJ', 'Sampler', 'Recordings.bank') : '');
-console.log('   📂 Katalog danych (quizy, uploady, sampler, śpiewaj dalej):', dataDir);
+log.debug('   📂 Katalog danych (quizy, uploady, sampler, śpiewaj dalej):', dataDir);
 
 // === DEV-SYNC ===
 // Gdy serwer działa w trybie deweloperskim (bez IMPREZJA_APP_PATH = nie spakowana aplikacja),
@@ -241,7 +244,7 @@ function devSyncWrite(projectRelPath, srcFilePath) {
         const dstDir = path.dirname(dst);
         if (!fs.existsSync(dstDir)) fs.mkdirSync(dstDir, { recursive: true });
         fs.copyFileSync(srcFilePath, dst);
-        console.log('🔄 Dev-sync +', projectRelPath);
+        log.debug('🔄 Dev-sync +', projectRelPath);
     } catch (e) { console.warn('⚠️ Dev-sync write error:', e.message); }
 }
 function devSyncWriteData(projectRelPath, data) {
@@ -251,7 +254,7 @@ function devSyncWriteData(projectRelPath, data) {
         const dstDir = path.dirname(dst);
         if (!fs.existsSync(dstDir)) fs.mkdirSync(dstDir, { recursive: true });
         fs.writeFileSync(dst, data, 'utf8');
-        console.log('🔄 Dev-sync +', projectRelPath);
+        log.debug('🔄 Dev-sync +', projectRelPath);
     } catch (e) { console.warn('⚠️ Dev-sync write error:', e.message); }
 }
 /** Przenosi pliki lub katalogi do Kosza systemowego (odzyskiwalne). Przy błędzie — twarde usunięcie. */
@@ -260,7 +263,7 @@ async function moveUserPathsToTrash(absPaths) {
     if (!list.length) return;
     try {
         await trash(list);
-        console.log('🗑️ Przeniesiono do Kosza:', list.map((p) => path.basename(p)).join(', '));
+        log.debug('🗑️ Przeniesiono do Kosza:', list.map((p) => path.basename(p)).join(', '));
     } catch (e) {
         console.warn('⚠️ Kosz niedostępny, usuwam na stałe:', e.message);
         for (const p of list) {
@@ -279,7 +282,7 @@ async function devSyncDelete(projectRelPath) {
         const dst = path.join(devProjectRoot, projectRelPath);
         if (fs.existsSync(dst)) {
             await moveUserPathsToTrash(dst);
-            console.log('🔄 Dev-sync → Kosz:', projectRelPath);
+            log.debug('🔄 Dev-sync → Kosz:', projectRelPath);
         }
     } catch (e) { console.warn('⚠️ Dev-sync delete error:', e.message); }
 }
@@ -288,7 +291,7 @@ function devSyncRename(oldRel, newRel) {
     try {
         const oldDst = path.join(devProjectRoot, oldRel);
         const newDst = path.join(devProjectRoot, newRel);
-        if (fs.existsSync(oldDst)) { fs.renameSync(oldDst, newDst); console.log('🔄 Dev-sync rename', oldRel, '->', newRel); }
+        if (fs.existsSync(oldDst)) { fs.renameSync(oldDst, newDst); log.debug('🔄 Dev-sync rename', oldRel, '->', newRel); }
     } catch (e) { console.warn('⚠️ Dev-sync rename error:', e.message); }
 }
 
@@ -336,7 +339,7 @@ async function shortenUrl(longUrl) {
                 req.on('error', () => resolve(null));
                 req.setTimeout(6000, () => { req.destroy(); resolve(null); });
             });
-            if (result) { console.log('✂️ Skrócony URL:', result); return result; }
+            if (result) { log.debug('✂️ Skrócony URL:', result); return result; }
         } catch (_) {}
     }
     return null;
@@ -381,6 +384,12 @@ let prezentacjaConfig = null;      // { name, slides, transition, loop }
 let prezentacjaIndex = 0;
 let prezentacjaPlaying = false;
 let prezentacjaLoop = true;
+let liveOverlayType = 'none';
+let liveOverlayCountdownMinutes = 3;
+let liveOverlayCountdownHours = 0;
+let liveOverlayCountdownPhase = 'off';
+let liveOverlayText = '';
+let liveOverlayTextPosition = 'center';
 const PREZENTACJE_LAST_FILE = path.join(path.dirname(quizzesDir), 'prezentacje-last.json');
 
 // Sufit liniowy sygnału (−3 dB headroom — suwak 100% nie przekracza ~0,708 liniowo).
@@ -425,7 +434,7 @@ function loadVolumes() {
                 imprezatorVolume = clampVolume01(v.imprezator * master);
             }
         }
-        console.log('   🔊 Głośności załadowane z', VOLUMES_FILE, '(gry:', gamesVolume, 'imprezator:', imprezatorVolume + ')');
+        log.debug('   🔊 Głośności załadowane z', VOLUMES_FILE, '(gry:', gamesVolume, 'imprezator:', imprezatorVolume + ')');
     } catch (e) { console.warn('⚠️ loadVolumes:', e.message); }
 }
 function saveVolumes() {
@@ -446,26 +455,22 @@ function setImprezatorVolume(v) {
     broadcastEffectiveVolumes();
 }
 function broadcastEffectiveVolumes() {
-    const gEff = digitalOutputClamp(gamesVolume);
     const iEff = digitalOutputClamp(imprezatorVolume);
     io.emit('games_volume', { volume: gamesVolume });
-    io.emit('quiz_volume', { volume: gamesVolume });
     io.to('familiada').emit('familiada_volume', gamesVolume);
     io.emit('ships_solo_volume', { volume: gamesVolume });
     io.emit('prezentacja_volume', { volume: gamesVolume });
-    io.to('njr_sampler_screen').emit('njr_sampler_volume', gEff);
+    // Ekrany muzyczne: surowy gamesVolume — clamp raz na kliencie (tile × games × gain).
+    io.to('njr_sampler_screen').emit('njr_sampler_volume', gamesVolume);
     io.to('njr_sampler_phone').emit('njr_sampler_volume_sync', gamesVolume);
-    io.to('whitney_screen').emit('whitney_volume', gEff);
+    io.to('whitney_screen').emit('whitney_volume', gamesVolume);
     io.to('whitney_phone').emit('whitney_volume_sync', gamesVolume);
-    io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_volume', gEff);
+    io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_volume', gamesVolume);
     io.to('spiewaj_dalej_phone').emit('spiewaj_dalej_volume_sync', gamesVolume);
-    io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_volume', gEff);
+    io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_volume', gamesVolume);
     io.to('bitwa_wokalna_phone').emit('bitwa_wokalna_volume_sync', gamesVolume);
     io.to('imprezator_screen').emit('imprezator_volume', iEff);
     io.to('imprezator_phone').emit('imprezator_volume_sync', imprezatorVolume);
-    // Kompatybilność ze starymi klientami (master = wspólna głośność gier)
-    io.emit('master_volume', { volume: gamesVolume });
-    io.emit('admin_master_volume', Math.round(gamesVolume * 100));
     io.emit('volumes_all', { games: gamesVolume, imprezator: imprezatorVolume });
 }
 
@@ -537,6 +542,8 @@ let partyState = {
     currentGoldenIndex: null,
     /** Zapas gameState.questions zanim dołożymy pytanie ze złotej listy (bez mutacji wczytanego quizu). */
     gameStateQuestionsBeforeGolden: null,
+    /** Kopia pytań klasycznego quizu przed wczytaniem Party Quiz (przywracana przy przełączeniu na tryb quiz). */
+    classicQuizBackup: null,
     // Party FAST_LIST: seria krótkich pytań (prompt + odpowiedź) — indeks w fastListItems, czy TV pokazuje odpowiedź.
     fastListIndex: 0,
     fastListShowAnswer: false
@@ -561,6 +568,26 @@ function partyRestoreGameStateQuestionsIfExtended() {
         partyState.gameStateQuestionsBeforeGolden = null;
     }
     partyState.currentGoldenIndex = null;
+}
+
+function partyBackupClassicQuizIfNeeded() {
+    if (partyState.classicQuizBackup) return;
+    if (!Array.isArray(gameState.questions) || gameState.questions.length === 0) return;
+    if (gameMode === 'party') return;
+    partyState.classicQuizBackup = {
+        questions: gameState.questions,
+        quizTitle: gameState.quizTitle,
+        quizOptions: Object.assign({}, gameState.quizOptions || {})
+    };
+}
+
+function partyRestoreClassicQuizFromBackup() {
+    const b = partyState.classicQuizBackup;
+    if (!b || !Array.isArray(b.questions) || b.questions.length === 0) return;
+    gameState.questions = b.questions;
+    if (b.quizTitle) gameState.quizTitle = b.quizTitle;
+    if (b.quizOptions) gameState.quizOptions = Object.assign({}, b.quizOptions);
+    partyState.classicQuizBackup = null;
 }
 
 /** Ustawia krótki „flash" wyniku na TV (tylko gdy hideTeamScoresOnTv). */
@@ -744,18 +771,18 @@ function loadFamiliadaGoldenData() {
         if (fs.existsSync(familiadaGoldenPath)) {
             const raw = fs.readFileSync(familiadaGoldenPath, 'utf8');
             familiadaGoldenQuestions = normalizeFamiliadaQuestionsList(JSON.parse(raw));
-            console.log(`✅ Familiada Złota Lista: załadowano ${familiadaGoldenQuestions.length} pytań z ${familiadaGoldenPath}`);
+            log.debug(`✅ Familiada Złota Lista: załadowano ${familiadaGoldenQuestions.length} pytań z ${familiadaGoldenPath}`);
         } else if (fs.existsSync(publicGolden)) {
             const raw = fs.readFileSync(publicGolden, 'utf8');
             familiadaGoldenQuestions = normalizeFamiliadaQuestionsList(JSON.parse(raw));
             if (!fs.existsSync(familiadaDir)) fs.mkdirSync(familiadaDir, { recursive: true });
             fs.writeFileSync(familiadaGoldenPath, JSON.stringify(familiadaGoldenQuestions, null, 2), 'utf8');
-            console.log(`✅ Familiada Złota Lista: skopiowano ${familiadaGoldenQuestions.length} pytań z public`);
+            log.debug(`✅ Familiada Złota Lista: skopiowano ${familiadaGoldenQuestions.length} pytań z public`);
         } else {
             familiadaGoldenQuestions = [...GOLDEN_LIST_DEFAULT];
             if (!fs.existsSync(familiadaDir)) fs.mkdirSync(familiadaDir, { recursive: true });
             fs.writeFileSync(familiadaGoldenPath, JSON.stringify(familiadaGoldenQuestions, null, 2), 'utf8');
-            console.log(`✅ Familiada Złota Lista: utworzono z 3 przykładowymi pytaniami`);
+            log.debug(`✅ Familiada Złota Lista: utworzono z 3 przykładowymi pytaniami`);
         }
     } catch (err) {
         console.warn('⚠️ Familiada Złota Lista: błąd ładowania:', err.message);
@@ -769,33 +796,99 @@ const PARTY_QUIZ_GOLDEN_FILE = 'party-quiz-golden.json';
 const partyQuizGoldenPath = path.join(partyQuizzesDir, PARTY_QUIZ_GOLDEN_FILE);
 let partyQuizGoldenQuestions = [];
 
+function parsePartyQuizGoldenJson(raw) {
+    const data = JSON.parse(raw);
+    if (!Array.isArray(data)) return [];
+    return data.map((q) => {
+        if (!q || typeof q !== 'object') return null;
+        const answers = (Array.isArray(q.answers) ? q.answers : [])
+            .map((a) => {
+                if (!a || typeof a !== 'object') return null;
+                const text = String(a.text || '').trim();
+                if (!text) return null;
+                const p = Number(a.points);
+                return { text, points: Number.isFinite(p) ? Math.max(0, Math.floor(p)) : 0 };
+            })
+            .filter(Boolean);
+        const question = String(q.question || '').trim();
+        if (!question || !answers.length) return null;
+        return {
+            type: 'FAMILIADA',
+            question,
+            time: 0,
+            speedrun: false,
+            elimination: false,
+            answers,
+            correct: -1,
+            ...(q.id ? { id: q.id } : {})
+        };
+    }).filter(Boolean).slice(0, 10);
+}
+
+function partyGoldenAnswerCount(list) {
+    if (!Array.isArray(list)) return 0;
+    return list.reduce((n, q) => n + (Array.isArray(q.answers) ? q.answers.length : 0), 0);
+}
+
+function normalizeGoldenQuestionKey(q) {
+    return String(q && q.question || '').trim().toLowerCase();
+}
+
+/** Czy lokalna złota lista ma mniej odpowiedzi niż wersja z public/ (np. stary plik w folderze danych). */
+function partyGoldenListStaleVsPublic(local, pub) {
+    if (!Array.isArray(pub) || pub.length === 0) return false;
+    if (!Array.isArray(local) || local.length === 0) return true;
+    if (local.length < pub.length) return true;
+    const pubMap = new Map(pub.map((q) => [normalizeGoldenQuestionKey(q), q]));
+    for (const lq of local) {
+        const pq = pubMap.get(normalizeGoldenQuestionKey(lq));
+        if (!pq) continue;
+        const la = Array.isArray(lq.answers) ? lq.answers.length : 0;
+        const pa = Array.isArray(pq.answers) ? pq.answers.length : 0;
+        if (pa > la) return true;
+    }
+    return partyGoldenAnswerCount(local) < partyGoldenAnswerCount(pub);
+}
+
 function loadPartyQuizGoldenData() {
+    let didSyncFromPublic = false;
     try {
         const appPathGolden = process.env.IMPREZJA_APP_PATH || __dirname;
         const publicGolden = path.join(appPathGolden, 'public', 'party-quizzes', PARTY_QUIZ_GOLDEN_FILE);
+        const readPublic = () => {
+            if (!fs.existsSync(publicGolden)) return [];
+            return parsePartyQuizGoldenJson(fs.readFileSync(publicGolden, 'utf8'));
+        };
+        const pubList = readPublic();
         if (fs.existsSync(partyQuizGoldenPath)) {
-            const raw = fs.readFileSync(partyQuizGoldenPath, 'utf8');
-            partyQuizGoldenQuestions = JSON.parse(raw);
-            if (!Array.isArray(partyQuizGoldenQuestions)) partyQuizGoldenQuestions = [];
-            partyQuizGoldenQuestions = partyQuizGoldenQuestions.slice(0, 10);
-            console.log(`✅ Party Quiz Złota Lista: załadowano ${partyQuizGoldenQuestions.length} pytań`);
-        } else if (fs.existsSync(publicGolden)) {
-            const raw = fs.readFileSync(publicGolden, 'utf8');
-            partyQuizGoldenQuestions = JSON.parse(raw);
-            if (!Array.isArray(partyQuizGoldenQuestions)) partyQuizGoldenQuestions = [];
-            partyQuizGoldenQuestions = partyQuizGoldenQuestions.slice(0, 10);
+            partyQuizGoldenQuestions = parsePartyQuizGoldenJson(fs.readFileSync(partyQuizGoldenPath, 'utf8'));
+            const stale = partyQuizGoldenQuestions.length === 0
+                || (pubList.length > 0 && partyGoldenListStaleVsPublic(partyQuizGoldenQuestions, pubList));
+            if (stale && pubList.length > 0) {
+                partyQuizGoldenQuestions = pubList;
+                fs.writeFileSync(partyQuizGoldenPath, JSON.stringify(partyQuizGoldenQuestions, null, 2), 'utf8');
+                didSyncFromPublic = true;
+                log.debug(`✅ Party Quiz Złota Lista: zsynchronizowano z public/ (${partyQuizGoldenQuestions.length} pytań, ${partyGoldenAnswerCount(partyQuizGoldenQuestions)} odp.)`);
+            } else {
+                log.debug(`✅ Party Quiz Złota Lista: załadowano ${partyQuizGoldenQuestions.length} pytań`);
+            }
+        } else if (pubList.length > 0) {
+            partyQuizGoldenQuestions = parsePartyQuizGoldenJson(fs.readFileSync(publicGolden, 'utf8'));
             if (!fs.existsSync(partyQuizzesDir)) fs.mkdirSync(partyQuizzesDir, { recursive: true });
             fs.writeFileSync(partyQuizGoldenPath, JSON.stringify(partyQuizGoldenQuestions, null, 2), 'utf8');
-            console.log(`✅ Party Quiz Złota Lista: skopiowano ${partyQuizGoldenQuestions.length} pytań z public/party-quizzes`);
+            log.debug(`✅ Party Quiz Złota Lista: skopiowano ${partyQuizGoldenQuestions.length} pytań z public/party-quizzes`);
         } else {
             partyQuizGoldenQuestions = [];
             if (!fs.existsSync(partyQuizzesDir)) fs.mkdirSync(partyQuizzesDir, { recursive: true });
             fs.writeFileSync(partyQuizGoldenPath, JSON.stringify(partyQuizGoldenQuestions, null, 2), 'utf8');
-            console.log(`✅ Party Quiz Złota Lista: utworzono pusty plik ${PARTY_QUIZ_GOLDEN_FILE}`);
+            log.debug(`✅ Party Quiz Złota Lista: utworzono pusty plik ${PARTY_QUIZ_GOLDEN_FILE}`);
         }
     } catch (err) {
         console.warn('⚠️ Party Quiz Złota Lista: błąd ładowania:', err.message);
         partyQuizGoldenQuestions = [];
+    }
+    if (didSyncFromPublic && typeof io !== 'undefined' && io) {
+        io.emit('party_golden_updated', partyQuizGoldenQuestions);
     }
 }
 loadPartyQuizGoldenData();
@@ -805,13 +898,13 @@ function loadFamiliadaData() {
         if (fs.existsSync(familiadaDataPath)) {
             const raw = fs.readFileSync(familiadaDataPath, 'utf8');
             familiadaQuestions = parseFamiliadaQuestionsFromJsonString(raw);
-            console.log(`✅ Familiada: załadowano ${familiadaQuestions.length} pytań`);
+            log.debug(`✅ Familiada: załadowano ${familiadaQuestions.length} pytań`);
         } else {
             const appPathForData = process.env.IMPREZJA_APP_PATH || __dirname;
             const fallback = path.join(appPathForData, 'public', 'familiada', 'data.json');
             if (fs.existsSync(fallback)) {
                 familiadaQuestions = parseFamiliadaQuestionsFromJsonString(fs.readFileSync(fallback, 'utf8'));
-                console.log(`✅ Familiada: załadowano ${familiadaQuestions.length} pytań z data.json`);
+                log.debug(`✅ Familiada: załadowano ${familiadaQuestions.length} pytań z data.json`);
             }
         }
     } catch (err) {
@@ -1267,7 +1360,7 @@ function loadWhitneyConfig() {
             for (let i = tiles.length; i < 8; i++) tiles.push({ id: 't' + i, color: '#3498db', label: '', image: '', audio: '', volume: 100, isBackground: false });
             whitneyConfig = { tileCount: 8, tiles, screenGraphic: data.screenGraphic || '' };
             fs.writeFileSync(WHITNEY_CONFIG_FILE, JSON.stringify(whitneyConfig, null, 2), 'utf8');
-            console.log('   📋 Whitney: utworzono config z Whitney.json');
+            log.debug('   📋 Whitney: utworzono config z Whitney.json');
         } else {
             const tiles = [];
             for (let i = 0; i < 8; i++) tiles.push({ id: 't' + i, color: '#3498db', label: '', image: '', audio: '', volume: 100, isBackground: false });
@@ -1321,7 +1414,7 @@ if (dataDir) {
                 const dest = path.join(quizzesDir, name);
                 if (!fs.existsSync(dest)) {
                     fs.copyFileSync(src, dest);
-                    console.log('   📋 Skopiowano quiz z aplikacji:', name);
+                    log.debug('   📋 Skopiowano quiz z aplikacji:', name);
                 }
             }
         }
@@ -1334,7 +1427,7 @@ if (dataDir) {
                 const dest = path.join(familiadaDir, name);
                 if (!fs.existsSync(dest)) {
                     fs.copyFileSync(src, dest);
-                    console.log('   📋 Skopiowano listę Familiady:', name);
+                    log.debug('   📋 Skopiowano listę Familiady:', name);
                 }
             }
         }
@@ -1347,7 +1440,7 @@ if (dataDir) {
                 if (!fs.existsSync(dest)) {
                     try {
                         fs.copyFileSync(src, dest);
-                        console.log('   📋 Skopiowano Party Quiz z aplikacji:', name);
+                        log.debug('   📋 Skopiowano Party Quiz z aplikacji:', name);
                     } catch (e) {
                         console.warn('   ⚠️ Party Quiz – nie skopiowano', name, e.message);
                     }
@@ -1366,7 +1459,7 @@ if (dataDir) {
                 if (!fs.existsSync(dest)) {
                     try {
                         fs.copyFileSync(src, dest);
-                        console.log('   📋 Skopiowano listę Śpiewaj Dalej (nowy plik):', name);
+                        log.debug('   📋 Skopiowano listę Śpiewaj Dalej (nowy plik):', name);
                     } catch (e) {
                         console.warn('   ⚠️ Śpiewaj Dalej – nie skopiowano', name, e.message);
                     }
@@ -1377,7 +1470,7 @@ if (dataDir) {
         if (fs.existsSync(appSpiewajLast) && !fs.existsSync(SPIEWAJ_DALEJ_LAST_FILE)) {
             try {
                 fs.copyFileSync(appSpiewajLast, SPIEWAJ_DALEJ_LAST_FILE);
-                console.log('   📋 Skopiowano domyślny wybór banku Śpiewaj Dalej');
+                log.debug('   📋 Skopiowano domyślny wybór banku Śpiewaj Dalej');
             } catch (_) {}
         }
         const appNjrSampler = path.join(appPathForCopy, 'public', 'njr-sampler-configs');
@@ -1389,7 +1482,7 @@ if (dataDir) {
                 const dest = path.join(NJR_SAMPLER_CONFIGS_DIR, name);
                 if (!fs.existsSync(dest)) {
                     fs.copyFileSync(src, dest);
-                    console.log('   📋 Skopiowano konfigurację NJR Sampler (nowy plik):', name);
+                    log.debug('   📋 Skopiowano konfigurację NJR Sampler (nowy plik):', name);
                 }
             }
         }
@@ -1402,7 +1495,7 @@ if (dataDir) {
                 const dest = path.join(BITWA_WOKALNA_CONFIGS_DIR, name);
                 if (!fs.existsSync(dest)) {
                     fs.copyFileSync(src, dest);
-                    console.log('   📋 Skopiowano listę Bitwy wokalnej (nowy plik):', name);
+                    log.debug('   📋 Skopiowano listę Bitwy wokalnej (nowy plik):', name);
                 }
             }
         }
@@ -1415,7 +1508,7 @@ if (dataDir) {
                 const dest = path.join(IMPREZATOR_CONFIGS_DIR, name);
                 if (!fs.existsSync(dest)) {
                     fs.copyFileSync(src, dest);
-                    console.log('   📋 Skopiowano listę Imprezator (nowy plik):', name);
+                    log.debug('   📋 Skopiowano listę Imprezator (nowy plik):', name);
                 }
             }
         }
@@ -1431,7 +1524,7 @@ if (dataDir) {
                     if (!fs.existsSync(dest)) {
                         try {
                             fs.copyFileSync(src, dest);
-                            console.log('   📋 Skopiowano prezentację (pierwszy seed):', name);
+                            log.debug('   📋 Skopiowano prezentację (pierwszy seed):', name);
                         } catch (e) {
                             console.warn('   ⚠️ Prezentacje – nie skopiowano', name, e.message);
                         }
@@ -1445,13 +1538,13 @@ if (dataDir) {
         if (fs.existsSync(appDefaultBankAssignment) && !fs.existsSync(NJR_SAMPLER_BANK_ASSIGNMENT_FILE)) {
             try {
                 fs.copyFileSync(appDefaultBankAssignment, NJR_SAMPLER_BANK_ASSIGNMENT_FILE);
-                console.log('   📋 Skopiowano domyślne przypisanie banków NJR Sampler');
+                log.debug('   📋 Skopiowano domyślne przypisanie banków NJR Sampler');
             } catch (_) {}
         }
         if (shouldSyncConfigsFromApp && CONFIGS_SYNCED_VERSION_FILE && appVersionForSync) {
             try {
                 fs.writeFileSync(CONFIGS_SYNCED_VERSION_FILE, appVersionForSync, 'utf8');
-                console.log('   📋 Nowa wersja aplikacji:', appVersionForSync, '– dane użytkownika zachowane, dodano tylko nowe pliki');
+                log.debug('   📋 Nowa wersja aplikacji:', appVersionForSync, '– dane użytkownika zachowane, dodano tylko nowe pliki');
             } catch (_) {}
         }
         // Gry muzyczne – skopiuj pliki audio z configów z aplikacji do userData/uploads
@@ -1496,7 +1589,7 @@ if (dataDir) {
                 if (fs.existsSync(src) && !fs.existsSync(dest)) {
                     try {
                         fs.copyFileSync(src, dest);
-                        console.log('   📋 Skopiowano plik do banków (nowy):', fileName);
+                        log.debug('   📋 Skopiowano plik do banków (nowy):', fileName);
                     } catch (e) { console.warn('   ⚠️ Nie skopiowano', fileName, e.message); }
                 }
             }
@@ -1509,6 +1602,7 @@ loadWhitneyConfig();
 
 // Middleware
 app.use(express.json());
+boothLive.mountRoutes(app, io, { dataDir });
 
 // === HELPERS: referencje plików w uploads (quizy + Party + sampler + Imprezator + …) ===
 function _getThumbnailPath(filePath) {
@@ -1656,7 +1750,7 @@ app.delete('/api/upload/:filename', async (req, res) => {
                 await devSyncDelete(`public/uploads/${thumbName}`);
             }
         }
-        console.log(`🗑️ Plik z uploads przeniesiony do Kosza: ${filename}`);
+        log.debug(`🗑️ Plik z uploads przeniesiony do Kosza: ${filename}`);
         res.json({ deleted: true, filename, trashed: true, thumbDeleted: !!(thumbName && !usedFiles.has(thumbName)) });
     } catch (err) {
         console.error('❌ Błąd usuwania pliku:', err);
@@ -1695,7 +1789,7 @@ app.delete('/api/uploads/orphans', async (req, res) => {
                 deleted.push(f);
             } catch (e) { errors.push(f); }
         }
-        console.log(`🗑️ Przeniesiono do Kosza ${deleted.length} osieroconych plików`);
+        log.debug(`🗑️ Przeniesiono do Kosza ${deleted.length} osieroconych plików`);
         res.json({ deleted: deleted.length, errors: errors.length, files: deleted, trashed: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -1790,6 +1884,13 @@ app.get('/api/njr-sampler/configs', (req, res) => {
 
 app.get('/api/njr-sampler/config', (req, res) => {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    /** Gdy sampler aktywny — zwracaj config z przypisanych banków (PRANK_NERD pierwszy), nie pojedynczy plik z last.json. */
+    if (njrSamplerActive && !req.query.name) {
+        const assignments = loadNjrSamplerBankAssignment();
+        if (assignments.length > 0) {
+            njrSamplerConfig = buildNjrSamplerConfigFromBankAssignments(assignments);
+        }
+    }
     const name = req.query.name;
     if (name) {
         const cfgPath = getNjrSamplerConfigPath(name);
@@ -1854,6 +1955,20 @@ app.patch('/api/njr-sampler/config', (req, res) => {
         try {
             fs.writeFileSync(NJR_SAMPLER_LAST_FILE, JSON.stringify({ name: safeConfigName(newName) }), 'utf8');
         } catch (_) {}
+        const safeOld = safeConfigName(oldName);
+        if (safeOld && safeOld !== safeNew && fs.existsSync(NJR_SAMPLER_BANK_ASSIGNMENT_FILE)) {
+            try {
+                const banks = loadNjrSamplerBankAssignment();
+                let changed = false;
+                const updated = banks.map((b) => {
+                    if (safeConfigName(b) === safeOld) { changed = true; return safeNew; }
+                    return b;
+                });
+                if (changed) {
+                    fs.writeFileSync(NJR_SAMPLER_BANK_ASSIGNMENT_FILE, JSON.stringify({ bankAssignments: updated }, null, 2), 'utf8');
+                }
+            } catch (_) {}
+        }
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -1966,6 +2081,7 @@ app.post('/api/njr-sampler/start', (req, res) => {
     njrSamplerPlayingImprezatorTrack = null;
     io.to('njr_sampler_screen').emit('njr_sampler_state', { active: true, config: njrSamplerConfig });
     io.to('njr_sampler_phone').emit('njr_sampler_state', { active: true, config: buildNjrSamplerStateForPhone() });
+    io.to('njr_sampler_phone').emit('njr_sampler_set_bank', { index: 0 });
     res.json({ success: true });
 });
 app.post('/api/njr-sampler/stop', (req, res) => {
@@ -3047,7 +3163,7 @@ app.delete('/api/prezentacje/config', async (req, res) => {
     if (fs.existsSync(mediaDir) && fs.statSync(mediaDir).isDirectory()) {
         try {
             await moveUserPathsToTrash(mediaDir);
-            console.log('🗑️ Folder mediów prezentacji przeniesiony do Kosza:', name);
+            log.debug('🗑️ Folder mediów prezentacji przeniesiony do Kosza:', name);
         } catch (e) { console.warn('Nie udało się przenieść folderu mediów do Kosza:', e.message); }
     }
     res.json({ success: true, trashed: true });
@@ -3486,8 +3602,7 @@ app.post('/api/party-quiz/golden', (req, res) => {
         if (!Array.isArray(data)) {
             return res.status(400).json({ error: 'Oczekiwana tablica pytań' });
         }
-        const valid = data.slice(0, 10).filter(q => q && (q.question || '').trim());
-        partyQuizGoldenQuestions = valid;
+        partyQuizGoldenQuestions = parsePartyQuizGoldenJson(JSON.stringify(Array.isArray(data) ? data : []));
         if (!fs.existsSync(partyQuizzesDir)) fs.mkdirSync(partyQuizzesDir, { recursive: true });
         fs.writeFileSync(partyQuizGoldenPath, JSON.stringify(partyQuizGoldenQuestions, null, 2), 'utf8');
         io.emit('party_golden_updated', partyQuizGoldenQuestions);
@@ -3558,7 +3673,9 @@ app.get('/api/statki-solo/phone-qr', async (req, res) => {
 app.get('/api/version', (req, res) => {
     try {
         const pkg = require('./package.json');
-        res.json({ version: pkg.version || '1.0.0' });
+        const payload = { version: pkg.version || '1.0.0' };
+        if (process.env.IMPREZJA_BETA === '1') payload.channel = 'beta';
+        res.json(payload);
     } catch (e) {
         res.json({ version: '1.0.0' });
     }
@@ -3635,11 +3752,11 @@ app.use((req, res, next) => {
     const realIP = req.headers['x-real-ip'];
     
     // Szczegółowe logowanie dla diagnostyki sieci
-    console.log(`📥 ${req.method} ${req.url} od IP: ${clientIP} (${userAgent.substring(0, 50)})`);
-    if (forwardedFor) console.log(`   🔄 X-Forwarded-For: ${forwardedFor}`);
-    if (realIP) console.log(`   🔄 X-Real-IP: ${realIP}`);
+    log.debug(`📥 ${req.method} ${req.url} od IP: ${clientIP} (${userAgent.substring(0, 50)})`);
+    if (forwardedFor) log.debug(`   🔄 X-Forwarded-For: ${forwardedFor}`);
+    if (realIP) log.debug(`   🔄 X-Real-IP: ${realIP}`);
     if (clientIP === '127.0.0.1' && userAgent.includes('Android')) {
-        console.log(`   ⚠️ UWAGA: Telefon łączy się przez localhost - może używać tunelu Pinggy zamiast WiFi!`);
+        log.debug(`   ⚠️ UWAGA: Telefon łączy się przez localhost - może używać tunelu Pinggy zamiast WiFi!`);
     }
     
     next();
@@ -3651,7 +3768,7 @@ server.on('connection', (socket) => {
     // Loguj tylko pierwsze połączenie z danego IP (żeby nie spamować)
     if (!server._loggedConnections) server._loggedConnections = new Set();
     if (!server._loggedConnections.has(clientIP)) {
-        console.log(`🔌 Nowe połączenie TCP od: ${clientIP}`);
+        log.debug(`🔌 Nowe połączenie TCP od: ${clientIP}`);
         server._loggedConnections.add(clientIP);
     }
     socket.on('error', (err) => {
@@ -3672,9 +3789,9 @@ app.get('/test-connection', (req, res) => {
     const forwardedFor = req.headers['x-forwarded-for'];
     const realIP = req.headers['x-real-ip'];
     
-    console.log(`✅ Test połączenia od IP: ${clientIP}`);
-    if (forwardedFor) console.log(`   🔄 X-Forwarded-For: ${forwardedFor}`);
-    if (realIP) console.log(`   🔄 X-Real-IP: ${realIP}`);
+    log.debug(`✅ Test połączenia od IP: ${clientIP}`);
+    if (forwardedFor) log.debug(`   🔄 X-Forwarded-For: ${forwardedFor}`);
+    if (realIP) log.debug(`   🔄 X-Real-IP: ${realIP}`);
     
     const isLocalhost = clientIP === '127.0.0.1' || clientIP === '::1' || clientIP === 'localhost';
     
@@ -4173,11 +4290,6 @@ app.get('/join', async (req, res) => {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(html);
 });
-function escapeHtml(s) {
-    if (!s) return '';
-    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
 // Indeks hash oryginalnych plików → nazwa zapisanego pliku
 // Klucz: MD5 ORYGINALNEGO bufora (przed optymalizacją), wartość: nazwa pliku na dysku
 const HASH_INDEX_FILE = () => path.join(uploadsDir, '.hash-index.json');
@@ -4232,7 +4344,7 @@ loadHashIndex();
 
 // Funkcja zachowana dla kompatybilności wstecznej
 function refreshFileHashCache() {
-    console.log('📦 Hash-index gotowy:', Object.keys(fileHashIndex).length, 'wpisów');
+    log.debug('📦 Hash-index gotowy:', Object.keys(fileHashIndex).length, 'wpisów');
 }
 
 // Cache odświeżany asynchronicznie po starcie – nie blokuje 
@@ -4348,7 +4460,7 @@ app.post('/upload', upload.fields([{ name: 'file' }, { name: 'thumbnail' }]), as
             
             if (existingFile) {
                 // Plik już istnieje - użyj istniejącego (deduplikacja)
-                console.log(`✅ Plik już istnieje (dedup), używam: ${existingFile}`);
+                log.debug(`✅ Plik już istnieje (dedup), używam: ${existingFile}`);
                 response.filepath = `/uploads/${existingFile}`;
                 
                 // Sprawdź czy istnieje miniatura dla tego pliku
@@ -4367,11 +4479,11 @@ app.post('/upload', upload.fields([{ name: 'file' }, { name: 'thumbnail' }]), as
                 if (isImage) {
                     try {
                         const originalSize = file.buffer.length;
-                        console.log(`🖼️ Optymalizacja obrazka dla Screen.html (1920px)...`);
+                        log.debug(`🖼️ Optymalizacja obrazka dla Screen.html (1920px)...`);
                         finalBuffer = await optimizeImageForScreen(file.buffer, 1920, 85);
                         const optimizedSize = finalBuffer.length;
                         const savings = ((1 - optimizedSize / originalSize) * 100).toFixed(1);
-                        console.log(`✅ Obrazek zoptymalizowany: ${(originalSize / 1024 / 1024).toFixed(2)}MB → ${(optimizedSize / 1024 / 1024).toFixed(2)}MB (oszczędność: ${savings}%)`);
+                        log.debug(`✅ Obrazek zoptymalizowany: ${(originalSize / 1024 / 1024).toFixed(2)}MB → ${(optimizedSize / 1024 / 1024).toFixed(2)}MB (oszczędność: ${savings}%)`);
                         finalFilename = file.originalname.replace(/\.[^.]+$/, '.webp');
                     } catch (err) {
                         console.error('❌ Błąd optymalizacji obrazka, używam oryginału:', err);
@@ -4388,7 +4500,7 @@ app.post('/upload', upload.fields([{ name: 'file' }, { name: 'thumbnail' }]), as
                 response.filepath = `/uploads/${filename}`;
                 // Zarejestruj ORYGINALNY hash → nazwa zapisanego pliku
                 registerFileInIndex(fileHash, filename);
-                console.log(`✅ Zapisano nowy plik: ${filename}`);
+                log.debug(`✅ Zapisano nowy plik: ${filename}`);
                 devSyncWrite(`public/uploads/${filename}`, filePath);
             }
         }
@@ -4402,7 +4514,7 @@ app.post('/upload', upload.fields([{ name: 'file' }, { name: 'thumbnail' }]), as
             const existingThumb = findExistingFile(thumbHash);
             
             if (existingThumb) {
-                console.log(`✅ Miniatura już istnieje (dedup): ${existingThumb}`);
+                log.debug(`✅ Miniatura już istnieje (dedup): ${existingThumb}`);
                 response.thumbnailpath = `/uploads/${existingThumb}`;
             } else {
                 // Zapisz nową miniaturę
@@ -4420,7 +4532,7 @@ app.post('/upload', upload.fields([{ name: 'file' }, { name: 'thumbnail' }]), as
                 fs.writeFileSync(thumbPath, thumb.buffer);
                 response.thumbnailpath = `/uploads/${thumbFilename}`;
                 registerFileInIndex(thumbHash, thumbFilename);
-                console.log(`✅ Zapisano nową miniaturę: ${thumbFilename}`);
+                log.debug(`✅ Zapisano nową miniaturę: ${thumbFilename}`);
                 devSyncWrite(`public/uploads/${thumbFilename}`, thumbPath);
             }
         }
@@ -4445,7 +4557,7 @@ app.post('/upload', upload.fields([{ name: 'file' }, { name: 'thumbnail' }]), as
                             const originalSize = file.buffer.length;
                             finalBuffer = await optimizeImageForScreen(file.buffer, 1920, 85);
                             const optimizedSize = finalBuffer.length;
-                            console.log(`✅ Fallback - obrazek zoptymalizowany: ${(originalSize / 1024 / 1024).toFixed(2)}MB → ${(optimizedSize / 1024 / 1024).toFixed(2)}MB`);
+                            log.debug(`✅ Fallback - obrazek zoptymalizowany: ${(originalSize / 1024 / 1024).toFixed(2)}MB → ${(optimizedSize / 1024 / 1024).toFixed(2)}MB`);
                             finalFilename = file.originalname.replace(/\.[^.]+$/, '.webp');
                         } catch (err) {
                             console.error('❌ Błąd optymalizacji (fallback):', err);
@@ -4496,7 +4608,7 @@ app.post('/import-url', async (req, res) => {
                 
                 if (existingFile) {
                     // Plik już istnieje - użyj istniejącego
-                    console.log(`✅ Importowany plik już istnieje, używam istniejącego: ${existingFile}`);
+                    log.debug(`✅ Importowany plik już istnieje, używam istniejącego: ${existingFile}`);
                     return res.json({ filepath: `/uploads/${existingFile}` });
                 } else {
                     // Nowy plik - optymalizuj jeśli to obrazek
@@ -4511,11 +4623,11 @@ app.post('/import-url', async (req, res) => {
                     if (isImage) {
                         try {
                             const originalSize = buffer.length;
-                            console.log(`🖼️ Optymalizacja importowanego obrazka (1920px)...`);
+                            log.debug(`🖼️ Optymalizacja importowanego obrazka (1920px)...`);
                             finalBuffer = await optimizeImageForScreen(buffer, 1920, 85);
                             const optimizedSize = finalBuffer.length;
                             const savings = ((1 - optimizedSize / originalSize) * 100).toFixed(1);
-                            console.log(`✅ Importowany obrazek zoptymalizowany: ${(originalSize / 1024 / 1024).toFixed(2)}MB → ${(optimizedSize / 1024 / 1024).toFixed(2)}MB (oszczędność: ${savings}%)`);
+                            log.debug(`✅ Importowany obrazek zoptymalizowany: ${(originalSize / 1024 / 1024).toFixed(2)}MB → ${(optimizedSize / 1024 / 1024).toFixed(2)}MB (oszczędność: ${savings}%)`);
                         } catch (err) {
                             console.error('❌ Błąd optymalizacji importowanego obrazka:', err);
                             finalFilename = `${Date.now()}-imported.jpg`;
@@ -4526,7 +4638,7 @@ app.post('/import-url', async (req, res) => {
                     
                     const filepath = path.join(uploadsDir, finalFilename);
                     fs.writeFileSync(filepath, finalBuffer);
-                    console.log(`✅ Zapisano nowy importowany plik: ${finalFilename}`);
+                    log.debug(`✅ Zapisano nowy importowany plik: ${finalFilename}`);
                     res.json({ filepath: `/uploads/${finalFilename}` });
                 }
             } catch (err) {
@@ -4541,6 +4653,20 @@ app.post('/import-url', async (req, res) => {
 });
 
 // --- ANALIZA GŁOŚNOŚCI (ffmpeg volumedetect – URL i pliki lokalne) ---
+/** Dodatkowe podbicie głośności gier muzycznych (Bitwa, Śpiewaj Dalej itd.) — +9 dB. */
+const MUSIC_NORMALIZE_BOOST_DB = 9;
+const MUSIC_NORMALIZE_GAIN_MIN = 0.35;
+const MUSIC_NORMALIZE_GAIN_MAX = 6.0;
+/** Podbij przy zmianie wzoru gain (np. +9 dB) — wymusza ponowną analizę. */
+const MUSIC_NORMALIZE_GAIN_SCHEMA = 2;
+
+function applyMusicNormalizeBoost(linearGain) {
+    const g = Number(linearGain);
+    if (!isFinite(g) || g <= 0) return 1;
+    const boosted = g * Math.pow(10, MUSIC_NORMALIZE_BOOST_DB / 20);
+    return Math.max(MUSIC_NORMALIZE_GAIN_MIN, Math.min(MUSIC_NORMALIZE_GAIN_MAX, boosted));
+}
+
 function gainFromVolumedetectStderr(stderr) {
     const m = (stderr || '').match(/max_volume:\s*([-\d.]+)\s*dB/);
     if (!m) return 1;
@@ -4626,9 +4752,33 @@ function iterMusicGameTracks(config) {
     return out;
 }
 
-async function ensureMusicTrackNormalizedGain(track) {
-    if (!track || !track.audio) return 1;
-    if (typeof track.normalizedGain === 'number' && track.normalizedGain > 0) {
+function iterSamplerTiles(config) {
+    const out = [];
+    if (!config) return out;
+    if (Array.isArray(config.banks)) {
+        for (const b of config.banks) {
+            for (const t of (b.tiles || [])) if (t && t.audio) out.push(t);
+        }
+    } else if (Array.isArray(config.tiles)) {
+        for (const t of config.tiles) if (t && t.audio) out.push(t);
+    }
+    return out;
+}
+
+async function warmupAllMusicScreenGains() {
+    const jobs = [];
+    for (const t of iterMusicGameTracks(spiewajDalejConfig)) { delete t.normalizedGain; delete t._normalizeGainSchema; jobs.push(ensureMusicTrackNormalizedGain(t)); }
+    for (const t of iterMusicGameTracks(bitwaWokalnaConfig)) { delete t.normalizedGain; delete t._normalizeGainSchema; jobs.push(ensureMusicTrackNormalizedGain(t)); }
+    for (const t of iterSamplerTiles(njrSamplerConfig)) { delete t.normalizedGain; delete t._normalizeGainSchema; jobs.push(ensureMusicTrackNormalizedGain(t)); }
+    for (const t of (whitneyConfig.tiles || [])) { if (t && t.audio) { delete t.normalizedGain; delete t._normalizeGainSchema; jobs.push(ensureMusicTrackNormalizedGain(t)); } }
+    await Promise.all(jobs).catch((e) => console.warn('⚠️ warmup music gains:', e.message));
+}
+
+async function ensureMusicTrackNormalizedGain(track, opts) {
+    opts = opts || {};
+    if (!track || !track.audio) return applyMusicNormalizeBoost(1);
+    const schemaOk = track._normalizeGainSchema === MUSIC_NORMALIZE_GAIN_SCHEMA;
+    if (!opts.force && schemaOk && typeof track.normalizedGain === 'number' && track.normalizedGain > 0) {
         return track.normalizedGain;
     }
     const audioRef = track.audio;
@@ -4639,8 +4789,34 @@ async function ensureMusicTrackNormalizedGain(track) {
         const localPath = resolveLocalAudioFilePath(audioRef);
         if (localPath) gain = await analyzeLoudnessForFilePath(localPath);
     }
-    track.normalizedGain = gain;
-    return gain;
+    track.normalizedGain = applyMusicNormalizeBoost(gain);
+    track._normalizeGainSchema = MUSIC_NORMALIZE_GAIN_SCHEMA;
+    return track.normalizedGain;
+}
+
+function resolveMusicGameAudioUrl(audioRef) {
+    if (!audioRef || typeof audioRef !== 'string') return '';
+    let audioUrl = audioRef.startsWith('http') ? audioRef : (audioRef.startsWith('/') ? audioRef : '/uploads/' + audioRef.replace(/^\/+/, ''));
+    if (/\.(vdjsample|ogg)$/i.test(audioUrl)) {
+        audioUrl = '/api/audio/stream?path=' + encodeURIComponent(audioUrl);
+    }
+    return audioUrl;
+}
+
+/** Wspólny payload TV: tileVolume × gamesVolume × normalizedGain (jak Sampler). */
+async function buildMusicScreenPlayPayload(trackOrTile, audioRef, opts) {
+    opts = opts || {};
+    const audioUrl = resolveMusicGameAudioUrl(audioRef || (trackOrTile && trackOrTile.audio));
+    const tileVolume = typeof opts.tileVolume === 'number' ? opts.tileVolume : 1;
+    const ng = await ensureMusicTrackNormalizedGain(trackOrTile, opts);
+    return {
+        url: audioUrl,
+        gamesVolume: gamesVolume,
+        tileVolume: Math.max(0, Math.min(1, tileVolume)),
+        loop: !!opts.loop,
+        normalizedGain: ng,
+        ...(opts.trackId != null ? { trackId: opts.trackId } : {})
+    };
 }
 
 async function normalizeMusicGameConfigTracks(config) {
@@ -4830,7 +5006,7 @@ function getLocalIP() {
     const verbose = process.env.IMPREZJA_VERBOSE_NETWORK === '1';
     try {
         const interfaces = os.networkInterfaces();
-        if (verbose) console.log('🔍 Sprawdzam interfejsy sieciowe...');
+        if (verbose) log.debug('🔍 Sprawdzam interfejsy sieciowe...');
         
         const foundIPs = [];
         
@@ -4844,13 +5020,13 @@ function getLocalIP() {
                 lowerName.includes('virtualbox') || lowerName.includes('vmware') ||
                 lowerName.includes('hyper-v') || lowerName.includes('loopback') ||
                 lowerName.includes('teredo') || lowerName.includes('isatap')) {
-                if (verbose) console.log(`⏭️  Pomijam wirtualny interfejs: ${name}`);
+                if (verbose) log.debug(`⏭️  Pomijam wirtualny interfejs: ${name}`);
                 continue;
             }
             
             for (const iface of interfaces[name]) {
                 const isIPv4 = iface.family === 'IPv4' || iface.family === 4;
-                if (verbose) console.log(`   - ${iface.family} ${iface.address} (internal: ${iface.internal})`);
+                if (verbose) log.debug(`   - ${iface.family} ${iface.address} (internal: ${iface.internal})`);
                 
                 if (isIPv4 && !iface.internal) {
                     const ipParts = iface.address.split('.');
@@ -4858,7 +5034,7 @@ function getLocalIP() {
                     
                     if (!isLinkLocal) {
                         foundIPs.push({ name, address: iface.address, internal: iface.internal });
-                        if (verbose) console.log(`   ✅ DODANO: ${iface.address} z interfejsu ${name}`);
+                        if (verbose) log.debug(`   ✅ DODANO: ${iface.address} z interfejsu ${name}`);
                     }
                 }
             }
@@ -4872,13 +5048,13 @@ function getLocalIP() {
         
         if (wifiIPs.length > 0) {
             const selected = wifiIPs[0];
-            console.log(`✅ IP sieciowe: ${selected.address} (${selected.name})`);
+            log.debug(`✅ IP sieciowe: ${selected.address} (${selected.name})`);
             return selected.address;
         }
         
         if (foundIPs.length > 0) {
             const selected = foundIPs[0];
-            console.log(`✅ IP sieciowe: ${selected.address} (${selected.name})`);
+            log.debug(`✅ IP sieciowe: ${selected.address} (${selected.name})`);
             return selected.address;
         }
         
@@ -4894,7 +5070,7 @@ let IP = getLocalIP();
 
 // Jeśli nie znaleziono IP, spróbuj alternatywną metodę (dla Windows – działa przy LAN i przy różnych językach systemu)
 if (IP === 'localhost' && process.platform === 'win32') {
-    console.log('🔄 Próbuję alternatywną metodę wykrywania IP na Windows (ipconfig)...');
+    log.debug('🔄 Próbuję alternatywną metodę wykrywania IP na Windows (ipconfig)...');
     try {
         const { execSync } = require('child_process');
         const result = execSync('ipconfig', { encoding: 'utf8', timeout: 5000, maxBuffer: 2 * 1024 * 1024 });
@@ -4906,7 +5082,7 @@ if (IP === 'localhost' && process.platform === 'win32') {
             const match = line.match(/(\d+\.\d+\.\d+\.\d+)/);
             if (match && !match[1].startsWith('169.254')) {
                 IP = match[1];
-                console.log(`✅ Znaleziono IP przez ipconfig: ${IP}`);
+                log.debug(`✅ Znaleziono IP przez ipconfig: ${IP}`);
                 break;
             }
         }
@@ -4925,7 +5101,7 @@ if (IP === 'localhost' || IP === '127.0.0.1') {
 // === FUNKCJA GENERUJĄCA QR WIFI ===
 async function generateWiFiQR(ssid, password = null, wifiTypeParam = null) {
     try {
-        console.log('📶 Generuję QR dla sieci:', ssid, password ? '(z hasłem)' : '(bez hasła)', wifiTypeParam ? `(typ: ${wifiTypeParam})` : '');
+        log.debug('📶 Generuję QR dla sieci:', ssid, password ? '(z hasłem)' : '(bez hasła)', wifiTypeParam ? `(typ: ${wifiTypeParam})` : '');
         
         // Format QR kodu WiFi zgodny ze standardem ZXing:
         // WIFI:T:TYPE;S:SSID;P:PASSWORD;;
@@ -4985,8 +5161,8 @@ async function generateWiFiQR(ssid, password = null, wifiTypeParam = null) {
         const wifiStringBytes = Buffer.from(wifiString, 'utf8');
         const hasInvalidChars = /[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/.test(wifiString);
         
-        console.log('📶 Wygenerowany string WiFi QR:', wifiString.replace(/P:[^;]+/, 'P:***'));
-        console.log('📶 Szczegóły debugowania:', {
+        log.debug('📶 Wygenerowany string WiFi QR:', wifiString.replace(/P:[^;]+/, 'P:***'));
+        log.debug('📶 Szczegóły debugowania:', {
             ssid: ssidTrimmed,
             ssidEscaped: escapedSSID,
             ssidHasSpaces: /\s/.test(ssidTrimmed),
@@ -5059,14 +5235,14 @@ async function generateAdminQR() {
         const port = httpsServer ? PORT_HTTPS : PORT;
         const adminHost = httpsServer ? IP : getAdminHost();
         const adminUrl = `${proto}://${adminHost}:${port}/admin.html`;
-        console.log('📱 Generuję QR admina:', adminUrl);
-        console.log('📱 IP:', IP);
-        console.log('📱 adminHost:', adminHost);
+        log.debug('📱 Generuję QR admina:', adminUrl);
+        log.debug('📱 IP:', IP);
+        log.debug('📱 adminHost:', adminHost);
         
         const qrCode = await QRCode.toDataURL(adminUrl, {
             width: 300, margin: 2, color: { dark: '#000000', light: '#FFFFFF' }
         });
-        console.log('✅ QR admin wygenerowany, długość:', qrCode ? qrCode.length : 0);
+        log.debug('✅ QR admin wygenerowany, długość:', qrCode ? qrCode.length : 0);
         return { qrCode: qrCode, url: adminUrl };
     } catch (err) {
         console.error('❌ Błąd generowania QR admin:', err);
@@ -5082,7 +5258,7 @@ async function generateAdminPWAQR() {
         const httpsUrl = `https://${adminHost}:${PORT_HTTPS}/admin-pwa.html`;
         const httpUrl = `http://${getAdminHost()}:${PORT}/admin-pwa.html`;
         const adminPwaUrl = httpsServer ? httpsUrl : httpUrl;
-        console.log('📱 Generuję QR admin PWA:', adminPwaUrl, httpsServer ? '(HTTPS)' : '(HTTP — brak certów, ekran może gasnąć)');
+        log.debug('📱 Generuję QR admin PWA:', adminPwaUrl, httpsServer ? '(HTTPS)' : '(HTTP — brak certów, ekran może gasnąć)');
         const qrCode = await QRCode.toDataURL(adminPwaUrl, {
             width: 300, margin: 2, color: { dark: '#000000', light: '#FFFFFF' }
         });
@@ -5175,7 +5351,7 @@ function checkEliminationNoAnswer() {
     
     // WAŻNE: Sprawdź czy czas się skończył - eliminacja tylko gdy timeLeft === 0
     if (gameState.timeLeft > 0) {
-        console.log(`⏰ Pomijam eliminację - czas jeszcze nie minął (timeLeft: ${gameState.timeLeft})`);
+        log.debug(`⏰ Pomijam eliminację - czas jeszcze nie minął (timeLeft: ${gameState.timeLeft})`);
         return;
     }
     
@@ -5194,12 +5370,12 @@ function checkEliminationNoAnswer() {
             player.eliminated = true;
             player.score = 0;
             eliminatedCount++;
-            console.log(`💀 Gracz ${player.nick} wyeliminowany za brak odpowiedzi na pytanie eliminacyjne (czas minął)`);
+            log.debug(`💀 Gracz ${player.nick} wyeliminowany za brak odpowiedzi na pytanie eliminacyjne (czas minął)`);
         }
     });
     
     if (eliminatedCount > 0) {
-        console.log(`💀 Wyeliminowano ${eliminatedCount} graczy za brak odpowiedzi na pytanie eliminacyjne`);
+        log.debug(`💀 Wyeliminowano ${eliminatedCount} graczy za brak odpowiedzi na pytanie eliminacyjne`);
         io.emit('update_team_scores', gameState.teams);
     }
 }
@@ -5245,7 +5421,7 @@ function endQuestionAndShowStats() {
     gameState.showStats = true;
     gameState.type = 'GAME_STATS';
     broadcastState();
-    console.log('✅ Pokaż wyniki pytania');
+    log.debug('✅ Pokaż wyniki pytania');
 }
 
 // === FUNKCJA OBLICZANIA PUNKTÓW ===
@@ -5673,7 +5849,7 @@ function adminStartQuestionAtIndex(index, letterCount = 1) {
             gameStarted: false
         };
         gameState.shipsGame = null;
-        console.log(`🔤 [LETTER] Przygotowanie: questionId=${question.id}, letterCount=${letterCount || question.letterCount || 1}, gameStarted=false – oczekiwanie na admin_start_letter_game (Wyślij 1/2 litery)`);
+        log.debug(`🔤 [LETTER] Przygotowanie: questionId=${question.id}, letterCount=${letterCount || question.letterCount || 1}, gameStarted=false – oczekiwanie na admin_start_letter_game (Wyślij 1/2 litery)`);
     } else if (question.type === 'WYBORCZY') {
         stopWyborczyPhotoTimer();
         wyborczySession = {
@@ -5737,7 +5913,7 @@ function adminStartQuestionAtIndex(index, letterCount = 1) {
                 playersShot: new Set(),
                 gameEnded: false
             };
-            console.log(`⚓ Inicjalizacja gry w statki dla pytania ${question.id}, plansza ${question.boardSize || 8}x${question.boardSize || 8}`);
+            log.debug(`⚓ Inicjalizacja gry w statki dla pytania ${question.id}, plansza ${question.boardSize || 8}x${question.boardSize || 8}`);
             gameState.letterGame = null;
         } else {
             gameState.shipsGame = null;
@@ -5747,19 +5923,19 @@ function adminStartQuestionAtIndex(index, letterCount = 1) {
         const questionTime = question.time || 30;
         if (questionTime > 0 && !gameState.quizOptions.disableTimePoints && question.type !== 'SHIPS' && question.type !== 'HNC') {
             questionTimer = setTimeout(() => {
-                console.log(`⏰ Czas pytania minął - automatyczne pokazanie statystyk`);
+                log.debug(`⏰ Czas pytania minął - automatyczne pokazanie statystyk`);
                 endQuestionAndShowStats();
             }, questionTime * 1000);
         } else if (question.type === 'SHIPS') {
-            console.log(`⚓ Pytanie typu SHIPS - timer wyłączony, gra kończy się ręcznie`);
+            log.debug(`⚓ Pytanie typu SHIPS - timer wyłączony, gra kończy się ręcznie`);
         } else if (question.type === 'HNC') {
-            console.log(`🏆 Pytanie typu HNC - timer wyłączony, turniej sterowany ręcznie`);
+            log.debug(`🏆 Pytanie typu HNC - timer wyłączony, turniej sterowany ręcznie`);
         }
     }
 
     broadcastStateImmediate();
     const questionTime = question.time || (question.type === 'LETTER' ? 45 : 30);
-    console.log(`❓ Pytanie ${index + 1}: ${question.question} (czas: ${questionTime}s${question.type === 'LETTER' ? ', oczekiwanie na wysłanie liter' : ''})`);
+    log.debug(`❓ Pytanie ${index + 1}: ${question.question} (czas: ${questionTime}s${question.type === 'LETTER' ? ', oczekiwanie na wysłanie liter' : ''})`);
 }
 
 function updateUsersCount() {
@@ -5827,7 +6003,7 @@ function resetOrphanedGameState() {
     const noPlayers = players.size === 0;
     const hasPendingReconnects = pendingDisconnects.size > 0;
     if (isGameActive && hasQuestions && noPlayers && !hasPendingReconnects) {
-        console.log('🔄 Wykryto osierocony stan gry (pytania bez graczy) – reset do ekranu startowego');
+        log.debug('🔄 Wykryto osierocony stan gry (pytania bez graczy) – reset do ekranu startowego');
         if (gameState.activeQuestion && gameState.activeQuestion.type === 'WYBORCZY') stopWyborczyQuestionOnServer();
         gameState.type = 'IDLE';
         gameState.activeQuestionIndex = -1;
@@ -5876,7 +6052,7 @@ function performShipsQuizNextTurn(questionId, reason) {
     gameState.type = 'GAME';
 
     const tag = reason === 'auto' ? 'auto' : 'admin';
-    console.log(`⚓ Następna tura statków (${tag}): runda ${shipsGame.currentTurn} (było ${oldTurn}), pytanie ${questionId}`);
+    log.debug(`⚓ Następna tura statków (${tag}): runda ${shipsGame.currentTurn} (było ${oldTurn}), pytanie ${questionId}`);
 
     io.emit('ships_game_update', {
         questionId,
@@ -5894,8 +6070,9 @@ function performShipsQuizNextTurn(questionId, reason) {
 
 io.on('connection', (socket) => {
     resetOrphanedGameState();
+    boothLive.registerSocketHandlers(socket, io);
     socket.emit('games_volume', { volume: gamesVolume });
-    socket.emit('quiz_volume', { volume: gamesVolume });
+    socket.emit('volumes_all', { games: gamesVolume, imprezator: imprezatorVolume });
     socket.emit('ships_solo_volume', { volume: gamesVolume });
 
     // === SCREEN CONTROLLER (ekran główny sterowany z Admin PWA) ===
@@ -5919,7 +6096,7 @@ io.on('connection', (socket) => {
     const MUSIC_MODES_WITH_GRAPHIC = ['sampler', 'spiewaj', 'bitwa', 'whitney', 'imprezator'];
     socket.on('screen_switch', (data) => {
         const mode = (data && data.mode) || 'welcome';
-        const allowed = ['welcome', 'quiz', 'familiada', 'party', 'statki', 'prezentacja', 'camera', 'stream', 'sampler', 'spiewaj', 'bitwa', 'whitney', 'imprezator'];
+        const allowed = ['welcome', 'quiz', 'familiada', 'party', 'statki', 'prezentacja', 'booth-live', 'camera', 'stream', 'sampler', 'spiewaj', 'bitwa', 'whitney', 'imprezator'];
         if (allowed.includes(mode)) {
             screenControllerMode = mode;
             if (!MUSIC_MODES_WITH_GRAPHIC.includes(mode)) {
@@ -5927,15 +6104,26 @@ io.on('connection', (socket) => {
                 io.emit('music_mode_screen', { graphicUrl: '' });
             }
             if (mode === 'quiz') {
+                gameMode = 'quiz';
                 gameState.showZarazZaczynamy = false;
-                gameState.showPlayersWithQR = true;
+                gameState.showPlayersWithQR = false;
+                partyRestoreClassicQuizFromBackup();
+                broadcastPartyState();
+                broadcastStateImmediate();
+            }
+            if (mode === 'party' && partyState.activeFile && partyState.quiz) {
+                gameMode = 'party';
+                gameState.showPlayersWithQR = false;
+                gameState.showZarazZaczynamy = false;
+                gameState.questions = partyState.quiz.questions;
+                broadcastPartyState();
+                broadcastStateImmediate();
             }
             if (mode === 'familiada') {
                 familiadaShowStartScreenOnConnect = true;
                 io.to('familiada').emit('familiada_show_start_screen');
             }
             io.emit('screen_switch', { mode });
-            if (mode === 'quiz') broadcastStateImmediate();
         }
     });
     socket.on('welcome_update', (data) => {
@@ -5970,7 +6158,14 @@ io.on('connection', (socket) => {
             index: prezentacjaIndex,
             playing: prezentacjaPlaying,
             loop: prezentacjaLoop,
-            liveOverlay: { type: liveOverlayType, countdownMinutes: liveOverlayCountdownMinutes, text: liveOverlayText, textPosition: liveOverlayTextPosition }
+            liveOverlay: {
+                type: liveOverlayType,
+                countdownMinutes: liveOverlayCountdownMinutes,
+                countdownHours: liveOverlayCountdownHours,
+                countdownPhase: liveOverlayCountdownPhase,
+                text: liveOverlayText,
+                textPosition: liveOverlayTextPosition
+            }
         });
     });
     socket.on('prezentacja_load', (data) => {
@@ -6040,30 +6235,43 @@ io.on('connection', (socket) => {
         io.emit('prezentacja_loop', { loop: prezentacjaLoop });
     });
 
-    let liveOverlayType = 'none';
-    let liveOverlayCountdownMinutes = 3;
-    let liveOverlayText = '';
-    let liveOverlayTextPosition = 'center';
+    function emitLiveOverlayState() {
+        io.emit('prezentacja_overlay', {
+            type: liveOverlayType,
+            countdownMinutes: liveOverlayCountdownMinutes,
+            countdownHours: liveOverlayCountdownHours,
+            countdownPhase: liveOverlayCountdownPhase,
+            text: liveOverlayText,
+            textPosition: liveOverlayTextPosition
+        });
+    }
     socket.on('prezentacja_overlay', (data) => {
         const t = (data && data.type) || 'none';
         if (t === 'none') {
             liveOverlayType = 'none';
+            liveOverlayCountdownPhase = 'off';
         } else {
             liveOverlayType = t;
             if (t === 'countdown') {
-                const m = parseFloat(String(data.countdownMinutes || 3).replace(',', '.'));
-                liveOverlayCountdownMinutes = !isNaN(m) && m >= 1 ? Math.min(120, m) : 3;
+                const h = Math.max(0, Math.min(23, Math.floor(Number(data.countdownHours)) || 0));
+                const m = Math.max(0, Math.min(59, Math.floor(Number(data.countdownMinutes)) || 0));
+                liveOverlayCountdownHours = h;
+                liveOverlayCountdownMinutes = m > 0 || h > 0 ? m : 3;
+                liveOverlayCountdownPhase = (data.countdownPhase === 'running' || data.countdownPhase === 'paused')
+                    ? data.countdownPhase
+                    : 'display';
             } else if (t === 'text') {
                 liveOverlayText = String(data.text || '').slice(0, 200);
                 liveOverlayTextPosition = ['top', 'center', 'bottom'].includes(data.textPosition) ? data.textPosition : 'center';
             }
         }
-        io.emit('prezentacja_overlay', {
-            type: liveOverlayType,
-            countdownMinutes: liveOverlayCountdownMinutes,
-            text: liveOverlayText,
-            textPosition: liveOverlayTextPosition
-        });
+        emitLiveOverlayState();
+    });
+    socket.on('prezentacja_countdown_toggle', () => {
+        if (liveOverlayType !== 'countdown') return;
+        if (liveOverlayCountdownPhase === 'running') liveOverlayCountdownPhase = 'paused';
+        else liveOverlayCountdownPhase = 'running';
+        emitLiveOverlayState();
     });
 
     // === GŁOŚNOŚĆ – dwa suwaki: gry (wspólny) + Imprezator ===
@@ -6081,14 +6289,14 @@ io.on('connection', (socket) => {
     socket.on('imprezator_volume_request', () => {
         socket.emit('imprezator_volume_sync', imprezatorVolume);
     });
-    // Kompatybilność wsteczna (stary mikser / admin.html)
+    // Kompatybilność wsteczna — stary klient może nadal wysłać master_volume (ustawia games)
     socket.on('master_volume', (data) => {
         const v = parseFloat(data && data.volume);
         if (!isNaN(v) && v >= 0 && v <= 1) setGamesVolume(v);
     });
     socket.on('master_volume_request', () => {
         socket.emit('games_volume', { volume: gamesVolume });
-        socket.emit('master_volume', { volume: gamesVolume });
+        socket.emit('volumes_all', { games: gamesVolume, imprezator: imprezatorVolume });
     });
     socket.on('volumes_request', () => {
         socket.emit('volumes_all', { games: gamesVolume, imprezator: imprezatorVolume });
@@ -6211,10 +6419,16 @@ io.on('connection', (socket) => {
     socket.on('njr_sampler_join_screen', () => {
         socket.join('njr_sampler_screen');
         socket.emit('njr_sampler_state', { active: njrSamplerActive, config: njrSamplerConfig });
-        socket.emit('njr_sampler_volume', digitalOutputClamp(gamesVolume));
+        socket.emit('njr_sampler_volume', gamesVolume);
     });
     socket.on('njr_sampler_join_phone', () => {
         socket.join('njr_sampler_phone');
+        if (njrSamplerActive) {
+            const assignments = loadNjrSamplerBankAssignment();
+            if (assignments.length > 0) {
+                njrSamplerConfig = buildNjrSamplerConfigFromBankAssignments(assignments);
+            }
+        }
         const phoneConfig = buildNjrSamplerStateForPhone();
         socket.emit('njr_sampler_state', { active: njrSamplerActive, config: phoneConfig });
         socket.emit('njr_sampler_volume_sync', gamesVolume); // telefon ustawia suwak
@@ -6230,7 +6444,7 @@ io.on('connection', (socket) => {
         const delta = typeof payload === 'number' ? payload : (payload && payload.delta);
         io.to('njr_sampler_phone').emit('njr_sampler_bank_delta', { delta: delta === 1 || delta === -1 ? delta : 0 });
     });
-    socket.on('njr_sampler_toggle', (payload) => {
+    socket.on('njr_sampler_toggle', async (payload) => {
         if (!njrSamplerActive) return;
         const banks = njrSamplerConfig.banks || [{ tiles: njrSamplerConfig.tiles || [] }];
         let bankIndex = (typeof payload === 'object' && payload != null && typeof payload.bankIndex === 'number') ? payload.bankIndex : 0;
@@ -6241,11 +6455,7 @@ io.on('connection', (socket) => {
         const tile = tiles.find(t => t.id === tileId);
         if (!tile || !tile.audio) return;
         const vol = Math.max(0, Math.min(100, tile.volume ?? 100)) / 100;
-        let audioUrl = tile.audio.startsWith('/') || tile.audio.startsWith('http') ? tile.audio : '/uploads/' + tile.audio;
-        if (/\.(vdjsample|ogg)$/i.test(audioUrl)) audioUrl = '/api/audio/stream?path=' + encodeURIComponent(audioUrl);
         const loop = !!tile.loop;
-        const normalizedGain = typeof tile.normalizedGain === 'number' ? tile.normalizedGain : undefined;
-        const playPayload = (u, v, lp) => ({ url: u, volume: v, loop: lp, ...(normalizedGain != null && { normalizedGain }) });
 
         const sameTile = njrSamplerPlayingTile === tileId && njrSamplerPlayingBankIndex === bankIndex;
         if (sameTile) {
@@ -6266,7 +6476,8 @@ io.on('connection', (socket) => {
             }
             njrSamplerPlayingTile = tileId;
             njrSamplerPlayingBankIndex = bankIndex;
-            io.to('njr_sampler_screen').emit('njr_sampler_play', playPayload(audioUrl, vol, loop));
+            const playPayload = await buildMusicScreenPlayPayload(tile, tile.audio, { tileVolume: vol, loop });
+            io.to('njr_sampler_screen').emit('njr_sampler_play', playPayload);
             audioMonitorLast = { type: 'sampler_tile', tileId, bankIndex };
             io.to('njr_sampler_phone').emit('njr_sampler_playing', { tileId, bankIndex });
         }
@@ -6410,14 +6621,14 @@ io.on('connection', (socket) => {
     socket.on('whitney_join_screen', () => {
         socket.join('whitney_screen');
         socket.emit('whitney_state', { active: whitneyActive, config: whitneyConfig });
-        socket.emit('whitney_volume', digitalOutputClamp(gamesVolume));
+        socket.emit('whitney_volume', gamesVolume);
     });
     socket.on('whitney_join_phone', () => {
         socket.join('whitney_phone');
         socket.emit('whitney_state', { active: whitneyActive, config: whitneyConfig });
         socket.emit('whitney_volume_sync', gamesVolume);
     });
-    socket.on('whitney_toggle', (payload) => {
+    socket.on('whitney_toggle', async (payload) => {
         if (!whitneyActive) return;
         const rawId = (typeof payload === 'object' && payload != null && payload.tileId != null) ? payload.tileId : payload;
         const tileId = rawId != null ? String(rawId).trim() : '';
@@ -6425,12 +6636,8 @@ io.on('connection', (socket) => {
         const tiles = whitneyConfig.tiles || [];
         const tile = tiles.find(t => String(t.id) === tileId);
         if (!tile || !tile.audio) return;
-        let audioUrl = tile.audio.startsWith('/') || tile.audio.startsWith('http') ? tile.audio : '/uploads/' + tile.audio;
-        if (/\.(vdjsample|ogg)$/i.test(audioUrl)) audioUrl = '/api/audio/stream?path=' + encodeURIComponent(audioUrl);
         const vol = Math.max(0, Math.min(100, tile.volume ?? 100)) / 100;
         const loop = !!tile.loop;
-        const ng = typeof tile.normalizedGain === 'number' ? tile.normalizedGain : undefined;
-        const playPayload = (u, v, lp) => ({ url: u, volume: v, loop: lp, ...(ng != null && { normalizedGain: ng }) });
 
         const playingKey = whitneyPlayingTile != null ? String(whitneyPlayingTile) : null;
         if (playingKey === tileId) {
@@ -6442,7 +6649,8 @@ io.on('connection', (socket) => {
                 io.to('whitney_screen').emit('whitney_stop', { immediate: true });
             }
             whitneyPlayingTile = tileId;
-            io.to('whitney_screen').emit('whitney_play', playPayload(audioUrl, vol, loop));
+            const playPayload = await buildMusicScreenPlayPayload(tile, tile.audio, { tileVolume: vol, loop });
+            io.to('whitney_screen').emit('whitney_play', playPayload);
             io.to('whitney_phone').emit('whitney_playing', { tileId });
         }
         emitAudioMonitorState();
@@ -6453,7 +6661,7 @@ io.on('connection', (socket) => {
     socket.on('spiewaj_dalej_join_screen', () => {
         socket.join('spiewaj_dalej_screen');
         socket.emit('spiewaj_dalej_state', getSpiewajDalejStatePayload(false));
-        socket.emit('spiewaj_dalej_volume', digitalOutputClamp(gamesVolume));
+        socket.emit('spiewaj_dalej_volume', gamesVolume);
     });
     socket.on('spiewaj_dalej_join_phone', () => {
         socket.join('spiewaj_dalej_phone');
@@ -6489,17 +6697,13 @@ io.on('connection', (socket) => {
             emitAudioMonitorState();
             return;
         }
-        let audioUrl = track.audio.startsWith('http') ? track.audio : (track.audio.startsWith('/') ? track.audio : '/uploads/' + track.audio.replace(/^\/+/, ''));
-        if (/\.(vdjsample|ogg)$/i.test(audioUrl)) {
-            audioUrl = '/api/audio/stream?path=' + encodeURIComponent(audioUrl);
-        }
         if (spiewajDalejScreenTrackId && String(spiewajDalejScreenTrackId) !== tid) {
             io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_stop', { immediate: true });
         }
         spiewajDalejScreenTrackId = tid;
         spiewajDalejUsedIds.add(tid);
-        const ng = await ensureMusicTrackNormalizedGain(track);
-        io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_play', { url: audioUrl, volume: digitalOutputClamp(gamesVolume), trackId: tid, normalizedGain: ng });
+        const playPayload = await buildMusicScreenPlayPayload(track, track.audio, { tileVolume: 1, trackId: tid });
+        io.to('spiewaj_dalej_screen').emit('spiewaj_dalej_play', playPayload);
         io.to('spiewaj_dalej_phone').emit('spiewaj_dalej_used', { trackId: tid });
         emitAudioMonitorState();
     });
@@ -6522,7 +6726,7 @@ io.on('connection', (socket) => {
     socket.on('bitwa_wokalna_join_screen', () => {
         socket.join('bitwa_wokalna_screen');
         socket.emit('bitwa_wokalna_state', getBitwaWokalnaStatePayload(false));
-        socket.emit('bitwa_wokalna_volume', digitalOutputClamp(gamesVolume));
+        socket.emit('bitwa_wokalna_volume', gamesVolume);
     });
     socket.on('bitwa_wokalna_join_phone', () => {
         socket.join('bitwa_wokalna_phone');
@@ -6558,17 +6762,13 @@ io.on('connection', (socket) => {
             emitAudioMonitorState();
             return;
         }
-        let audioUrl = track.audio.startsWith('http') ? track.audio : (track.audio.startsWith('/') ? track.audio : '/uploads/' + track.audio.replace(/^\/+/, ''));
-        if (/\.(vdjsample|ogg)$/i.test(audioUrl)) {
-            audioUrl = '/api/audio/stream?path=' + encodeURIComponent(audioUrl);
-        }
         if (bitwaWokalnaScreenTrackId && String(bitwaWokalnaScreenTrackId) !== tid) {
             io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_stop', { immediate: true });
         }
         bitwaWokalnaScreenTrackId = tid;
         bitwaWokalnaUsedIds.add(tid);
-        const ng = await ensureMusicTrackNormalizedGain(track);
-        io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_play', { url: audioUrl, volume: digitalOutputClamp(gamesVolume), trackId: tid, normalizedGain: ng });
+        const playPayload = await buildMusicScreenPlayPayload(track, track.audio, { tileVolume: 1, trackId: tid });
+        io.to('bitwa_wokalna_screen').emit('bitwa_wokalna_play', playPayload);
         io.to('bitwa_wokalna_phone').emit('bitwa_wokalna_used', { trackId: tid });
         emitAudioMonitorState();
     });
@@ -6806,7 +7006,7 @@ io.on('connection', (socket) => {
         io.sockets.sockets.forEach((s) => {
             if (s.familiadaRole === 'buttons') s.disconnect(true);
         });
-        console.log('⛔ Familiada: zakończono grę – przyciski rozłączone, dźwięk wyłączony');
+        log.debug('⛔ Familiada: zakończono grę – przyciski rozłączone, dźwięk wyłączony');
     });
     /** „ZERUJ PUNKTY” w panelu admina — tylko wyzerowanie wyników; bez FULL_RESET na TV
      * (FULL_RESET ustawiało planszę na „OCZEKIWANIE...” i chowało overlay startowy). */
@@ -6915,7 +7115,7 @@ io.on('connection', (socket) => {
             password = null;
         }
         
-        console.log('📶 admin_generate_wifi_qr otrzymał:', { ssid, password, wifiType, dataType: typeof data });
+        log.debug('📶 admin_generate_wifi_qr otrzymał:', { ssid, password, wifiType, dataType: typeof data });
         
         if (!ssid || ssid.trim() === '') {
             socket.emit('wifi_qr_error', 'Nazwa sieci nie może być pusta');
@@ -7017,14 +7217,14 @@ io.on('connection', (socket) => {
                     }
                     currentPinggyUrl = normalized;
                     tunnelProcess = child;
-                    console.log('🌐 Tunel Cloudflare (1 klik):', currentPinggyUrl);
+                    log.debug('🌐 Tunel Cloudflare (1 klik):', currentPinggyUrl);
                     appendTunnelLog('Cloudflare Tunnel URL: ' + currentPinggyUrl);
                     (async () => {
                         // Generuj kod sesji i skróć URL — alternatywa dla skanera QR
                         currentSessionCode = generateSessionCode();
                         const voteUrl = currentPinggyUrl + '/vote.html';
                         currentShortUrl = await shortenUrl(voteUrl);
-                        console.log('\U0001f511 Kod sesji:', currentSessionCode, '| Krotki URL:', currentShortUrl || '(brak)');
+                        log.debug('\U0001f511 Kod sesji:', currentSessionCode, '| Krotki URL:', currentShortUrl || '(brak)');
                         // Zarejestruj sesję na serwerze Render — stały punkt /dolacz
                         const renderBase = process.env.STRIPE_DOMAIN || process.env.RENDER_EXTERNAL_URL || '';
                         if (renderBase && renderBase.startsWith('http')) {
@@ -7033,7 +7233,7 @@ io.on('connection', (socket) => {
                                 const regBody = JSON.stringify({ code: currentSessionCode, redirectUrl: voteUrl });
                                 const mod = regUrl.startsWith('https') ? require('https') : require('http');
                                 const regReq = mod.request(regUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(regBody) } }, (r) => {
-                                    let d = ''; r.on('data', c => d += c); r.on('end', () => console.log('\U0001f3ae Render /dolacz:', d.slice(0,60)));
+                                    let d = ''; r.on('data', c => d += c); r.on('end', () => log.debug('\U0001f3ae Render /dolacz:', d.slice(0,60)));
                                 });
                                 regReq.on('error', e => console.warn('Blad rejestracji sesji:', e.message));
                                 regReq.write(regBody); regReq.end();
@@ -7098,7 +7298,7 @@ io.on('connection', (socket) => {
             tunnelProcess = null;
         }
         currentPinggyUrl = null;
-        console.log('🌐 Tunel zatrzymany.');
+        log.debug('🌐 Tunel zatrzymany.');
         io.emit('qr_code', null);
         io.emit('update_state', getStateForBroadcast());
         socket.emit('tunnel_stopped');
@@ -7111,7 +7311,7 @@ io.on('connection', (socket) => {
 
     socket.on('admin_set_show_local_qr', async (on) => {
         showLocalGameQR = !!on;
-        console.log('📱 QR sieci lokalnej na ekranie:', showLocalGameQR ? 'tak' : 'nie');
+        log.debug('📱 QR sieci lokalnej na ekranie:', showLocalGameQR ? 'tak' : 'nie');
         if (showLocalGameQR) {
             const data = await generateLocalGameQR();
             if (data) io.emit('qr_local_game', data);
@@ -7141,7 +7341,7 @@ io.on('connection', (socket) => {
                 } catch (_) {}
             }
         }
-        console.log('🌐 Tunel Pinggy (ręczny URL):', currentPinggyUrl ? currentPinggyUrl : '(wyłączony)');
+        log.debug('🌐 Tunel Pinggy (ręczny URL):', currentPinggyUrl ? currentPinggyUrl : '(wyłączony)');
         const data = await generateGameQR();
         if (data) io.emit('qr_code', data.qrCode);
         // Regeneruj QR 2.0 – baseUrl się zmienił (tunel włączony/wyłączony)
@@ -7181,10 +7381,13 @@ io.on('connection', (socket) => {
 
     // ZAŁADUJ QUIZ DO GRY
     socket.on('admin_load_quiz', (filename) => {
-        console.log(`🎮 Ładowanie quizu: ${filename}`);
+        log.debug(`🎮 Ładowanie quizu: ${filename}`);
         const { questions, options } = loadQuestions(filename);
         
         if (questions.length === 0) return socket.emit('quiz_error', 'Plik jest pusty');
+
+        partyState.classicQuizBackup = null;
+        gameMode = 'quiz';
         
         // Załaduj pełne dane quizu (w tym thanksScreen)
         let thanksScreen = null;
@@ -7225,6 +7428,7 @@ io.on('connection', (socket) => {
         disconnectedPlayersWithScore.clear();
         
         socket.emit('quiz_loaded', { filename: filename, questions: questions, options: options });
+        broadcastPartyState();
         broadcastState();
     });
 
@@ -7295,19 +7499,19 @@ io.on('connection', (socket) => {
         const questionTime = question.time || 45;
         if (questionTime > 0 && !gameState.quizOptions.disableTimePoints) {
             questionTimer = setTimeout(() => {
-                console.log(`⏰ Czas pytania z literami minął - automatyczne pokazanie statystyk`);
+                log.debug(`⏰ Czas pytania z literami minął - automatyczne pokazanie statystyk`);
                 endQuestionAndShowStats();
             }, questionTime * 1000);
         }
         
         broadcastStateImmediate(); // Admin musi od razu zobaczyć aktualizację
         const lg = gameState.letterGame;
-        console.log(`🔤 [LETTER] Gra z literami rozpoczęta: questionId=${question.id}, letterCount=${finalLetterCount}, gameStarted=${!!lg?.gameStarted}, playerLettersCount=${lg?.playerLetters ? Object.keys(lg.playerLetters).length : 0}, czas=${questionTime}s`);
+        log.debug(`🔤 [LETTER] Gra z literami rozpoczęta: questionId=${question.id}, letterCount=${finalLetterCount}, gameStarted=${!!lg?.gameStarted}, playerLettersCount=${lg?.playerLetters ? Object.keys(lg.playerLetters).length : 0}, czas=${questionTime}s`);
     });
 
     socket.on('admin_show_ships_stats', () => {
         // Admin nie musi być w players - jeśli wysyła admin_* eventy, to jest adminem
-        console.log('📊 admin_show_ships_stats otrzymane');
+        log.debug('📊 admin_show_ships_stats otrzymane');
         if (!gameState.activeQuestion || gameState.activeQuestion.type !== 'SHIPS') {
             console.warn('⚠️ admin_show_ships_stats - brak aktywnego pytania SHIPS');
             return;
@@ -7322,7 +7526,7 @@ io.on('connection', (socket) => {
         gameState.showStats = true;
         gameState.showCorrect = false;
         // NIE zmieniaj type na GAME_STATS - pozostaw GAME aby można było rozpocząć następną rundę
-        console.log('📊 admin_show_ships_stats - ustawiono showStats=true');
+        log.debug('📊 admin_show_ships_stats - ustawiono showStats=true');
         broadcastStateImmediate();
     });
 
@@ -7375,7 +7579,7 @@ io.on('connection', (socket) => {
         const audioUrl = q && (q.type === 'MUSIC' || q.type === 'M') && q.audio;
         if (audioUrl) {
             io.emit('admin_repeat_music', audioUrl);
-            console.log('🔁 admin_repeat_music – powtórzenie dźwięku pytania muzycznego');
+            log.debug('🔁 admin_repeat_music – powtórzenie dźwięku pytania muzycznego');
         }
     });
 
@@ -7418,7 +7622,7 @@ io.on('connection', (socket) => {
             submitters
         };
         broadcastState();
-        console.log(`🎤 Dogrywka: ${w}${submitters.length ? ` (${submitters.length} graczy: ${submitters.map(s => s.nick).join(', ')})` : ''}`);
+        log.debug(`🎤 Dogrywka: ${w}${submitters.length ? ` (${submitters.length} graczy: ${submitters.map(s => s.nick).join(', ')})` : ''}`);
     });
 
     socket.on('admin_end_playoff', () => {
@@ -7439,7 +7643,7 @@ io.on('connection', (socket) => {
                         }
                         const sock = io.sockets.sockets.get(socketId);
                         if (sock) sendPlayerScore(sock, player);
-                        console.log(`🎤 Dogrywka: odjęto ${remove} pkt graczowi ${nick} (TAK < 51%)`);
+                        log.debug(`🎤 Dogrywka: odjęto ${remove} pkt graczowi ${nick} (TAK < 51%)`);
                     } else {
                         const pending = pendingDisconnects.get(socketId);
                         const disc = disconnectedPlayersWithScore.get(nick);
@@ -7451,7 +7655,7 @@ io.on('connection', (socket) => {
                             if (gameState.teamBattleMode && p.team && gameState.teams[p.team]) {
                                 gameState.teams[p.team].score -= remove * getTeamBalanceMultiplier(p.team);
                             }
-                            console.log(`🎤 Dogrywka: odjęto ${remove} pkt (rozłączony) ${nick}`);
+                            log.debug(`🎤 Dogrywka: odjęto ${remove} pkt (rozłączony) ${nick}`);
                         }
                     }
                 });
@@ -7512,12 +7716,12 @@ io.on('connection', (socket) => {
                 teams[0] || { name: '---', score: 0 },
                 teams[1] || { name: '---', score: 0 }
             ];
-            console.log('🥇 Generowanie podium drużynowego:', gameState.winners);
+            log.debug('🥇 Generowanie podium drużynowego:', gameState.winners);
         } else {
             // Tryb indywidualny - standardowe podium z graczami
             const top3 = calculateLeaderboard().slice(0, 3);
             gameState.winners = top3;
-            console.log('🥇 Generowanie podium dla:', top3);
+            log.debug('🥇 Generowanie podium dla:', top3);
         }
         
         gameState.type = 'PODIUM';
@@ -7546,7 +7750,7 @@ io.on('connection', (socket) => {
 
     // === PEŁNY RESET GRY ===
     socket.on('admin_reset_game', () => {
-        console.log('🔄 PEŁNY RESET GRY - resetowanie wszystkiego...');
+        log.debug('🔄 PEŁNY RESET GRY - resetowanie wszystkiego...');
         
         // Wyczyść timer
         if (questionTimer) {
@@ -7608,7 +7812,7 @@ io.on('connection', (socket) => {
                 // Zawsze generuj nowe ID przy resecie (nawet jeśli pytanie już ma ID)
                 q.id = `q_${timestamp}_${Math.random().toString(36).substr(2, 5)}`;
             });
-            console.log('🔄 Wygenerowano nowe ID dla wszystkich pytań po resecie');
+            log.debug('🔄 Wygenerowano nowe ID dla wszystkich pytań po resecie');
         }
         
         // Wyczyść bufor: lista graczy (nicki) i rozłączeni
@@ -7639,7 +7843,7 @@ io.on('connection', (socket) => {
         });
         
         updateUsersCount();
-        console.log('✅ Pełny reset gry zakończony');
+        log.debug('✅ Pełny reset gry zakończony');
     });
 
     socket.on('admin_end_game', () => {
@@ -7648,7 +7852,7 @@ io.on('connection', (socket) => {
         if (!isAdmin) return;
         // Wyłącza tylko muzykę, tunel i rozłącza telefony – serwer pozostaje włączony
         (async () => {
-            console.log('⛔ KONIEC GRY – muzyka, tunel, rozłączenie telefonów');
+            log.debug('⛔ KONIEC GRY – muzyka, tunel, rozłączenie telefonów');
             io.emit('admin_stop_music');
             if (tunnelProcess) {
                 if (typeof tunnelProcess.stop === 'function') {
@@ -7681,7 +7885,7 @@ io.on('connection', (socket) => {
             gameState.showPlayersWithQR = false;
             broadcastStateImmediate();
             updateUsersCount();
-            console.log('✅ Koniec gry – telefony rozłączone');
+            log.debug('✅ Koniec gry – telefony rozłączone');
         })();
     });
 
@@ -7698,7 +7902,7 @@ io.on('connection', (socket) => {
 
     socket.on('admin_toggle_show_players_with_qr', async () => {
         gameState.showPlayersWithQR = !gameState.showPlayersWithQR;
-        console.log('👥 QR + nicki na ekranie:', gameState.showPlayersWithQR ? 'WŁĄCZONE' : 'WYŁĄCZONE');
+        log.debug('👥 QR + nicki na ekranie:', gameState.showPlayersWithQR ? 'WŁĄCZONE' : 'WYŁĄCZONE');
         if (gameState.showPlayersWithQR) {
             const wifiQR = currentWiFiSSID ? await generateWiFiQR(currentWiFiSSID) : null;
             const localGameQR = showLocalGameQR ? await generateLocalGameQR() : null;
@@ -7711,7 +7915,7 @@ io.on('connection', (socket) => {
     socket.on('admin_toggle_zaraz', () => {
         gameState.showZarazZaczynamy = !gameState.showZarazZaczynamy;
         if (gameState.showZarazZaczynamy) gameState.showPlayersWithQR = false;
-        console.log('🎬 Ekran ZARAZ ZACZYNAMY:', gameState.showZarazZaczynamy ? 'WŁĄCZONY' : 'WYŁĄCZONY');
+        log.debug('🎬 Ekran ZARAZ ZACZYNAMY:', gameState.showZarazZaczynamy ? 'WŁĄCZONY' : 'WYŁĄCZONY');
         broadcastStateImmediate();
     });
 
@@ -7724,7 +7928,7 @@ io.on('connection', (socket) => {
 
     // Koniec gry: wyłącz muzykę, zatrzymaj tunel, rozłącz telefony vote
     socket.on('admin_end_game_session', async () => {
-        console.log('⛔ KONIEC GRY – muzyka, tunel, rozłączenie telefonów');
+        log.debug('⛔ KONIEC GRY – muzyka, tunel, rozłączenie telefonów');
         io.emit('admin_stop_music');
         if (tunnelProcess) {
             if (typeof tunnelProcess.stop === 'function') {
@@ -7757,7 +7961,7 @@ io.on('connection', (socket) => {
         gameState.showPlayersWithQR = false;
         broadcastStateImmediate();
         updateUsersCount();
-        console.log('✅ Koniec gry – telefony rozłączone');
+        log.debug('✅ Koniec gry – telefony rozłączone');
     });
     socket.on('admin_set_master_volume', (vol) => {
         const v = Math.max(0, Math.min(100, parseInt(vol, 10))) / 100;
@@ -7768,7 +7972,7 @@ io.on('connection', (socket) => {
     // === Pokaż QR na telefonach (u graczy po dołączeniu – przekaż dalej dostęp) ===
     socket.on('admin_toggle_show_qr_on_phones', async () => {
         gameState.showQROnPhones = !gameState.showQROnPhones;
-        console.log(`📱 Pokaż QR na telefonach: ${gameState.showQROnPhones ? 'WŁĄCZONE' : 'WYŁĄCZONE'}`);
+        log.debug(`📱 Pokaż QR na telefonach: ${gameState.showQROnPhones ? 'WŁĄCZONE' : 'WYŁĄCZONE'}`);
         
         if (gameState.showQROnPhones) {
             const wifiQR = currentWiFiSSID ? await generateWiFiQR(currentWiFiSSID) : null;
@@ -7791,7 +7995,7 @@ io.on('connection', (socket) => {
 
     socket.on('admin_toggle_send_images_to_phones', () => {
         gameState.sendImagesToPhones = !gameState.sendImagesToPhones;
-        console.log(`🖼️ Obrazki na telefonach: ${gameState.sendImagesToPhones ? 'WŁĄCZONE' : 'WYŁĄCZONE'}`);
+        log.debug(`🖼️ Obrazki na telefonach: ${gameState.sendImagesToPhones ? 'WŁĄCZONE' : 'WYŁĄCZONE'}`);
         broadcastStateImmediate();
     });
     
@@ -7809,7 +8013,7 @@ io.on('connection', (socket) => {
     });
     
     socket.on('admin_set_teams', (data) => {
-        console.log('📥 Otrzymano admin_set_teams:', data);
+        log.debug('📥 Otrzymano admin_set_teams:', data);
         const { teamA, teamB } = data || {};
         if (teamA && teamB && teamA.trim() && teamB.trim()) {
             gameState.teamBattleMode = true;
@@ -7820,7 +8024,7 @@ io.on('connection', (socket) => {
             // Resetuj drużyny wszystkich graczy
             players.forEach(p => { 
                 p.team = null; 
-                console.log(`🔄 Reset drużyny dla gracza ${p.nick}`);
+                log.debug(`🔄 Reset drużyny dla gracza ${p.nick}`);
             });
             
             // Wyślij specjalny event do wszystkich graczy, aby wyczyścili localStorage
@@ -7830,7 +8034,7 @@ io.on('connection', (socket) => {
             players.forEach((player, socketId) => {
                 const playerSocket = io.sockets.sockets.get(socketId);
                 if (playerSocket && !player.team) {
-                    console.log(`⚔️ Wysyłam TEAM_SELECTION do gracza ${player.nick}`);
+                    log.debug(`⚔️ Wysyłam TEAM_SELECTION do gracza ${player.nick}`);
                     playerSocket.emit('update_state', {
                         ...getStateForBroadcast(),
                         type: 'TEAM_SELECTION',
@@ -7840,7 +8044,7 @@ io.on('connection', (socket) => {
             });
             
             broadcastState();
-            console.log(`⚔️ Tryb drużynowy aktywowany: ${teamA.trim()} vs ${teamB.trim()}`);
+            log.debug(`⚔️ Tryb drużynowy aktywowany: ${teamA.trim()} vs ${teamB.trim()}`);
             socket.emit('team_mode_activated', { teamA: teamA.trim(), teamB: teamB.trim() });
         } else {
             console.warn('⚠️ admin_set_teams: brak nazw drużyn lub puste wartości');
@@ -7936,7 +8140,7 @@ io.on('connection', (socket) => {
 
     // Usuń quiz i opcjonalnie powiązane pliki
     socket.on('editor_delete_file', async (data) => {
-        console.log('📥 Otrzymano żądanie usunięcia:', data);
+        log.debug('📥 Otrzymano żądanie usunięcia:', data);
         const { filename, deleteRelated } = data;
         
         if (!filename) {
@@ -7947,7 +8151,7 @@ io.on('connection', (socket) => {
         
         try {
             const filePath = path.join(quizzesDir, filename);
-            console.log('🔍 Sprawdzanie pliku:', filePath);
+            log.debug('🔍 Sprawdzanie pliku:', filePath);
             
             if (!fs.existsSync(filePath)) {
                 console.error('❌ Plik nie istnieje:', filePath);
@@ -7967,7 +8171,7 @@ io.on('connection', (socket) => {
                 for (const fileName of allQuizFiles) {
                     if (usedElsewhere.has(fileName)) {
                         skippedFiles.push(fileName);
-                        console.log(`🛡️ Pominięto (używany przez inny quiz): ${fileName}`);
+                        log.debug(`🛡️ Pominięto (używany przez inny quiz): ${fileName}`);
                         continue;
                     }
                     const fullPath = path.join(uploadsDir, fileName);
@@ -7976,7 +8180,7 @@ io.on('connection', (socket) => {
                             await moveUserPathsToTrash(fullPath);
                             removeFileFromIndex(fileName);
                             deletedFiles.push(fileName);
-                            console.log(`✅ Powiązany plik przeniesiony do Kosza: ${fileName}`);
+                            log.debug(`✅ Powiązany plik przeniesiony do Kosza: ${fileName}`);
                             await devSyncDelete(`public/uploads/${fileName}`);
                         } catch (err) {
                             errors.push(`Błąd usuwania ${fileName}: ${err.message}`);
@@ -7989,7 +8193,7 @@ io.on('connection', (socket) => {
             try {
                 await moveUserPathsToTrash(filePath);
                 deletedFiles.push(filename);
-                console.log(`✅ Quiz przeniesiony do Kosza: ${filename}`);
+                log.debug(`✅ Quiz przeniesiony do Kosza: ${filename}`);
                 await devSyncDelete(`public/quizzes/${filename}`);
             } catch (err) {
                 errors.push(`Błąd usuwania ${filename}: ${err.message}`);
@@ -8129,6 +8333,7 @@ io.on('connection', (socket) => {
 
     // Nowy klient — wyślij aktualny partyState (np. gdy admin PWA otwiera panel w trakcie gry)
     socket.emit('party_state', buildPartyStatePayload());
+    loadPartyQuizGoldenData();
     socket.emit('party_golden_list', partyQuizGoldenQuestions);
 
     /** TV zatrzymał muzykę startową przy wejściu w pytanie — zsynchronizuj przycisk w panelu Party Quiz. */
@@ -8146,6 +8351,7 @@ io.on('connection', (socket) => {
             return;
         }
         partyRestoreGameStateQuestionsIfExtended();
+        partyBackupClassicQuizIfNeeded();
         partyState.activeFile = filename;
         partyState.quiz = loaded;
         partyState.currentIndex = -1;
@@ -8166,7 +8372,7 @@ io.on('connection', (socket) => {
         gameState.activeQuestion = null;
         gameState.showZarazZaczynamy = false;
         gameState.showPlayersWithQR = false;
-        console.log(`🥳 party_load_quiz: "${filename}" (${loaded.questions.length} pytań)`);
+        log.debug(`🥳 party_load_quiz: "${filename}" (${loaded.questions.length} pytań)`);
         broadcastPartyState();
         broadcastStateImmediate();
     });
@@ -8248,7 +8454,7 @@ io.on('connection', (socket) => {
                     revealed: false
                 }))
             });
-            console.log(`🥳 party_run_question FAMILIADA #${index + 1}: "${q.question}"`);
+            log.debug(`🥳 party_run_question FAMILIADA #${index + 1}: "${q.question}"`);
         } else if (q.type === 'FAST_LIST') {
             gameState.type = 'GAME';
             gameState.showPlayersWithQR = false;
@@ -8265,11 +8471,11 @@ io.on('connection', (socket) => {
             gameState.letterGame = null;
             broadcastPartyState();
             broadcastStateImmediate();
-            console.log(`🥳 party_run_question FAST_LIST #${index + 1}: "${q.question}"`);
+            log.debug(`🥳 party_run_question FAST_LIST #${index + 1}: "${q.question}"`);
         } else {
             try {
                 adminStartQuestionAtIndex(index, 1);
-                console.log(`🥳 party_run_question ${q.type} #${index + 1} (adminStartQuestionAtIndex)`);
+                log.debug(`🥳 party_run_question ${q.type} #${index + 1} (adminStartQuestionAtIndex)`);
             } catch (err) {
                 console.error('❌ party_run_question:', err);
                 socket.emit('party_run_error', { message: 'Błąd startu pytania: ' + err.message });
@@ -8296,13 +8502,12 @@ io.on('connection', (socket) => {
     });
 
     socket.on('party_run_golden_question', (gIdx) => {
-        if (!partyState.quiz || !Array.isArray(partyState.quiz.questions)) {
-            socket.emit('party_run_error', { message: 'Wczytaj najpierw plik Party Quiz z listy głównej.' });
-            return;
-        }
         if (typeof gIdx !== 'number' || gIdx < 0 || !partyQuizGoldenQuestions[gIdx]) {
             socket.emit('party_run_error', { message: 'Brak pytania w złotej liście Party Quiz.' });
             return;
+        }
+        if (!partyState.quiz) {
+            partyState.quiz = { questions: [], meta: { defaultPoints: 10 } };
         }
         partyRestoreGameStateQuestionsIfExtended();
         const q = partyQuizGoldenQuestions[gIdx];
@@ -8331,7 +8536,7 @@ io.on('connection', (socket) => {
                 partyState.questionAwarded = false;
                 partyRemoveAskedIndex(idx);
                 partyState.revertibleAward = null;
-                console.log(`↩️ party_award_points cofnięcie ${team} −${rev.points} (#${idx + 1})`);
+                log.debug(`↩️ party_award_points cofnięcie ${team} −${rev.points} (#${idx + 1})`);
                 io.emit('party_quiz_sound', 'wrong_answer');
                 partyFlashScoresVisible();
                 broadcastPartyState();
@@ -8341,7 +8546,7 @@ io.on('connection', (socket) => {
             partyState.teams[rev.team].score = Math.max(0, partyState.teams[rev.team].score - rev.points);
             partyState.teams[team].score += rev.points;
             partyState.revertibleAward = { kind: 'standard_points', team, points: rev.points, questionIndex: idx };
-            console.log(`🔀 party_award_points przeniesienie ${rev.team} → ${team} (${rev.points} pkt, #${idx + 1})`);
+            log.debug(`🔀 party_award_points przeniesienie ${rev.team} → ${team} (${rev.points} pkt, #${idx + 1})`);
             io.emit('party_quiz_sound', 'correct_answer');
             partyFlashScoresVisible();
             broadcastPartyState();
@@ -8354,7 +8559,7 @@ io.on('connection', (socket) => {
         partyState.questionAwarded = true;
         partyMarkAsked();
         partyState.revertibleAward = { kind: 'standard_points', team, points: pts, questionIndex: idx };
-        console.log(`🥳 party_award_points ${team} +${pts} (pytanie #${idx + 1}, ${q.type})`);
+        log.debug(`🥳 party_award_points ${team} +${pts} (pytanie #${idx + 1}, ${q.type})`);
         io.emit('party_quiz_sound', 'correct_answer');
         broadcastPartyState();
         broadcastStateImmediate();
@@ -8377,7 +8582,7 @@ io.on('connection', (socket) => {
         partyState.questionAwarded = true;
         partyState.revertibleAward = null;
         partyMarkAsked();
-        console.log(`🥳 party_pass_question #${partyState.currentIndex + 1} (bez punktów)`);
+        log.debug(`🥳 party_pass_question #${partyState.currentIndex + 1} (bez punktów)`);
         io.emit('admin_stop_music');
         broadcastPartyState();
     });
@@ -8458,7 +8663,7 @@ io.on('connection', (socket) => {
         partyState.currentLetter = pickRandomPartyLetter(partyState.currentLetter);
         partyState.buttonUsedThisRound = false;
         partyState.buttonPressedBy = null;
-        console.log(`🔤 party_next_letter: ${partyState.currentLetter}`);
+        log.debug(`🔤 party_next_letter: ${partyState.currentLetter}`);
         io.emit('party_buttons_reset');
         broadcastPartyState();
         broadcastStateImmediate();
@@ -8500,7 +8705,7 @@ io.on('connection', (socket) => {
         partyState.teamLeaderboardVisible = false;
         partyState.finalScreenVisible = true;
         // Zamknij ewentualne aktywne pytanie (nie ukrywamy currentIndex, tylko informujemy TV).
-        console.log('🏁 party_show_final — wyniki: blue=' + partyState.teams.blue.score + ' red=' + partyState.teams.red.score);
+        log.debug('🏁 party_show_final — wyniki: blue=' + partyState.teams.blue.score + ' red=' + partyState.teams.red.score);
         io.emit('party_fam_sound', 'outro');
         broadcastPartyState();
         broadcastStateImmediate();
@@ -8522,7 +8727,7 @@ io.on('connection', (socket) => {
         }
         broadcastPartyState();
         broadcastStateImmediate();
-        console.log('📊 Party Quiz — tablica wyników na TV');
+        log.debug('📊 Party Quiz — tablica wyników na TV');
     });
     socket.on('party_hide_team_results', () => {
         if (gameMode !== 'party') return;
@@ -8557,7 +8762,7 @@ io.on('connection', (socket) => {
         if (partyState.buttonUsedThisRound) return;  // już ktoś nacisnął w tej rundzie
         partyState.buttonUsedThisRound = true;
         partyState.buttonPressedBy = team;
-        console.log('🔔 party_button_press: ' + team + ' (pierwszy w rundzie)');
+        log.debug('🔔 party_button_press: ' + team + ' (pierwszy w rundzie)');
         // Flash na wszystkich klientach (Screen.html TV, admin panel, inne telefony).
         io.emit('party_button_flash', { team });
         broadcastPartyState();
@@ -8569,7 +8774,7 @@ io.on('connection', (socket) => {
         if (gameMode !== 'party') return;
         partyState.buttonUsedThisRound = false;
         partyState.buttonPressedBy = null;
-        console.log('🔄 party_reset_buttons — odblokowane dla bieżącej rundy');
+        log.debug('🔄 party_reset_buttons — odblokowane dla bieżącej rundy');
         io.emit('party_buttons_reset');
         broadcastPartyState();
     });
@@ -8584,7 +8789,7 @@ io.on('connection', (socket) => {
         const v = data && typeof data.value === 'number' && Number.isFinite(data.value) ? data.value : null;
         if (v === null) return;
         partyState.estimationAnswer = { value: v };
-        console.log('📐 party_estimation_submit: ' + v + ' (poprawna: ' + q.correctValue + ')');
+        log.debug('📐 party_estimation_submit: ' + v + ' (poprawna: ' + q.correctValue + ')');
         // party_state PRZED update_state — Screen.html zapisuje partyRoundData / stan party z party_state,
         // a dopiero update_state wywołuje render (inaczej widok jest o 1 zdarzenie opóźniony).
         broadcastPartyState();
@@ -8604,7 +8809,7 @@ io.on('connection', (socket) => {
         if (partyState.familiada.revealed[i]) return;
         partyState.familiada.revealed[i] = true;
         partyState.familiada.pendingIndex = null;
-        console.log(`🎯 party_familiada REVEAL #${i + 1}: "${(q.answers[i] || {}).text}"`);
+        log.debug(`🎯 party_familiada REVEAL #${i + 1}: "${(q.answers[i] || {}).text}"`);
         io.emit('party_fam_sound', 'correct');
         broadcastPartyState();
         broadcastStateImmediate();
@@ -8631,7 +8836,7 @@ io.on('connection', (socket) => {
         }
         if (team !== 'blue' && team !== 'red') return;
         partyState.familiada.errors[team] = Math.max(partyState.familiada.errors[team] || 0, count);
-        console.log(`❌ party_familiada_error ${team}: ${partyState.familiada.errors[team]} X`);
+        log.debug(`❌ party_familiada_error ${team}: ${partyState.familiada.errors[team]} X`);
         io.emit('party_fam_sound', 'bad');
         broadcastPartyState();
         broadcastStateImmediate();
@@ -8672,7 +8877,7 @@ io.on('connection', (socket) => {
                 partyState.questionAwarded = false;
                 partyRemoveAskedIndex(idx);
                 partyState.revertibleAward = null;
-                console.log(`↩️ party_familiada_award_pot cofnięcie ${team} −${rev.points}`);
+                log.debug(`↩️ party_familiada_award_pot cofnięcie ${team} −${rev.points}`);
                 io.emit('party_fam_sound', 'bad');
                 partyFlashScoresVisible();
                 broadcastPartyState();
@@ -8682,7 +8887,7 @@ io.on('connection', (socket) => {
             partyState.teams[rev.team].score = Math.max(0, partyState.teams[rev.team].score - rev.points);
             partyState.teams[team].score += rev.points;
             partyState.revertibleAward = { kind: 'fam_pot', team, points: rev.points, questionIndex: idx };
-            console.log(`🔀 party_familiada_award_pot ${rev.team} → ${team} (${rev.points} pkt)`);
+            log.debug(`🔀 party_familiada_award_pot ${rev.team} → ${team} (${rev.points} pkt)`);
             io.emit('party_fam_sound', 'win_round');
             partyFlashScoresVisible();
             broadcastPartyState();
@@ -8696,7 +8901,7 @@ io.on('connection', (socket) => {
         partyState.familiada.pendingIndex = null;
         partyMarkAsked();
         partyState.revertibleAward = { kind: 'fam_pot', team, points: pot, questionIndex: idx };
-        console.log(`💰 party_familiada_award_pot ${team} +${pot}`);
+        log.debug(`💰 party_familiada_award_pot ${team} +${pot}`);
         io.emit('party_fam_sound', 'win_round');
         broadcastPartyState();
         broadcastStateImmediate();
@@ -8739,7 +8944,7 @@ io.on('connection', (socket) => {
         }
         // zawsze przełącz turę po strzale
         partyState.ships.currentTeam = (team === 'blue') ? 'red' : 'blue';
-        console.log('🚢 party_ships_shot ' + team + ' → [' + row + ',' + col + '] ' + (hit ? 'HIT (+' + partyState.ships.pointsPerHit + ')' : 'miss'));
+        log.debug('🚢 party_ships_shot ' + team + ' → [' + row + ',' + col + '] ' + (hit ? 'HIT (+' + partyState.ships.pointsPerHit + ')' : 'miss'));
         // Dźwięk strzału — whoosh + (hit ? explosion : splash). TV odtwarza WebAudio 1:1 jak Statki Solo.
         io.emit('party_ships_sound', { type: hit ? 'hit' : 'miss', team });
         // Ważne: party_state PIERWSZY (zapełnia partyShipsData na TV), potem update_state.
@@ -8756,7 +8961,7 @@ io.on('connection', (socket) => {
         if (!q || q.type !== 'SHIPS') return;
         const show = !!(data && data.show);
         partyState.ships.showAll = show;
-        console.log('🚢 party_ships_show →', show ? 'REVEAL' : 'HIDE');
+        log.debug('🚢 party_ships_show →', show ? 'REVEAL' : 'HIDE');
         broadcastPartyState();
         broadcastStateImmediate();
     });
@@ -8784,7 +8989,7 @@ io.on('connection', (socket) => {
         if (!q || q.type !== 'SHIPS') return;
         partyState.questionAwarded = true;
         partyMarkAsked();
-        console.log('🏁 party_ships_end — hits blue=' + partyState.ships.hits.blue + ' red=' + partyState.ships.hits.red);
+        log.debug('🏁 party_ships_end — hits blue=' + partyState.ships.hits.blue + ' red=' + partyState.ships.hits.red);
         broadcastPartyState();
         broadcastStateImmediate();
     });
@@ -8808,7 +9013,7 @@ io.on('connection', (socket) => {
             if (rev.team === team && rev.points === pts) {
                 partyState.teams[team].score = Math.max(0, partyState.teams[team].score - pts);
                 partyState.revertibleAward = null;
-                console.log(`↩️ party_award_letter cofnięcie ${team} −${pts}`);
+                log.debug(`↩️ party_award_letter cofnięcie ${team} −${pts}`);
                 io.emit('party_quiz_sound', 'wrong_answer');
                 partyFlashScoresVisible();
                 broadcastPartyState();
@@ -8819,7 +9024,7 @@ io.on('connection', (socket) => {
                 partyState.teams[rev.team].score = Math.max(0, partyState.teams[rev.team].score - rev.points);
                 partyState.teams[team].score += rev.points;
                 partyState.revertibleAward = { kind: 'letter_hit', team, points: rev.points, questionIndex: idx };
-                console.log(`🔀 party_award_letter ${rev.team} → ${team} (${rev.points} pkt)`);
+                log.debug(`🔀 party_award_letter ${rev.team} → ${team} (${rev.points} pkt)`);
                 io.emit('party_quiz_sound', 'correct_answer');
                 partyFlashScoresVisible();
                 broadcastPartyState();
@@ -8831,7 +9036,7 @@ io.on('connection', (socket) => {
         partyState.teams[team].score += pts;
         partyFlashScoresVisible();
         partyState.revertibleAward = { kind: 'letter_hit', team, points: pts, questionIndex: idx };
-        console.log(`🔤 party_award_letter ${team} +${pts} (litera ${partyState.currentLetter})`);
+        log.debug(`🔤 party_award_letter ${team} +${pts} (litera ${partyState.currentLetter})`);
         io.emit('party_quiz_sound', 'correct_answer');
         broadcastPartyState();
         broadcastStateImmediate();
@@ -8859,7 +9064,7 @@ io.on('connection', (socket) => {
             if (rev.team === team) {
                 partyState.teams[team].score = Math.max(0, partyState.teams[team].score - pts);
                 partyState.revertibleAward = null;
-                console.log(`↩️ party_award_fast_list cofnięcie ${team} −${pts} (poz. ${itemIdx + 1})`);
+                log.debug(`↩️ party_award_fast_list cofnięcie ${team} −${pts} (poz. ${itemIdx + 1})`);
                 io.emit('party_quiz_sound', 'wrong_answer');
                 partyFlashScoresVisible();
                 broadcastPartyState();
@@ -8870,7 +9075,7 @@ io.on('connection', (socket) => {
                 partyState.teams[rev.team].score = Math.max(0, partyState.teams[rev.team].score - rev.points);
                 partyState.teams[team].score += rev.points;
                 partyState.revertibleAward = { kind: 'fast_list_hit', team, points: rev.points, questionIndex: idx, fastListItemIndex: itemIdx };
-                console.log(`🔀 party_award_fast_list ${rev.team} → ${team} (${rev.points} pkt, poz. ${itemIdx + 1})`);
+                log.debug(`🔀 party_award_fast_list ${rev.team} → ${team} (${rev.points} pkt, poz. ${itemIdx + 1})`);
                 io.emit('party_quiz_sound', 'correct_answer');
                 partyFlashScoresVisible();
                 broadcastPartyState();
@@ -8882,7 +9087,7 @@ io.on('connection', (socket) => {
         partyState.teams[team].score += pts;
         partyFlashScoresVisible();
         partyState.revertibleAward = { kind: 'fast_list_hit', team, points: pts, questionIndex: idx, fastListItemIndex: itemIdx };
-        console.log(`⚡ party_award_fast_list ${team} +${pts} (FAST_LIST #${idx + 1}, poz. ${itemIdx + 1})`);
+        log.debug(`⚡ party_award_fast_list ${team} +${pts} (FAST_LIST #${idx + 1}, poz. ${itemIdx + 1})`);
         io.emit('party_quiz_sound', 'correct_answer');
         broadcastPartyState();
         broadcastStateImmediate();
@@ -8924,11 +9129,11 @@ io.on('connection', (socket) => {
                 if (letters && letters.length) {
                     delete gameState.letterGame.playerLetters[oldSocketId];
                     gameState.letterGame.playerLetters[socket.id] = letters;
-                    console.log(`🔤 [LETTER] Migracja liter po reconnect (${nick}): stare id → nowe socket.id`);
+                    log.debug(`🔤 [LETTER] Migracja liter po reconnect (${nick}): stare id → nowe socket.id`);
                     broadcastStateImmediate();
                 }
             }
-            console.log(`🔄 Przywrócono gracza ${nick} po reconnect (wynik: ${existingPlayer.score}, drużyna: ${existingPlayer.team})`);
+            log.debug(`🔄 Przywrócono gracza ${nick} po reconnect (wynik: ${existingPlayer.score}, drużyna: ${existingPlayer.team})`);
             // Przywróć gracza do hncVoters tylko jeśli mecz aktywny (nie match_result — tam hnc_start_match rebuilds)
             if (hncPhase === 'voting' || hncPhase === 'ready' || hncPhase === 'tiebreak') {
                 hncVoters.add(socket.id);
@@ -8939,7 +9144,7 @@ io.on('connection', (socket) => {
             
             // Jeśli tryb drużynowy jest aktywny i gracz nie ma drużyny, wyślij ekran wyboru drużyny
             if (gameState.teamBattleMode && !existingPlayer.team) {
-                console.log(`⚔️ Gracz ${nick} zarejestrowany - wysyłam TEAM_SELECTION`);
+                log.debug(`⚔️ Gracz ${nick} zarejestrowany - wysyłam TEAM_SELECTION`);
                 socket.emit('update_state', {
                     ...getStateForBroadcast(),
                     type: 'TEAM_SELECTION',
@@ -8975,7 +9180,7 @@ io.on('connection', (socket) => {
         
         // Jeśli tryb drużynowy jest aktywny i gracz nie ma drużyny, wyślij ekran wyboru drużyny
         if (gameState.teamBattleMode && !player.team) {
-            console.log(`⚔️ Gracz ${nick} zarejestrowany - wysyłam TEAM_SELECTION`);
+            log.debug(`⚔️ Gracz ${nick} zarejestrowany - wysyłam TEAM_SELECTION`);
             socket.emit('update_state', {
                 ...getStateForBroadcast(),
                 type: 'TEAM_SELECTION',
@@ -9048,7 +9253,7 @@ io.on('connection', (socket) => {
                     if (!t) return;
                     words = t.split(',').map(w => w.trim()).filter(w => w);
                 }
-                console.log('🔤 [LETTER] send_answer 2 litery – otrzymano text:', typeof text, JSON.stringify(text), '→ words:', words);
+                log.debug('🔤 [LETTER] send_answer 2 litery – otrzymano text:', typeof text, JSON.stringify(text), '→ words:', words);
                 if (words.length < 2) {
                     console.warn('🔤 [LETTER] Odrzucono – oczekiwano 2 słów, otrzymano:', words.length, words);
                     return;
@@ -9180,7 +9385,7 @@ io.on('connection', (socket) => {
                 playersShot: new Set(), // Gracze którzy już strzelili w tej turze
                 gameEnded: false
             };
-            console.log(`⚓ Backup inicjalizacja gry w statki dla pytania ${questionId}`);
+            log.debug(`⚓ Backup inicjalizacja gry w statki dla pytania ${questionId}`);
         }
         
         const shipsGame = gameState.shipsGame;
@@ -9256,7 +9461,7 @@ io.on('connection', (socket) => {
             gameState.showStats = true;
             gameState.showCorrect = false;
             gameState.type = 'GAME';
-            console.log(`⚓ Wszyscy strzelili w rundzie ${shipsGame.currentTurn} – następna tura za ${SHIPS_QUIZ_AUTO_ADVANCE_MS} ms (lub wcześniej: admin „Następna tura")`);
+            log.debug(`⚓ Wszyscy strzelili w rundzie ${shipsGame.currentTurn} – następna tura za ${SHIPS_QUIZ_AUTO_ADVANCE_MS} ms (lub wcześniej: admin „Następna tura")`);
             clearShipsQuizAutoAdvanceTimer();
             const qidAuto = shipsGame.questionId;
             shipsQuizAutoAdvanceTimer = setTimeout(() => {
@@ -9342,7 +9547,17 @@ io.on('connection', (socket) => {
             soundtrackLoop: data.soundtrackLoop !== false
         };
         io.emit('ships_solo_state', gameState.shipsSoloGame);
-        console.log(`⚓ [SHIPS_SOLO standalone] Gra zainicjowana, plansza ${boardSize}x${boardSize}, ${validShips.length} statków`);
+        log.debug(`⚓ [SHIPS_SOLO standalone] Gra zainicjowana, plansza ${boardSize}x${boardSize}, ${validShips.length} statków`);
+    });
+
+    socket.on('ships_solo_stop_music', () => {
+        io.emit('ships_solo_stop_music');
+    });
+
+    socket.on('ships_solo_start_music', () => {
+        const g = gameState.shipsSoloGame;
+        if (!g || g.gameEnded) return;
+        io.emit('ships_solo_start_music');
     });
 
     /** Standalone: reset gry */
@@ -9350,7 +9565,7 @@ io.on('connection', (socket) => {
         clearShipsSoloAimTimer();
         gameState.shipsSoloGame = null;
         io.emit('ships_solo_state', null);
-        console.log('⚓ [SHIPS_SOLO standalone] Reset gry');
+        log.debug('⚓ [SHIPS_SOLO standalone] Reset gry');
     });
 
     /** Screen pyta o aktualny stan po połączeniu */
@@ -9387,7 +9602,7 @@ io.on('connection', (socket) => {
                 gameState.shipsSoloGame.phase = 'col';
                 io.emit('ships_solo_timeout');
                 io.emit('ships_solo_aim_update', { aimRow: null, aimCol: null, phase: 'col' });
-                console.log('⚓ [SHIPS_SOLO] Timeout strzału – runda pominięta');
+                log.debug('⚓ [SHIPS_SOLO] Timeout strzału – runda pominięta');
             }, 10000);
         } else {
             // Wróciło do fazy 'col' (reset) – anuluj timer
@@ -9462,7 +9677,7 @@ io.on('connection', (socket) => {
         if (allSunk) g.gameEnded = true;
 
         const hitCount = g.rewardMode === 'per_ship' ? g.shipsHitOrder.length : g.totalHits;
-        console.log(`⚓ [SHIPS_SOLO] Strzał (${row},${col}) – ${hit ? `TRAFIONY (${shipSize}-masztowy, ${hitCount}. statek)` : 'pudło'}${reward ? ' nagroda: ' + reward : ''}`);
+        log.debug(`⚓ [SHIPS_SOLO] Strzał (${row},${col}) – ${hit ? `TRAFIONY (${shipSize}-masztowy, ${hitCount}. statek)` : 'pudło'}${reward ? ' nagroda: ' + reward : ''}`);
         io.emit('ships_solo_shot_result', {
             questionId, row, col, hit, reward, shipSize,
             hitCount,           // ile różnych statków trafionych łącznie
@@ -9492,7 +9707,7 @@ io.on('connection', (socket) => {
             gameEnded: true
         });
         broadcastState();
-        console.log(`⚓ [SHIPS_SOLO] Gra zakończona przez admina`);
+        log.debug(`⚓ [SHIPS_SOLO] Gra zakończona przez admina`);
     });
 
     socket.on('ships_end_game', (data) => {
@@ -9906,13 +10121,13 @@ io.on('connection', (socket) => {
             // Jeśli gracz ma punkty, zachowaj go w disconnectedPlayersWithScore (do końca gry)
             if (player.score > 0 || player.correctAnswersCount > 0) {
                 disconnectedPlayersWithScore.set(player.nick, player);
-                console.log(`💾 Zachowano gracza ${player.nick} z wynikiem ${player.score} pkt (rozłączony)`);
+                log.debug(`💾 Zachowano gracza ${player.nick} z wynikiem ${player.score} pkt (rozłączony)`);
             }
             
             // Usuń gracza z pendingDisconnects po grace period jeśli nie wrócił
             setTimeout(() => {
                 if (pendingDisconnects.has(socket.id)) {
-                    console.log(`⏰ Grace period minął dla ${player.nick}, ale zachowuję w disconnectedPlayersWithScore`);
+                    log.debug(`⏰ Grace period minął dla ${player.nick}, ale zachowuję w disconnectedPlayersWithScore`);
                     pendingDisconnects.delete(socket.id);
                 }
             }, DISCONNECT_GRACE_PERIOD);
@@ -9924,28 +10139,28 @@ io.on('connection', (socket) => {
 // Próbuj najpierw nasłuchiwać na wszystkich interfejsach (0.0.0.0)
 // Jeśli się nie uda (brak uprawnień), użyj localhost
 function onServerReady(urlPrefix) {
-    console.log('\n🚀 ═══════════════════════════════════════════════════');
-    console.log(`   Imprezja Quiz - System Quizowy`);
-    console.log('   ═══════════════════════════════════════════════════');
-    console.log(`   🌐 Sieć lokalna:      http://${IP}:${PORT}`);
-    console.log('   ─────────────────────────────────────────────────');
-    console.log(`   👨‍💼 Admin:              http://${IP}:${PORT}/admin.html`);
-    console.log(`   📺 Ekran TV:           http://${IP}:${PORT}/Screen.html`);
-    console.log(`   ✏️  Edytor:             http://${IP}:${PORT}/editor.html`);
-    console.log(`   📱 Gracze:             http://${IP}:${PORT}/vote.html`);
-    console.log(`   🎛️  NJR Sampler:       http://${IP}:${PORT}/njr-sampler.html`);
-    console.log(`   🎤  Śpiewaj Dalej:     http://${IP}:${PORT}/spiewaj-dalej.html`);
-    console.log(`   🎙️  Bitwa wokalna:     http://${IP}:${PORT}/bitwa-wokalna.html`);
-    console.log(`   🎵  Imprezator:        http://${IP}:${PORT}/imprezator.html`);
-    console.log('   ─────────────────────────────────────────────────');
-    console.log(`   📂 Katalog quizzes:   ${quizzesDir}`);
+    log.info('\n🚀 ═══════════════════════════════════════════════════');
+    log.info(`   Imprezja Quiz - System Quizowy`);
+    log.info('   ═══════════════════════════════════════════════════');
+    log.info(`   🌐 Sieć lokalna:      http://${IP}:${PORT}`);
+    log.info('   ─────────────────────────────────────────────────');
+    log.info(`   👨‍💼 Admin:              http://${IP}:${PORT}/admin.html`);
+    log.info(`   📺 Ekran TV:           http://${IP}:${PORT}/Screen.html`);
+    log.info(`   ✏️  Edytor:             http://${IP}:${PORT}/editor.html`);
+    log.info(`   📱 Gracze:             http://${IP}:${PORT}/vote.html`);
+    log.info(`   🎛️  NJR Sampler:       http://${IP}:${PORT}/njr-sampler.html`);
+    log.info(`   🎤  Śpiewaj Dalej:     http://${IP}:${PORT}/spiewaj-dalej.html`);
+    log.info(`   🎙️  Bitwa wokalna:     http://${IP}:${PORT}/bitwa-wokalna.html`);
+    log.info(`   🎵  Imprezator:        http://${IP}:${PORT}/imprezator.html`);
+    log.info('   ─────────────────────────────────────────────────');
+    log.info(`   📂 Katalog quizzes:   ${quizzesDir}`);
     if (IP === 'localhost') {
-        console.log('   ═══════════════════════════════════════════════════');
-        console.warn('   ⚠️  UWAGA: Wykryto tylko localhost!');
-        console.warn('   Telefon nie będzie mógł się połączyć.');
-        console.warn('   Upewnij się że komputer i telefon są w tej samej sieci WiFi.');
+        log.info('   ═══════════════════════════════════════════════════');
+        log.warn('   ⚠️  UWAGA: Wykryto tylko localhost!');
+        log.warn('   Telefon nie będzie mógł się połączyć.');
+        log.warn('   Upewnij się że komputer i telefon są w tej samej sieci WiFi.');
     }
-    console.log('   ═══════════════════════════════════════════════════\n');
+    log.info('   ═══════════════════════════════════════════════════\n');
     // Otwieraj przeglądarkę tylko gdy uruchamiasz serwer ręcznie (node server.js) – nie w aplikacji Electron
     if (!process.env.IMPREZJA_ELECTRON && !process.env.IMPREZJA_NO_BROWSER) {
         const { exec } = require('child_process');
@@ -9974,19 +10189,20 @@ function doListen(readyCallback) {
     loadVolumes();
     loadSpiewajDalejConfigFromDisk();
     loadBitwaWokalnaConfigFromDisk();
+    warmupAllMusicScreenGains().catch((e) => console.warn('⚠️ Music screen gain warmup:', e.message));
     const serverInstance = server.listen(PORT, '0.0.0.0', () => {
         const address = serverInstance.address();
-        console.log(`✅ Serwer HTTP uruchomiony na porcie ${PORT}`);
+        log.debug(`✅ Serwer HTTP uruchomiony na porcie ${PORT}`);
         if (address.address === '0.0.0.0' || address.address === '::') {
-            console.log(`✅ Serwer nasłuchuje na WSZYSTKICH interfejsach - dostępny z sieci!`);
+            log.debug(`✅ Serwer nasłuchuje na WSZYSTKICH interfejsach - dostępny z sieci!`);
         }
-        console.log(`📡 Wykryte IP: ${IP}`);
+        log.debug(`📡 Wykryte IP: ${IP}`);
         if (httpsServer) {
             httpsServer.listen(PORT_HTTPS, '0.0.0.0', () => {
-                console.log(`✅ Serwer HTTPS uruchomiony na porcie ${PORT_HTTPS}`);
-                console.log(`🔒 Quiz admin (niegasnący ekran): https://${IP}:${PORT_HTTPS}/admin.html`);
-                console.log(`🔒 Familiada admin: https://${IP}:${PORT_HTTPS}/familiada/admin.html`);
-                console.log(`🔒 Familiada przyciski: https://${IP}:${PORT_HTTPS}/familiada/buttons.html`);
+                log.debug(`✅ Serwer HTTPS uruchomiony na porcie ${PORT_HTTPS}`);
+                log.debug(`🔒 Quiz admin (niegasnący ekran): https://${IP}:${PORT_HTTPS}/admin.html`);
+                log.debug(`🔒 Familiada admin: https://${IP}:${PORT_HTTPS}/familiada/admin.html`);
+                log.debug(`🔒 Familiada przyciski: https://${IP}:${PORT_HTTPS}/familiada/buttons.html`);
             });
             httpsServer.on('error', (err) => {
                 if (err.code === 'EADDRINUSE') console.warn(`⚠️ Port HTTPS ${PORT_HTTPS} zajęty – Familiada użyje HTTP`);

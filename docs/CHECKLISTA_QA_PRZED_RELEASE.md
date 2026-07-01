@@ -89,7 +89,17 @@ Wzorzec dla każdej sesji: **edytor / admin → ekran TV → telefon (vote)** �
 | 5.3 | `familiada/screen.html` — widok dla publiczności zgodny z adminem. | [ ] |
 | 5.4 | `familiada/buttons.html` na telefonie — buzzery / stany zgodne z grą. | [ ] |
 | 5.5 | **Zakończ grę** z admina — ekran TV: stan idle (np. sam napis FAMILIADA), **bez** starego pilota; brak „wiszącej” muzyki. | [ ] |
-| 5.6 | Złota lista / zapis `golden` — działa po odświeżeniu strony. | [ ] |
+| 5.6 | Złota lista Familiada / zapis `golden` — działa po odświeżeniu strony. | [ ] |
+
+### Party Quiz — złota lista (osobny plik)
+
+| # | Test | OK |
+|---|------|-----|
+| 5.7 | Admin Party Quiz — sekcja złotej listy: pytanie „Alkohol bez litery W” ma **8** odpowiedzi w podglądzie. | [ ] |
+| 5.8 | **Uruchom na tablicy** ze złotej listy — TV i panel sterowania pokazują wszystkie odpowiedzi Familiady. | [ ] |
+| 5.9 | Po restarcie serwera ze starym `party-quiz-golden.json` w userData (mniej odp.) — auto-sync z `public/`. | [ ] |
+
+Dokumentacja: [PARTY_QUIZ_ZLOTA_LISTA.md](./PARTY_QUIZ_ZLOTA_LISTA.md).
 
 ---
 
@@ -106,6 +116,11 @@ Dla każdej gry: **edytor**, **start z panelu**, **ekran + dźwięk**, **telefon
 | 6.5 | **Imprezator** | `imprezator.html?editor=1` | tak | `imprezator/` phone | [ ] |
 
 **Uwagi integracyjne:** pierwsze wejście na telefonie po QR — pełna konfiguracja kafelków; **powrót na kartę** — odświeżenie listy (NJR). Odtwarzanie audio z komputera — właściwe urządzenie wyjściowe.
+
+| # | Test | OK |
+|---|------|-----|
+| 6.6 | Ten sam plik `.vdjsample` / utwór — **Sampler** vs **Bitwa wokalna** przy suwaku Gry 100%: zbliżona głośność (wspólny `music-screen-audio.js`). | [ ] |
+| 6.7 | Zmiana suwaku Gry w trakcie odtwarzania — bez skoku w dół ~−6 dB (brak podwójnego clamp). | [ ] |
 
 ---
 

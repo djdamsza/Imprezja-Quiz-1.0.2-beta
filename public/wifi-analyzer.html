@@ -6,205 +6,378 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WiFi Analyzer 2,4 GHz – Imprezja</title>
     <style>
+        :root {
+            --bg: #0b0f1a;
+            --card: #141b2d;
+            --card-border: rgba(255,255,255,0.08);
+            --text: #e8edf7;
+            --muted: #8b9bb8;
+            --accent: #5b8def;
+            --accent-2: #7c5cff;
+            --good: #34d399;
+            --ok: #fbbf24;
+            --weak: #f87171;
+            --radius: 14px;
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: radial-gradient(ellipse at center, #1a1a2e 0%, #0d0d14 100%);
-            color: #fff;
+            background: var(--bg);
+            color: var(--text);
             min-height: 100vh;
-            padding: 20px;
+            line-height: 1.45;
         }
-        .container { max-width: 900px; margin: 0 auto; }
-        h1 {
-            font-size: 1.5rem;
-            margin-bottom: 8px;
-            color: #f1c40f;
+        .page {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 20px 16px 40px;
         }
-        .subtitle {
-            color: rgba(255,255,255,0.6);
-            font-size: 0.9rem;
-            margin-bottom: 20px;
+        .top-nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
         }
         .back-link {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            color: rgba(255,255,255,0.8);
+            gap: 8px;
+            color: var(--muted);
             text-decoration: none;
             font-size: 0.9rem;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--card-border);
+            background: rgba(255,255,255,0.03);
+        }
+        .back-link:hover { color: var(--text); border-color: rgba(255,255,255,0.18); }
+        .hero {
+            background: linear-gradient(135deg, rgba(91,141,239,0.18) 0%, rgba(124,92,255,0.12) 100%);
+            border: 1px solid rgba(91,141,239,0.25);
+            border-radius: calc(var(--radius) + 4px);
+            padding: 24px 22px;
             margin-bottom: 20px;
         }
-        .back-link:hover { color: #f1c40f; }
-        .section {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
+        .hero h1 {
+            font-size: clamp(1.35rem, 4vw, 1.75rem);
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 6px;
         }
-        .section h2 {
-            font-size: 1.1rem;
-            margin-bottom: 16px;
-            color: rgba(255,255,255,0.9);
-        }
-        .channel-bars {
-            display: flex;
-            align-items: flex-end;
-            gap: 4px;
-            height: 120px;
-            margin-bottom: 8px;
-        }
-        .channel-bar {
-            flex: 1;
-            min-width: 24px;
-            background: linear-gradient(to top, #3498db, #2980b9);
-            border-radius: 4px 4px 0 0;
-            transition: height 0.3s;
-            position: relative;
-        }
-        .channel-bar:hover {
-            background: linear-gradient(to top, #5dade2, #3498db);
-        }
-        .channel-bar .label {
-            position: absolute;
-            bottom: -20px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 0.7rem;
-            color: rgba(255,255,255,0.6);
-        }
-        .channel-labels {
-            display: flex;
-            justify-content: space-between;
-            padding-top: 24px;
-            font-size: 0.75rem;
-            color: rgba(255,255,255,0.5);
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        th, td {
-            padding: 10px 12px;
-            text-align: left;
-            border-bottom: 1px solid rgba(255,255,255,0.08);
-        }
-        th {
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: rgba(255,255,255,0.7);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        td { font-size: 0.95rem; }
-        tr:hover td { background: rgba(255,255,255,0.03); }
-        .rssi-bar {
-            display: inline-block;
-            width: 80px;
-            height: 12px;
-            background: rgba(0,0,0,0.3);
-            border-radius: 4px;
-            overflow: hidden;
-            vertical-align: middle;
-        }
-        .rssi-bar-fill {
-            height: 100%;
-            border-radius: 4px;
-            transition: width 0.2s;
-        }
-        .rssi-good { background: #27ae60; }
-        .rssi-ok { background: #f39c12; }
-        .rssi-weak { background: #e74c3c; }
-        .btn-refresh {
-            padding: 10px 20px;
-            background: linear-gradient(#3498db, #2980b9);
-            border: none;
-            border-radius: 8px;
-            color: #fff;
-            font-weight: 600;
-            cursor: pointer;
-            font-size: 0.95rem;
-        }
-        .btn-refresh:hover { opacity: 0.9; }
-        .btn-refresh:disabled { opacity: 0.6; cursor: not-allowed; }
-        .error {
-            background: rgba(231, 76, 60, 0.2);
-            border: 1px solid rgba(231, 76, 60, 0.5);
-            color: #e74c3c;
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 16px;
-        }
-        .tip {
-            font-size: 0.85rem;
-            color: rgba(255,255,255,0.5);
-            margin-top: 12px;
-        }
-        .width-toggle {
+        .hero p { color: var(--muted); font-size: 0.95rem; max-width: 52ch; }
+        .hero-row {
             display: flex;
             align-items: center;
+            justify-content: space-between;
             gap: 12px;
+            margin-top: 18px;
+            flex-wrap: wrap;
+        }
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            border-radius: 999px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            background: rgba(0,0,0,0.25);
+            border: 1px solid var(--card-border);
+        }
+        .status-pill .dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--muted);
+        }
+        .status-pill.scanning .dot { background: var(--ok); animation: pulse 1s ease-in-out infinite; }
+        .status-pill.ok .dot { background: var(--good); }
+        .status-pill.err .dot { background: var(--weak); }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+        .btn-scan {
+            padding: 11px 20px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 0.92rem;
+            cursor: pointer;
+            color: #fff;
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            box-shadow: 0 4px 16px rgba(91,141,239,0.35);
+        }
+        .btn-scan:hover { filter: brightness(1.06); }
+        .btn-scan:disabled { opacity: 0.55; cursor: not-allowed; filter: none; }
+        .alert {
+            display: none;
+            padding: 14px 16px;
+            border-radius: var(--radius);
             margin-bottom: 16px;
+            font-size: 0.9rem;
+            border: 1px solid rgba(248,113,113,0.4);
+            background: rgba(248,113,113,0.12);
+            color: #fecaca;
+        }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-bottom: 16px;
+        }
+        @media (max-width: 640px) { .grid-2 { grid-template-columns: 1fr; } }
+        .card {
+            background: var(--card);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius);
+            padding: 18px;
+            margin-bottom: 16px;
+        }
+        .card h2 {
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--muted);
+            margin-bottom: 14px;
+        }
+        .rec-channel {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .rec-num {
+            width: 64px; height: 64px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, rgba(52,211,153,0.25), rgba(52,211,153,0.08));
+            border: 2px solid rgba(52,211,153,0.45);
+            color: var(--good);
+            flex-shrink: 0;
+        }
+        .rec-meta strong { display: block; font-size: 1.05rem; margin-bottom: 4px; }
+        .rec-meta span { color: var(--muted); font-size: 0.88rem; }
+        .width-toggle {
+            display: flex;
+            gap: 8px;
             flex-wrap: wrap;
         }
         .width-toggle label {
+            flex: 1;
+            min-width: 120px;
             display: flex;
             align-items: center;
-            gap: 6px;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid var(--card-border);
             cursor: pointer;
-            font-size: 0.9rem;
-            color: rgba(255,255,255,0.9);
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: var(--muted);
+            transition: border-color .15s, background .15s, color .15s;
         }
-        .width-toggle input[type="radio"] {
-            accent-color: #3498db;
+        .width-toggle input { display: none; }
+        .width-toggle input:checked + span { color: var(--text); }
+        .width-toggle label:has(input:checked) {
+            border-color: rgba(91,141,239,0.55);
+            background: rgba(91,141,239,0.12);
+            color: var(--text);
+        }
+        .spectrum {
+            display: grid;
+            grid-template-columns: repeat(13, 1fr);
+            gap: 6px;
+            align-items: end;
+            height: 140px;
+            padding: 8px 0 28px;
+            position: relative;
+        }
+        .spectrum-bar-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100%;
+            justify-content: flex-end;
+            gap: 6px;
+        }
+        .spectrum-bar {
+            width: 100%;
+            min-height: 4px;
+            border-radius: 6px 6px 2px 2px;
+            background: linear-gradient(to top, #3b6fd4, #6b9fff);
+            transition: height .35s ease, background .2s;
+            position: relative;
+        }
+        .spectrum-bar.best {
+            background: linear-gradient(to top, #059669, #34d399);
+            box-shadow: 0 0 12px rgba(52,211,153,0.45);
+        }
+        .spectrum-bar.busy {
+            background: linear-gradient(to top, #b45309, #fbbf24);
+        }
+        .spectrum-bar.crowded {
+            background: linear-gradient(to top, #b91c1c, #f87171);
+        }
+        .ch-label {
+            font-size: 0.68rem;
+            color: var(--muted);
+            font-weight: 600;
+        }
+        .ch-count {
+            font-size: 0.62rem;
+            color: rgba(255,255,255,0.45);
+            position: absolute;
+            top: -16px;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+        }
+        .legend {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            font-size: 0.78rem;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+        .legend span { display: inline-flex; align-items: center; gap: 6px; }
+        .legend i {
+            width: 10px; height: 10px; border-radius: 2px; display: inline-block;
+        }
+        .network-list { display: flex; flex-direction: column; gap: 10px; }
+        .network-card {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 8px 16px;
+            padding: 14px 16px;
+            border-radius: 12px;
+            border: 1px solid var(--card-border);
+            background: rgba(0,0,0,0.15);
+        }
+        .network-card .ssid {
+            font-weight: 700;
+            font-size: 0.98rem;
+            word-break: break-word;
+        }
+        .network-card .sub {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px 16px;
+            font-size: 0.82rem;
+            color: var(--muted);
+        }
+        .network-card .rssi-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 6px;
+            min-width: 100px;
+        }
+        .rssi-val { font-weight: 700; font-size: 0.9rem; }
+        .rssi-bar {
+            width: 100px;
+            height: 8px;
+            background: rgba(0,0,0,0.35);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .rssi-bar-fill { height: 100%; border-radius: 4px; transition: width .25s; }
+        .rssi-good { background: var(--good); }
+        .rssi-ok { background: var(--ok); }
+        .rssi-weak { background: var(--weak); }
+        .empty-state {
+            text-align: center;
+            padding: 32px 16px;
+            color: var(--muted);
+            font-size: 0.92rem;
+        }
+        .tip {
+            font-size: 0.82rem;
+            color: var(--muted);
+            margin-top: 12px;
+            line-height: 1.5;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <a href="/start.html" class="back-link">← Wróć do Imprezja</a>
-        <h1>📶 WiFi Analyzer 2,4 GHz</h1>
-        <p class="subtitle">Siła sygnału i zajętość pasm – pomaga wybrać wolny kanał dla routera</p>
-
-        <div id="error" class="error" style="display:none;"></div>
-
-        <div class="section">
-            <h2>Zajętość kanałów (1–13)</h2>
-            <div class="width-toggle">
-                <span style="color:rgba(255,255,255,0.7);">Zakładana szerokość:</span>
-                <label><input type="radio" name="width" value="20" checked> 20 MHz (1 kanał)</label>
-                <label><input type="radio" name="width" value="40"> 40 MHz (5 kanałów)</label>
-            </div>
-            <div class="channel-bars" id="channel-bars"></div>
-            <div class="channel-labels" id="channel-labels"></div>
-            <p class="tip">Im wyższy słupek, tym więcej sieci na danym kanale. Przy 40 MHz sieć zajmuje 5 kanałów (np. kanał 1 → 1–5). Wybierz kanał z najniższym słupkiem (np. 1, 6 lub 11, jeśli wolne).</p>
+    <div class="page">
+        <div class="top-nav">
+            <a href="/start.html" class="back-link">← Imprezja</a>
+            <button type="button" class="btn-scan" id="btn-refresh">🔄 Skanuj WiFi</button>
         </div>
 
-        <div class="section">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-                <h2 style="margin:0;">Sieci WiFi</h2>
-                <button type="button" class="btn-refresh" id="btn-refresh">🔄 Odśwież skan</button>
+        <div class="hero">
+            <h1>📶 Analiza WiFi 2,4 GHz</h1>
+            <p>Sprawdź, które kanały są najbardziej obciążone i wybierz wolny kanał dla routera na imprezie.</p>
+            <div class="hero-row">
+                <div class="status-pill" id="status-pill">
+                    <span class="dot"></span>
+                    <span id="status-text">Gotowy do skanu</span>
+                </div>
             </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>SSID</th>
-                        <th>Kanał (zakres)</th>
-                        <th>Siła (RSSI)</th>
-                    </tr>
-                </thead>
-                <tbody id="networks-tbody"></tbody>
-            </table>
-            <p class="tip">RSSI: -30 do -50 dBm = bardzo dobry sygnał, -50 do -70 = dobry, poniżej -70 = słaby.</p>
+        </div>
+
+        <div id="error" class="alert"></div>
+
+        <div class="grid-2">
+            <div class="card">
+                <h2>Rekomendowany kanał</h2>
+                <div class="rec-channel">
+                    <div class="rec-num" id="rec-channel">—</div>
+                    <div class="rec-meta">
+                        <strong id="rec-label">Uruchom skan</strong>
+                        <span id="rec-detail">Pokażemy kanał z najmniejszą liczbą sieci.</span>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <h2>Szerokość kanału</h2>
+                <div class="width-toggle">
+                    <label><input type="radio" name="width" value="20" checked><span>20 MHz (1 kanał)</span></label>
+                    <label><input type="radio" name="width" value="40"><span>40 MHz (5 kanałów)</span></label>
+                </div>
+                <p class="tip">Przy 40 MHz sieć zajmuje 5 sąsiednich kanałów — wykres uwzględnia nakładanie.</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Mapa zajętości kanałów 1–13</h2>
+            <div class="spectrum" id="channel-bars"></div>
+            <div class="legend">
+                <span><i style="background:#34d399"></i> Najlepszy wybór</span>
+                <span><i style="background:#6b9fff"></i> Niski ruch</span>
+                <span><i style="background:#fbbf24"></i> Średni</span>
+                <span><i style="background:#f87171"></i> Zatłoczony</span>
+            </div>
+            <p class="tip">Klasyczne „nie nakładające się” kanały to 1, 6 i 11. Wybierz ten z najniższym słupkiem.</p>
+        </div>
+
+        <div class="card">
+            <h2>Wykryte sieci (<span id="net-count">0</span>)</h2>
+            <div class="network-list" id="networks-list">
+                <div class="empty-state">Brak danych — kliknij „Skanuj WiFi”.</div>
+            </div>
+            <p class="tip">RSSI: −30…−50 dBm = bardzo dobry, −50…−70 = dobry, poniżej −70 = słaby sygnał.</p>
         </div>
     </div>
 
+    <script src="/js/imprezja-dom.js"></script>
     <script>
         const channelBars = document.getElementById('channel-bars');
-        const channelLabels = document.getElementById('channel-labels');
-        const networksTbody = document.getElementById('networks-tbody');
+        const networksList = document.getElementById('networks-list');
         const errorEl = document.getElementById('error');
         const btnRefresh = document.getElementById('btn-refresh');
+        const statusPill = document.getElementById('status-pill');
+        const statusText = document.getElementById('status-text');
+        const recChannel = document.getElementById('rec-channel');
+        const recLabel = document.getElementById('rec-label');
+        const recDetail = document.getElementById('rec-detail');
+        const netCount = document.getElementById('net-count');
         const STORAGE_KEY = 'wifi_analyzer_width';
 
         let lastScanData = null;
@@ -247,9 +420,15 @@
             return channelCount;
         }
 
+        function setStatus(kind, text) {
+            statusPill.className = 'status-pill' + (kind ? ' ' + kind : '');
+            statusText.textContent = text;
+        }
+
         function showError(msg) {
             errorEl.textContent = msg;
             errorEl.style.display = 'block';
+            setStatus('err', 'Błąd skanowania');
         }
         function hideError() {
             errorEl.style.display = 'none';
@@ -263,52 +442,105 @@
         function rssiToPercent(rssi) {
             return Math.max(0, Math.min(100, ((rssi + 90) / 60) * 100));
         }
+        function rssiLabel(rssi) {
+            if (rssi >= -50) return 'Bardzo dobry';
+            if (rssi >= -70) return 'Dobry';
+            return 'Słaby';
+        }
+
+        function findBestChannel(channelCount) {
+            const classic = [1, 6, 11];
+            let best = 1;
+            let min = channelCount[1] || 0;
+            for (const ch of classic) {
+                const c = channelCount[ch] || 0;
+                if (c < min) { min = c; best = ch; }
+            }
+            for (let ch = 1; ch <= 13; ch++) {
+                const c = channelCount[ch] || 0;
+                if (c < min) { min = c; best = ch; }
+            }
+            return { channel: best, count: min };
+        }
+
+        function barClass(count, maxCount, isBest) {
+            if (isBest) return 'best';
+            const ratio = count / Math.max(1, maxCount);
+            if (ratio >= 0.66) return 'crowded';
+            if (ratio >= 0.33) return 'busy';
+            return '';
+        }
 
         function render(data) {
             lastScanData = data;
-            const { networks } = data;
+            const networks = data.networks || [];
             const widthMhz = getChannelWidth();
             const channelCount = buildChannelCount(networks, widthMhz);
             const maxCount = Math.max(1, ...Object.values(channelCount));
+            const best = findBestChannel(channelCount);
+
+            recChannel.textContent = networks.length ? String(best.channel) : '—';
+            recLabel.textContent = networks.length
+                ? ('Kanał ' + best.channel + ' — najmniej sieci')
+                : 'Brak sieci w zasięgu';
+            recDetail.textContent = networks.length
+                ? (best.count === 0
+                    ? 'Żadna wykryta sieć nie korzysta z tego kanału.'
+                    : ('Tylko ' + best.count + ' sieci na tym kanale (przy ' + widthMhz + ' MHz).'))
+                : 'Włącz WiFi na komputerze i uruchom skan ponownie.';
 
             channelBars.innerHTML = '';
-            channelLabels.innerHTML = '';
-            if (networks.length === 0) {
-                hideError();
-                document.getElementById('error').textContent = 'Nie znaleziono sieci 2,4 GHz w zasięgu. Sprawdź czy WiFi jest włączone.';
-                document.getElementById('error').style.display = 'block';
-            }
             for (let ch = 1; ch <= 13; ch++) {
                 const count = channelCount[ch] || 0;
-                const pct = (count / maxCount) * 100;
+                const pct = Math.max(6, (count / maxCount) * 100);
+                const isBest = networks.length > 0 && ch === best.channel;
+                const wrap = document.createElement('div');
+                wrap.className = 'spectrum-bar-wrap';
+                wrap.title = 'Kanał ' + ch + ': ' + count + ' sieci';
                 const bar = document.createElement('div');
-                bar.className = 'channel-bar';
+                bar.className = 'spectrum-bar ' + barClass(count, maxCount, isBest);
                 bar.style.height = pct + '%';
-                bar.title = `Kanał ${ch}: ${count} sieci`;
-                bar.innerHTML = '<span class="label">' + ch + '</span>';
-                channelBars.appendChild(bar);
+                if (count > 0) {
+                    const cnt = document.createElement('span');
+                    cnt.className = 'ch-count';
+                    cnt.textContent = count;
+                    bar.appendChild(cnt);
+                }
                 const lbl = document.createElement('span');
+                lbl.className = 'ch-label';
                 lbl.textContent = ch;
-                channelLabels.appendChild(lbl);
+                wrap.appendChild(bar);
+                wrap.appendChild(lbl);
+                channelBars.appendChild(wrap);
             }
 
-            networksTbody.innerHTML = '';
-            networks.sort((a, b) => a.channel - b.channel || b.rssi - a.rssi);
-            for (const n of networks) {
-                const tr = document.createElement('tr');
+            netCount.textContent = String(networks.length);
+            networksList.innerHTML = '';
+            if (networks.length === 0) {
+                networksList.innerHTML = '<div class="empty-state">Nie znaleziono sieci 2,4 GHz. Sprawdź, czy WiFi jest włączone.</div>';
+                setStatus('ok', 'Skan zakończony — brak sieci');
+                return;
+            }
+
+            const sorted = [...networks].sort((a, b) => a.channel - b.channel || b.rssi - a.rssi);
+            for (const n of sorted) {
+                const card = document.createElement('div');
+                card.className = 'network-card';
                 const pct = rssiToPercent(n.rssi);
                 const chLabel = getChannelRangeLabel(n.channel, widthMhz);
-                tr.innerHTML = '<td>' + escapeHtml(n.ssid || '(ukryta)') + '</td>' +
-                    '<td>' + chLabel + '</td>' +
-                    '<td><span class="rssi-bar"><span class="rssi-bar-fill ' + rssiToClass(n.rssi) + '" style="width:' + pct + '%"></span></span> ' + n.rssi + ' dBm</td>';
-                networksTbody.appendChild(tr);
+                card.innerHTML =
+                    '<div class="ssid">' + escapeHtml(n.ssid || '(ukryta)') + '</div>' +
+                    '<div class="rssi-wrap">' +
+                        '<span class="rssi-val">' + n.rssi + ' dBm</span>' +
+                        '<div class="rssi-bar"><div class="rssi-bar-fill ' + rssiToClass(n.rssi) + '" style="width:' + pct + '%"></div></div>' +
+                    '</div>' +
+                    '<div class="sub">' +
+                        '<span>📡 Kanał ' + chLabel + '</span>' +
+                        '<span>📶 ' + rssiLabel(n.rssi) + '</span>' +
+                    '</div>';
+                networksList.appendChild(card);
             }
-        }
-
-        function escapeHtml(s) {
-            const d = document.createElement('div');
-            d.textContent = s;
-            return d.innerHTML;
+            setStatus('ok', 'Skan OK — ' + networks.length + ' sieci');
         }
 
         document.querySelectorAll('input[name="width"]').forEach(function(radio) {
@@ -332,18 +564,23 @@
             hideError();
             btnRefresh.disabled = true;
             btnRefresh.textContent = 'Skanowanie…';
+            setStatus('scanning', 'Skanowanie…');
             try {
                 const r = await fetch('/api/wifi-scan');
                 const data = await r.json();
                 if (!r.ok) throw new Error(data.error || data.detail || 'Błąd skanowania');
                 render(data);
             } catch (err) {
-                showError('Nie udało się zeskanować WiFi: ' + err.message + '. Uruchom Imprezja Quiz na komputerze (nie w przeglądarce).');
+                showError('Nie udało się zeskanować WiFi: ' + err.message + '. Uruchom Imprezja Quiz na komputerze Mac z włączonym WiFi (nie w zwykłej przeglądarce zdalnej).');
                 channelBars.innerHTML = '';
-                networksTbody.innerHTML = '<tr><td colspan="3" style="color:rgba(255,255,255,0.5);">Brak danych</td></tr>';
+                networksList.innerHTML = '<div class="empty-state">Brak danych — spróbuj ponownie.</div>';
+                recChannel.textContent = '—';
+                recLabel.textContent = 'Skan nieudany';
+                recDetail.textContent = 'Sprawdź połączenie z serwerem Imprezja.';
+                netCount.textContent = '0';
             } finally {
                 btnRefresh.disabled = false;
-                btnRefresh.textContent = '🔄 Odśwież skan';
+                btnRefresh.textContent = '🔄 Skanuj WiFi';
             }
         }
 
