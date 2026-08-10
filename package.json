@@ -105,6 +105,7 @@
       "!**/*.pkg",
       "!docs",
       "!**/*.md",
+      "public/party-quiz/PARTY_QUIZ_LLM_INSTRUKCJA.md",
       "!css",
       "!js",
       "!*.bat",
