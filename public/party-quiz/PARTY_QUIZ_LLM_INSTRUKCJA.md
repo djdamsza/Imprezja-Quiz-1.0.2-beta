@@ -49,6 +49,37 @@ Gdy brakuje **merytorycznych** informacji:
 - Auto-generacja `id`
 - Familiada: **zawsze** auto-rozkład 100 pkt (preset edytora)
 
+### 0D. Język polski — poprawiaj sam i **wypisuj zmiany pod JSON**
+
+Przed oddaniem pliku **popraw pisownię** w treściach z kartki (ortografia, **ą, ć, ę, ł, ń, ó, ś, ź, ż**, wielkie litery w nazwach własnych, `m²`, `(kg)`, cudzysłowy „…”).
+
+**Nie pytaj** użytkownika o każdą literkę — popraw i **pod JSONem** dodaj sekcję:
+
+```markdown
+### Poprawki językowe (względem kartki)
+
+- Pyt. 3 FAST_LIST: „kocham cie” → „kocham cię”
+- Pyt. 5 QUIZ: „supernatural” → „Supernatural” (tytuł serialu)
+- Szacowanie: „m2” → „m²” w treści pytania
+```
+
+**Zasady:**
+- Poprawiaj **tylko** oczywiste błędy i brak polskich znaków — **nie** przepisuj sensu ani nie dodawaj treści.
+- Imiona własne (**Julia**, **Marcel**, **Dziwnów**) — wielką literą.
+- Wulgaryzmy / styl mowy pary — **zostaw** (np. „Ja p*erdole…”), chyba że oczywista literówka.
+- Jeśli **nic nie zmieniałeś** — napisz: `### Poprawki językowe — brak (tekst z kartki bez zmian).`
+
+### 0E. Familiada — kolejność odpowiedzi **ma znaczenie**
+
+| Sytuacja | Co robisz |
+|----------|-----------|
+| Użytkownik podał **tylko listę** odpowiedzi (bez punktów) | Ułóż odpowiedzi od **najbardziej popularnej** → najmniej. **Pierwsza** na liście dostaje **najwięcej pkt** (preset 100: np. 30 przy 5 odpowiedziach). |
+| Użytkownik podał **punkty przy odpowiedziach** (np. „randka - 40”) | **Zachowaj podane punkty** i kolejność — nie przesortowuj. |
+| Użytkownik podał listę **w kolejności ważności** na kartce | Traktuj kolejność kartki jako ranking → nałóż preset malejąco. |
+| Losowa kolejność na kartce | Ułóż sensownie (najpewniejsza / najzabawniejsza odpowiedź pierwsza) i nałóż preset — **nie pytaj**. |
+
+**Nie mieszaj:** nie ustawiaj 30 pkt na ostatniej odpowiedzi, jeśli auto-rozkładasz preset — **zawsze** 1. pozycja = max punktów.
+
 ---
 
 ## 1. Tryb Party — jak działa gra
@@ -281,7 +312,8 @@ Gdy użytkownik napisze: *„zrób test zgodności jako listę boczną”* → t
 
 **Konwencje:**
 
-- **Punkty — zawsze generuj sam:** preset edytora (suma 100), **nie pytaj użytkownika**. Kolejność odpowiedzi na liście = od najwyżej punktowanej (pierwsza = najwięcej pkt), chyba że użytkownik podał wagi ręcznie.
+- **Kolejność odpowiedzi ma znaczenie** (sekcja 0E): przy auto-punktach **pierwsza** odpowiedź = **najwyżej punktowana**; przy punktach z kartki — użyj **dokładnie** podanych wag.
+- **Punkty — zawsze generuj sam**, jeśli user nie podał wag: preset edytora (suma 100), **nie pytaj**.
 - Presety (identyczne jak „Rozdziel automatycznie” w edytorze):
 
 | Liczba odp. | Rozkład punktów |
@@ -391,7 +423,20 @@ Gdy użytkownik napisze: *„zrób test zgodności jako listę boczną”* → t
 5. Uzupełnij czas/punkty/min-max sam (sekcja 0B).
 6. Zbuduj JSON (sekcja 5).
 7. Self-check (sekcja 8).
-8. Dostarcz plik + krótkie podsumowanie.
+8. **Popraw język polski** (sekcja 0D).
+9. Dostarcz: **JSON** + sekcja **„Poprawki językowe”** pod spodem + krótkie podsumowanie typów.
+```
+
+### Format odpowiedzi LLM (obowiązkowy)
+
+```
+[tu pełny JSON]
+
+### Poprawki językowe (względem kartki)
+- …
+
+### Podsumowanie
+2× FAMILIADA, 2× ESTIMATION, 1× FAST_LIST (6 poz.), 4× QUIZ
 ```
 
 ### Przykład dobrego zachowania
@@ -416,7 +461,9 @@ Gdy użytkownik napisze: *„zrób test zgodności jako listę boczną”* → t
 - [ ] `gameMode` = `"party"`
 - [ ] Każde pytanie ma `type` **WIELKIMI** literami (`QUIZ`, nie `quiz`)
 - [ ] QUIZ/MUSIC: `correct` to liczba 0–3 (lub 0–4 dla MUSIC), **nie** `-1`
-- [ ] FAMILIADA: `answers` to obiekty `{text, points}`; **suma ≈ 100** (preset, bez pytania)
+- [ ] FAMILIADA: `answers` to obiekty `{text, points}`; suma ≈ 100
+- [ ] FAMILIADA: kolejność = ranking (1. = max pkt) **lub** punkty z kartki bez zmian
+- [ ] Pod JSONem: sekcja **„Poprawki językowe”**
 - [ ] FAST_LIST: `fastListItems` (≥1); serie „kto…?» scalone; `answers: []`
 - [ ] ESTIMATION: `correctValue` + **sam** wyliczone `min`, `max`
 - [ ] **Nie** pytano o czas, punkty (poza jawnymi wagami od usera), min/max, FAST_LIST vs OPEN

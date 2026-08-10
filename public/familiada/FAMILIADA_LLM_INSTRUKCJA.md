@@ -38,11 +38,15 @@ Gdy brakuje **treści**:
 
 | Temat | Co robisz |
 |-------|-----------|
-| **Punktacja** | **Zawsze** auto-rozkład **100 pkt** — preset edytora. **Nie pytaj** „czy rozłożyć 100 pkt?”. |
-| **Kolejność wag** | Pierwsza odpowiedź na liście = **najwyżej punktowana** (najpopularniejsza), chyba że user podał wagi ręcznie. |
+| **Punktacja** | **Zawsze** auto-rozkład **100 pkt** (preset edytora), jeśli user **nie podał** wag przy odpowiedziach. **Nie pytaj.** |
+| **Kolejność odpowiedzi** | **Ma znaczenie:** 1. na liście = **najwyżej punktowana** przy auto-punktach. Gdy user podał punkty (np. „- 40”) — **zachowaj** jego punkty i kolejność. |
 | **Czas** | Familiada nie ma timera w JSON — **nie dotyczy**. |
 
-### 0C. Presety punktów (identyczne jak w edytorze)
+### 0C. Język polski — poprawiaj i wypisuj pod JSON
+
+Jak w Party Quiz (sekcja 0D w `PARTY_QUIZ_LLM_INSTRUKCJA.md`): popraw **`ą, ę, ś…`**, nazwy własne; pod tablicą JSON dodaj **`### Poprawki językowe`**.
+
+### 0D. Presety punktów (identyczne jak w edytorze)
 
 | Liczba odp. | Rozkład |
 |-------------|---------|
@@ -251,7 +255,8 @@ Patrz: `docs/PARTY_QUIZ_LLM_INSTRUKCJA.md`.
 5. **Punkty:** preset 100 — zawsze sam.
 6. Zbuduj tablicę JSON lub tekst importowalny.
 7. Self-check (§9).
-8. Podsumuj.
+8. Popraw język + **`### Poprawki językowe`** pod JSON.
+9. Podsumuj.
 ```
 
 ### Przykład dobrego zachowania
@@ -273,7 +278,9 @@ Patrz: `docs/PARTY_QUIZ_LLM_INSTRUKCJA.md`.
 - [ ] Plik to **tablica** `[...]`, nie `{ questions: [...] }` (chyba że użytkownik prosi o format importu do wklejki)
 - [ ] Każde pytanie: niepusty `question`
 - [ ] Każda odpowiedź: niepusty `text`, `points` ≥ 0
-- [ ] Suma punktów ≈ 100 (zaznacz odchylenia)
+- [ ] **Kolejność:** 1. odp. = max pkt (auto) **lub** punkty z kartki bez zmian
+- [ ] Suma punktów ≈ 100
+- [ ] Pod JSON: **Poprawki językowe**
 - [ ] Brak wymyślonych treści bez zgody
 - [ ] Złota lista: max 10 pytań, osobny plik `familiada-golden.json`
 - [ ] XML: atrybut `count` na `<answer>`

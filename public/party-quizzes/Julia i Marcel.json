@@ -1,0 +1,218 @@
+{
+  "gameMode": "party",
+  "defaultPoints": 10,
+  "disableTimePoints": true,
+  "welcome": {
+    "title": "Julia i Marcel",
+    "subtitle": "Familiada · szacowanie · pytania otwarte · ABCD",
+    "logoUrl": "/img/logo_imprezja.png",
+    "introMusicUrl": "/uploads/sfx/intro_loop.mp3"
+  },
+  "questions": [
+    {
+      "id": "q_1786090388179_mvv66",
+      "type": "FAMILIADA",
+      "question": "Jak udobruchać rozgniewaną żonę?",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        {
+          "text": "Przeprosić",
+          "points": 30
+        },
+        {
+          "text": "Wręczyć kwiaty i czekoladki",
+          "points": 25
+        },
+        {
+          "text": "Zabrać na randkę",
+          "points": 20
+        },
+        {
+          "text": "Posprzątać mieszkanie",
+          "points": 15
+        },
+        {
+          "text": "Zabrać do łóżka",
+          "points": 10
+        }
+      ],
+      "correct": -1
+    },
+    {
+      "id": "q_1786090388180_dzpw6",
+      "type": "FAMILIADA",
+      "question": "Co powinien robić każdy dobry mąż?",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        {
+          "text": "Spełniać zachcianki małżonki",
+          "points": 30
+        },
+        {
+          "text": "Mówić miłe rzeczy",
+          "points": 25
+        },
+        {
+          "text": "Sprzątać",
+          "points": 20
+        },
+        {
+          "text": "Gotować",
+          "points": 15
+        },
+        {
+          "text": "Robić za prywatnego kierowcę",
+          "points": 10
+        }
+      ],
+      "correct": -1
+    },
+    {
+      "id": "q_1786090388180_lq5fr",
+      "type": "ESTIMATION",
+      "question": "Ile m² ma nasze mieszkanie?",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "",
+      "image": "",
+      "imageSmall": "",
+      "correctValue": 50,
+      "min": 20,
+      "max": 120
+    },
+    {
+      "id": "q_1786090388180_iw9r9",
+      "type": "ESTIMATION",
+      "question": "Ile ważymy razem? (kg)",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "media": "",
+      "image": "",
+      "imageSmall": "",
+      "correctValue": 134,
+      "min": 80,
+      "max": 220
+    },
+    {
+      "id": "q_1786090388180_x7hg9",
+      "type": "FAST_LIST",
+      "question": "Pytania o parze — szybka lista",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "fastListItems": [
+        {
+          "question": "Gdzie odbyły się zaręczyny?",
+          "answer": "nad morzem / na plaży / w Dziwnowie"
+        },
+        {
+          "question": "Jakiego warzywa nienawidzi panna młoda?",
+          "answer": "pomidor i cebula"
+        },
+        {
+          "question": "Co trenuje pan młody?",
+          "answer": "MMA"
+        },
+        {
+          "question": "Kto pierwszy powiedział „kocham cię”?",
+          "answer": "Julia"
+        },
+        {
+          "question": "Kto więcej pije?",
+          "answer": "Julia"
+        },
+        {
+          "question": "Kto częściej pisał listy miłosne?",
+          "answer": "Marcel"
+        }
+      ],
+      "correct": -1,
+      "bgMusic": "/uploads/sfx/tlowyborcze.mp3"
+    },
+    {
+      "id": "q_1786090388180_uzv08",
+      "type": "QUIZ",
+      "question": "Jak ma na imię gekon pana młodego?",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Gaja",
+        "Ogórek",
+        "Drago",
+        "Aria"
+      ],
+      "media": "",
+      "image": "",
+      "imageSmall": "",
+      "correct": 0
+    },
+    {
+      "id": "q_1786090388180_nkbcq",
+      "type": "QUIZ",
+      "question": "Jaki jest ulubiony serial młodych?",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Świat według Kiepskich",
+        "Supernatural",
+        "Reksio",
+        "Przyjaciele"
+      ],
+      "media": "",
+      "image": "",
+      "imageSmall": "",
+      "correct": 1
+    },
+    {
+      "id": "q_1786090388180_ck676",
+      "type": "QUIZ",
+      "question": "O co była pierwsza nasza kłótnia?",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "O to, że za często się kłócimy",
+        "Kto ma spać przy ścianie",
+        "O to, że za mało się kłócimy",
+        "O kolor skarpetek pana młodego"
+      ],
+      "media": "",
+      "image": "",
+      "imageSmall": "",
+      "correct": 2
+    },
+    {
+      "id": "q_1786090388180_87t7q",
+      "type": "QUIZ",
+      "question": "Co myśli pan młody, gdy po raz kolejny w ciągu dnia słyszy „Kochanieee…”?",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [
+        "Ja p*erdole…",
+        "Oho, co tym razem",
+        "Ciekawe, co moje kochanie potrzebuje",
+        "Udam, że nie słyszałem"
+      ],
+      "media": "",
+      "image": "",
+      "imageSmall": "",
+      "correct": 0
+    }
+  ],
+  "thanksScreen": {
+    "text": "Dziękujemy — Julia i Marcel!",
+    "image": "/img/logo_imprezja.png"
+  }
+}

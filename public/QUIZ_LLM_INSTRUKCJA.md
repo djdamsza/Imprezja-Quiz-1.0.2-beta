@@ -28,12 +28,16 @@ Docelowy format: plik JSON do edytora `/editor.html`.
 
 | Temat | Co robisz |
 |-------|-----------|
-| **Czas** (`time`) | **Nie pytaj.** Domyślnie: QUIZ/VOTE/OPEN **30 s**, LETTER **45 s**, WYBORCZY/HNC **15 s**, SHIPS **0**. Edytor i gra respektują te wartości. |
-| **Punkty** | **Nie pytaj** — aplikacja nalicza automatycznie (100 + bonus za czas, speedrun itd.). Globalnie: `disableTimePoints: false`, chyba że user prosi o wyłączenie bonusu za czas. |
-| **ESTIMATION min/max** | **Nie pytaj.** Wylicz z `correctValue` (jak w Party Quiz: ±40–60% dla wagi/powierzchni, ±15–25 lat dla roku). |
-| **Seria „kto…?” z odpowiedziami** | To **Party Quiz FAST_LIST**, nie ten edytor — skieruj na `/party-quiz/editor.html`. |
+| **Czas** (`time`) | Domyślnie wg typu (sekcja 0B) — **nie pytaj**. |
+| **Punkty** | Aplikacja nalicza — **nie pytaj**. |
+| **ESTIMATION min/max** | Wylicz sam — **nie pytaj**. |
+| **Seria „kto…?” z odpowiedziami** | Party **FAST_LIST** → `/party-quiz/editor.html`. |
 
-### 0C. Bezpieczne domyślne
+### 0C. Język polski (QUIZ / odpowiedzi ABCD)
+
+Popraw oczywiste braki polskich znaków i wielkie litery w tytułach (serialach, miastach). Pod JSON (lub pod plikiem quizu) wypisz **`### Poprawki językowe`** — jak w Party Quiz (`PARTY_QUIZ_LLM_INSTRUKCJA.md`, sekcja 0D).
+
+### 0D. Bezpieczne domyślne
 
 - `disableTimePoints: false` (chyba że user: „tylko poprawność”)
 - `time` — wg typu (sekcja 0B)
