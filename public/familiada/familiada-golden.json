@@ -2,66 +2,184 @@
   {
     "question": "Co zabieramy ze sobą do szkoły?",
     "answers": [
-      { "text": "Plecak", "points": 40 },
-      { "text": "Książki", "points": 20 },
-      { "text": "Kanapki", "points": 20 },
-      { "text": "Zeszyty", "points": 10 }
+      {
+        "text": "Plecak",
+        "points": 40
+      },
+      {
+        "text": "Książki",
+        "points": 20
+      },
+      {
+        "text": "Kanapki",
+        "points": 20
+      },
+      {
+        "text": "Zeszyty",
+        "points": 10
+      },
+      {
+        "text": "Piórnik",
+        "points": 6
+      },
+      {
+        "text": "Ściągi",
+        "points": 4
+      }
     ]
   },
   {
     "question": "Podaj tytuły kultowych polskich komedii",
     "answers": [
-      { "text": "Sami Swoi", "points": 30 },
-      { "text": "Seksmisja", "points": 24 },
-      { "text": "Miś", "points": 20 }
+      {
+        "text": "Sami Swoi",
+        "points": 30
+      },
+      {
+        "text": "Seksmisja",
+        "points": 24
+      },
+      {
+        "text": "Miś",
+        "points": 20
+      },
+      {
+        "text": "Chłopaki nie płaczą",
+        "points": 10
+      },
+      {
+        "text": "Killer",
+        "points": 8
+      },
+      {
+        "text": "Kogel Mogel",
+        "points": 6
+      }
     ]
   },
   {
     "question": "Europejskie państwo większe od Polski",
     "answers": [
-      { "text": "Niemcy", "points": 31 },
-      { "text": "Francja", "points": 29 },
-      { "text": "Wielka Brytania", "points": 18 }
+      {
+        "text": "Niemcy",
+        "points": 31
+      },
+      {
+        "text": "Francja",
+        "points": 29
+      },
+      {
+        "text": "Wielka Brytania",
+        "points": 18
+      },
+      {
+        "text": "Szwecja",
+        "points": 12
+      },
+      {
+        "text": "Hiszpania",
+        "points": 10
+      }
     ]
   },
   {
     "question": "Jakie zwierzęta mają więcej niż jedną nogę?",
     "answers": [
-      { "text": "Świnia", "points": 25 },
-      { "text": "Krowa", "points": 25 },
-      { "text": "Koń", "points": 25 },
-      { "text": "Kura", "points": 25 }
+      {
+        "text": "Świnia",
+        "points": 25
+      },
+      {
+        "text": "Krowa",
+        "points": 25
+      },
+      {
+        "text": "Koń",
+        "points": 25
+      },
+      {
+        "text": "Kura",
+        "points": 25
+      }
     ]
   },
   {
     "question": "Co Polak robi, gdy się zgubi?",
     "answers": [
-      { "text": "Pyta o drogę", "points": 40 },
-      { "text": "Dzwoni do mamy", "points": 30 },
-      { "text": "Włącza GPS", "points": 20 },
-      { "text": "Idzie w przeciwną stronę", "points": 10 }
+      {
+        "text": "Pyta o drogę",
+        "points": 40
+      },
+      {
+        "text": "Dzwoni do mamy",
+        "points": 30
+      },
+      {
+        "text": "Włącza GPS",
+        "points": 20
+      },
+      {
+        "text": "Idzie w przeciwną stronę",
+        "points": 10
+      }
     ]
   },
   {
     "question": "Gdzie nie warto szukać skarbu?",
     "answers": [
-      { "text": "W piwnicy teściowej", "points": 35 },
-      { "text": "W starym aucie", "points": 25 },
-      { "text": "W portfelu", "points": 20 },
-      { "text": "W lodówce", "points": 20 }
+      {
+        "text": "W piwnicy teściowej",
+        "points": 35
+      },
+      {
+        "text": "W starym aucie",
+        "points": 25
+      },
+      {
+        "text": "W portfelu",
+        "points": 20
+      },
+      {
+        "text": "W lodówce",
+        "points": 20
+      }
     ]
   },
   {
     "question": "Alkohol bez litery \"W\" w nazwie",
     "answers": [
-      { "text": "Bimber", "points": 40 },
-      { "text": "Rum", "points": 0 },
-      { "text": "Gin", "points": 0 },
-      { "text": "Tequila", "points": 0 },
-      { "text": "Szampan", "points": 0 },
-      { "text": "Koniak", "points": 0 },
-      { "text": "Likier", "points": 0 },
-      { "text": "Burbon", "points": 0 }
+      {
+        "text": "Bimber",
+        "points": 25
+      },
+      {
+        "text": "Rum",
+        "points": 20
+      },
+      {
+        "text": "Gin",
+        "points": 15
+      },
+      {
+        "text": "Tequila",
+        "points": 10
+      },
+      {
+        "text": "Szampan",
+        "points": 10
+      },
+      {
+        "text": "Koniak",
+        "points": 10
+      },
+      {
+        "text": "Likier",
+        "points": 5
+      },
+      {
+        "text": "Burbon",
+        "points": 5
+      }
     ]
   }
 ]

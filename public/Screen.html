@@ -12,6 +12,8 @@
     <!-- Fonty lokalne – aplikacja działa bez internetu -->
     <!-- Czcionka Familiady (LED dot-matrix) — używana w renderPartyFamiliadaBoard dla trybu Party Quiz. -->
     <link href="/fonts/familiada-custom/familiada.css" rel="stylesheet">
+    <link href="/fonts/pixelify-sans/400.css" rel="stylesheet">
+    <link href="/fonts/pixelify-sans/700.css" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -1125,62 +1127,69 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
             width: 100%;
-            min-height: 50vh;
-            padding: 24px 20px 32px;
+            min-height: 0;
+            padding: 12px 16px 20px;
             box-sizing: border-box;
-            gap: 16px;
+            gap: clamp(8px, 1.4vh, 14px);
             text-align: center;
+            overflow: hidden;
         }
         .party-fl-round-title {
-            font-size: clamp(2.2rem, 4.4vw, 3rem);
+            font-size: clamp(1.35rem, 2.6vw, 2rem);
             font-weight: 700;
             color: rgba(255, 255, 255, 0.88);
             text-transform: uppercase;
             letter-spacing: 0.08em;
-            max-width: 90%;
+            max-width: 92%;
+            line-height: 1.2;
         }
         .party-fl-progress {
-            font-size: clamp(1.9rem, 3.6vw, 2.3rem);
+            font-size: clamp(1.35rem, 2.4vw, 1.75rem);
             font-weight: 700;
             color: #f1c40f;
             letter-spacing: 0.12em;
         }
         .party-fl-prompt {
-            font-size: clamp(3.6rem, 10vw, 8rem);
+            font-size: clamp(1.65rem, 3.8vw, 3.25rem);
             font-weight: 900;
-            line-height: 1.15;
+            line-height: 1.12;
             color: #fff;
             max-width: 96%;
             text-wrap: balance;
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
         .party-fl-answer-hint {
-            font-size: clamp(2rem, 4vw, 2.5rem);
+            font-size: clamp(1.25rem, 2.4vw, 1.65rem);
             color: rgba(255, 255, 255, 0.45);
             font-style: italic;
-            margin-top: 8px;
+            margin-top: 4px;
         }
         .party-fl-answer-wrap {
-            margin-top: 12px;
-            padding: 20px 24px;
-            border-radius: 16px;
+            margin-top: 6px;
+            padding: 14px 18px;
+            border-radius: 14px;
             background: rgba(46, 204, 113, 0.15);
             border: 2px solid rgba(46, 204, 113, 0.55);
-            max-width: 92%;
+            max-width: 94%;
+            box-sizing: border-box;
         }
         .party-fl-answer-label {
-            font-size: clamp(1.5rem, 2.4vw, 1.8rem);
+            font-size: clamp(1rem, 1.8vw, 1.35rem);
             text-transform: uppercase;
             letter-spacing: 0.15em;
             color: rgba(255, 255, 255, 0.65);
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
         .party-fl-answer {
-            font-size: clamp(2.8rem, 7vw, 5.5rem);
+            font-size: clamp(1.45rem, 3.2vw, 2.75rem);
             font-weight: 800;
             color: #2ecc71;
-            line-height: 1.2;
+            line-height: 1.15;
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
 
         /* Party Quiz LETTER: wielka litera na środku ekranu */
@@ -2907,6 +2916,9 @@
                     syncPartyIntroScreenCopy();
                     const introLogo = document.getElementById('intro-logo');
                     if (introLogo && pw.logoUrl) introLogo.src = pw.logoUrl;
+                    if (typeof window.applyPartyBgVizFromState === 'function' && window.__lastPartyState) {
+                        window.applyPartyBgVizFromState(window.__lastPartyState);
+                    }
                 }
                 return;
             }
@@ -2999,6 +3011,9 @@
                 const introTxtEl = document.getElementById('intro-txt');
                 if (document.body.classList.contains('party-active') && typeof syncPartyIntroScreenCopy === 'function') {
                     syncPartyIntroScreenCopy();
+                    if (typeof window.applyPartyBgVizFromState === 'function' && window.__lastPartyState) {
+                        window.applyPartyBgVizFromState(window.__lastPartyState);
+                    }
                 } else if (introTxtEl) {
                     introTxtEl.innerText = state.quizTitle || 'Imprezja Quiz';
                 }
@@ -6295,16 +6310,26 @@
     <style>
         #party-team-bar {
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 64px;
+            /* +10px od góry — overscan TV; popup nad treścią (bez padding-top na #main-content). */
+            top: 10px;
+            left: 12px;
+            right: 12px;
+            height: auto;
+            min-height: 56px;
+            max-height: 72px;
             display: none;
             grid-template-columns: 1fr 1fr;
             gap: 2px;
-            z-index: 9500;
+            z-index: 9600;
             pointer-events: none;
             font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.08);
+            transform: translateY(0);
+            opacity: 1;
+            visibility: visible;
+            transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease, visibility 0.35s ease;
         }
         body.party-active #party-team-bar { display: grid; }
         body.party-active.party-tv-leaderboard #party-team-bar {
@@ -6314,6 +6339,30 @@
         body.party-active .header-users,
         body.party-active .header-users-counter {
             display: none !important;
+        }
+        /* Party Quiz — pytanie w nagłówku: jak tekst odpowiedzi (.q-text), większy rozmiar. */
+        body.party-active:not(.party-familiada-compact):not(.party-ships-compact):not(.party-fastlist-compact) .header-question .question-text {
+            font-family: inherit;
+            font-weight: 700;
+            text-transform: none;
+            letter-spacing: normal;
+            line-height: 1.3;
+            font-size: clamp(1.6rem, 3.1vw, 3.75rem);
+            color: #fff;
+            background: none;
+            background-clip: unset;
+            -webkit-background-clip: unset;
+            -webkit-text-fill-color: #fff;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+            filter: none;
+        }
+        body.party-active:not(.party-familiada-compact):not(.party-ships-compact):not(.party-fastlist-compact) .header-question .question-text.two-lines {
+            font-size: clamp(1.45rem, 2.75vw, 3.35rem);
+            line-height: 1.32;
+        }
+        body.party-active:not(.party-familiada-compact):not(.party-ships-compact):not(.party-fastlist-compact) .header-question .question-text.three-lines {
+            font-size: clamp(1.3rem, 2.45vw, 2.95rem);
+            line-height: 1.36;
         }
         /* Party Quiz SHIPS — bez dużego pytania w pasku nagłówka (tytuł jest w JSON / nie pokazujemy go na TV) */
         body.party-ships-compact .header .header-question,
@@ -6337,7 +6386,8 @@
         body.party-ships-compact .content-area {
             justify-content: center;
             padding-top: 10px;
-            padding-bottom: 18px;
+            padding-bottom: 24px;
+            overflow: visible;
         }
         /* Party Familiada — plansza od góry, bez pionowego centrowania całej treści; ciaśniejsze boki */
         body.party-familiada-compact .content-area {
@@ -6349,17 +6399,20 @@
             justify-content: flex-start;
             align-content: flex-start;
         }
-        /* Zepchnij całą zawartość Screen.html w dół tak, aby pasek drużyn miał własne miejsce.
-           #main-content to flex-kolumna rozciągnięta na 100% wysokości, więc padding-top zsuwa
-           nagłówek i grid pytania poniżej paska drużyn (64px). box-sizing keeps layout intact. */
+        body.party-fastlist-compact .content-area {
+            justify-content: flex-start;
+            align-items: stretch;
+            padding: 4px 8px 12px;
+        }
+        body.party-fastlist-compact .quiz-grid {
+            justify-content: flex-start;
+            align-content: flex-start;
+            min-height: 0;
+        }
+        /* Pasek drużyn to overlay — treść pytania zostaje pod spodem (bez padding-top). */
         body.party-active #main-content {
             box-sizing: border-box;
             height: 100vh;
-        }
-        body.party-active:not(.party-team-bar-hidden) #main-content {
-            padding-top: 64px;
-        }
-        body.party-active.party-team-bar-hidden #main-content {
             padding-top: 0 !important;
         }
         /* Party Quiz — intro screen bez QR/linków. Zostawiamy tylko logo + tekst + muzyka intro.
@@ -6437,16 +6490,12 @@
         }
         .party-team-panel .name { font-size: 22px; text-transform: uppercase; opacity: 0.95; }
         .party-team-panel .score { font-size: 34px; font-variant-numeric: tabular-nums; text-shadow: 0 3px 8px rgba(0,0,0,0.7); transition: opacity 0.35s ease, visibility 0.35s ease; }
-        /* party-scores-hidden: chowamy CAŁY pasek (kolory + nazwy + punkty), nie same cyfry */
+        /* party-scores-hidden: chowamy CAŁY pasek (wjeżdża w górę, bez zmiany layoutu pytania). */
         body.party-team-bar-hidden #party-team-bar {
+            transform: translateY(calc(-100% - 24px));
             opacity: 0 !important;
             visibility: hidden !important;
-            height: 0 !important;
-            min-height: 0 !important;
-            overflow: hidden !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            border: none !important;
+            pointer-events: none;
         }
         /* Party Quiz — „Pokaż prawidłową": tylko ✓ przy poprawnej (bez % z telefonów) */
         .party-correct-mark {
@@ -6501,8 +6550,18 @@
             flex-direction: column;
             align-items: center;
             justify-content: flex-start;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
+            overflow: visible;
+            padding-bottom: 4px;
+            box-sizing: border-box;
+        }
+        .party-ships-table-frame {
+            display: inline-block;
+            line-height: 0;
+            padding-bottom: 3px;
+            box-sizing: border-box;
+        }
+        body.party-ships-compact .quiz-grid.ships-mode {
+            overflow: visible;
         }
         .party-ships-q-on-board {
             width: 100%;
@@ -6907,7 +6966,8 @@
             align-items: stretch;
             justify-content: space-between;
             gap: 8px;
-            padding: 4px 2px 8px;
+            /* +10px u góry — ten sam overscan co #party-team-bar na zwykłym Party Quiz. */
+            padding: 14px 2px 8px;
         }
         .pf-panel {
             width: 28%;
@@ -7392,7 +7452,42 @@
             0%   { transform: scale(1.5); opacity: 0; }
             100% { transform: scale(1); opacity: 1; }
         }
+        /* Party Quiz — delikatne tło Milkdrop (Butterchurn), pod treścią pytania */
+        #party-bg-viz-wrap {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            overflow: hidden;
+            opacity: 0.25;
+            transition: opacity 0.45s ease;
+            display: none;
+        }
+        body.party-bg-viz-on #party-bg-viz-wrap { display: block; }
+        #party-bg-viz-wrap canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        /* Milkdrop widoczny przez ekran startowy Party i ekran wyników końcowych */
+        body.party-bg-viz-on.party-active #intro-screen {
+            background: linear-gradient(180deg, rgba(0, 0, 0, 0.32) 0%, rgba(0, 0, 0, 0.62) 100%);
+        }
+        body.party-bg-viz-on #party-final-screen {
+            background: linear-gradient(180deg, rgba(26, 35, 50, 0.42) 0%, rgba(10, 15, 26, 0.78) 100%);
+        }
+        body.party-active #main-content,
+        body.party-active #intro-screen {
+            position: relative;
+            z-index: 2;
+        }
+        body.party-bg-viz-on #party-final-screen {
+            z-index: 9999;
+        }
     </style>
+    <div id="party-bg-viz-wrap" aria-hidden="true"><canvas id="party-bg-viz-canvas"></canvas></div>
     <div id="party-team-bar" aria-hidden="true">
         <div class="party-team-panel blue">
             <span class="name" id="party-team-blue-name">Niebiescy</span>
@@ -7449,14 +7544,17 @@
         };
 
         function applyPartyState(ps) {
+            window.__lastPartyState = ps || null;
             if (!ps || !ps.teams) {
                 window.partyActiveFile = null;
                 window.__partyTeamsForFamTV = null;
                 window.__partySwapped = false;
                 document.body.classList.remove('party-active');
                 document.body.classList.remove('party-team-bar-hidden');
+                document.body.classList.remove('party-bg-viz-on');
                 bar.classList.remove('swapped');
                 if (partyScoresTick) { clearInterval(partyScoresTick); partyScoresTick = null; }
+                if (typeof window.stopPartyBgViz === 'function') window.stopPartyBgViz();
                 return;
             }
             // Pasek drużyn: pokazuj gdy serwer informuje, że tryb party jest aktywny
@@ -7498,6 +7596,9 @@
                 finalEl.style.display = 'flex';
             } else if (finalEl) {
                 finalEl.style.display = 'none';
+            }
+            if (typeof window.applyPartyBgVizFromState === 'function') {
+                window.applyPartyBgVizFromState(ps);
             }
         }
 
@@ -7582,7 +7683,8 @@
                 const snd = window.partyFamSounds[name];
                 // Dynamicznie respektujemy masterVolume (regulacja głośności w adminie).
                 const mv = (typeof gamesVolume === 'number') ? gamesVolume : 1;
-                snd.volume = Math.max(0, Math.min(1, 0.85 * mv));
+                const gain = (n === 'jingle') ? 0.45 : 0.85;
+                snd.volume = Math.max(0, Math.min(1, gain * mv));
                 try { snd.pause(); snd.currentTime = 0; } catch (_) {}
                 const p = snd.play(); if (p && p.catch) p.catch(() => {});
             } catch (_) {}
@@ -7650,6 +7752,220 @@
             const v = Math.max(0, Math.min(1, 0.85 * mv));
             Object.values(window.partyFamSounds || {}).forEach(a => { try { a.volume = v; } catch (_) {} });
         };
+
+        // Party Quiz — delikatne tło Milkdrop (Butterchurn), sterowane z panelu admina.
+        (function () {
+            const wrap = document.getElementById('party-bg-viz-wrap');
+            const canvas = document.getElementById('party-bg-viz-canvas');
+            if (!wrap || !canvas) return;
+
+            let visualizer = null;
+            let audioCtx = null;
+            let mediaStream = null;
+            let presetNames = [];
+            let currentPresetIndex = 0;
+            let lastApplied = { enabled: false, presetIndex: -1, opacity: -1, isFam: true };
+            let rafId = null;
+            let resizeHandler = null;
+            let resizeObserver = null;
+            let loadPromise = null;
+
+            function loadScriptOnce(src) {
+                return new Promise((resolve, reject) => {
+                    if (document.querySelector('script[data-party-md="' + src + '"]')) { resolve(); return; }
+                    const s = document.createElement('script');
+                    s.src = src;
+                    s.async = true;
+                    s.dataset.partyMd = src;
+                    s.onload = () => resolve();
+                    s.onerror = () => reject(new Error('load ' + src));
+                    document.head.appendChild(s);
+                });
+            }
+
+            function loadMilkdropLibs() {
+                if (loadPromise) return loadPromise;
+                const presetScripts = [
+                    '/lib/butterchurn-presets/butterchurnPresets.min.js',
+                    '/lib/butterchurn-presets/butterchurnPresetsExtra.min.js',
+                    '/lib/butterchurn-presets/butterchurnPresetsExtra2.min.js',
+                    '/lib/butterchurn-presets/butterchurnPresetsMD1.min.js',
+                    '/lib/butterchurn-presets/butterchurnPresetsNonMinimal.min.js'
+                ];
+                const presetGlobals = [
+                    'butterchurnPresets', 'butterchurnPresetsExtra', 'butterchurnPresetsExtra2',
+                    'butterchurnPresetsMD1', 'butterchurnPresetsNonMinimal'
+                ];
+                loadPromise = loadScriptOnce('/lib/butterchurn/butterchurn.min.js')
+                    .then(() => Promise.all(presetScripts.map(src => loadScriptOnce(src).catch(() => {}))))
+                    .then(() => {
+                        const merged = {};
+                        presetGlobals.forEach(g => {
+                            const mod = window[g];
+                            if (!mod) return;
+                            const presets = (mod && typeof mod.getPresets === 'function') ? mod.getPresets() : mod;
+                            if (presets && typeof presets === 'object') {
+                                Object.keys(presets).forEach(k => { if (presets[k] && !merged[k]) merged[k] = presets[k]; });
+                            }
+                        });
+                        const bc = window.butterchurn;
+                        if (!bc) throw new Error('Butterchurn unavailable');
+                        return { butterchurn: bc.default || bc, allPresets: merged };
+                    });
+                return loadPromise;
+            }
+
+            function teardown() {
+                if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+                if (resizeHandler) { window.removeEventListener('resize', resizeHandler); resizeHandler = null; }
+                if (resizeObserver) { try { resizeObserver.disconnect(); } catch (_) {} resizeObserver = null; }
+                if (visualizer) { try { visualizer.disconnectAudio(); } catch (_) {} visualizer = null; }
+                if (mediaStream) { try { mediaStream.getTracks().forEach(t => t.stop()); } catch (_) {} mediaStream = null; }
+                if (audioCtx) { try { audioCtx.close(); } catch (_) {} audioCtx = null; }
+                document.body.classList.remove('party-bg-viz-on');
+            }
+
+            window.stopPartyBgViz = teardown;
+
+            function measureSize() {
+                const dpr = Math.max(1, window.devicePixelRatio || 1);
+                const cssW = Math.max(1, wrap.clientWidth || window.innerWidth);
+                const cssH = Math.max(1, wrap.clientHeight || window.innerHeight);
+                return { cssW, cssH, pxW: Math.round(cssW * dpr), pxH: Math.round(cssH * dpr) };
+            }
+
+            function loadPresetByIndex(idx) {
+                if (!visualizer || !presetNames.length) return;
+                currentPresetIndex = ((idx % presetNames.length) + presetNames.length) % presetNames.length;
+                const preset = window.__partyBgAllPresets && window.__partyBgAllPresets[presetNames[currentPresetIndex]];
+                if (preset) visualizer.loadPreset(preset, 2.5);
+            }
+
+            function startRenderLoop() {
+                const VIZ_FRAME_INTERVAL = 1000 / 24;
+                let last = 0;
+                function frame(now) {
+                    if (!visualizer) return;
+                    if (now - last >= VIZ_FRAME_INTERVAL) {
+                        last = now;
+                        try { visualizer.render(); } catch (_) {}
+                    }
+                    rafId = requestAnimationFrame(frame);
+                }
+                rafId = requestAnimationFrame(frame);
+            }
+
+            function ensureRunning(ps) {
+                const opacity = (ps && typeof ps.bgVizOpacity === 'number') ? ps.bgVizOpacity : 25;
+                const presetIndex = (ps && typeof ps.bgVizPresetIndex === 'number') ? ps.bgVizPresetIndex : 0;
+                wrap.style.opacity = String(Math.max(0, Math.min(1, opacity / 100)));
+                document.body.classList.add('party-bg-viz-on');
+
+                if (visualizer) {
+                    if (lastApplied.presetIndex !== presetIndex) loadPresetByIndex(presetIndex);
+                    lastApplied = { enabled: true, presetIndex, opacity, isFam: false };
+                    return;
+                }
+
+                loadMilkdropLibs().then(({ butterchurn, allPresets }) => {
+                    window.__partyBgAllPresets = allPresets;
+                    presetNames = Object.keys(allPresets || {}).filter(k => allPresets[k]).sort();
+                    if (!presetNames.length) return;
+
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+
+                    function connectSilentFallback() {
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        gain.gain.value = 0.0001;
+                        osc.connect(gain);
+                        const analyser = audioCtx.createAnalyser();
+                        gain.connect(analyser);
+                        osc.start();
+                        visualizer.connectAudio(analyser);
+                    }
+
+                    const micPromise = (navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+                        ? navigator.mediaDevices.getUserMedia({
+                            audio: { autoGainControl: false, echoCancellation: false, noiseSuppression: false },
+                            video: false
+                        }).catch(() => null)
+                        : Promise.resolve(null);
+
+                    return micPromise.then(stream => {
+                        if (stream) mediaStream = stream;
+                        let size = measureSize();
+                        canvas.width = size.pxW;
+                        canvas.height = size.pxH;
+                        canvas.style.width = size.cssW + 'px';
+                        canvas.style.height = size.cssH + 'px';
+                        visualizer = butterchurn.createVisualizer(audioCtx, canvas, {
+                            width: size.pxW,
+                            height: size.pxH,
+                            pixelRatio: 1,
+                            textureRatio: 1
+                        });
+                        if (stream) {
+                            const src = audioCtx.createMediaStreamSource(stream);
+                            const gainNode = audioCtx.createGain();
+                            gainNode.gain.value = Math.pow(10, 6 / 20);
+                            src.connect(gainNode);
+                            visualizer.connectAudio(gainNode);
+                        } else {
+                            connectSilentFallback();
+                        }
+                        loadPresetByIndex(presetIndex);
+                        startRenderLoop();
+                        resizeHandler = () => {
+                            if (!visualizer) return;
+                            const ns = measureSize();
+                            if (canvas.width !== ns.pxW || canvas.height !== ns.pxH) {
+                                canvas.width = ns.pxW;
+                                canvas.height = ns.pxH;
+                                canvas.style.width = ns.cssW + 'px';
+                                canvas.style.height = ns.cssH + 'px';
+                                try { visualizer.setRendererSize(ns.pxW, ns.pxH); } catch (_) {}
+                            }
+                        };
+                        window.addEventListener('resize', resizeHandler);
+                        if (typeof ResizeObserver !== 'undefined') {
+                            try {
+                                resizeObserver = new ResizeObserver(() => resizeHandler());
+                                resizeObserver.observe(wrap);
+                            } catch (_) {}
+                        }
+                        lastApplied = { enabled: true, presetIndex, opacity, isFam: false };
+                    });
+                }).catch(err => {
+                    console.warn('Party bg viz:', err);
+                    document.body.classList.remove('party-bg-viz-on');
+                });
+            }
+
+            window.applyPartyBgVizFromState = function (ps) {
+                const enabled = !!(ps && ps.bgVizEnabled && ps.active);
+                const onFinal = !!(ps && ps.finalScreenVisible);
+                const onIntro = !!(ps && ps.active && !onFinal
+                    && typeof ps.currentIndex === 'number' && ps.currentIndex < 0);
+                /* Wyłącz tylko podczas aktywnego pytania FAMILIADA — intro i finał zostają z tłem. */
+                const isFamPlaying = !!(ps && ps.activePartyQuestionType === 'FAMILIADA'
+                    && !onFinal && !onIntro && ps.currentIndex >= 0);
+                const shouldRun = enabled && !isFamPlaying;
+                if (!shouldRun) {
+                    if (visualizer || document.body.classList.contains('party-bg-viz-on')) teardown();
+                    lastApplied = { enabled: false, presetIndex: -1, opacity: -1, isFam: isFamPlaying };
+                    return;
+                }
+                const presetIndex = (typeof ps.bgVizPresetIndex === 'number') ? ps.bgVizPresetIndex : 0;
+                const opacity = (typeof ps.bgVizOpacity === 'number') ? ps.bgVizOpacity : 25;
+                if (lastApplied.enabled && lastApplied.presetIndex === presetIndex && lastApplied.opacity === opacity && visualizer) {
+                    wrap.style.opacity = String(Math.max(0, Math.min(1, opacity / 100)));
+                    return;
+                }
+                ensureRunning(ps);
+            };
+        })();
 
         // Dźwięki STATKÓW (1:1 z /statki-solo/screen.html) — whoosh + explosion/splash.
         // Generujemy przez WebAudio (brak plików MP3), głośność skalujemy przez masterVolume.
@@ -7799,8 +8115,55 @@
             window.__partyFamTvResizeHooked = true;
             window.addEventListener('resize', () => {
                 if (document.body.classList.contains('party-familiada-tv')) window.__partyFamTvFit();
+                if (document.body.classList.contains('party-fastlist-compact')) window.__partyFastListTvFit();
             });
         }
+
+        /** Party FAST_LIST — dopasuj prompt + odpowiedź do wysokości ekranu HD (1080p + pasek drużyn). */
+        function fitPartyFastListTv() {
+            const view = document.querySelector('.party-fast-list-view');
+            if (!view || !document.body.classList.contains('party-fastlist-compact')) return;
+            view.querySelectorAll('.party-fl-round-title, .party-fl-progress, .party-fl-prompt, .party-fl-answer-hint, .party-fl-answer-label, .party-fl-answer').forEach((el) => {
+                el.style.fontSize = '';
+            });
+            const answerWrap = view.querySelector('.party-fl-answer-wrap');
+            if (answerWrap) {
+                answerWrap.style.padding = '';
+                answerWrap.style.marginTop = '';
+            }
+            view.style.maxHeight = '';
+            view.style.paddingTop = '';
+
+            const contentArea = document.querySelector('.content-area');
+            const areaTop = contentArea ? contentArea.getBoundingClientRect().top : 140;
+            const maxH = Math.max(160, window.innerHeight - areaTop - 16);
+            view.style.maxHeight = maxH + 'px';
+            view.style.paddingTop = '6px';
+
+            const shrinkables = () => view.querySelectorAll('.party-fl-round-title, .party-fl-progress, .party-fl-prompt, .party-fl-answer-hint, .party-fl-answer-label, .party-fl-answer');
+            let guard = 60;
+            while (view.scrollHeight > maxH && guard-- > 0) {
+                let shrunk = false;
+                shrinkables().forEach((el) => {
+                    const fs = parseFloat(getComputedStyle(el).fontSize) || 20;
+                    const minFs = el.classList.contains('party-fl-prompt') ? 15
+                        : (el.classList.contains('party-fl-answer') ? 13 : 10);
+                    if (fs > minFs) {
+                        el.style.fontSize = Math.max(minFs, fs * 0.91) + 'px';
+                        shrunk = true;
+                    }
+                });
+                if (!shrunk) break;
+            }
+            if (view.scrollHeight > maxH && answerWrap) {
+                answerWrap.style.padding = '10px 14px';
+                answerWrap.style.marginTop = '4px';
+            }
+        }
+
+        window.__partyFastListTvFit = function () {
+            fitPartyFastListTv();
+        };
 
         // Globalna funkcja wywoływana w update_state dla pytania FAMILIADA.
         // Dane rundy (revealed + errors + pot) pobieramy z `partyRoundData` (party_state.familiadaRound).
@@ -7904,11 +8267,12 @@
             const prompt = pl.prompt || '';
             const showA = !!pl.showAnswer;
             const answer = pl.answer || '';
+            const answerText = String(answer).trim() ? answer : '(brak zapisanej odpowiedzi)';
             const answerBlock = showA
                 ? (
                     '<div class="party-fl-answer-wrap">' +
                         '<div class="party-fl-answer-label">Odpowiedź</div>' +
-                        '<div class="party-fl-answer">' + esc(answer) + '</div>' +
+                        '<div class="party-fl-answer">' + esc(answerText) + '</div>' +
                     '</div>'
                 )
                 : '<div class="party-fl-answer-hint">Odpowiedź:</div>';
@@ -7919,6 +8283,12 @@
                     '<div class="party-fl-prompt">' + esc(prompt) + '</div>' +
                     answerBlock +
                 '</div>';
+            window.requestAnimationFrame(() => {
+                window.__partyFastListTvFit();
+                if (document.fonts && document.fonts.ready) {
+                    document.fonts.ready.then(() => window.__partyFastListTvFit()).catch(() => {});
+                }
+            });
         };
 
         window.renderPartyFamiliadaBoard = function (q, state) {
@@ -8048,10 +8418,9 @@
             const vw = window.innerWidth || 1400;
             const vh = window.innerHeight || 800;
             const compactUI = document.body.classList.contains('party-ships-compact');
-            const teamBarH = (document.body.classList.contains('party-active') && !document.body.classList.contains('party-team-bar-hidden')) ? 64 : 0;
             const headerGuess = compactUI ? 52 : 72;
-            const topChrome = headerGuess + teamBarH + 28;
-            const availH = Math.max(220, vh - topChrome);
+            const topChrome = headerGuess + 36;
+            const availH = Math.max(220, vh - topChrome - 20);
             const sidebarW = vw >= 900 ? Math.min(340, vw * 0.26) : 0;
             const availW = Math.max(220, vw - 40 - sidebarW);
 
@@ -8059,9 +8428,10 @@
                więc cache trzymamy poza obiektem z serwera (inaczej każdy strzał mógłby „ruszać” siatką). */
             const layoutKey = bs + '|' + (Array.isArray(ships) ? ships.map(s => (s ? (s.row + ',' + s.col + ',' + (s.vertical ? 1 : 0) + ',' + s.size) : '')).join(';') : '');
             window.__partyShipsDims = window.__partyShipsDims || {};
-            let maxBoard = Math.min(availW * 0.99, availH * 0.98, vw >= 900 ? availW + 120 : availW * 1.08);
+            const borderPx = 6;
+            let maxBoard = Math.min(availW * 0.99, availH * 0.94, vw >= 900 ? availW + 120 : availW * 1.06);
             let headPx = Math.max(18, Math.floor(maxBoard / (bs + 1) * 0.8));
-            let cellPx = Math.floor((maxBoard - headPx) / bs);
+            let cellPx = Math.max(12, Math.floor((maxBoard - headPx - borderPx) / bs));
             let fsh = Math.max(11, Math.floor(headPx * 0.55));
             const cached = window.__partyShipsDims[layoutKey];
             if (cached && cached.cellPx > 0 && cached.bs === bs) {
@@ -8149,7 +8519,7 @@
             grid.innerHTML =
                 '<div class="party-ships-wrap party-ships-solo-match">' +
                     '<div class="party-ships-solo-row">' +
-                        '<div class="party-ships-table-host">' + qBanner + html + '</div>' +
+                        '<div class="party-ships-table-host">' + qBanner + '<div class="party-ships-table-frame">' + html + '</div></div>' +
                         '<div class="party-ships-aside">' +
                             '<div class="party-ships-turn-aside ' + currentTeam + '" aria-live="polite">Teraz strzelają<b>' + escapeHtml(turnName) + '</b></div>' +
                             '<div class="party-ships-score blue">' +

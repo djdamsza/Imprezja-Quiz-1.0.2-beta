@@ -531,23 +531,31 @@ let partyState = {
     // TV: opcjonalnie ukrywaj punkty na pasku drużyn — pokazuj przez 5 s po zmianie punktów (partyFlashScoresVisible).
     hideTeamScoresOnTv: true,
     teamScoresFlashUntil: 0,         // timestamp ms — do kiedy TV ma pokazać punkty przy włączonym ukryciu
+    /** Delikatne tło Milkdrop na TV (Party Quiz) — wyłączone w pytaniach FAMILIADA. */
+    bgVizEnabled: false,
+    bgVizPresetIndex: 0,
+    bgVizOpacity: 25,
     /** Ostatnie przyznanie punktów do cofnięcia / przeniesienia (drugi klik ta sama drużyna = cofnij, inna = przenieś). */
     revertibleAward: null,           // { kind, team, points, questionIndex } | null
-    /** Pytanie z osobnej złotej listy (`party-quiz-golden.json`) — indeks lub null gdy gra zwykłe pytanie z pliku. */
-    currentGoldenIndex: null,
-    /** Zapas gameState.questions zanim dołożymy pytanie ze złotej listy (bez mutacji wczytanego quizu). */
+    /** Pytanie z listy bocznej (złota lista, test wiedzy itd.) — id listy lub null. */
+    currentSideListId: null,
+    /** Indeks pytania w aktywnej liście bocznej. */
+    currentSideListIndex: null,
+    /** Zapas gameState.questions zanim dołożymy pytanie z listy bocznej (bez mutacji wczytanego quizu). */
     gameStateQuestionsBeforeGolden: null,
     // Party FAST_LIST: seria krótkich pytań (prompt + odpowiedź) — indeks w fastListItems, czy TV pokazuje odpowiedź.
     fastListIndex: 0,
     fastListShowAnswer: false
 };
 
-/** Aktualne pytanie Party na serwerze — uwzględnia końcówkę listy dodaną dla złotej listy. */
+/** Aktualne pytanie Party na serwerze — uwzględnia końcówkę listy dodaną dla listy bocznej. */
 function getActivePartyQuestionForParty() {
     if (gameMode !== 'party') return null;
-    if (partyState.currentGoldenIndex !== null && typeof partyState.currentGoldenIndex === 'number') {
-        const gq = partyQuizGoldenQuestions[partyState.currentGoldenIndex];
-        if (gq) return gq;
+    if (partyState.currentSideListId && typeof partyState.currentSideListIndex === 'number') {
+        const entry = partySideListsById[partyState.currentSideListId];
+        if (entry && Array.isArray(entry.questions) && entry.questions[partyState.currentSideListIndex]) {
+            return entry.questions[partyState.currentSideListIndex];
+        }
     }
     if (partyState.currentIndex < 0) return null;
     const arr = gameState.questions;
@@ -560,7 +568,8 @@ function partyRestoreGameStateQuestionsIfExtended() {
         gameState.questions = partyState.gameStateQuestionsBeforeGolden;
         partyState.gameStateQuestionsBeforeGolden = null;
     }
-    partyState.currentGoldenIndex = null;
+    partyState.currentSideListId = null;
+    partyState.currentSideListIndex = null;
 }
 
 /** Ustawia krótki „flash" wyniku na TV (tylko gdy hideTeamScoresOnTv). */
@@ -633,7 +642,11 @@ function buildPartyStatePayload() {
         active: gameMode === 'party',                              // Czy tryb party jest aktywny na serwerze (bazuje na gameMode)
         activeFile: partyState.activeFile,
         currentIndex: partyState.currentIndex,
-        currentGoldenIndex: (typeof partyState.currentGoldenIndex === 'number') ? partyState.currentGoldenIndex : null,
+        currentSideListId: partyState.currentSideListId || null,
+        currentSideListIndex: (typeof partyState.currentSideListIndex === 'number') ? partyState.currentSideListIndex : null,
+        currentGoldenIndex: (partyState.currentSideListId === 'golden' && typeof partyState.currentSideListIndex === 'number')
+            ? partyState.currentSideListIndex
+            : null,
         questionAwarded: partyState.questionAwarded,
         teams: partyState.teams,
         swapped: partyState.swapped,
@@ -654,7 +667,10 @@ function buildPartyStatePayload() {
         buttonPressedBy: partyState.buttonPressedBy || null,
         hideTeamScoresOnTv: !!partyState.hideTeamScoresOnTv,
         teamScoresFlashUntil: typeof partyState.teamScoresFlashUntil === 'number' ? partyState.teamScoresFlashUntil : 0,
-        revertAward: (partyState.revertibleAward && partyState.revertibleAward.questionIndex === partyState.currentIndex)
+        bgVizEnabled: !!partyState.bgVizEnabled,
+        bgVizPresetIndex: (typeof partyState.bgVizPresetIndex === 'number') ? partyState.bgVizPresetIndex : 0,
+        bgVizOpacity: (typeof partyState.bgVizOpacity === 'number') ? partyState.bgVizOpacity : 25,
+        revertAward: partyRevertMatchesCurrent(partyState.revertibleAward)
             ? {
                 kind: partyState.revertibleAward.kind,
                 team: partyState.revertibleAward.team,
@@ -673,9 +689,44 @@ function partyRemoveAskedIndex(idx) {
     if (i !== -1) partyState.askedIndices.splice(i, 1);
 }
 
+/** Kontekst bieżącego pytania — rozróżnia listę główną i listy boczne (ten sam synthIndex na SL). */
+function partyCurrentAwardSlot() {
+    const sideId = partyState.currentSideListId || null;
+    const sideIdx = (sideId && typeof partyState.currentSideListIndex === 'number')
+        ? partyState.currentSideListIndex
+        : null;
+    return {
+        sideListId: sideId,
+        sideListIndex: sideIdx,
+        questionIndex: partyState.currentIndex
+    };
+}
+
+function partyRevertMatchesCurrent(rev) {
+    if (!rev) return false;
+    const slot = partyCurrentAwardSlot();
+    if ((rev.sideListId || null) !== slot.sideListId) return false;
+    if (rev.sideListIndex !== slot.sideListIndex) return false;
+    return rev.questionIndex === slot.questionIndex;
+}
+
+function partyRemoveAskedIndexIfMain(idx) {
+    if (partyState.currentSideListId) return;
+    partyRemoveAskedIndex(idx);
+}
+
+function partyMakeRevertibleAward(base) {
+    const slot = partyCurrentAwardSlot();
+    return Object.assign({}, base, {
+        sideListId: slot.sideListId,
+        sideListIndex: slot.sideListIndex,
+        questionIndex: slot.questionIndex
+    });
+}
+
 /** Oznacz aktualne pytanie jako rozegrane (przyznane punkty lub pominięte) — dla szarego stylu w liście. */
 function partyMarkAsked() {
-    if (partyState.currentGoldenIndex !== null && typeof partyState.currentGoldenIndex === 'number') return;
+    if (partyState.currentSideListId && typeof partyState.currentSideListIndex === 'number') return;
     if (partyState.currentIndex < 0) return;
     if (!Array.isArray(partyState.askedIndices)) partyState.askedIndices = [];
     if (partyState.askedIndices.indexOf(partyState.currentIndex) === -1) {
@@ -693,6 +744,10 @@ function partyGetQuestionPoints(q) {
         return (typeof q.pointsPerHit === 'number' && q.pointsPerHit > 0) ? q.pointsPerHit : 5;
     }
     if (typeof q.points === 'number' && q.points > 0) return q.points;
+    if (partyState.currentSideListId && partyState.currentSideListId !== 'golden') {
+        const sideEntry = partySideListsById[partyState.currentSideListId];
+        if (sideEntry && typeof sideEntry.defaultPoints === 'number') return sideEntry.defaultPoints;
+    }
     if (partyState.quiz && partyState.quiz.meta && typeof partyState.quiz.meta.defaultPoints === 'number') return partyState.quiz.meta.defaultPoints;
     return 10;
 }
@@ -732,34 +787,84 @@ const familiadaGoldenPath = path.join(familiadaDir, FAMILIADA_GOLDEN_FILE);
 let familiadaGoldenQuestions = [];
 
 const GOLDEN_LIST_DEFAULT = [
-    { question: 'Co zabieramy ze sobą do szkoły?', answers: [{ text: 'Plecak', points: 40 }, { text: 'Książki', points: 20 }, { text: 'Kanapki', points: 20 }, { text: 'Zeszyty', points: 10 }] },
-    { question: 'Podaj tytuły kultowych polskich komedii', answers: [{ text: 'Sami Swoi', points: 30 }, { text: 'Seksmisja', points: 24 }, { text: 'Miś', points: 20 }] },
-    { question: 'Europejskie państwo większe od Polski', answers: [{ text: 'Niemcy', points: 31 }, { text: 'Francja', points: 29 }, { text: 'Wielka Brytania', points: 18 }] }
+    { question: "Co zabieramy ze sobą do szkoły?", answers: [{ text: "Plecak", points: 40 }, { text: "Książki", points: 20 }, { text: "Kanapki", points: 20 }, { text: "Zeszyty", points: 10 }, { text: "Piórnik", points: 6 }, { text: "Ściągi", points: 4 }] },
+    { question: "Podaj tytuły kultowych polskich komedii", answers: [{ text: "Sami Swoi", points: 30 }, { text: "Seksmisja", points: 24 }, { text: "Miś", points: 20 }, { text: "Chłopaki nie płaczą", points: 10 }, { text: "Killer", points: 8 }, { text: "Kogel Mogel", points: 6 }] },
+    { question: "Europejskie państwo większe od Polski", answers: [{ text: "Niemcy", points: 31 }, { text: "Francja", points: 29 }, { text: "Wielka Brytania", points: 18 }, { text: "Szwecja", points: 12 }, { text: "Hiszpania", points: 10 }] },
+    { question: "Jakie zwierzęta mają więcej niż jedną nogę?", answers: [{ text: "Świnia", points: 25 }, { text: "Krowa", points: 25 }, { text: "Koń", points: 25 }, { text: "Kura", points: 25 }] },
+    { question: "Co Polak robi, gdy się zgubi?", answers: [{ text: "Pyta o drogę", points: 40 }, { text: "Dzwoni do mamy", points: 30 }, { text: "Włącza GPS", points: 20 }, { text: "Idzie w przeciwną stronę", points: 10 }] },
+    { question: "Gdzie nie warto szukać skarbu?", answers: [{ text: "W piwnicy teściowej", points: 35 }, { text: "W starym aucie", points: 25 }, { text: "W portfelu", points: 20 }, { text: "W lodówce", points: 20 }] },
+    { question: "Alkohol bez litery \"W\" w nazwie", answers: [{ text: "Bimber", points: 25 }, { text: "Rum", points: 20 }, { text: "Gin", points: 15 }, { text: "Tequila", points: 10 }, { text: "Szampan", points: 10 }, { text: "Koniak", points: 10 }, { text: "Likier", points: 5 }, { text: "Burbon", points: 5 }] }
 ];
+
+function familiadaGoldenQuestionKey(q) {
+    return String((q && q.question) || '').trim().toLowerCase();
+}
+
+/** Scalanie złotej listy Familiady: public/ z bogatszymi odpowiedziami nadpisuje ucięty plik w userData. */
+function mergeFamiliadaGoldenPreferRicher(userList, publicList) {
+    const user = normalizeFamiliadaQuestionsList(userList);
+    const pub = normalizeFamiliadaQuestionsList(publicList);
+    if (!pub.length) return { list: user, changed: false };
+    if (!user.length) return { list: pub, changed: true };
+    const userByKey = new Map(user.map(q => [familiadaGoldenQuestionKey(q), q]));
+    let changed = false;
+    const merged = [];
+    const used = new Set();
+    for (const pq of pub) {
+        const key = familiadaGoldenQuestionKey(pq);
+        const uq = userByKey.get(key);
+        if (!uq) {
+            merged.push(pq);
+            changed = true;
+        } else if ((uq.answers || []).length < (pq.answers || []).length) {
+            merged.push(pq);
+            changed = true;
+        } else {
+            merged.push(uq);
+        }
+        used.add(key);
+    }
+    for (const uq of user) {
+        const key = familiadaGoldenQuestionKey(uq);
+        if (used.has(key)) continue;
+        merged.push(uq);
+        used.add(key);
+    }
+    const capped = merged.slice(0, 10);
+    if (capped.length !== user.length) changed = true;
+    return { list: capped, changed };
+}
 
 function loadFamiliadaGoldenData() {
     try {
         const appPathForGolden = process.env.IMPREZJA_APP_PATH || __dirname;
         const publicGolden = path.join(appPathForGolden, 'public', 'familiada', FAMILIADA_GOLDEN_FILE);
+        let publicList = [];
+        if (fs.existsSync(publicGolden)) {
+            publicList = normalizeFamiliadaQuestionsList(JSON.parse(fs.readFileSync(publicGolden, 'utf8')));
+        }
+        if (!publicList.length) publicList = normalizeFamiliadaQuestionsList(GOLDEN_LIST_DEFAULT);
+
+        if (!fs.existsSync(familiadaDir)) fs.mkdirSync(familiadaDir, { recursive: true });
+
         if (fs.existsSync(familiadaGoldenPath)) {
-            const raw = fs.readFileSync(familiadaGoldenPath, 'utf8');
-            familiadaGoldenQuestions = normalizeFamiliadaQuestionsList(JSON.parse(raw));
-            console.log(`✅ Familiada Złota Lista: załadowano ${familiadaGoldenQuestions.length} pytań z ${familiadaGoldenPath}`);
-        } else if (fs.existsSync(publicGolden)) {
-            const raw = fs.readFileSync(publicGolden, 'utf8');
-            familiadaGoldenQuestions = normalizeFamiliadaQuestionsList(JSON.parse(raw));
-            if (!fs.existsSync(familiadaDir)) fs.mkdirSync(familiadaDir, { recursive: true });
+            const userList = normalizeFamiliadaQuestionsList(JSON.parse(fs.readFileSync(familiadaGoldenPath, 'utf8')));
+            const { list, changed } = mergeFamiliadaGoldenPreferRicher(userList, publicList);
+            familiadaGoldenQuestions = list;
+            if (changed || JSON.stringify(userList) !== JSON.stringify(list)) {
+                fs.writeFileSync(familiadaGoldenPath, JSON.stringify(familiadaGoldenQuestions, null, 2), 'utf8');
+                console.log(`✅ Familiada Złota Lista: zsynchronizowano z public/ (${familiadaGoldenQuestions.length} pytań, pełne odpowiedzi)`);
+            } else {
+                console.log(`✅ Familiada Złota Lista: załadowano ${familiadaGoldenQuestions.length} pytań z ${familiadaGoldenPath}`);
+            }
+        } else {
+            familiadaGoldenQuestions = publicList;
             fs.writeFileSync(familiadaGoldenPath, JSON.stringify(familiadaGoldenQuestions, null, 2), 'utf8');
             console.log(`✅ Familiada Złota Lista: skopiowano ${familiadaGoldenQuestions.length} pytań z public`);
-        } else {
-            familiadaGoldenQuestions = [...GOLDEN_LIST_DEFAULT];
-            if (!fs.existsSync(familiadaDir)) fs.mkdirSync(familiadaDir, { recursive: true });
-            fs.writeFileSync(familiadaGoldenPath, JSON.stringify(familiadaGoldenQuestions, null, 2), 'utf8');
-            console.log(`✅ Familiada Złota Lista: utworzono z 3 przykładowymi pytaniami`);
         }
     } catch (err) {
         console.warn('⚠️ Familiada Złota Lista: błąd ładowania:', err.message);
-        familiadaGoldenQuestions = [...GOLDEN_LIST_DEFAULT];
+        familiadaGoldenQuestions = normalizeFamiliadaQuestionsList(GOLDEN_LIST_DEFAULT);
     }
 }
 loadFamiliadaGoldenData();
@@ -769,27 +874,139 @@ const PARTY_QUIZ_GOLDEN_FILE = 'party-quiz-golden.json';
 const partyQuizGoldenPath = path.join(partyQuizzesDir, PARTY_QUIZ_GOLDEN_FILE);
 let partyQuizGoldenQuestions = [];
 
+/** Klucz pytania złotej listy Party (porównanie treści, bez diakrytyki case). */
+function partyQuizGoldenQuestionKey(q) {
+    return String((q && q.question) || '').trim().toLowerCase();
+}
+
+/**
+ * Normalizacja wpisu złotej listy Party — typ FAMILIADA, WSZYSTKIE odpowiedzi (bez limitu 4),
+ * punkty 0 dozwolone (jak w klasycznej Familiadzie). Max 10 odpowiedzi na pytanie (tablica TV).
+ */
+function normalizePartyQuizGoldenQuestion(q) {
+    if (!q || typeof q !== 'object') return null;
+    const question = String(q.question || '').trim();
+    if (!question) return null;
+    const rawAns = Array.isArray(q.answers) ? q.answers : [];
+    const answers = [];
+    for (const a of rawAns) {
+        if (a == null) continue;
+        if (typeof a === 'string') {
+            const text = a.trim();
+            if (text) answers.push({ text, points: 0 });
+            continue;
+        }
+        if (typeof a !== 'object') continue;
+        const text = String(a.text || '').trim();
+        if (!text) continue;
+        answers.push({ text, points: familiadaAnswerPointsValue(a.points) });
+    }
+    if (!answers.length) return null;
+    // Nie ucinamy do 4 — tylko miękki limit jak w edytorze Familiady (10 wierszy).
+    const capped = answers.slice(0, 10);
+    return {
+        type: 'FAMILIADA',
+        question,
+        time: 0,
+        speedrun: false,
+        elimination: false,
+        answers: capped,
+        correct: -1
+    };
+}
+
+function normalizePartyQuizGoldenList(list) {
+    if (!Array.isArray(list)) return [];
+    const out = [];
+    const seen = new Set();
+    for (const raw of list) {
+        const q = normalizePartyQuizGoldenQuestion(raw);
+        if (!q) continue;
+        const key = partyQuizGoldenQuestionKey(q);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push(q);
+        if (out.length >= 10) break;
+    }
+    return out;
+}
+
+/**
+ * Scalanie userData + public/: jeśli public ma to samo pytanie z większą liczbą odpowiedzi
+ * albo więcej pytań — bierzemy bogatszą wersję (naprawa uciętych list bez ręcznego kasowania pliku).
+ */
+function mergePartyQuizGoldenPreferRicher(userList, publicList) {
+    const user = normalizePartyQuizGoldenList(userList);
+    const pub = normalizePartyQuizGoldenList(publicList);
+    if (!pub.length) return { list: user, changed: false };
+    if (!user.length) return { list: pub, changed: true };
+
+    const userByKey = new Map(user.map(q => [partyQuizGoldenQuestionKey(q), q]));
+    let changed = false;
+
+    // Kolejność jak w public (wzorcowa lista testowa), potem ekstra z user.
+    const merged = [];
+    const used = new Set();
+    for (const pq of pub) {
+        const key = partyQuizGoldenQuestionKey(pq);
+        const uq = userByKey.get(key);
+        if (!uq) {
+            merged.push(pq);
+            changed = true;
+        } else if ((uq.answers || []).length < (pq.answers || []).length) {
+            merged.push(pq);
+            changed = true;
+        } else {
+            merged.push(uq);
+        }
+        used.add(key);
+    }
+    for (const uq of user) {
+        const key = partyQuizGoldenQuestionKey(uq);
+        if (used.has(key)) continue;
+        merged.push(uq);
+        used.add(key);
+    }
+    const capped = merged.slice(0, 10);
+    if (capped.length !== user.length) changed = true;
+    return { list: capped, changed };
+}
+
+function readPartyQuizGoldenJsonFile(filePath) {
+    if (!filePath || !fs.existsSync(filePath)) return [];
+    try {
+        const raw = fs.readFileSync(filePath, 'utf8');
+        const parsed = JSON.parse(raw);
+        return normalizePartyQuizGoldenList(Array.isArray(parsed) ? parsed : []);
+    } catch (_) {
+        return [];
+    }
+}
+
 function loadPartyQuizGoldenData() {
     try {
         const appPathGolden = process.env.IMPREZJA_APP_PATH || __dirname;
         const publicGolden = path.join(appPathGolden, 'public', 'party-quizzes', PARTY_QUIZ_GOLDEN_FILE);
+        const publicList = readPartyQuizGoldenJsonFile(publicGolden);
+
+        if (!fs.existsSync(partyQuizzesDir)) fs.mkdirSync(partyQuizzesDir, { recursive: true });
+
         if (fs.existsSync(partyQuizGoldenPath)) {
-            const raw = fs.readFileSync(partyQuizGoldenPath, 'utf8');
-            partyQuizGoldenQuestions = JSON.parse(raw);
-            if (!Array.isArray(partyQuizGoldenQuestions)) partyQuizGoldenQuestions = [];
-            partyQuizGoldenQuestions = partyQuizGoldenQuestions.slice(0, 10);
-            console.log(`✅ Party Quiz Złota Lista: załadowano ${partyQuizGoldenQuestions.length} pytań`);
-        } else if (fs.existsSync(publicGolden)) {
-            const raw = fs.readFileSync(publicGolden, 'utf8');
-            partyQuizGoldenQuestions = JSON.parse(raw);
-            if (!Array.isArray(partyQuizGoldenQuestions)) partyQuizGoldenQuestions = [];
-            partyQuizGoldenQuestions = partyQuizGoldenQuestions.slice(0, 10);
-            if (!fs.existsSync(partyQuizzesDir)) fs.mkdirSync(partyQuizzesDir, { recursive: true });
+            const userList = readPartyQuizGoldenJsonFile(partyQuizGoldenPath);
+            const { list, changed } = mergePartyQuizGoldenPreferRicher(userList, publicList);
+            partyQuizGoldenQuestions = list;
+            if (changed || JSON.stringify(userList) !== JSON.stringify(list)) {
+                fs.writeFileSync(partyQuizGoldenPath, JSON.stringify(partyQuizGoldenQuestions, null, 2), 'utf8');
+                console.log(`✅ Party Quiz Złota Lista: zsynchronizowano z public/ (${partyQuizGoldenQuestions.length} pytań, pełne odpowiedzi)`);
+            } else {
+                console.log(`✅ Party Quiz Złota Lista: załadowano ${partyQuizGoldenQuestions.length} pytań`);
+            }
+        } else if (publicList.length) {
+            partyQuizGoldenQuestions = publicList;
             fs.writeFileSync(partyQuizGoldenPath, JSON.stringify(partyQuizGoldenQuestions, null, 2), 'utf8');
             console.log(`✅ Party Quiz Złota Lista: skopiowano ${partyQuizGoldenQuestions.length} pytań z public/party-quizzes`);
         } else {
             partyQuizGoldenQuestions = [];
-            if (!fs.existsSync(partyQuizzesDir)) fs.mkdirSync(partyQuizzesDir, { recursive: true });
             fs.writeFileSync(partyQuizGoldenPath, JSON.stringify(partyQuizGoldenQuestions, null, 2), 'utf8');
             console.log(`✅ Party Quiz Złota Lista: utworzono pusty plik ${PARTY_QUIZ_GOLDEN_FILE}`);
         }
@@ -799,6 +1016,295 @@ function loadPartyQuizGoldenData() {
     }
 }
 loadPartyQuizGoldenData();
+
+/** Listy boczne Party Quiz — pliki z `"partySideList": true` lub prefiksem `SL - ` w nazwie. */
+const PARTY_SIDE_LIST_FILE_PREFIX = 'SL - ';
+let partySideListsConfig = [];
+/** @type {Record<string, { id: string, label: string, type: string, file: string, hideFromMainList?: boolean, defaultPoints?: number, questions: object[] }>} */
+let partySideListsById = {};
+
+function isPartySideListFilename(filename) {
+    return String(filename || '').trim().toLowerCase().startsWith(PARTY_SIDE_LIST_FILE_PREFIX.toLowerCase());
+}
+
+function ensurePartySideListFilename(filename) {
+    let name = String(filename || '').trim().replace(/[\/\\:*?"<>|]/g, '').replace(/\s+/g, ' ');
+    if (!name) return '';
+    if (!name.toLowerCase().endsWith('.json')) name += '.json';
+    if (isPartySideListFilename(name)) return name;
+    const base = name.replace(/\.json$/i, '');
+    return PARTY_SIDE_LIST_FILE_PREFIX + base + '.json';
+}
+
+function stripPartySideListFilename(filename) {
+    let name = String(filename || '').trim().replace(/[\/\\:*?"<>|]/g, '').replace(/\s+/g, ' ');
+    if (!name) return '';
+    if (!name.toLowerCase().endsWith('.json')) name += '.json';
+    if (!isPartySideListFilename(name)) return name;
+    const base = name.slice(PARTY_SIDE_LIST_FILE_PREFIX.length).trim();
+    return base.toLowerCase().endsWith('.json') ? base : (base + '.json');
+}
+
+function isPartySideListQuizFile(filename, meta) {
+    return !!(meta && meta.partySideList) || isPartySideListFilename(filename);
+}
+
+/** Zmiana nazw istniejących list bocznych na prefiks SL - (bez ruszania pytań). */
+function migrateSideListFilesToSlPrefix() {
+    if (!fs.existsSync(partyQuizzesDir)) return;
+    for (const name of fs.readdirSync(partyQuizzesDir).filter(f => f.toLowerCase().endsWith('.json'))) {
+        if (isPartySideListFilename(name)) continue;
+        if (name.toLowerCase() === PARTY_QUIZ_GOLDEN_FILE.toLowerCase()) continue;
+        const filePath = path.join(partyQuizzesDir, name);
+        try {
+            const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+            if (!data || Array.isArray(data) || data.partySideList !== true) continue;
+            const newName = ensurePartySideListFilename(name);
+            if (newName === name) continue;
+            const newPath = path.join(partyQuizzesDir, newName);
+            if (fs.existsSync(newPath)) continue;
+            fs.renameSync(filePath, newPath);
+            console.log(`✅ Party Quiz: lista boczna → ${newName}`);
+        } catch (_) { /* ignore */ }
+    }
+}
+
+/** Uzupełnij `partySideList: true` w plikach z prefiksem SL - (zapis z edytora mógł flagę zgubić). */
+function ensurePartySideListFlagsInJson() {
+    if (!fs.existsSync(partyQuizzesDir)) return;
+    for (const name of fs.readdirSync(partyQuizzesDir).filter(f => f.toLowerCase().endsWith('.json'))) {
+        if (!isPartySideListFilename(name)) continue;
+        if (name.toLowerCase() === PARTY_QUIZ_GOLDEN_FILE.toLowerCase()) continue;
+        const filePath = path.join(partyQuizzesDir, name);
+        try {
+            const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+            if (!data || Array.isArray(data) || !Array.isArray(data.questions)) continue;
+            let changed = false;
+            if (data.partySideList !== true) {
+                data.partySideList = true;
+                changed = true;
+            }
+            if (!data.sideListLabel || !String(data.sideListLabel).trim()) {
+                const label = name.slice(PARTY_SIDE_LIST_FILE_PREFIX.length).replace(/\.json$/i, '').trim();
+                if (label) {
+                    data.sideListLabel = label;
+                    changed = true;
+                }
+            }
+            if (!changed) continue;
+            fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+            console.log(`✅ Party Quiz: oznaczono listę boczną w ${name}`);
+        } catch (_) { /* ignore */ }
+    }
+}
+
+function partySideListIdFromFilename(filename) {
+    const base = String(filename || '').replace(/\\/g, '/').split('/').pop().replace(/\.json$/i, '');
+    const slug = base.toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    return slug || 'side-list';
+}
+
+function loadPartySideListQuestions(entry) {
+    if (!entry || !entry.file) return [];
+    if (entry.type === 'golden') return partyQuizGoldenQuestions.slice();
+    if (entry.type === 'quiz') {
+        const loaded = loadPartyQuestions(entry.file);
+        return Array.isArray(loaded.questions) ? loaded.questions : [];
+    }
+    return [];
+}
+
+function migrateLegacyPartySideListsConfig() {
+    const legacyPath = path.join(partyQuizzesDir, 'party-quiz-side-lists.json');
+    if (!fs.existsSync(legacyPath)) return;
+    try {
+        const raw = JSON.parse(fs.readFileSync(legacyPath, 'utf8'));
+        if (!Array.isArray(raw)) return;
+        for (const item of raw) {
+            if (!item || item.type !== 'quiz' || !item.file) continue;
+            const filePath = path.join(partyQuizzesDir, item.file);
+            if (!fs.existsSync(filePath)) continue;
+            const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+            if (!data || Array.isArray(data) || !Array.isArray(data.questions)) continue;
+            if (data.partySideList === true) continue;
+            data.partySideList = true;
+            if (item.label && !data.sideListLabel) data.sideListLabel = item.label;
+            if (item.hideFromMainList !== false) data.partyMainList = false;
+            fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+            console.log(`✅ Party Quiz: zmigrowano listę boczną do pliku ${item.file}`);
+        }
+    } catch (err) {
+        console.warn('⚠️ Party Quiz migracja list bocznych:', err.message);
+    }
+}
+
+/** Jeśli w public/ plik ma partySideList, a kopia użytkownika nie — uzupełnij flagę (bez nadpisywania pytań). */
+function ensureKnownSideListFlagsFromPublic() {
+    const appPath = process.env.IMPREZJA_APP_PATH || __dirname;
+    const pubDir = path.join(appPath, 'public', 'party-quizzes');
+    if (!fs.existsSync(pubDir) || !fs.existsSync(partyQuizzesDir)) return;
+    for (const name of fs.readdirSync(pubDir).filter(f => f.toLowerCase().endsWith('.json'))) {
+        if (name.toLowerCase() === PARTY_QUIZ_GOLDEN_FILE.toLowerCase()) continue;
+        try {
+            const pub = JSON.parse(fs.readFileSync(path.join(pubDir, name), 'utf8'));
+            if (!pub || pub.partySideList !== true) continue;
+            const dest = path.join(partyQuizzesDir, name);
+            if (!fs.existsSync(dest)) continue;
+            const user = JSON.parse(fs.readFileSync(dest, 'utf8'));
+            if (!user || Array.isArray(user) || !Array.isArray(user.questions)) continue;
+            if (user.partySideList === true) continue;
+            user.partySideList = true;
+            if (pub.sideListLabel && !user.sideListLabel) user.sideListLabel = pub.sideListLabel;
+            fs.writeFileSync(dest, JSON.stringify(user, null, 2), 'utf8');
+            console.log(`✅ Party Quiz: oznaczono listę boczną w pliku ${name}`);
+        } catch (_) { /* ignore */ }
+    }
+}
+
+function rebuildPartySideListsFromDisk() {
+    partySideListsConfig = [
+        { id: 'golden', label: 'Złota lista (Familiada)', type: 'golden', file: PARTY_QUIZ_GOLDEN_FILE, hideFromMainList: true }
+    ];
+    const usedIds = new Set(['golden']);
+    for (const filename of getPartyQuizJsonFilesFromDisk()) {
+        const loaded = loadPartyQuestions(filename);
+        if (!isPartySideListQuizFile(filename, loaded.meta)) continue;
+        let id = partySideListIdFromFilename(filename);
+        while (usedIds.has(id)) id += '-2';
+        usedIds.add(id);
+        const label = (loaded.meta.sideListLabel && String(loaded.meta.sideListLabel).trim())
+            || filename.replace(/\.json$/i, '');
+        partySideListsConfig.push({
+            id,
+            label,
+            type: 'quiz',
+            file: filename,
+            hideFromMainList: loaded.meta.partyMainList !== true,
+            defaultPoints: typeof loaded.meta.defaultPoints === 'number' ? loaded.meta.defaultPoints : 10
+        });
+    }
+    partySideListsById = {};
+    for (const entry of partySideListsConfig) {
+        partySideListsById[entry.id] = Object.assign({}, entry, {
+            questions: loadPartySideListQuestions(entry)
+        });
+    }
+}
+
+function cleanupSideListFlagsOnMainQuizFiles() {
+    if (!fs.existsSync(partyQuizzesDir)) return;
+    for (const name of fs.readdirSync(partyQuizzesDir).filter(f => f.toLowerCase().endsWith('.json'))) {
+        if (isPartySideListFilename(name)) continue;
+        if (name.toLowerCase() === PARTY_QUIZ_GOLDEN_FILE.toLowerCase()) continue;
+        const filePath = path.join(partyQuizzesDir, name);
+        try {
+            const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+            if (!data || Array.isArray(data) || data.partySideList !== true) continue;
+            delete data.partySideList;
+            delete data.sideListLabel;
+            if (data.partyMainList === true) delete data.partyMainList;
+            fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+            console.log(`✅ Party Quiz: usunięto partySideList z głównej listy ${name}`);
+        } catch (_) { /* ignore */ }
+    }
+}
+
+function loadPartySideListsData() {
+    try {
+        if (!fs.existsSync(partyQuizzesDir)) fs.mkdirSync(partyQuizzesDir, { recursive: true });
+        migrateLegacyPartySideListsConfig();
+        ensureKnownSideListFlagsFromPublic();
+        migrateSideListFilesToSlPrefix();
+        ensurePartySideListFlagsInJson();
+        cleanupSideListFlagsOnMainQuizFiles();
+        rebuildPartySideListsFromDisk();
+        const totalQ = Object.values(partySideListsById).reduce((s, e) => s + (e.questions ? e.questions.length : 0), 0);
+        const sideCount = partySideListsConfig.filter(e => e.type === 'quiz').length;
+        console.log(`✅ Party Quiz listy boczne: złota lista + ${sideCount} plik(ów) partySideList, ${totalQ} pytań`);
+    } catch (err) {
+        console.warn('⚠️ Party Quiz listy boczne: błąd ładowania:', err.message);
+        partySideListsConfig = [
+            { id: 'golden', label: 'Złota lista (Familiada)', type: 'golden', file: PARTY_QUIZ_GOLDEN_FILE, hideFromMainList: true }
+        ];
+        partySideListsById = {
+            golden: Object.assign({}, partySideListsConfig[0], { questions: partyQuizGoldenQuestions.slice() })
+        };
+    }
+}
+
+function buildPartySideListsPayload() {
+    return partySideListsConfig.map(entry => {
+        const loaded = partySideListsById[entry.id] || entry;
+        return {
+            id: entry.id,
+            label: entry.label,
+            type: entry.type,
+            file: entry.file,
+            hideFromMainList: !!entry.hideFromMainList,
+            defaultPoints: typeof entry.defaultPoints === 'number' ? entry.defaultPoints : 10,
+            questions: Array.isArray(loaded.questions) ? loaded.questions : []
+        };
+    });
+}
+
+function getPartyQuizSystemExcludedFiles() {
+    return new Set([PARTY_QUIZ_GOLDEN_FILE.toLowerCase()]);
+}
+
+function getPartyQuizJsonFilesFromDisk() {
+    try {
+        const systemExcluded = getPartyQuizSystemExcludedFiles();
+        return fs.readdirSync(partyQuizzesDir).filter(f =>
+            f.toLowerCase().endsWith('.json') &&
+            !systemExcluded.has(f.toLowerCase())
+        );
+    } catch (err) {
+        return [];
+    }
+}
+
+/** Wszystkie pliki quizów do edytora (w tym listy boczne). */
+function getPartyQuizEditorFiles() {
+    return getPartyQuizJsonFilesFromDisk();
+}
+
+/** Pliki do wczytania jako główna rozgrywka (bez list bocznych oznaczonych partySideList). */
+function getPartyQuizMainFiles() {
+    const sideExcluded = getPartySideListExcludedMainFiles();
+    return getPartyQuizJsonFilesFromDisk().filter(f => !sideExcluded.has(f.toLowerCase()));
+}
+
+function getPartySideListExcludedMainFiles() {
+    const excluded = new Set([PARTY_QUIZ_GOLDEN_FILE.toLowerCase()]);
+    for (const filename of getPartyQuizJsonFilesFromDisk()) {
+        const loaded = loadPartyQuestions(filename);
+        if (isPartySideListQuizFile(filename, loaded.meta) && loaded.meta.partyMainList !== true) {
+            excluded.add(String(filename).toLowerCase());
+        }
+    }
+    return excluded;
+}
+
+function reloadPartySideListById(listId) {
+    if (listId === 'golden') {
+        rebuildPartySideListsFromDisk();
+        return;
+    }
+    const entry = partySideListsConfig.find(e => e.id === listId);
+    if (!entry) return;
+    partySideListsById[listId] = Object.assign({}, entry, {
+        questions: loadPartySideListQuestions(entry)
+    });
+}
+
+function reloadPartySideListsForFile(filename) {
+    loadPartySideListsData();
+    io.emit('party_side_lists', buildPartySideListsPayload());
+}
+
+loadPartySideListsData();
 
 function loadFamiliadaData() {
     try {
@@ -838,6 +1344,40 @@ function saveFamiliadaScreenPrefs() {
     }
 }
 loadFamiliadaScreenPrefs();
+
+const partyScreenPrefsPath = path.join(dataDir, 'party-screen-prefs.json');
+
+function loadPartyScreenPrefs() {
+    try {
+        if (!fs.existsSync(partyScreenPrefsPath)) return;
+        const j = JSON.parse(fs.readFileSync(partyScreenPrefsPath, 'utf8'));
+        if (!j || typeof j !== 'object') return;
+        if (typeof j.hideTeamScoresOnTv === 'boolean') partyState.hideTeamScoresOnTv = j.hideTeamScoresOnTv;
+        if (typeof j.bgVizEnabled === 'boolean') partyState.bgVizEnabled = j.bgVizEnabled;
+        if (typeof j.bgVizPresetIndex === 'number' && Number.isFinite(j.bgVizPresetIndex)) {
+            partyState.bgVizPresetIndex = Math.max(0, Math.floor(j.bgVizPresetIndex));
+        }
+        if (typeof j.bgVizOpacity === 'number' && Number.isFinite(j.bgVizOpacity)) {
+            partyState.bgVizOpacity = Math.max(0, Math.min(100, Math.round(j.bgVizOpacity)));
+        }
+    } catch (err) {
+        console.warn('⚠️ Party screen prefs:', err.message);
+    }
+}
+
+function savePartyScreenPrefs() {
+    try {
+        fs.writeFileSync(partyScreenPrefsPath, JSON.stringify({
+            hideTeamScoresOnTv: !!partyState.hideTeamScoresOnTv,
+            bgVizEnabled: !!partyState.bgVizEnabled,
+            bgVizPresetIndex: (typeof partyState.bgVizPresetIndex === 'number') ? partyState.bgVizPresetIndex : 0,
+            bgVizOpacity: (typeof partyState.bgVizOpacity === 'number') ? partyState.bgVizOpacity : 25
+        }, null, 2), 'utf8');
+    } catch (err) {
+        console.warn('⚠️ Party screen prefs zapis:', err.message);
+    }
+}
+loadPartyScreenPrefs();
 
 // NJR Sampler i Śpiewaj Dalej – konfiguracje
 const NJR_SAMPLER_CONFIGS_DIR = path.join(path.dirname(quizzesDir), 'njr-sampler-configs');
@@ -3472,8 +4012,20 @@ app.post('/api/familiada/golden', (req, res) => {
 app.get('/api/party-quiz/golden', (req, res) => {
     try {
         loadPartyQuizGoldenData();
+        reloadPartySideListById('golden');
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.json(partyQuizGoldenQuestions);
+    } catch (err) {
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/party-quiz/side-lists', (req, res) => {
+    try {
+        loadPartySideListsData();
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.json(buildPartySideListsPayload());
     } catch (err) {
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.status(500).json({ error: err.message });
@@ -3486,11 +4038,13 @@ app.post('/api/party-quiz/golden', (req, res) => {
         if (!Array.isArray(data)) {
             return res.status(400).json({ error: 'Oczekiwana tablica pytań' });
         }
-        const valid = data.slice(0, 10).filter(q => q && (q.question || '').trim());
-        partyQuizGoldenQuestions = valid;
+        // Normalizacja zachowuje wszystkie odpowiedzi (do 10/pytanie) i punkty 0 — bez ucinania do 4.
+        partyQuizGoldenQuestions = normalizePartyQuizGoldenList(data);
         if (!fs.existsSync(partyQuizzesDir)) fs.mkdirSync(partyQuizzesDir, { recursive: true });
         fs.writeFileSync(partyQuizGoldenPath, JSON.stringify(partyQuizGoldenQuestions, null, 2), 'utf8');
+        reloadPartySideListById('golden');
         io.emit('party_golden_updated', partyQuizGoldenQuestions);
+        io.emit('party_side_lists', buildPartySideListsPayload());
         res.json({ success: true, count: partyQuizGoldenQuestions.length });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -5350,14 +5904,7 @@ function getQuizFiles() {
 
 // === PARTY QUIZ — hybryda Quizu i Familiady (osobny katalog) ===
 function getPartyQuizFiles() {
-    try {
-        return fs.readdirSync(partyQuizzesDir).filter(f =>
-            f.toLowerCase().endsWith('.json') &&
-            f.toLowerCase() !== PARTY_QUIZ_GOLDEN_FILE.toLowerCase()
-        );
-    } catch (err) {
-        return [];
-    }
+    return getPartyQuizMainFiles();
 }
 
 function loadPartyQuestions(filename) {
@@ -5381,6 +5928,10 @@ function loadPartyQuestions(filename) {
             if (data.thanksScreen) meta.thanksScreen = data.thanksScreen;
             if (data.welcome && typeof data.welcome === 'object') meta.welcome = data.welcome;
             if (data.gameMode) meta.gameMode = data.gameMode;
+            if (data.partySideList === true) meta.partySideList = true;
+            else if (isPartySideListFilename(filename)) meta.partySideList = true;
+            if (typeof data.sideListLabel === 'string' && data.sideListLabel.trim()) meta.sideListLabel = data.sideListLabel.trim();
+            if (data.partyMainList === true) meta.partyMainList = true;
         } else {
             return { questions: [], options: {}, meta: {} };
         }
@@ -8029,8 +8580,9 @@ io.on('connection', (socket) => {
     // Lustrzane handlery dla party-quizzes/ (hybryda Quizu i Familiady).
     // Pliki zapisywane są w osobnym katalogu, żeby nie mieszać się z plikami Imprezja Quiz
     // (Party Quiz wprowadza nowy typ pytania FAMILIADA, którego zwykły admin.html nie rozumie).
-    socket.on('party_editor_get_files', () => {
-        socket.emit('party_editor_files_list', getPartyQuizFiles());
+    socket.on('party_editor_get_files', (opts) => {
+        const mainOnly = !!(opts && opts.mainOnly);
+        socket.emit('party_editor_files_list', mainOnly ? getPartyQuizMainFiles() : getPartyQuizEditorFiles());
     });
 
     socket.on('party_editor_load_file', (filename) => {
@@ -8046,15 +8598,49 @@ io.on('connection', (socket) => {
             return;
         }
         if (!safeName.toLowerCase().endsWith('.json')) safeName += '.json';
+        const content = data && data.content ? Object.assign({}, data.content) : null;
+        if (!content || !Array.isArray(content.questions)) {
+            socket.emit('party_editor_save_status', { success: false, message: 'Brak pytań w pliku' });
+            return;
+        }
+        const wantsSideList = content.partySideList === true;
+        if (wantsSideList) {
+            content.partySideList = true;
+            safeName = ensurePartySideListFilename(safeName);
+            if (!content.sideListLabel || !String(content.sideListLabel).trim()) {
+                const label = stripPartySideListFilename(safeName).replace(/\.json$/i, '').trim();
+                if (label) content.sideListLabel = label;
+            }
+        } else {
+            delete content.partySideList;
+            delete content.sideListLabel;
+            delete content.partyMainList;
+            safeName = stripPartySideListFilename(safeName);
+        }
+        const prevNameRaw = data && data.previousFilename ? String(data.previousFilename).trim() : '';
+        let prevName = prevNameRaw.replace(/[\/\\:*?"<>|]/g, '').replace(/\s+/g, ' ');
+        if (prevName && !prevName.toLowerCase().endsWith('.json')) prevName += '.json';
         const filePath = path.join(partyQuizzesDir, safeName);
-        const json = JSON.stringify(data.content, null, 2);
+        const json = JSON.stringify(content, null, 2);
         fs.writeFile(filePath, json, (err) => {
             if (err) {
                 socket.emit('party_editor_save_status', { success: false, message: 'Błąd zapisu: ' + err.message });
-            } else {
-                socket.emit('party_editor_save_status', { success: true, message: `Zapisano ${safeName}` });
-                socket.emit('party_editor_files_list', getPartyQuizFiles());
-                devSyncWriteData(`public/party-quizzes/${safeName}`, json);
+                return;
+            }
+            if (prevName && prevName.toLowerCase() !== safeName.toLowerCase()) {
+                const prevPath = path.join(partyQuizzesDir, prevName);
+                try {
+                    if (fs.existsSync(prevPath)) fs.unlinkSync(prevPath);
+                } catch (unlinkErr) {
+                    console.warn('⚠️ Party Quiz: nie usunięto starego pliku', prevName, unlinkErr.message);
+                }
+            }
+            socket.emit('party_editor_save_status', { success: true, message: `Zapisano ${safeName}`, filename: safeName });
+            socket.emit('party_editor_files_list', getPartyQuizEditorFiles());
+            reloadPartySideListsForFile(safeName);
+            devSyncWriteData(`public/party-quizzes/${safeName}`, json);
+            if (prevName && prevName.toLowerCase() !== safeName.toLowerCase()) {
+                devSyncDelete(`public/party-quizzes/${prevName}`).catch(() => {});
             }
         });
     });
@@ -8130,6 +8716,7 @@ io.on('connection', (socket) => {
     // Nowy klient — wyślij aktualny partyState (np. gdy admin PWA otwiera panel w trakcie gry)
     socket.emit('party_state', buildPartyStatePayload());
     socket.emit('party_golden_list', partyQuizGoldenQuestions);
+    socket.emit('party_side_lists', buildPartySideListsPayload());
 
     /** TV zatrzymał muzykę startową przy wejściu w pytanie — zsynchronizuj przycisk w panelu Party Quiz. */
     socket.on('party_intro_music_auto_stopped', () => {
@@ -8173,7 +8760,7 @@ io.on('connection', (socket) => {
 
     // Rdzeń uruchomienia pytania Party (lista główna lub złota lista — bez mutacji wczytanego quizu przy złotej).
     function runPartyQuestionCore(socket, q, index, opts) {
-        const fromGoldenFile = !!(opts && opts.fromGoldenFile);
+        const fromSideList = !!(opts && opts.fromSideList);
         partyState.teamLeaderboardVisible = false;
         partyState.currentIndex = index;
         partyState.questionAwarded = false;
@@ -8190,8 +8777,9 @@ io.on('connection', (socket) => {
         partyState.fastListShowAnswer = false;
 
         gameMode = 'party';
-        if (!fromGoldenFile) {
-            partyState.currentGoldenIndex = null;
+        if (!fromSideList) {
+            partyState.currentSideListId = null;
+            partyState.currentSideListIndex = null;
             gameState.questions = partyState.quiz.questions;
         }
 
@@ -8292,25 +8880,49 @@ io.on('connection', (socket) => {
         }
         partyRestoreGameStateQuestionsIfExtended();
         const q = partyState.quiz.questions[index];
-        runPartyQuestionCore(socket, q, index, { fromGoldenFile: false });
+        runPartyQuestionCore(socket, q, index, { fromSideList: false });
     });
 
-    socket.on('party_run_golden_question', (gIdx) => {
+    function runPartySideQuestionCore(socket, listId, qIdx) {
         if (!partyState.quiz || !Array.isArray(partyState.quiz.questions)) {
             socket.emit('party_run_error', { message: 'Wczytaj najpierw plik Party Quiz z listy głównej.' });
             return;
         }
-        if (typeof gIdx !== 'number' || gIdx < 0 || !partyQuizGoldenQuestions[gIdx]) {
-            socket.emit('party_run_error', { message: 'Brak pytania w złotej liście Party Quiz.' });
+        const entry = partySideListsById[listId];
+        if (!entry || !Array.isArray(entry.questions) || !entry.questions[qIdx]) {
+            socket.emit('party_run_error', { message: 'Brak pytania na liście bocznej Party Quiz.' });
             return;
         }
         partyRestoreGameStateQuestionsIfExtended();
-        const q = partyQuizGoldenQuestions[gIdx];
+        const q = entry.questions[qIdx];
         partyState.gameStateQuestionsBeforeGolden = gameState.questions;
         gameState.questions = partyState.quiz.questions.concat([q]);
         const synthIndex = gameState.questions.length - 1;
-        partyState.currentGoldenIndex = gIdx;
-        runPartyQuestionCore(socket, q, synthIndex, { fromGoldenFile: true });
+        partyState.currentSideListId = listId;
+        partyState.currentSideListIndex = qIdx;
+        runPartyQuestionCore(socket, q, synthIndex, { fromSideList: true });
+    }
+
+    socket.on('party_run_side_question', (data) => {
+        const listId = data && data.listId;
+        const qIdx = data && data.index;
+        if (!listId || typeof listId !== 'string') {
+            socket.emit('party_run_error', { message: 'Brak identyfikatora listy bocznej.' });
+            return;
+        }
+        if (typeof qIdx !== 'number' || qIdx < 0) {
+            socket.emit('party_run_error', { message: 'Zły indeks pytania na liście bocznej.' });
+            return;
+        }
+        runPartySideQuestionCore(socket, listId, qIdx);
+    });
+
+    socket.on('party_run_golden_question', (gIdx) => {
+        if (typeof gIdx !== 'number' || gIdx < 0) {
+            socket.emit('party_run_error', { message: 'Brak pytania w złotej liście Party Quiz.' });
+            return;
+        }
+        runPartySideQuestionCore(socket, 'golden', gIdx);
     });
 
     // Przyznanie punktów — kwota wyliczona z pytania (bez wyboru przez admina).
@@ -8325,11 +8937,11 @@ io.on('connection', (socket) => {
         const idx = partyState.currentIndex;
         const rev = partyState.revertibleAward;
 
-        if (rev && rev.kind === 'standard_points' && rev.questionIndex === idx && partyState.questionAwarded) {
+        if (rev && rev.kind === 'standard_points' && partyRevertMatchesCurrent(rev) && partyState.questionAwarded) {
             if (rev.team === team) {
                 partyState.teams[team].score = Math.max(0, partyState.teams[team].score - rev.points);
                 partyState.questionAwarded = false;
-                partyRemoveAskedIndex(idx);
+                partyRemoveAskedIndexIfMain(idx);
                 partyState.revertibleAward = null;
                 console.log(`↩️ party_award_points cofnięcie ${team} −${rev.points} (#${idx + 1})`);
                 io.emit('party_quiz_sound', 'wrong_answer');
@@ -8340,7 +8952,7 @@ io.on('connection', (socket) => {
             }
             partyState.teams[rev.team].score = Math.max(0, partyState.teams[rev.team].score - rev.points);
             partyState.teams[team].score += rev.points;
-            partyState.revertibleAward = { kind: 'standard_points', team, points: rev.points, questionIndex: idx };
+            partyState.revertibleAward = partyMakeRevertibleAward({ kind: 'standard_points', team, points: rev.points });
             console.log(`🔀 party_award_points przeniesienie ${rev.team} → ${team} (${rev.points} pkt, #${idx + 1})`);
             io.emit('party_quiz_sound', 'correct_answer');
             partyFlashScoresVisible();
@@ -8353,7 +8965,7 @@ io.on('connection', (socket) => {
         partyFlashScoresVisible();
         partyState.questionAwarded = true;
         partyMarkAsked();
-        partyState.revertibleAward = { kind: 'standard_points', team, points: pts, questionIndex: idx };
+        partyState.revertibleAward = partyMakeRevertibleAward({ kind: 'standard_points', team, points: pts });
         console.log(`🥳 party_award_points ${team} +${pts} (pytanie #${idx + 1}, ${q.type})`);
         io.emit('party_quiz_sound', 'correct_answer');
         broadcastPartyState();
@@ -8428,7 +9040,31 @@ io.on('connection', (socket) => {
         if (gameMode !== 'party') return;
         partyState.hideTeamScoresOnTv = !!(data && data.hide);
         if (!partyState.hideTeamScoresOnTv) partyState.teamScoresFlashUntil = 0;
+        savePartyScreenPrefs();
         broadcastPartyState();
+    });
+
+    socket.on('party_set_bg_viz', (data) => {
+        if (!data || typeof data !== 'object') return;
+        if (typeof data.enabled === 'boolean') partyState.bgVizEnabled = data.enabled;
+        if (typeof data.presetIndex === 'number' && Number.isFinite(data.presetIndex)) {
+            partyState.bgVizPresetIndex = Math.max(0, Math.floor(data.presetIndex));
+        }
+        if (typeof data.opacity === 'number' && Number.isFinite(data.opacity)) {
+            partyState.bgVizOpacity = Math.max(0, Math.min(100, Math.round(data.opacity)));
+        }
+        if (typeof data.presetDelta === 'number' && Number.isFinite(data.presetDelta)) {
+            partyState.bgVizPresetIndex = Math.max(0, (partyState.bgVizPresetIndex || 0) + Math.trunc(data.presetDelta));
+        }
+        savePartyScreenPrefs();
+        broadcastPartyState();
+    });
+
+    socket.on('party_fam_jingle', () => {
+        if (gameMode !== 'party') return;
+        partyState.teamScoresFlashUntil = Date.now() + 12000;
+        broadcastPartyState();
+        io.emit('party_fam_sound', 'jingle');
     });
 
     // Party Quiz — admin wybrał odpowiedź gracza dla pytania QUIZ/MUSIC/VOTE (typ zgodny z ABCD).
@@ -8465,6 +9101,7 @@ io.on('connection', (socket) => {
     });
 
     // Party Quiz — FAST_LIST: następne mini-pytanie na liście (ukrywa odpowiedź do kolejnego „pokaż").
+    // Na ostatniej pozycji kolejne „next” zamyka listę (questionAwarded) — nie blokuje złotej listy / kolejnych pytań.
     socket.on('party_fast_list_next', () => {
         if (gameMode !== 'party') return;
         if (!partyState.quiz || partyState.currentIndex < 0) return;
@@ -8479,6 +9116,13 @@ io.on('connection', (socket) => {
             partyState.buttonUsedThisRound = false;
             partyState.buttonPressedBy = null;
             io.emit('party_buttons_reset');
+            io.emit('party_quiz_sound', 'question_open');
+        } else {
+            partyState.teamLeaderboardVisible = false;
+            partyState.questionAwarded = true;
+            partyState.revertibleAward = null;
+            partyMarkAsked();
+            console.log(`⚡ party_fast_list_next — koniec listy (#${partyState.currentIndex + 1}), odblokowano nawigację`);
         }
         broadcastPartyState();
         broadcastStateImmediate();
@@ -8490,6 +9134,7 @@ io.on('connection', (socket) => {
         const q = getActivePartyQuestionForParty();
         if (!q || q.type !== 'FAST_LIST') return;
         partyState.fastListShowAnswer = true;
+        io.emit('party_quiz_sound', 'stats_show');
         broadcastPartyState();
         broadcastStateImmediate();
     });
@@ -8666,11 +9311,11 @@ io.on('connection', (socket) => {
         const idx = partyState.currentIndex;
         const rev = partyState.revertibleAward;
 
-        if (rev && rev.kind === 'fam_pot' && rev.questionIndex === idx && partyState.questionAwarded) {
+        if (rev && rev.kind === 'fam_pot' && partyRevertMatchesCurrent(rev) && partyState.questionAwarded) {
             if (rev.team === team) {
                 partyState.teams[team].score = Math.max(0, partyState.teams[team].score - rev.points);
                 partyState.questionAwarded = false;
-                partyRemoveAskedIndex(idx);
+                partyRemoveAskedIndexIfMain(idx);
                 partyState.revertibleAward = null;
                 console.log(`↩️ party_familiada_award_pot cofnięcie ${team} −${rev.points}`);
                 io.emit('party_fam_sound', 'bad');
@@ -8681,7 +9326,7 @@ io.on('connection', (socket) => {
             }
             partyState.teams[rev.team].score = Math.max(0, partyState.teams[rev.team].score - rev.points);
             partyState.teams[team].score += rev.points;
-            partyState.revertibleAward = { kind: 'fam_pot', team, points: rev.points, questionIndex: idx };
+            partyState.revertibleAward = partyMakeRevertibleAward({ kind: 'fam_pot', team, points: rev.points });
             console.log(`🔀 party_familiada_award_pot ${rev.team} → ${team} (${rev.points} pkt)`);
             io.emit('party_fam_sound', 'win_round');
             partyFlashScoresVisible();
@@ -8695,7 +9340,7 @@ io.on('connection', (socket) => {
         partyState.questionAwarded = true;
         partyState.familiada.pendingIndex = null;
         partyMarkAsked();
-        partyState.revertibleAward = { kind: 'fam_pot', team, points: pot, questionIndex: idx };
+        partyState.revertibleAward = partyMakeRevertibleAward({ kind: 'fam_pot', team, points: pot });
         console.log(`💰 party_familiada_award_pot ${team} +${pot}`);
         io.emit('party_fam_sound', 'win_round');
         broadcastPartyState();
@@ -8800,11 +9445,11 @@ io.on('connection', (socket) => {
         if (!q || q.type !== 'LETTER') return;
         const team = data && data.team;
         if (team !== 'blue' && team !== 'red') return;
-        const pts = (typeof q.points === 'number' && q.points > 0) ? q.points : 10;
+        const pts = partyGetQuestionPoints(q);
         const idx = partyState.currentIndex;
         const rev = partyState.revertibleAward;
 
-        if (rev && rev.kind === 'letter_hit' && rev.questionIndex === idx) {
+        if (rev && rev.kind === 'letter_hit' && partyRevertMatchesCurrent(rev)) {
             if (rev.team === team && rev.points === pts) {
                 partyState.teams[team].score = Math.max(0, partyState.teams[team].score - pts);
                 partyState.revertibleAward = null;
@@ -8818,7 +9463,7 @@ io.on('connection', (socket) => {
             if (rev.team !== team) {
                 partyState.teams[rev.team].score = Math.max(0, partyState.teams[rev.team].score - rev.points);
                 partyState.teams[team].score += rev.points;
-                partyState.revertibleAward = { kind: 'letter_hit', team, points: rev.points, questionIndex: idx };
+                partyState.revertibleAward = partyMakeRevertibleAward({ kind: 'letter_hit', team, points: rev.points });
                 console.log(`🔀 party_award_letter ${rev.team} → ${team} (${rev.points} pkt)`);
                 io.emit('party_quiz_sound', 'correct_answer');
                 partyFlashScoresVisible();
@@ -8830,7 +9475,7 @@ io.on('connection', (socket) => {
 
         partyState.teams[team].score += pts;
         partyFlashScoresVisible();
-        partyState.revertibleAward = { kind: 'letter_hit', team, points: pts, questionIndex: idx };
+        partyState.revertibleAward = partyMakeRevertibleAward({ kind: 'letter_hit', team, points: pts });
         console.log(`🔤 party_award_letter ${team} +${pts} (litera ${partyState.currentLetter})`);
         io.emit('party_quiz_sound', 'correct_answer');
         broadcastPartyState();
@@ -8845,7 +9490,7 @@ io.on('connection', (socket) => {
         if (!q || q.type !== 'FAST_LIST') return;
         const team = data && data.team;
         if (team !== 'blue' && team !== 'red') return;
-        const pts = 5;
+        const pts = partyGetQuestionPoints(q);
         const items = Array.isArray(q.fastListItems) ? q.fastListItems : [];
         let itemIdx = (data && typeof data.itemIndex === 'number') ? data.itemIndex : partyState.fastListIndex;
         if (!Number.isFinite(itemIdx)) itemIdx = partyState.fastListIndex;
@@ -8854,7 +9499,7 @@ io.on('connection', (socket) => {
         const idx = partyState.currentIndex;
         const rev = partyState.revertibleAward;
 
-        if (rev && rev.kind === 'fast_list_hit' && rev.questionIndex === idx
+        if (rev && rev.kind === 'fast_list_hit' && partyRevertMatchesCurrent(rev)
             && rev.fastListItemIndex === itemIdx && rev.points === pts) {
             if (rev.team === team) {
                 partyState.teams[team].score = Math.max(0, partyState.teams[team].score - pts);
@@ -8869,7 +9514,9 @@ io.on('connection', (socket) => {
             if (rev.team !== team && rev.fastListItemIndex === itemIdx) {
                 partyState.teams[rev.team].score = Math.max(0, partyState.teams[rev.team].score - rev.points);
                 partyState.teams[team].score += rev.points;
-                partyState.revertibleAward = { kind: 'fast_list_hit', team, points: rev.points, questionIndex: idx, fastListItemIndex: itemIdx };
+                partyState.revertibleAward = partyMakeRevertibleAward({
+                    kind: 'fast_list_hit', team, points: rev.points, fastListItemIndex: itemIdx
+                });
                 console.log(`🔀 party_award_fast_list ${rev.team} → ${team} (${rev.points} pkt, poz. ${itemIdx + 1})`);
                 io.emit('party_quiz_sound', 'correct_answer');
                 partyFlashScoresVisible();
@@ -8881,7 +9528,9 @@ io.on('connection', (socket) => {
 
         partyState.teams[team].score += pts;
         partyFlashScoresVisible();
-        partyState.revertibleAward = { kind: 'fast_list_hit', team, points: pts, questionIndex: idx, fastListItemIndex: itemIdx };
+        partyState.revertibleAward = partyMakeRevertibleAward({
+            kind: 'fast_list_hit', team, points: pts, fastListItemIndex: itemIdx
+        });
         console.log(`⚡ party_award_fast_list ${team} +${pts} (FAST_LIST #${idx + 1}, poz. ${itemIdx + 1})`);
         io.emit('party_quiz_sound', 'correct_answer');
         broadcastPartyState();

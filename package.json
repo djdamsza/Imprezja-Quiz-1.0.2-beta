@@ -1,7 +1,7 @@
 {
   "name": "votebattle",
   "description": "Imprezja Quiz – quiz i głosowanie w sieci lokalnej (działa offline)",
-  "version": "1.3.7",
+  "version": "1.4.0",
   "author": "Damian Nowaczyk",
   "main": "electron-main.js",
   "scripts": {
@@ -39,6 +39,7 @@
     "rebuild:full": "npm cache clean --force && rm -rf node_modules/electron/dist && npm install && npm run pac",
     "build:launcher": "pkg launcher.js --targets node18-win-x64 --output dist/ImprezjaQuiz-Launcher.exe",
     "license-key": "node scripts/generate-license-key.js",
+    "test:license": "node scripts/test-license-system.js",
     "simulate:trial": "IMPREZJA_SIMULATE_TRIAL=1 node server.js",
     "simulate:trial:electron": "IMPREZJA_SIMULATE_TRIAL=1 electron .",
     "simulate:license-expired": "IMPREZJA_SIMULATE_LICENSE_EXPIRED=1 node server.js",

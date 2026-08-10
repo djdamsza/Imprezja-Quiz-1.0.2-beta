@@ -69,6 +69,7 @@
             overflow-x: hidden;
             -webkit-overflow-scrolling: touch;
             overscroll-behavior-y: contain;
+            overflow-anchor: none;
             padding-left: max(var(--pq-pad-h), env(safe-area-inset-left, 0px));
             padding-right: max(var(--pq-pad-h), env(safe-area-inset-right, 0px));
         }
@@ -370,8 +371,9 @@
             min-width: 0;
         }
         .party-q-item {
-            scroll-margin-top: 14px;
-            scroll-margin-bottom: 20px;
+            scroll-margin-top: 0;
+            scroll-margin-bottom: 0;
+            overflow-anchor: none;
         }
         .party-q-item .pq-head {
             display: flex;
@@ -467,6 +469,7 @@
         #party-current-detail-host {
             display: block;
             width: 100%;
+            overflow-anchor: none;
         }
         .party-q-panel,
         .party-detail-slot,
@@ -474,6 +477,7 @@
             max-width: 100%;
             min-width: 0;
             box-sizing: border-box;
+            overflow-anchor: none;
         }
         .party-detail-slot .current-question-wrap {
             width: 100%;
@@ -525,12 +529,14 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
+            /* Pełna lista w PWA — bez wewnętrznego scrolla (np. Alkohol 8 odp.) */
+            max-height: none;
+            overflow: visible;
         }
-        /* Szybka lista — przewijanie samej listy pozycji */
+        /* Szybka lista — bez uciętego scrolla pozycji */
         .cq-answers.cq-answers-fastlist-scroll {
-            max-height: min(38vh, 480px);
-            overflow-y: auto;
-            overflow-x: hidden;
+            max-height: none;
+            overflow: visible;
             width: 100%;
             max-width: 100%;
             box-sizing: border-box;
@@ -610,48 +616,104 @@
         }
         .cq-fast-controls-nav {
             display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
+            flex-wrap: nowrap;
+            gap: 8px;
             justify-content: center;
-            margin-bottom: 12px;
+            align-items: stretch;
+            margin-bottom: 10px;
+            width: 100%;
+        }
+        .cq-fast-controls-nav .btn {
+            flex: 1 1 0;
+            min-width: 0;
+            padding: 10px 8px;
+            font-size: 0.92rem;
+            white-space: nowrap;
         }
         .cq-fast-under-nav .award-row {
             margin-top: 0;
         }
         /* FAST_LIST — jak TV: sama pozycja (bez „Sterowanie TV”), treść jak .party-fl-prompt / .party-fl-progress na screen */
         .cq-fast-progress-label {
-            font-size: clamp(1.9rem, 3.6vw, 2.3rem);
+            /* −10% względem poprzedniego clamp */
+            font-size: clamp(1.71rem, 3.24vw, 2.07rem);
             font-weight: 700;
             color: var(--gold, #f1c40f);
             letter-spacing: 0.12em;
             text-align: center;
-            margin: 0 0 12px;
+            margin: 0 0 8px;
         }
         .cq-fast-head .cq-letter-label {
             margin-bottom: 8px;
         }
         .cq-fast-nav-text {
-            /* −40 % względem poprzedniego rozmiaru w panelu (~60 % z clamp(3.6rem,10vw,8rem)) */
-            font-size: clamp(2.16rem, 6vw, 4.8rem);
+            /* −10% względem poprzedniego clamp */
+            font-size: clamp(1.94rem, 5.4vw, 4.32rem);
             font-weight: 900;
-            line-height: 1.15;
+            line-height: 1.12;
             color: var(--imp-text, #fff);
             text-align: center;
             width: 100%;
             max-width: 100%;
-            margin: 0 auto 14px;
+            margin: 0 auto 10px;
             white-space: normal;
             overflow-wrap: anywhere;
             word-break: break-word;
         }
         .cq-fast-ans-line {
-            font-size: clamp(1.84rem, 4vw, 2.46rem);
+            font-size: clamp(1.2rem, 3.2vw, 1.55rem);
             color: var(--muted);
-            margin-bottom: 12px;
+            margin-bottom: 10px;
             text-align: center;
             width: 100%;
             overflow-wrap: anywhere;
             word-break: break-word;
+            min-height: 1.4em;
+        }
+        .cq-fast-ans-line.is-revealed { color: #2ecc71; font-weight: 800; }
+        .cq-fast-ans-line.is-hidden-prompt {
+            color: rgba(255, 255, 255, 0.55);
+            font-weight: 700;
+            font-style: normal;
+        }
+        /* Pełny ekran: kompresja szybkiej listy, żeby zmieścić sterowanie na telefonie */
+        html:fullscreen .cq-fast-head,
+        html:-webkit-full-screen .cq-fast-head {
+            padding: 8px 6px !important;
+            margin-bottom: 6px;
+        }
+        html:fullscreen .cq-fast-progress-label,
+        html:-webkit-full-screen .cq-fast-progress-label {
+            font-size: clamp(1.4rem, 2.8vw, 1.75rem);
+            margin-bottom: 4px;
+        }
+        html:fullscreen .cq-fast-nav-text,
+        html:-webkit-full-screen .cq-fast-nav-text {
+            font-size: clamp(1.55rem, 4.5vw, 3.2rem);
+            margin-bottom: 6px;
+            line-height: 1.08;
+        }
+        html:fullscreen .cq-fast-ans-line,
+        html:-webkit-full-screen .cq-fast-ans-line {
+            font-size: clamp(1.05rem, 2.8vw, 1.3rem);
+            margin-bottom: 6px;
+        }
+        html:fullscreen .cq-fast-controls-nav .btn,
+        html:-webkit-full-screen .cq-fast-controls-nav .btn {
+            padding: 8px 6px;
+            font-size: 0.85rem;
+        }
+        html:fullscreen .cq-fast-under-nav .btn-award,
+        html:-webkit-full-screen .cq-fast-under-nav .btn-award {
+            padding: 10px 8px;
+            font-size: 0.88rem;
+        }
+        html:fullscreen .cq-answers.cq-answers-fastlist-scroll,
+        html:-webkit-full-screen .cq-answers.cq-answers-fastlist-scroll {
+            display: none;
+        }
+        @media (max-width: 768px) {
+            .cq-answers.cq-answers-fastlist-scroll { display: none; }
         }
         .cq-answer.correct {
             background: rgba(46, 204, 113, 0.06);
@@ -749,19 +811,23 @@
         /* ESTIMATION Party Quiz – input dla odpowiedzi gracza */
         .cq-estimation-input {
             display: flex;
-            align-items: center;
+            flex-direction: column;
+            align-items: stretch;
             gap: 10px;
             padding: 14px;
             background: rgba(52, 152, 219, 0.08);
             border: 2px solid rgba(52, 152, 219, 0.35);
             border-radius: 12px;
             margin-bottom: 12px;
-            flex-wrap: wrap;
+            box-sizing: border-box;
+            width: 100%;
+            max-width: 100%;
         }
         .cq-estimation-input label { font-size: 13px; color: var(--muted); font-weight: 700; }
         .cq-estimation-input input[type="number"] {
-            flex: 1;
-            min-width: 140px;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
             background: rgba(0, 0, 0, 0.3);
             border: 1px solid rgba(255, 255, 255, 0.15);
             color: #fff;
@@ -774,11 +840,23 @@
             font-size: 14px;
             font-weight: 700;
             color: var(--muted);
+            line-height: 1.45;
+            word-break: break-word;
         }
         .cq-estimation-result b { color: var(--gold); font-size: 18px; }
-        .cq-estim-row { display: flex; gap: 8px; align-items: stretch; }
-        .cq-estim-row input[type="number"] { flex: 1; }
-        .cq-estim-row .btn { white-space: nowrap; }
+        .cq-estim-row {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 10px;
+            width: 100%;
+        }
+        .cq-estim-row input[type="number"] { width: 100%; }
+        .cq-estim-row .btn {
+            width: 100%;
+            justify-content: center;
+            box-sizing: border-box;
+        }
 
         /* FAMILIADA admin — odkrywanie odpowiedzi + X (błędy) */
         .cq-answer.fam.cq-clickable { cursor: pointer; }
@@ -913,6 +991,76 @@
             opacity: 0.85;
             margin-top: 4px;
         }
+        .fam-jingle-row {
+            display: flex;
+            justify-content: center;
+            margin: 10px 0 6px;
+        }
+        .btn-party-fam-jingle {
+            background: linear-gradient(135deg, #00bcd4, #0097a7) !important;
+            color: #fff !important;
+            font-weight: 800;
+            font-size: 15px;
+            padding: 12px 28px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(0, 188, 212, 0.35);
+        }
+        .btn-party-fam-jingle:hover { filter: brightness(1.08); }
+        .party-bg-viz-panel {
+            margin-top: 14px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px dashed rgba(155, 89, 182, 0.45);
+            background: rgba(155, 89, 182, 0.08);
+        }
+        .party-bg-viz-panel label.party-bg-viz-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .party-bg-viz-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            margin-top: 8px;
+        }
+        .party-bg-viz-controls[hidden] { display: none !important; }
+        .party-bg-viz-nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            min-width: 200px;
+        }
+        .party-bg-viz-nav button {
+            min-width: 42px;
+            padding: 8px 12px;
+            font-size: 18px;
+            font-weight: 700;
+        }
+        #party-bg-preset-label {
+            flex: 1;
+            text-align: center;
+            font-size: 13px;
+            color: var(--muted);
+            line-height: 1.35;
+        }
+        .party-bg-opacity-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+            min-width: 220px;
+            font-size: 13px;
+            color: var(--muted);
+        }
+        .party-bg-opacity-row input[type="range"] { flex: 1; }
         .fam-errors-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -1291,12 +1439,112 @@
         .party-q-panel .pq-run-tv:disabled { opacity: 0.45; cursor: not-allowed; }
         .party-q-panel-meta { font-size: 0.85rem; color: var(--imp-text-muted, #aaa); margin: 0 0 8px; line-height: 1.4; }
         .party-q-panel-title { margin: 0 0 10px; color: var(--imp-accent, #f1c40f); font-size: 1rem; font-weight: 700; }
-        .pq-ans-preview { font-size: 0.82rem; color: #ccc; margin: 6px 0 0; padding-left: 14px; max-height: 120px; overflow-y: auto; }
+        .pq-ans-preview { font-size: 0.82rem; color: #ccc; margin: 6px 0 0; padding-left: 14px; max-height: none; overflow: visible; }
         /* Złota lista na antenie — jak rozwinięty wiersz listy; −2px względem panelu */
         .party-golden-live-host .party-golden-panel-top .party-q-panel-meta { font-size: calc(0.85rem - 2px); }
         .party-golden-live-host .party-golden-panel-top .party-q-panel-title { font-size: calc(1rem - 2px); }
-        .party-golden-live-host .party-golden-panel-top .pq-ans-preview { font-size: calc(0.82rem - 2px); }
-        .party-golden-live-badge-wrap { margin-top: 8px; }
+        .party-golden-live-host .party-golden-panel-top .pq-ans-preview { font-size: calc(0.82rem - 2px); max-height: none; overflow: visible; }
+        .party-golden-live-badge-wrap { margin-top: 8px; display: none; }
+        .party-side-list-tabs {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 6px;
+            margin: 0 0 12px;
+        }
+        .party-side-list-tab {
+            border: 1px solid rgba(218, 165, 32, 0.45);
+            background: rgba(255, 255, 255, 0.04);
+            color: #ddd;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            text-align: left;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .party-side-list-tab:hover { background: rgba(218, 165, 32, 0.12); }
+        .party-side-list-tab.active {
+            background: linear-gradient(135deg, rgba(218, 165, 32, 0.35), rgba(184, 134, 11, 0.25));
+            border-color: #daa520;
+            color: #fff;
+        }
+        .party-side-list-tab .tab-count {
+            opacity: 0.75;
+            font-weight: 600;
+            margin-left: 4px;
+        }
+        /* Banner ostrzeżenia zastąpiony modalem wymuszającym wybór */
+        .cq-award-warn { display: none !important; }
+        /* Modal: wymuszenie przyznania punktów przed kolejnym pytaniem */
+        .party-award-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 10050;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            box-sizing: border-box;
+        }
+        .party-award-modal[hidden] { display: none !important; }
+        .party-award-modal-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.72);
+        }
+        .party-award-modal-card {
+            position: relative;
+            z-index: 1;
+            width: min(420px, 100%);
+            background: #1a1f2e;
+            border: 2px solid rgba(241, 196, 15, 0.45);
+            border-radius: 14px;
+            padding: 18px 16px 16px;
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+            text-align: center;
+        }
+        .party-award-modal-card h3 {
+            margin: 0 0 8px;
+            font-size: 1.15rem;
+            color: #ffe082;
+        }
+        .party-award-modal-card p {
+            margin: 0 0 14px;
+            font-size: 0.92rem;
+            color: rgba(255, 255, 255, 0.82);
+            line-height: 1.4;
+        }
+        .party-award-modal-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .party-award-modal-actions .btn {
+            width: 100%;
+            padding: 12px 14px;
+            font-size: 1rem;
+            font-weight: 800;
+        }
+        .party-award-modal-actions .btn-award-modal.blue {
+            background: linear-gradient(160deg, #2a7ab8, #1f5c8a);
+            border: 2px solid #3498db;
+            color: #fff;
+        }
+        .party-award-modal-actions .btn-award-modal.red {
+            background: linear-gradient(160deg, #c0392b, #922b21);
+            border: 2px solid #e74c3c;
+            color: #fff;
+        }
+        .party-award-modal-cancel {
+            margin-top: 4px;
+            background: transparent !important;
+            border: 1px solid rgba(255, 255, 255, 0.25) !important;
+            color: #bbb !important;
+            font-weight: 600 !important;
+        }
         #btn-fs-pq-admin {
             position: fixed; bottom: 10px; right: 10px; z-index: 9999;
             background: rgba(50,50,50,0.85); color: #fff; border: 1px solid #777;
@@ -1380,7 +1628,21 @@
         .party-q-panel .party-detail-slot .party-q-live-detail {
             overflow: visible;
         }
-        #party-detail-host-holder { margin-top: 12px; }
+        #party-detail-host-holder {
+            position: sticky;
+            bottom: 0;
+            z-index: 40;
+            margin-top: 12px;
+            padding-top: 8px;
+            padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+            background: linear-gradient(to bottom, transparent 0, rgba(17, 17, 17, 0.92) 14px);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+        }
+        /* FAST_LIST na żywo: pełna lista pozycji tylko w podglądzie panelu, nie duplikuj w sterowaniu */
+        .party-q-live-detail .cq-answers.cq-answers-fastlist-scroll {
+            display: none;
+        }
 
         /* Szeroki ekran: nawigacja pytania nie rozciąga się na pół ekranu */
         @media (min-width: 769px) {
@@ -1473,7 +1735,7 @@
             .volume-slider-wrap label { min-width: 0; flex: 1 1 100%; max-width: 100%; }
         }
         @media (max-width: 400px) {
-            .cq-answers.cq-answers-fastlist-scroll { max-height: min(32vh, 360px); }
+            .cq-answers.cq-answers-fastlist-scroll { max-height: none; overflow: visible; }
             #party-current-detail-host .pq-ships-admin .cq-ships-cell {
                 width: 24px;
                 height: 24px;
@@ -1485,6 +1747,19 @@
 </head>
 <body class="imp-admin-editor party-quiz-admin">
     <button type="button" id="btn-fs-pq-admin" title="Pełny ekran">⛶ Pełny ekran</button>
+    <div id="party-award-modal" class="party-award-modal" hidden>
+        <div class="party-award-modal-backdrop" data-pam-cancel="1"></div>
+        <div class="party-award-modal-card" role="dialog" aria-modal="true" aria-labelledby="pam-title">
+            <h3 id="pam-title">Jak kończymy to pytanie?</h3>
+            <p id="pam-desc">Wybierz jedną opcję, zanim przejdziesz dalej.</p>
+            <div class="party-award-modal-actions">
+                <button type="button" class="btn btn-award-modal blue" id="pam-blue">🔵 Niebiescy</button>
+                <button type="button" class="btn btn-award-modal red" id="pam-red">🔴 Czerwoni</button>
+                <button type="button" class="btn btn-warn" id="pam-pass">Bez punktów</button>
+                <button type="button" class="btn party-award-modal-cancel" id="pam-cancel" data-pam-cancel="1">Anuluj</button>
+            </div>
+        </div>
+    </div>
     <div class="wrap">
         <header>
             <h1>Party Quiz – Admin</h1>
@@ -1543,6 +1818,27 @@
             <h3 style="margin: 18px 0 10px; font-size: 1.05rem; color: var(--imp-accent, #f1c40f);">🎛️ Sterowanie TV</h3>
             <div class="row" style="flex-wrap: wrap; gap: 10px; align-items: center;">
                 <button type="button" class="btn btn-primary" id="btn-party-screen-tv" title="Jak kafelek Party Quiz w admin PWA: tryb gry + widok ekranu (Screen)">📺 Włącz Party Quiz na ekranie TV</button>
+            </div>
+            <div class="party-bg-viz-panel">
+                <label class="party-bg-viz-toggle" for="chk-party-bg-viz">
+                    <input type="checkbox" id="chk-party-bg-viz">
+                    <span>🌈 Animowane tło TV (Milkdrop)</span>
+                </label>
+                <p class="hint" style="margin:0 0 4px;line-height:1.45;color:var(--imp-text-muted, #9aa);font-size:12px;">
+                    Delikatna animacja za pytaniami — nie dominuje treści. Wyłączone automatycznie w pytaniach typu <strong>Familiada</strong>. Wybór zapamiętywany między sesjami.
+                </p>
+                <div id="party-bg-viz-controls" class="party-bg-viz-controls" hidden>
+                    <div class="party-bg-viz-nav">
+                        <button type="button" class="btn btn-sm" id="btn-party-bg-prev" title="Poprzedni motyw">←</button>
+                        <span id="party-bg-preset-label">Motyw #1</span>
+                        <button type="button" class="btn btn-sm" id="btn-party-bg-next" title="Następny motyw">→</button>
+                    </div>
+                    <div class="party-bg-opacity-row">
+                        <span>Widoczność</span>
+                        <input type="range" id="party-bg-opacity" min="0" max="100" value="25">
+                        <span id="party-bg-opacity-val">25%</span>
+                    </div>
+                </div>
             </div>
             <div class="row" style="margin-top: 12px; flex-wrap: wrap; gap: 8px; align-items: center;">
                 <button type="button" class="btn" id="btn-show-welcome" title="">👋 Pokaż powitanie</button>
@@ -1618,7 +1914,7 @@
                     <div style="padding: 14px; text-align: center; color: var(--muted);">Wczytaj plik.</div>
                 </div>
                 <div id="party-detail-host-holder"><div id="party-current-detail-host" class="current-question-wrap"></div></div>
-                <p class="hint">Kliknij pytanie — panel; <strong>Uruchom na tablicy</strong>. Sterowanie pytania pojawia się pod przyciskiem (jak w Familiadzie).</p>
+                <p class="hint">Kliknij pytanie — panel; <strong>Uruchom na tablicy</strong>. Sterowanie pytania pojawia się na dole listy (przyklejone do dolnej krawędzi ekranu).</p>
             </div>
         </div>
 
@@ -1634,8 +1930,9 @@
         </div>
 
         <div class="card" style="border-color: #b8860b;">
-            <h3 style="margin:0 0 8px;color:#daa520;">⭐ Złota lista (Party Quiz)</h3>
-            <p style="color:#888; font-size:13px; margin-bottom:12px;line-height:1.45;">Osobny plik od Familiady — <code>party-quiz-golden.json</code>. Nie miesza się z bazą Familiady.</p>
+            <h3 style="margin:0 0 8px;color:#daa520;">⭐ Listy boczne (Party Quiz)</h3>
+            <p style="color:#888; font-size:13px; margin-bottom:12px;line-height:1.45;">Dodatkowe zestawy pytań obok listy głównej — złota lista Familiady oraz pliki <code>SL - …</code> (listy boczne z edytora).</p>
+            <div id="party-side-list-tabs" class="party-side-list-tabs"></div>
             <div id="party-golden-questions-list" class="questions-list party-q-list"></div>
         </div>
     </div>
@@ -1651,7 +1948,27 @@
 
         /** Które pytanie na liście ma rozwinięty panel (jak Familiada). */
         let openPartyListIdx = null;
-        let partyGoldenList = [];
+        let partySideLists = [];
+        let activeSideListTab = 'golden';
+        let activePartySideListIdx = null;
+
+        function isSideListLive() {
+            return !!(state.server.currentSideListId && typeof state.server.currentSideListIndex === 'number');
+        }
+        function getActiveSideListEntry() {
+            if (!isSideListLive()) return null;
+            return partySideLists.find(l => l.id === state.server.currentSideListId) || null;
+        }
+        function getCurrentSideListTabEntry() {
+            return partySideLists.find(l => l.id === activeSideListTab) || partySideLists[0] || null;
+        }
+        function applyPartySideListsPayload(lists) {
+            partySideLists = Array.isArray(lists) ? lists : [];
+            if (!partySideLists.some(l => l.id === activeSideListTab)) {
+                activeSideListTab = (partySideLists[0] && partySideLists[0].id) || 'golden';
+            }
+            renderPartySideLists();
+        }
 
         /** Po przebudowie listy (`innerHTML`) host detalu jest kasowany — zawsze twórz od nowa zanim wpiszesz HTML. */
         function ensurePartyDetailHost() {
@@ -1664,57 +1981,190 @@
             if (holder) holder.appendChild(host);
             return host;
         }
+        function getPartyAdminScrollEl() {
+            return document.querySelector('.wrap');
+        }
+
+        /** Po rozwinięciu pytania / mount detalu — nie przewijaj `.wrap` w dół (zostajemy przy nagłówku pytania). */
+        function capturePartyAdminScrollTop() {
+            const sc = getPartyAdminScrollEl();
+            return sc ? sc.scrollTop : null;
+        }
+
+        function restorePartyAdminScrollTop(savedTop) {
+            if (savedTop == null) return;
+            const sc = getPartyAdminScrollEl();
+            if (!sc) return;
+            const apply = () => { sc.scrollTop = savedTop; };
+            apply();
+            requestAnimationFrame(() => {
+                apply();
+                requestAnimationFrame(apply);
+            });
+            setTimeout(apply, 0);
+            setTimeout(apply, 50);
+            setTimeout(apply, 150);
+        }
+
         function mountPartyQuestionDetailHost() {
+            const savedScroll = capturePartyAdminScrollTop();
             const host = ensurePartyDetailHost();
             const holder = document.getElementById('party-detail-host-holder');
             if (!holder) return;
-            const slot = document.querySelector('.party-detail-slot');
-            if (slot) {
-                slot.appendChild(host);
+            holder.appendChild(host);
+            restorePartyAdminScrollTop(savedScroll);
+        }
+
+        /** Meta aktywnego pytania na TV — do bramki przyznania punktów. */
+        function getLivePartyQuestionMeta() {
+            const qs = (state.quiz && state.quiz.questions) || [];
+            if (isSideListLive()) {
+                const entry = getActiveSideListEntry();
+                const sIdx = state.server.currentSideListIndex;
+                if (entry && Array.isArray(entry.questions) && entry.questions[sIdx]) {
+                    const q = entry.questions[sIdx];
+                    return {
+                        q,
+                        type: q.type || 'QUIZ',
+                        idx: sIdx,
+                        sideList: true,
+                        sideListId: entry.id,
+                        golden: entry.id === 'golden',
+                        awarded: !!state.server.questionAwarded
+                    };
+                }
+            }
+            const idx = state.server.currentIndex;
+            if (typeof idx === 'number' && idx >= 0 && idx < qs.length) {
+                const q = qs[idx];
+                return { q, type: q.type || 'QUIZ', idx, golden: false, awarded: !!state.server.questionAwarded };
+            }
+            return null;
+        }
+
+        /** Czy trzeba wymusić A / B / bez punktów przed odejściem z pytania. */
+        function partyNeedsAwardGate() {
+            const m = getLivePartyQuestionMeta();
+            if (!m || m.awarded) return false;
+            if (m.type === 'SHIPS') return false; /* własny flow zakończenia */
+            /* FAST_LIST: punkty per pozycja (+5 / NASTĘPNE=0). Koniec listy nie może blokować złotej listy
+               ani kolejnych pytań — aż do tablicy wyników. Przy wyjściu cicho zamykamy listę (pass). */
+            if (m.type === 'FAST_LIST') return false;
+            return true;
+        }
+
+        let partyAwardPendingNav = null;
+
+        function hidePartyAwardModal() {
+            const modal = document.getElementById('party-award-modal');
+            if (modal) modal.hidden = true;
+            partyAwardPendingNav = null;
+        }
+
+        function emitPartyResolveChoice(choice) {
+            const m = getLivePartyQuestionMeta();
+            if (!m) return;
+            const type = m.type;
+            if (choice === 'pass') {
+                if (socket.connected) socket.emit('admin_stop_music');
+                emit('party_pass_question');
+                return;
+            }
+            const team = choice === 'red' ? 'red' : 'blue';
+            if (type === 'FAMILIADA') {
+                emit('party_familiada_award_pot', { team });
+            } else if (type === 'LETTER') {
+                emit('party_award_letter', { team });
+                emit('party_pass_question');
+            } else if (type === 'FAST_LIST') {
+                const fl = state.server.fastListRound;
+                const ix = fl && typeof fl.itemIndex === 'number' ? fl.itemIndex : undefined;
+                emit('party_award_fast_list', ix !== undefined ? { team, itemIndex: ix } : { team });
+                emit('party_pass_question');
             } else {
-                holder.appendChild(host);
+                emit('party_award_points', { team });
             }
         }
 
-        /** Po rozwinięciu wiersza lista + host detalu są przebudowywane — bez tego `.wrap` zostaje w złym scrollu. */
-        function scrollPartyQuestionsListItemIntoView(idx) {
-            if (typeof idx !== 'number' || idx < 0) return;
-            const list = document.getElementById('questions-list');
-            if (!list) return;
-            requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                    const row = list.querySelector('.party-q-item[data-idx="' + idx + '"]');
-                    if (!row) return;
-                    const panel = list.querySelector('#party-q-panel-' + idx);
-                    const target = (panel && panel.classList.contains('visible')) ? panel : row;
-                    try {
-                        target.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'auto' });
-                    } catch (_) {
-                        target.scrollIntoView(false);
-                    }
-                });
-            });
+        function showPartyAwardModal(thenFn) {
+            const modal = document.getElementById('party-award-modal');
+            if (!modal) {
+                if (typeof thenFn === 'function') thenFn();
+                return;
+            }
+            const m = getLivePartyQuestionMeta();
+            if (!m || m.awarded) {
+                if (typeof thenFn === 'function') thenFn();
+                return;
+            }
+            partyAwardPendingNav = typeof thenFn === 'function' ? thenFn : null;
+            const pts = getQuestionPoints(m.q);
+            const blueName = (state.server.teams.blue && state.server.teams.blue.name) || 'Niebiescy';
+            const redName = (state.server.teams.red && state.server.teams.red.name) || 'Czerwoni';
+            let ptsLabel = '+' + pts + ' pkt';
+            if (m.type === 'FAMILIADA') {
+                const pot = (state.server.familiadaRound && typeof state.server.familiadaRound.pot === 'number')
+                    ? state.server.familiadaRound.pot : 0;
+                ptsLabel = pot > 0 ? ('+' + pot + ' pkt') : '(pula 0)';
+            } else if (m.type === 'FAST_LIST') {
+                ptsLabel = '+5 pkt';
+            }
+            const bBlue = document.getElementById('pam-blue');
+            const bRed = document.getElementById('pam-red');
+            const bPass = document.getElementById('pam-pass');
+            const desc = document.getElementById('pam-desc');
+            if (bBlue) bBlue.textContent = '🔵 ' + blueName + ' ' + ptsLabel;
+            if (bRed) bRed.textContent = '🔴 ' + redName + ' ' + ptsLabel;
+            if (bPass) bPass.textContent = m.type === 'FAST_LIST' ? 'Bez punktów (zakończ listę)' : 'Bez punktów';
+            if (desc) {
+                desc.textContent = m.type === 'FAST_LIST'
+                    ? 'Zakończ szybką listę: przyznaj +5 albo bez punktów — potem przejdziesz dalej.'
+                    : 'Pytanie jest na TV. Wybierz wynik, zanim przejdziesz do innego pytania.';
+            }
+            modal.hidden = false;
         }
 
-        /** Po rozwinięciu złotej listy — ten sam UX co główna lista (`scrollPartyQuestionsListItemIntoView`). */
-        function scrollPartyGoldenListItemIntoView(idx) {
-            if (typeof idx !== 'number' || idx < 0) return;
-            const list = document.getElementById('party-golden-questions-list');
-            if (!list) return;
-            requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                    const panel = document.getElementById('party-golden-panel-' + idx);
-                    const row = panel && panel.parentElement;
-                    if (!row || !panel) return;
-                    const target = panel.classList.contains('visible') ? panel : row;
-                    try {
-                        target.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'auto' });
-                    } catch (_) {
-                        target.scrollIntoView(false);
-                    }
-                });
-            });
+        /** Uruchom akcję nawigacji; FAST_LIST zamykane cicho; inne typy — modal gdy trzeba. */
+        function requestPartyNavigate(thenFn) {
+            const m = getLivePartyQuestionMeta();
+            if (m && m.type === 'FAST_LIST' && !m.awarded) {
+                partyAwardPendingNav = typeof thenFn === 'function' ? thenFn : null;
+                emit('party_pass_question');
+                return;
+            }
+            if (!partyNeedsAwardGate()) {
+                if (typeof thenFn === 'function') thenFn();
+                return;
+            }
+            showPartyAwardModal(thenFn);
         }
+
+        (function bindPartyAwardModal() {
+            const modal = document.getElementById('party-award-modal');
+            if (!modal || modal.dataset.bound) return;
+            modal.dataset.bound = '1';
+            function onChoice(choice) {
+                const next = partyAwardPendingNav;
+                modal.hidden = true;
+                /* Zostaw callback — odpali się po party_state z questionAwarded. */
+                partyAwardPendingNav = typeof next === 'function' ? next : null;
+                emitPartyResolveChoice(choice);
+                if (state.server.questionAwarded && typeof partyAwardPendingNav === 'function') {
+                    const fn = partyAwardPendingNav;
+                    partyAwardPendingNav = null;
+                    setTimeout(fn, 0);
+                }
+            }
+            const bBlue = document.getElementById('pam-blue');
+            const bRed = document.getElementById('pam-red');
+            const bPass = document.getElementById('pam-pass');
+            if (bBlue) bBlue.addEventListener('click', () => onChoice('blue'));
+            if (bRed) bRed.addEventListener('click', () => onChoice('red'));
+            if (bPass) bPass.addEventListener('click', () => onChoice('pass'));
+            modal.querySelectorAll('[data-pam-cancel]').forEach((el) => {
+                el.addEventListener('click', () => hidePartyAwardModal());
+            });
+        })();
 
         function partyQuestionPanelPreview(q, type) {
             const pts = getQuestionPoints(q);
@@ -1737,11 +2187,12 @@
                 }
             } else if (type === 'FAMILIADA' && Array.isArray(ans) && ans.length) {
                 html += '<ul class="pq-ans-preview">';
-                ans.slice(0, 10).forEach((a, j) => {
+                ans.slice(0, 12).forEach((a, j) => {
                     const t = (a && a.text) ? a.text : '';
                     const p = (a && typeof a.points === 'number') ? a.points : '';
                     html += '<li>' + (j + 1) + '. ' + escapeHtml(t) + (p !== '' ? ' (' + p + ' pkt)' : '') + '</li>';
                 });
+                if (ans.length > 12) html += '<li>… +' + (ans.length - 12) + '</li>';
                 html += '</ul>';
             } else if (type === 'SHIPS') {
                 html += '<p class="pq-ans-preview" style="margin:8px 0 0;">Statki — po uruchomieniu celuj kolumna → rząd (panel po lewej).</p>';
@@ -1768,6 +2219,8 @@
             server: {
                 activeFile: null,
                 currentIndex: -1,
+                currentSideListId: null,
+                currentSideListIndex: null,
                 currentGoldenIndex: null,
                 questionAwarded: false,
                 teams: {
@@ -1787,6 +2240,9 @@
                 buttonUsedThisRound: false,  // Party Quiz: flaga buzzera (ktoś już nacisnął w tej rundzie)
                 buttonPressedBy: null,       // Party Quiz: 'blue' | 'red' | null
                 hideTeamScoresOnTv: true,
+                bgVizEnabled: false,
+                bgVizPresetIndex: 0,
+                bgVizOpacity: 25,
                 teamScoresFlashUntil: 0,
                 revertAward: null,
                 teamLeaderboardVisible: false
@@ -1849,6 +2305,10 @@
                 return (typeof q.pointsPerHit === 'number' && q.pointsPerHit > 0) ? q.pointsPerHit : 5;
             }
             if (typeof q.points === 'number' && q.points > 0) return q.points;
+            if (isSideListLive()) {
+                const entry = getActiveSideListEntry();
+                if (entry && typeof entry.defaultPoints === 'number') return entry.defaultPoints;
+            }
             return state.server.defaultPoints || (state.quiz && state.quiz.meta && state.quiz.meta.defaultPoints) || 10;
         }
 
@@ -1857,7 +2317,7 @@
             if (el.connDot) { el.connDot.classList.remove('bad'); el.connDot.classList.add('ok'); }
             if (el.connText) el.connText.textContent = 'połączono (' + socket.id.slice(0, 6) + ')';
             log('sys', 'connect');
-            emit('party_editor_get_files');
+            emit('party_editor_get_files', { mainOnly: true });
             emit('party_request_qr_buttons');   // pobierz QR dla /party-quiz/buttons.html
         });
 
@@ -1909,7 +2369,15 @@
 
             state.server.activeFile = ps.activeFile;
             state.server.currentIndex = typeof ps.currentIndex === 'number' ? ps.currentIndex : -1;
-            state.server.currentGoldenIndex = (typeof ps.currentGoldenIndex === 'number') ? ps.currentGoldenIndex : null;
+            state.server.currentSideListId = (typeof ps.currentSideListId === 'string' && ps.currentSideListId) ? ps.currentSideListId : null;
+            state.server.currentSideListIndex = (typeof ps.currentSideListIndex === 'number') ? ps.currentSideListIndex : null;
+            if (!state.server.currentSideListId && typeof ps.currentGoldenIndex === 'number') {
+                state.server.currentSideListId = 'golden';
+                state.server.currentSideListIndex = ps.currentGoldenIndex;
+            }
+            state.server.currentGoldenIndex = (state.server.currentSideListId === 'golden' && typeof state.server.currentSideListIndex === 'number')
+                ? state.server.currentSideListIndex
+                : null;
             state.server.questionAwarded = !!ps.questionAwarded;
             state.server.swapped = !!ps.swapped;
             state.server.welcome = ps.welcome || null;
@@ -1925,6 +2393,9 @@
             state.server.buttonPressedBy = ps.buttonPressedBy || null;
             state.server.hideTeamScoresOnTv = ps.hideTeamScoresOnTv !== false;
             state.server.teamScoresFlashUntil = typeof ps.teamScoresFlashUntil === 'number' ? ps.teamScoresFlashUntil : 0;
+            state.server.bgVizEnabled = !!ps.bgVizEnabled;
+            state.server.bgVizPresetIndex = (typeof ps.bgVizPresetIndex === 'number') ? ps.bgVizPresetIndex : 0;
+            state.server.bgVizOpacity = (typeof ps.bgVizOpacity === 'number') ? ps.bgVizOpacity : 25;
             state.server.revertAward = ps.revertAward || null;
             state.server.teamLeaderboardVisible = !!ps.teamLeaderboardVisible;
             if (ps.teams && ps.teams.blue) state.server.teams.blue = ps.teams.blue;
@@ -1932,6 +2403,7 @@
 
             const chkHide = document.getElementById('chk-hide-tv-scores');
             if (chkHide && document.activeElement !== chkHide) chkHide.checked = state.server.hideTeamScoresOnTv;
+            syncPartyBgVizControlsFromState();
 
             // Auto-refresh nazw (tylko jeśli pole NIE jest focusowane)
             if (document.activeElement !== el.teamBlueName) el.teamBlueName.value = state.server.teams.blue.name || 'Niebiescy';
@@ -1943,20 +2415,32 @@
             if (prevIndex !== state.server.currentIndex && state.server.currentIndex >= 0) {
                 openPartyListIdx = state.server.currentIndex;
             }
-            if (typeof ps.currentGoldenIndex === 'number') {
-                activePartyGoldenIdx = ps.currentGoldenIndex;
+            /* Trzymaj rozwinięte aktywne pytanie — inaczej detal wpada w ukryty panel. */
+            if (state.server.currentIndex >= 0 && !isSideListLive()) {
+                openPartyListIdx = state.server.currentIndex;
+            }
+            if (isSideListLive()) {
+                activePartySideListIdx = state.server.currentSideListIndex;
+                activeSideListTab = state.server.currentSideListId;
                 openPartyListIdx = null;
             } else {
-                activePartyGoldenIdx = null;
+                activePartySideListIdx = null;
             }
 
             renderScores();
             renderLiveStatus();
             renderBuzzerStatus();
 
+            if (state.server.questionAwarded && typeof partyAwardPendingNav === 'function') {
+                const fn = partyAwardPendingNav;
+                partyAwardPendingNav = null;
+                setTimeout(fn, 0);
+            }
+
             // Przy każdym update party_state odświeżamy listę + detal (tanie, bo czyste HTML stringi)
-            renderQuestionsList();
-            renderPartyGoldenList();
+            const partyStateScrollLock = capturePartyAdminScrollTop();
+            renderQuestionsList(partyStateScrollLock);
+            renderPartySideLists(partyStateScrollLock);
         });
 
         function renderBuzzerStatus() {
@@ -1984,12 +2468,18 @@
         });
 
         socket.on('party_golden_list', (list) => {
-            partyGoldenList = Array.isArray(list) ? list : [];
-            renderPartyGoldenList();
+            const golden = partySideLists.find(l => l.id === 'golden');
+            if (golden) golden.questions = Array.isArray(list) ? list : [];
+            else partySideLists.unshift({ id: 'golden', label: 'Złota lista (Familiada)', type: 'golden', file: 'party-quiz-golden.json', questions: Array.isArray(list) ? list : [] });
+            renderPartySideLists();
         });
         socket.on('party_golden_updated', (list) => {
-            partyGoldenList = Array.isArray(list) ? list : [];
-            renderPartyGoldenList();
+            const golden = partySideLists.find(l => l.id === 'golden');
+            if (golden) golden.questions = Array.isArray(list) ? list : [];
+            renderPartySideLists();
+        });
+        socket.on('party_side_lists', (lists) => {
+            applyPartySideListsPayload(lists);
         });
 
         // ═══ Files list ═══
@@ -2048,23 +2538,26 @@
         }
 
         // ═══ Render: questions list (accordion jak Familiada) ═══
-        function renderQuestionsList() {
+        function renderQuestionsList(forcedScrollTop) {
+            const savedScroll = (forcedScrollTop != null) ? forcedScrollTop : capturePartyAdminScrollTop();
             const qs = (state.quiz && state.quiz.questions) || [];
             el.qCount.textContent = qs.length;
             if (qs.length === 0) {
                 el.questionsList.innerHTML = '<div style="padding: 14px; text-align: center; color: var(--muted);">Plik nie zawiera pytań.</div>';
                 mountPartyQuestionDetailHost();
                 renderCurrentQuestion();
+                restorePartyAdminScrollTop(savedScroll);
                 return;
             }
-            const goldenOn = state.server.currentGoldenIndex !== null && typeof state.server.currentGoldenIndex === 'number';
+            const sideListOn = isSideListLive();
             const hasActive = state.server.currentIndex >= 0;
-            const locked = hasActive && !state.server.questionAwarded;
+            /* FAST_LIST nie blokuje innych pytań / złotej listy (patrz partyNeedsAwardGate). */
+            const locked = hasActive && !state.server.questionAwarded && partyNeedsAwardGate();
             const asked = Array.isArray(state.server.askedIndices) ? state.server.askedIndices : [];
             const html = qs.map((q, i) => {
                 const type = q.type || 'QUIZ';
                 const title = (q.question || '').trim() || '(bez treści)';
-                const isActive = !goldenOn && i === state.server.currentIndex;
+                const isActive = !sideListOn && i === state.server.currentIndex;
                 const isDone = asked.indexOf(i) !== -1 && !isActive;
                 const expanded = openPartyListIdx === i;
                 const itemClasses = [
@@ -2073,10 +2566,8 @@
                     isDone ? 'q-done' : ''
                 ].filter(Boolean).join(' ');
                 let status = '';
-                if (isActive) {
-                    status = state.server.questionAwarded
-                        ? '<span class="q-status">ZAMKNIĘTE</span>'
-                        : '<span class="q-status" style="background:rgba(241,196,15,0.2);color:var(--gold);">NA ANTENIE</span>';
+                if (isActive && state.server.questionAwarded) {
+                    status = '<span class="q-status">ZAMKNIĘTE</span>';
                 } else if (isDone) {
                     status = '<span class="q-status" style="background:rgba(149,165,166,0.22);color:#bdc3c7;">✓ ROZEGRANE</span>';
                 }
@@ -2084,11 +2575,11 @@
                 const cannotRunOther = locked && !isActive;
                 const onAirBlock = isActive && !state.server.questionAwarded;
                 const panelPreview = partyQuestionPanelPreview(q, type);
-                const runDisabled = (cannotRunOther || onAirBlock) ? ' disabled' : '';
+                /* Zablokuj tylko ponowne „Uruchom” na aktywnym nierozstrzygniętym — inne pytania otwierają modal. */
+                const runDisabled = onAirBlock ? ' disabled' : '';
                 const runLabel = isActive
-                    ? (state.server.questionAwarded ? '🔁 Ponownie na tablicy' : '✅ Na antenie — przyciski poniżej')
-                    : '🎬 Uruchom na tablicy';
-                const detailSlot = (!goldenOn && isActive) ? '<div class="party-detail-slot"></div>' : '';
+                    ? (state.server.questionAwarded ? '🔁 Ponownie na tablicy' : '⬇️ Przyznaj punkty poniżej')
+                    : (cannotRunOther ? '🎬 Uruchom (najpierw zakończ bieżące)' : '🎬 Uruchom na tablicy');
                 return (
                     '<div class="' + itemClasses + '" data-idx="' + i + '">' +
                         '<button type="button" class="' + btnClasses + '" data-act="toggle" data-idx="' + i + '">' +
@@ -2104,7 +2595,6 @@
                         '<div class="party-q-panel' + (expanded ? ' visible' : '') + '" id="party-q-panel-' + i + '">' +
                             panelPreview +
                             '<button type="button" class="pq-run-tv" data-act="run" data-idx="' + i + '"' + runDisabled + '>' + runLabel + '</button>' +
-                            detailSlot +
                         '</div>' +
                     '</div>'
                 );
@@ -2114,82 +2604,134 @@
             el.questionsList.querySelectorAll('button[data-act="toggle"]').forEach(btn => {
                 btn.addEventListener('click', (ev) => {
                     ev.preventDefault();
+                    const scrollLock = capturePartyAdminScrollTop();
                     const i = parseInt(btn.getAttribute('data-idx'), 10);
                     if (isNaN(i)) return;
-                    openPartyListIdx = (openPartyListIdx === i) ? null : i;
-                    renderQuestionsList();
-                    if (openPartyListIdx !== null) scrollPartyQuestionsListItemIntoView(openPartyListIdx);
+                    const collapsing = openPartyListIdx === i;
+                    const liveUnresolved = i === state.server.currentIndex && !state.server.questionAwarded
+                        && !isSideListLive();
+                    if (collapsing && liveUnresolved) {
+                        /* Nie zwijaj nierozstrzygniętego — detal musi zostać widoczny. */
+                        return;
+                    }
+                    openPartyListIdx = collapsing ? null : i;
+                    renderQuestionsList(scrollLock);
+                    /* Bez auto-scroll — tylko rozwinięcie kontenera. */
                 });
             });
             el.questionsList.querySelectorAll('button[data-act="run"]').forEach(btn => {
                 btn.addEventListener('click', (ev) => {
                     ev.preventDefault();
                     if (btn.disabled) return;
+                    const scrollLock = capturePartyAdminScrollTop();
                     const i = parseInt(btn.getAttribute('data-idx'), 10);
                     if (isNaN(i)) return;
-                    emit('party_run_question', i);
-                    openPartyListIdx = i;
-                    renderQuestionsList();
-                    scrollPartyQuestionsListItemIntoView(i);
+                    requestPartyNavigate(() => {
+                        emit('party_run_question', i);
+                        openPartyListIdx = i;
+                        renderQuestionsList(scrollLock);
+                    });
                 });
             });
             mountPartyQuestionDetailHost();
             renderCurrentQuestion();
+            restorePartyAdminScrollTop(savedScroll);
         }
 
-        let activePartyGoldenIdx = null;
-
-        /** Złota lista Party Quiz — osobny plik niż Familiada (party-quiz-golden.json). */
-        function renderPartyGoldenList() {
+        /** Listy boczne Party Quiz — zakładki (złota lista, test wiedzy itd.). */
+        function renderPartySideLists(forcedScrollTop) {
+            const savedScroll = (forcedScrollTop != null) ? forcedScrollTop : capturePartyAdminScrollTop();
+            const tabsEl = document.getElementById('party-side-list-tabs');
             const container = document.getElementById('party-golden-questions-list');
-            if (!container) return;
-            container.innerHTML = '';
-            if (!partyGoldenList.length) {
-                container.innerHTML = '<div style="padding:12px;color:#888;font-size:14px;">Brak pozycji w złotej liście. Dodaj wpisy do <code>party-quiz-golden.json</code> lub z edytora Party (jak w Familiadzie).</div>';
-                mountPartyQuestionDetailHost();
-                renderCurrentQuestion();
+            if (!container) {
+                restorePartyAdminScrollTop(savedScroll);
                 return;
             }
-            partyGoldenList.forEach((q, idx) => {
+
+            if (tabsEl) {
+                tabsEl.innerHTML = '';
+                if (!partySideLists.length) {
+                    tabsEl.innerHTML = '<span style="color:#888;font-size:13px;">Brak skonfigurowanych list bocznych.</span>';
+                } else {
+                    partySideLists.forEach((list) => {
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'party-side-list-tab' + (list.id === activeSideListTab ? ' active' : '');
+                        const count = Array.isArray(list.questions) ? list.questions.length : 0;
+                        btn.innerHTML = escapeHtml(list.label || list.id) + '<span class="tab-count">(' + count + ')</span>';
+                        btn.addEventListener('click', () => {
+                            activeSideListTab = list.id;
+                            activePartySideListIdx = null;
+                            renderPartySideLists();
+                        });
+                        tabsEl.appendChild(btn);
+                    });
+                }
+            }
+
+            container.innerHTML = '';
+            const tabEntry = getCurrentSideListTabEntry();
+            if (!tabEntry) {
+                container.innerHTML = '<div style="padding:12px;color:#888;font-size:14px;">Brak list bocznych.</div>';
+                mountPartyQuestionDetailHost();
+                renderCurrentQuestion();
+                restorePartyAdminScrollTop(savedScroll);
+                return;
+            }
+
+            const questions = Array.isArray(tabEntry.questions) ? tabEntry.questions : [];
+            if (!questions.length) {
+                const fileHint = tabEntry.file ? (' <code>' + escapeHtml(tabEntry.file) + '</code>') : '';
+                container.innerHTML = '<div style="padding:12px;color:#888;font-size:14px;">Brak pytań w tej zakładce.' + fileHint + '</div>';
+                mountPartyQuestionDetailHost();
+                renderCurrentQuestion();
+                restorePartyAdminScrollTop(savedScroll);
+                return;
+            }
+
+            const liveOnThisTab = isSideListLive() && state.server.currentSideListId === tabEntry.id;
+            questions.forEach((q, idx) => {
                 const item = document.createElement('div');
                 item.className = 'party-q-item';
                 const btn = document.createElement('button');
                 btn.type = 'button';
-                const onTvGolden = typeof state.server.currentGoldenIndex === 'number' && state.server.currentGoldenIndex === idx;
-                const expandedGolden = (activePartyGoldenIdx === idx) || onTvGolden;
-                btn.className = 'party-q-btn' + (expandedGolden ? ' active' : '') + (onTvGolden ? ' active-on-tv' : '');
-                btn.textContent = (idx + 1) + '. ' + ((q.question || '').trim() || '(bez treści)');
+                const onTvSide = liveOnThisTab && state.server.currentSideListIndex === idx;
+                const expandedSide = (activePartySideListIdx === idx) || onTvSide;
+                btn.className = 'party-q-btn' + (expandedSide ? ' active' : '') + (onTvSide ? ' active-on-tv' : '');
+                const typeBadge = q.type && q.type !== 'QUIZ' ? (' [' + q.type + ']') : '';
+                btn.textContent = (idx + 1) + '. ' + ((q.question || '').trim() || '(bez treści)') + typeBadge;
                 btn.addEventListener('click', () => {
-                    if (onTvGolden) {
-                        activePartyGoldenIdx = idx;
-                        renderPartyGoldenList();
-                        scrollPartyGoldenListItemIntoView(idx);
+                    const scrollLock = capturePartyAdminScrollTop();
+                    if (onTvSide) {
+                        activePartySideListIdx = idx;
+                        renderPartySideLists(scrollLock);
                         return;
                     }
-                    activePartyGoldenIdx = (activePartyGoldenIdx === idx) ? null : idx;
-                    renderPartyGoldenList();
-                    if (activePartyGoldenIdx !== null) scrollPartyGoldenListItemIntoView(activePartyGoldenIdx);
+                    activePartySideListIdx = (activePartySideListIdx === idx) ? null : idx;
+                    renderPartySideLists(scrollLock);
                 });
                 const panel = document.createElement('div');
-                panel.className = 'party-q-panel' + (expandedGolden ? ' visible' : '');
-                panel.id = 'party-golden-panel-' + idx;
-                const detailSlot = onTvGolden ? '<div class="party-detail-slot"></div>' : '';
+                panel.className = 'party-q-panel' + (expandedSide ? ' visible' : '');
+                panel.id = 'party-side-panel-' + tabEntry.id + '-' + idx;
+                const metaLine = tabEntry.type === 'golden'
+                    ? '⭐ Złota lista Party — osobny zbiór od Familiady.'
+                    : ('📋 ' + escapeHtml(tabEntry.label || tabEntry.id) + (tabEntry.file ? ' · ' + escapeHtml(tabEntry.file) : ''));
                 panel.innerHTML =
-                    '<p class="party-q-panel-meta" style="margin-top:0;">⭐ Złota lista Party — osobny zbiór od Familiady.</p>' +
-                    '<button type="button" class="pq-run-tv" id="party-golden-run-' + idx + '">🎬 Uruchom na tablicy</button>' +
-                    detailSlot;
+                    '<p class="party-q-panel-meta" style="margin-top:0;">' + metaLine + '</p>' +
+                    '<button type="button" class="pq-run-tv" id="party-side-run-' + tabEntry.id + '-' + idx + '">🎬 Uruchom na tablicy</button>';
                 item.appendChild(btn);
                 item.appendChild(panel);
                 container.appendChild(item);
-                const runBtn = panel.querySelector('#party-golden-run-' + idx);
+                const runBtn = panel.querySelector('#party-side-run-' + tabEntry.id + '-' + idx);
                 if (runBtn) {
-                    runBtn.addEventListener('click', () => emit('party_run_golden_question', idx));
+                    runBtn.addEventListener('click', () => {
+                        requestPartyNavigate(() => emit('party_run_side_question', { listId: tabEntry.id, index: idx }));
+                    });
                 }
             });
             mountPartyQuestionDetailHost();
             renderCurrentQuestion();
-            const gLive = state.server.currentGoldenIndex;
-            if (typeof gLive === 'number') scrollPartyGoldenListItemIntoView(gLive);
+            restorePartyAdminScrollTop(savedScroll);
         }
 
         // ═══ Render: widok aktualnego pytania – wzorowany na Imprezja admin #question-control ═══
@@ -2198,18 +2740,27 @@
         function renderCurrentQuestion() {
             const dh = ensurePartyDetailHost();
             const qs = (state.quiz && state.quiz.questions) || [];
-            const gIdx = state.server.currentGoldenIndex;
             let q = null;
             let idx = state.server.currentIndex;
             let isLive = false;
-            if (gIdx !== null && typeof gIdx === 'number') {
-                if (partyGoldenList[gIdx]) {
-                    q = partyGoldenList[gIdx];
-                    idx = gIdx;
+            let liveSideListEntry = null;
+            if (isSideListLive()) {
+                liveSideListEntry = getActiveSideListEntry();
+                const sIdx = state.server.currentSideListIndex;
+                if (liveSideListEntry && Array.isArray(liveSideListEntry.questions) && liveSideListEntry.questions[sIdx]) {
+                    q = liveSideListEntry.questions[sIdx];
+                    idx = sIdx;
                     isLive = true;
                 } else {
                     dh.innerHTML =
-                        '<div class="current-question-empty">⏳ Ładowanie złotej listy… Odśwież panel, jeśli to się nie zmieni.</div>';
+                        '<div class="current-question-empty">⏳ Ładowanie listy bocznej… Odśwież panel, jeśli to się nie zmieni.</div>';
+                    dh.classList.remove('party-golden-live-host');
+                    return;
+                }
+                if (activePartySideListIdx !== null && activePartySideListIdx !== idx) {
+                    dh.innerHTML =
+                        '<div class="current-question-empty">Na tablicy: pozycja <strong>' + (idx + 1) +
+                        '</strong> z listy bocznej. Rozwiń ją albo uruchom z właściwego wiersza.</div>';
                     dh.classList.remove('party-golden-live-host');
                     return;
                 }
@@ -2218,18 +2769,27 @@
                 isLive = true;
             }
 
+            /* Detal montowany w #party-detail-host-holder (sticky u dołu) — nie w środku listy. */
+            if (isLive && q && !isSideListLive() && openPartyListIdx !== null && openPartyListIdx !== idx) {
+                dh.innerHTML =
+                    '<div class="current-question-empty">Na tablicy: pytanie <strong>' + (idx + 1) +
+                    '</strong>. Rozwiń je na liście albo użyj «Uruchom na tablicy» pod tym wierszem.</div>';
+                dh.classList.remove('party-golden-live-host');
+                return;
+            }
+
             if (!isLive || !q) {
                 const msg = qs.length === 0
                     ? 'Wczytaj plik z listy, aby rozpocząć.'
-                    : '👉 Rozwiń pytanie na liście i «Uruchom na tablicy», albo wybierz pozycję ze złotej listy.';
+                    : '👉 Rozwiń pytanie na liście i «Uruchom na tablicy», albo wybierz pozycję z list bocznych.';
                 dh.innerHTML =
                     '<div class="current-question-empty">' + msg + '</div>';
                 dh.classList.remove('party-golden-live-host');
                 return;
             }
 
-            const liveGolden = state.server.currentGoldenIndex !== null && typeof state.server.currentGoldenIndex === 'number';
-            dh.classList.toggle('party-golden-live-host', !!liveGolden);
+            const liveSideList = isSideListLive();
+            dh.classList.toggle('party-golden-live-host', !!liveSideList);
 
             const type = q.type || 'QUIZ';
             const points = getQuestionPoints(q);
@@ -2316,9 +2876,8 @@
                         ? '5 pkt / odpowiedź'
                         : (points + ' pkt');
 
-            const liveBadge = isAwarded
-                ? '<span class="pill ok">✓ Zamknięte</span>'
-                : '<span class="cq-badge-live">🔴 Na antenie</span>';
+            let awardWarnHtml = '';
+            /* Banner zastąpiony modalem; FAST_LIST bez ostrzeżenia (NASTĘPNE = 0 pkt pozycji). */
 
             // — PRZYCISKI KONTROLNE (jak Imprezja admin: Odpowiedź / Powtórz dźwięk / etc.) —
             const ctrlBtns = [];
@@ -2338,7 +2897,7 @@
             // — PRZYCISKI PRZYZNAWANIA —
             let awardBlock;
             if (isAwarded) {
-                const lgAward = state.server.currentGoldenIndex !== null && typeof state.server.currentGoldenIndex === 'number';
+                const lgAward = isSideListLive();
                 const ciMain = state.server.currentIndex;
                 const hasNext = !lgAward && ciMain >= 0 && ciMain < qs.length - 1;
                 const lbOn = !!state.server.teamLeaderboardVisible;
@@ -2362,7 +2921,7 @@
                         '<button type="button" class="btn btn-primary" id="btn-show-team-results" data-lb-on="' + (lbOn ? '1' : '0') + '">' +
                             (lbOn ? '📺 Ukryj wyniki na TV' : '📊 Pokaż wyniki') +
                         '</button>' +
-                        '<button class="btn btn-primary" id="btn-next-q" ' + (hasNext ? '' : 'disabled') + ' title="' + (lgAward ? 'Złota lista — użyj listy głównej żeby przejść dalej' : '') + '">Następne pytanie ⟶</button>' +
+                        '<button class="btn btn-primary" id="btn-next-q" ' + (hasNext ? '' : 'disabled') + ' title="' + (lgAward ? 'Lista boczna — użyj listy głównej żeby przejść dalej' : '') + '">Następne pytanie ⟶</button>' +
                     '</div>';
             } else if (type === 'SHIPS') {
                 const shipsRound = (state.server && state.server.shipsRound) || null;
@@ -2394,7 +2953,7 @@
                         '</button>' +
                     '</div>' +
                     '<div class="row" style="justify-content:center;margin-top:10px;">' +
-                        '<button class="btn btn-warn btn-sm" id="btn-pass-question">⏭ Pomiń pytanie (bez punktów)</button>' +
+                        '<button class="btn btn-warn btn-sm" id="btn-pass-question">Bez punktów</button>' +
                     '</div>';
             } else if (type === 'LETTER') {
                 const pts = points;
@@ -2411,15 +2970,14 @@
                         '</button>' +
                     '</div>' +
                     '<div class="row" style="justify-content:center;margin-top:10px;">' +
-                        '<button class="btn btn-warn btn-sm" id="btn-pass-question">✅ Zakończ to pytanie</button>' +
+                        '<button class="btn btn-warn btn-sm" id="btn-pass-question">Bez punktów</button>' +
                     '</div>' +
-                    '<div class="guard-banner">🔤 Każde kliknięcie „Przyznaj" = <b>+' + pts + ' pkt</b>. Losuj kolejne litery dopóki trzeba. „Zakończ to pytanie" przechodzi do kolejnego na liście.</div>';
+                    '<div class="guard-banner">🔤 Każde kliknięcie „Przyznaj" = <b>+' + pts + ' pkt</b>. Losuj kolejne litery dopóki trzeba.</div>';
             } else if (type === 'FAST_LIST') {
                 awardBlock =
                     '<div class="row" style="justify-content:center;margin-top:10px;">' +
-                        '<button class="btn btn-warn btn-sm" id="btn-pass-question">✅ Zakończ to pytanie</button>' +
-                    '</div>' +
-                    '<div class="guard-banner">⚡ Brak punktów = niepoprawna odpowiedź dla pozycji. Przyznaj +5 z przycisków drużyn. „Zakończ to pytanie" kończy rundę szybkiej listy.</div>';
+                        '<button class="btn btn-warn btn-sm" id="btn-pass-question">Zakończ listę</button>' +
+                    '</div>';
             } else {
                 const suffix = type === 'SHIPS' ? ' / trafienie' : ' pkt';
                 awardBlock =
@@ -2434,9 +2992,8 @@
                         '</button>' +
                     '</div>' +
                     '<div class="row" style="justify-content:center;margin-top:10px;">' +
-                        '<button class="btn btn-warn btn-sm" id="btn-pass-question">⏭ Pomiń pytanie (bez punktów)</button>' +
-                    '</div>' +
-                    '<div class="guard-banner">⚠️ Przyznaj punkty jednej z drużyn lub użyj „Pomiń pytanie". Potem możesz wybrać następne pytanie lub pokazać tablicę wyników.</div>';
+                        '<button class="btn btn-warn btn-sm" id="btn-pass-question">Bez punktów</button>' +
+                    '</div>';
             }
 
             // — Dodatkowe bloki per typ (LETTER, ESTIMATION, FAMILIADA, SHIPS) —
@@ -2558,6 +3115,9 @@
                     '<div class="fam-center-row">' +
                         '<button type="button" class="btn-x btn-x-center" id="btn-fam-err-center" title="X (ŚRODEK) — tylko dźwięk">' +
                         '<span class="fam-center-x-glyph">X</span><span class="fam-center-x-sub">(ŚRODEK)</span></button>' +
+                    '</div>' +
+                    '<div class="fam-jingle-row">' +
+                        '<button type="button" class="btn btn-party-fam-jingle" id="btn-fam-jingle" title="Dżingiel Familiady — dźwięk + wyniki drużyn na TV">🔔 DŻINGIEL</button>' +
                     '</div>';
             }
             if (type === 'LETTER') {
@@ -2576,22 +3136,26 @@
                 const shown = !!(fl && fl.showAnswer);
                 const idxPos = (fl && typeof fl.itemIndex === 'number') ? (fl.itemIndex + 1) : 1;
                 const tot = (fl && typeof fl.total === 'number') ? fl.total : 0;
-                const nextDisabled = !tot || idxPos >= tot;
+                const onLast = !!(tot && idxPos >= tot);
                 const ix = (fl && typeof fl.itemIndex === 'number') ? fl.itemIndex : 0;
                 /* Złota lista: `idx` to indeks złota, a `openPartyListIdx` dotyczy tylko listy głównej (przy golden jest null) — bez tego panel +5 pkt był ukryty i punkty nie „szły” do wyniku. */
                 const flAwardPanelVisible =
-                    (typeof state.server.currentGoldenIndex === 'number' && state.server.currentGoldenIndex === idx) ||
-                    (typeof state.server.currentGoldenIndex !== 'number' && openPartyListIdx === idx);
+                    (isSideListLive() && state.server.currentSideListIndex === idx) ||
+                    (!isSideListLive() && openPartyListIdx === idx);
                 typeSpecificBlock =
                     '<div class="cq-letter-block cq-fast-head" style="border-color: rgba(255,152,0,0.35); max-width:100%;">' +
                         '<div class="cq-fast-progress-label">' + idxPos + (tot ? ' / ' + tot : '') + '</div>' +
                         '<div class="cq-fast-nav-text">' + escapeHtml(prompt) + '</div>' +
-                        '<div class="cq-fast-ans-line">Odpowiedź: ' +
-                            (shown ? ('<strong style="color:#2ecc71;">' + escapeHtml(answer) + '</strong>') : '<em>(ukryta na TV)</em>') +
+                        '<div class="cq-fast-ans-line ' + (shown ? 'is-revealed' : 'is-hidden-prompt') + '" id="cq-fast-ans-line">' +
+                            (shown
+                                ? escapeHtml((answer && String(answer).trim()) ? answer : '(brak zapisanej odpowiedzi — na żywo)')
+                                : 'Odpowiedź?') +
                         '</div>' +
                         '<div class="cq-fast-controls-nav">' +
-                            '<button type="button" class="btn btn-info" id="btn-fast-list-next"' + (nextDisabled ? ' disabled title="To jest ostatnia pozycja"' : '') + '>⏭ Następna pozycja</button>' +
-                            '<button type="button" class="btn btn-success" id="btn-fast-list-show"' + (shown ? ' disabled' : '') + '>👁 Pokaż odpowiedź na TV</button>' +
+                            '<button type="button" class="btn btn-success" id="btn-fast-list-show"' + (shown ? ' disabled' : '') + '>POKAŻ ODP.</button>' +
+                            '<button type="button" class="btn btn-info" id="btn-fast-list-next"' +
+                                (onLast ? ' title="Zamknij szybką listę — potem złota lista / kolejne pytania"' : '') +
+                            '>' + (onLast ? 'ZAKOŃCZ' : 'NASTĘPNE') + '</button>' +
                         '</div>' +
                         '<div class="cq-fast-under-nav"' + (!flAwardPanelVisible ? ' style="display:none"' : '') + '>' +
                             '<div class="award-row">' +
@@ -2628,7 +3192,10 @@
                     '</div>';
             }
 
-            const titleLine = liveGolden ? ('⭐ Złota #' + (idx + 1)) : ('Pytanie ' + (idx + 1));
+            const sideListLabel = liveSideListEntry
+                ? (liveSideListEntry.id === 'golden' ? '⭐ Złota' : ('📋 ' + (liveSideListEntry.label || liveSideListEntry.id)))
+                : '⭐ Złota';
+            const titleLine = liveSideList ? (sideListLabel + ' #' + (idx + 1)) : ('Pytanie ' + (idx + 1));
 
             const revAw = state.server.revertAward;
             let revertBanner = '';
@@ -2648,34 +3215,35 @@
                 ? typeSpecificBlock
                 : (type === 'FAMILIADA' ? '' : typeSpecificBlock);
 
-            const headerHtml = liveGolden
+            const headerHtml = liveSideList
                 ? (
                     '<div class="party-golden-panel-top">' +
                         partyQuestionPanelPreview(q, type) +
-                        '<div class="party-golden-live-badge-wrap">' + liveBadge + '</div>' +
                     '</div>'
                 )
-                : (
-                    '<div class="cq-header">' +
-                        '<div class="cq-title">' + titleLine + ': ' + escapeHtml(q.question || '(bez treści)') + '</div>' +
-                        '<div class="cq-meta">' +
-                            '<span class="pill" style="background: rgba(241,196,15,0.15); color: var(--gold);">' + escapeHtml(type) + '</span>' +
-                            (pointsInfo ? '<span class="pill">' + escapeHtml(pointsInfo) + '</span>' : '') +
-                            liveBadge +
-                        '</div>' +
-                    '</div>'
+                : (type === 'FAST_LIST'
+                    ? '' /* góra = nr 1/15 + treść w .cq-fast-head */
+                    : (
+                        '<div class="cq-header">' +
+                            '<div class="cq-title">' + titleLine + ': ' + escapeHtml(q.question || '(bez treści)') + '</div>' +
+                            '<div class="cq-meta">' +
+                                '<span class="pill" style="background: rgba(241,196,15,0.15); color: var(--gold);">' + escapeHtml(type) + '</span>' +
+                                (pointsInfo ? '<span class="pill">' + escapeHtml(pointsInfo) + '</span>' : '') +
+                            '</div>' +
+                        '</div>'
+                    )
                 );
 
             dh.innerHTML =
                 revertBanner +
                 headerHtml +
+                awardWarnHtml +
                 blockBeforeAnswers +
                 answersHtml +
                 (type === 'FAMILIADA' ? famStrayChancesBlock : '') +
                 ctrlRow +
                 awardBlock;
 
-            // — Eventy —
             const bShowCorrect = document.getElementById('btn-show-correct');
             const bRepeatMusic = document.getElementById('btn-repeat-music');
             const bShipsAnswer = document.getElementById('btn-ships-show-answer');
@@ -2731,17 +3299,26 @@
             }
             if (bNextQ) {
                 bNextQ.addEventListener('click', () => {
+                    if (isSideListLive()) return;
                     const ci = state.server.currentIndex;
-                    const gix = state.server.currentGoldenIndex;
-                    if (gix !== null && typeof gix === 'number') return;
                     if (typeof ci !== 'number' || ci < 0) return;
-                    emit('party_run_question', ci + 1);
+                    const nextIdx = ci + 1;
+                    requestPartyNavigate(() => {
+                        openPartyListIdx = nextIdx;
+                        emit('party_run_question', nextIdx);
+                    });
                 });
             }
 
             // LETTER: admin klika „Następna litera" → serwer losuje nową, TV pokazuje dużą.
             if (bNextLetter) bNextLetter.addEventListener('click', () => emit('party_next_letter'));
-            if (bFastListNext) bFastListNext.addEventListener('click', () => emit('party_fast_list_next'));
+            if (bFastListNext) bFastListNext.addEventListener('click', () => {
+                const flNow = (state.server && state.server.fastListRound) || null;
+                const atLast = flNow && typeof flNow.itemIndex === 'number' && typeof flNow.total === 'number'
+                    && flNow.total > 0 && (flNow.itemIndex + 1) >= flNow.total;
+                if (atLast) emit('party_pass_question');
+                else emit('party_fast_list_next');
+            });
             if (bFastListShow) bFastListShow.addEventListener('click', () => emit('party_fast_list_show_answer'));
 
             // ESTIMATION: live-ocena odległości od prawidłowej wartości (admin-only) + „Zatwierdź"
@@ -2822,6 +3399,8 @@
                 // X (ŚRODEK) — tylko dźwięk bad (brak przypisania do drużyny).
                 const bCenter = document.getElementById('btn-fam-err-center');
                 if (bCenter) bCenter.addEventListener('click', () => emit('party_familiada_error', { team: 'center' }));
+                const bJingle = document.getElementById('btn-fam-jingle');
+                if (bJingle) bJingle.addEventListener('click', () => emit('party_fam_jingle'));
                 const bFamSwapSides = document.getElementById('btn-fam-swap-sides');
                 if (bFamSwapSides) {
                     bFamSwapSides.addEventListener('click', () => {
@@ -2974,18 +3553,8 @@
 
         function renderLiveStatus() {
             if (!el.liveStatus) return;
-            if (state.server.currentIndex < 0) {
-                el.liveStatus.textContent = 'brak';
-                el.liveStatus.classList.remove('party', 'warn', 'ok');
-            } else if (state.server.questionAwarded) {
-                el.liveStatus.textContent = '#' + (state.server.currentIndex + 1) + ' zamknięte';
-                el.liveStatus.classList.remove('party', 'warn');
-                el.liveStatus.classList.add('ok');
-            } else {
-                el.liveStatus.textContent = '#' + (state.server.currentIndex + 1) + ' 🔴 na antenie';
-                el.liveStatus.classList.remove('ok');
-                el.liveStatus.classList.add('warn');
-            }
+            el.liveStatus.textContent = '';
+            el.liveStatus.classList.remove('party', 'warn', 'ok');
         }
         // Korekta ręczna (±1 / ±10) — zawsze przez serwer
         document.querySelectorAll('.score-adjust button').forEach(btn => {
@@ -3028,8 +3597,63 @@
             chk.addEventListener('change', () => emit('party_set_hide_team_scores', { hide: chk.checked }));
         })();
 
+        function syncPartyBgVizControlsFromState() {
+            const chk = document.getElementById('chk-party-bg-viz');
+            const controls = document.getElementById('party-bg-viz-controls');
+            const label = document.getElementById('party-bg-preset-label');
+            const opacity = document.getElementById('party-bg-opacity');
+            const opacityVal = document.getElementById('party-bg-opacity-val');
+            const enabled = !!(state.server && state.server.bgVizEnabled);
+            const idx = (state.server && typeof state.server.bgVizPresetIndex === 'number') ? state.server.bgVizPresetIndex : 0;
+            const op = (state.server && typeof state.server.bgVizOpacity === 'number') ? state.server.bgVizOpacity : 25;
+            if (chk && document.activeElement !== chk) chk.checked = enabled;
+            if (controls) controls.hidden = !enabled;
+            if (label) label.textContent = 'Motyw #' + (idx + 1);
+            if (opacity && document.activeElement !== opacity) opacity.value = String(op);
+            if (opacityVal) opacityVal.textContent = op + '%';
+        }
+
+        function emitPartyBgVizPatch(patch) {
+            const payload = Object.assign({
+                enabled: !!(state.server && state.server.bgVizEnabled),
+                presetIndex: (state.server && typeof state.server.bgVizPresetIndex === 'number') ? state.server.bgVizPresetIndex : 0,
+                opacity: (state.server && typeof state.server.bgVizOpacity === 'number') ? state.server.bgVizOpacity : 25
+            }, patch || {});
+            emit('party_set_bg_viz', payload);
+        }
+
+        (function bindPartyBgVizControls() {
+            const chk = document.getElementById('chk-party-bg-viz');
+            const prev = document.getElementById('btn-party-bg-prev');
+            const next = document.getElementById('btn-party-bg-next');
+            const opacity = document.getElementById('party-bg-opacity');
+            if (chk && !chk.dataset.bound) {
+                chk.dataset.bound = '1';
+                chk.addEventListener('change', () => emitPartyBgVizPatch({ enabled: chk.checked }));
+            }
+            if (prev && !prev.dataset.bound) {
+                prev.dataset.bound = '1';
+                prev.addEventListener('click', () => emit('party_set_bg_viz', { presetDelta: -1 }));
+            }
+            if (next && !next.dataset.bound) {
+                next.dataset.bound = '1';
+                next.addEventListener('click', () => emit('party_set_bg_viz', { presetDelta: 1 }));
+            }
+            if (opacity && !opacity.dataset.bound) {
+                opacity.dataset.bound = '1';
+                opacity.addEventListener('input', () => {
+                    const v = parseInt(opacity.value, 10);
+                    const valEl = document.getElementById('party-bg-opacity-val');
+                    if (valEl) valEl.textContent = v + '%';
+                });
+                opacity.addEventListener('change', () => {
+                    emitPartyBgVizPatch({ opacity: parseInt(opacity.value, 10) || 0 });
+                });
+            }
+        })();
+
         // ═══ File picker ═══
-        document.getElementById('btn-reload-files').addEventListener('click', () => emit('party_editor_get_files'));
+        document.getElementById('btn-reload-files').addEventListener('click', () => emit('party_editor_get_files', { mainOnly: true }));
         document.getElementById('btn-load-file').addEventListener('click', () => {
             const name = el.fileSelect.value;
             if (!name) { alert('Wybierz plik.'); return; }
@@ -3055,16 +3679,26 @@
             if (!partyWelcomeTvActive) {
                 emit('screen_switch', { mode: 'welcome' });
                 const w = (state.quiz && state.quiz.meta && state.quiz.meta.welcome) || {};
-                const subtitle = (w.subtitle && w.subtitle.trim()) ? w.subtitle.trim() : 'ZARAZ ZACZYNAMY';
+                // Tytuł quizu na TV — NIE notatki z edytora w subtitle (często długie instrukcje).
+                const fileLabel = (state.currentFile || state.server.activeFile || '')
+                    .replace(/\.json$/i, '')
+                    .trim();
+                const title = (w.title && String(w.title).trim())
+                    || fileLabel
+                    || 'Party Quiz';
+                let sub = (w.subtitle && String(w.subtitle).trim()) || '';
+                if (!sub || sub.length > 48 || /edytor|placeholder|pytania i odpowiedzi|uzupełnij|sprawdź/i.test(sub)) {
+                    sub = 'ZARAZ ZACZYNAMY';
+                }
                 const logoUrl = w.logoUrl || '/img/logo_imprezja.png';
                 const introMusicUrl = w.introMusicUrl || '/uploads/sfx/intro_loop.mp3';
                 emit('welcome_update', {
                     partyMode: true,
-                    text: subtitle,
+                    text: title + '\n' + sub,
                     imageUrl: logoUrl,
                     logoVisible: false,
                     textPosition: 'bottom',
-                    fontSize: 'large',
+                    fontSize: 'medium',
                     textColor: '#ffffff',
                     introMusicUrl
                 });
@@ -3179,13 +3813,25 @@
         document.addEventListener('click', enableKeepAwakeParty, { once: true });
         document.addEventListener('touchstart', enableKeepAwakeParty, { once: true });
 
-        fetch('/api/party-quiz/golden')
+        fetch('/api/party-quiz/side-lists')
             .then(r => r.json())
-            .then(list => {
-                partyGoldenList = Array.isArray(list) ? list : [];
-                renderPartyGoldenList();
+            .then(lists => {
+                applyPartySideListsPayload(lists);
             })
-            .catch(() => {});
+            .catch(() => {
+                fetch('/api/party-quiz/golden')
+                    .then(r => r.json())
+                    .then(list => {
+                        applyPartySideListsPayload([{
+                            id: 'golden',
+                            label: 'Złota lista (Familiada)',
+                            type: 'golden',
+                            file: 'party-quiz-golden.json',
+                            questions: Array.isArray(list) ? list : []
+                        }]);
+                    })
+                    .catch(() => {});
+            });
 
         const PQ_SUCHARY_REMOVED_KEY = 'party_quiz_suchary_removed';
         function pqGetRemovedSucharyIds() {

@@ -2,6 +2,38 @@
 
 ---
 
+## v1.4.0 (sierpień 2026) — Party Quiz TV, szybka lista, Milkdrop, build Beta
+
+### Party Quiz — ekran TV
+
+- **Pasek punktów jako overlay** — popup u góry ekranu; treść pytania nie jest już przesuwana w dół (`padding-top` usunięty).
+- **Tło animowane Milkdrop (Butterchurn)** — włączane w panelu admina; działa przy pytaniach, na **ekranie startowym** Party i na **ekranie końcowym z wynikami** (półprzezroczyste tło nad wizualizacją). Wyłączone podczas Familiady na TV.
+- **Czcionka pytania** — jak tekst odpowiedzi quizu (systemowa), większy rozmiar; bez Pixelify Sans i złotego gradientu.
+- **Statki** — naprawiona dolna kreska planszy (overflow), lepsze skalowanie siatki.
+- **Szybka lista (FAST_LIST)** — dźwięki: **Pokaż odp.** → `stats_show`, **Następne** → `question_open`; punkty nadal `correct_answer`.
+
+### Party Quiz — panel admina (PWA)
+
+- **Brak przewijania** po rozwinięciu pytania — sterowanie w sticky panelu u dołu listy, wzmocniony lock scrolla.
+- **Dżingiel Familiady** — przycisk 🔔 pod dużym X (ŚRODEK) w pytaniach FAMILIADA.
+- **Lista boczna vs klasyczna** — przełącznik w edytorze; migracja starych plików bez flagi `partySideList`.
+
+### Imprezja Quiz Beta (osobny build)
+
+- **Imprezja Quiz Beta** — osobna aplikacja (`Imprezja Quiz Beta.app`) z integracją **Imprezja Booth** (prezentacja zdjęć `_ai` z iPada na TV). Publiczny build bez Booth.
+
+---
+
+## v1.3.8 (sierpień 2026) — licencja: popup sukcesu + stabilniejszy trial
+
+### Licencja
+
+- **Popup po aktywacji** — po wklejeniu klucza i kliknięciu „Aktywuj licencję” pojawia się okno z potwierdzeniem (start.html i license-required.html).
+- **Trial i Machine ID** — HW UUID jako główne ID; trial akceptuje te same alternatywy co klucze licencyjne (zmiana nazwy Maca nie blokuje okresu testowego).
+- **Cache licencji** — wymaga fingerprintu klucza i Machine ID (bez fałszywej „bezterminowej” z cache).
+
+---
+
 ## v1.3.7 (sierpień 2026) — instrukcje AI do tworzenia quizów
 
 ### Dokumentacja dla modeli językowych

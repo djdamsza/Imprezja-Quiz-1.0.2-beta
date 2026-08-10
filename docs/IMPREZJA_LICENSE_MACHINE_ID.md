@@ -3,8 +3,8 @@
 ## Dlaczego
 
 1. **Kilka poprawnych ID na jednym PC**  
-   Główne ID = hash `hostname` + system (np. `win32`).  
-   Dodatkowo (Mac/Windows/Linux) aplikacja uznaje **alternatywne** ID (np. Hardware UUID z Apple / `wmic` na Windows).  
+   Główne ID = **Hardware UUID** (Mac/Windows/Linux), z zapasem: hash `hostname` + warianty nazwy komputera.  
+   Dodatkowo aplikacja uznaje **alternatywne** ID (np. hostname z `LocalHostName` / `ComputerName`).  
    **Klucz RSA zawiera w środku jedno konkretne 16-znakowe `m`** – musi być **identyczne** z jednym z ID, które ten komputer uznaje.
 
 2. **Wygenerowano klucz dla innego ID**  

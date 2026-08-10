@@ -1,0 +1,166 @@
+{
+  "gameMode": "party",
+  "defaultPoints": 5,
+  "disableTimePoints": true,
+  "welcome": {
+    "title": "Test zgodności",
+    "subtitle": "Szybka lista · 35 pytań ON / ONA · uzupełnij odpowiedzi pary w edytorze",
+    "logoUrl": "/img/logo_imprezja.png",
+    "introMusicUrl": "/uploads/sfx/intro_loop.mp3"
+  },
+  "questions": [
+    {
+      "id": "q_fast_zgodnosc_1784816834",
+      "type": "FAST_LIST",
+      "question": "ON / ONA — test zgodności",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "fastListItems": [
+        {
+          "question": "Kto się pierwszy urodził?",
+          "answer": ""
+        },
+        {
+          "question": "Kto zainicjował pierwszą randkę?",
+          "answer": ""
+        },
+        {
+          "question": "Kto pierwszy powiedział 'Kocham Cię'?",
+          "answer": ""
+        },
+        {
+          "question": "Kto pierwszy zaczął mówić o ślubie?",
+          "answer": ""
+        },
+        {
+          "question": "Kto jest większym śpiochem?",
+          "answer": ""
+        },
+        {
+          "question": "Kto nie wyobraża sobie poranka bez kawy?",
+          "answer": ""
+        },
+        {
+          "question": "Kto dłużej okupuje łazienkę?",
+          "answer": ""
+        },
+        {
+          "question": "Czyje włosy wyglądają lepiej?",
+          "answer": ""
+        },
+        {
+          "question": "Kto lepiej sprząta?",
+          "answer": ""
+        },
+        {
+          "question": "Kto jest większym bałaganiarzem?",
+          "answer": ""
+        },
+        {
+          "question": "Kto lepiej gotuje (lub zamawia pizzę)?",
+          "answer": ""
+        },
+        {
+          "question": "Komu zależy bardziej na zdrowym stylu życia?",
+          "answer": ""
+        },
+        {
+          "question": "Kto jest lepszym kierowcą?",
+          "answer": ""
+        },
+        {
+          "question": "Kto szybciej orientuje się w nieznanym terenie?",
+          "answer": ""
+        },
+        {
+          "question": "Kto nigdy nie zdąża na autobus?",
+          "answer": ""
+        },
+        {
+          "question": "Kto częściej przegląda telefon w łóżku?",
+          "answer": ""
+        },
+        {
+          "question": "Gdy leci dobra muzyka, kto pierwszy rwie się do tańca?",
+          "answer": ""
+        },
+        {
+          "question": "Kto jest większym imprezowiczem?",
+          "answer": ""
+        },
+        {
+          "question": "Kto jest bardziej towarzyski?",
+          "answer": ""
+        },
+        {
+          "question": "Kto ma bardziej zakręcone poczucie humoru?",
+          "answer": ""
+        },
+        {
+          "question": "Kto ma lepszą teściową?",
+          "answer": ""
+        },
+        {
+          "question": "Kto ma bardziej szaloną rodzinę?",
+          "answer": ""
+        },
+        {
+          "question": "Kto jest bardziej oszczędny?",
+          "answer": ""
+        },
+        {
+          "question": "Kto daje lepsze prezenty?",
+          "answer": ""
+        },
+        {
+          "question": "Kto jest bardziej uparty?",
+          "answer": ""
+        },
+        {
+          "question": "Kto częściej ma rację (nawet jak jej nie ma)?",
+          "answer": ""
+        },
+        {
+          "question": "Kto pierwszy wyciąga rękę na zgodę po kłótni?",
+          "answer": ""
+        },
+        {
+          "question": "Kto częściej marudzi przy chorym 'katerku'?",
+          "answer": ""
+        },
+        {
+          "question": "Kto jest lepszym opiekunem w razie choroby?",
+          "answer": ""
+        },
+        {
+          "question": "Kto by wytrzymał dłużej na bezludnej wyspie?",
+          "answer": ""
+        },
+        {
+          "question": "Kto robi lepsze masaże?",
+          "answer": ""
+        },
+        {
+          "question": "Kto jest bardziej romantyczny?",
+          "answer": ""
+        },
+        {
+          "question": "Kto miewa bardziej szalone pomysły?",
+          "answer": ""
+        },
+        {
+          "question": "Kto rządzi w związku?",
+          "answer": ""
+        },
+        {
+          "question": "Kto kogo bardziej kocha?",
+          "answer": ""
+        }
+      ],
+      "correct": -1,
+      "bgMusic": "/uploads/sfx/tlowyborcze.mp3"
+    }
+  ]
+}

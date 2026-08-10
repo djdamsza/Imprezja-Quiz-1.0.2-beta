@@ -6,9 +6,9 @@
 const path = require('path');
 const license = require(path.join(__dirname, '..', 'license.js'));
 const ids = license.getMachineIdAlternatives();
-console.log('Machine ID (główny – hostname+platform):', ids[0]);
+console.log('Machine ID (główny – HW UUID lub hostname):', ids[0]);
 if (ids.length > 1) {
-  console.log('Alternatywne (np. UUID sprzętu) – klucz może być dla któregokolwiek:');
+  console.log('Alternatywne (hostname, warianty nazwy Maca) – klucz może być dla któregokolwiek:');
   ids.slice(1).forEach((id, i) => console.log('  ', id));
 }
 console.log('\nPełna lista (kopiuj do generatora):', ids.join(', '));

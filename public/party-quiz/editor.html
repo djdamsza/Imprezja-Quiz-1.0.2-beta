@@ -104,6 +104,39 @@
         .btn-move:hover { background: rgba(241, 196, 15, 0.25); border-color: var(--accent-gold); }
         a.back-link { display: inline-block; margin-bottom: 20px; color: var(--accent-gold); text-decoration: none; transition: all 0.2s ease; }
         a.back-link:hover { text-decoration: underline; }
+        /* Bank uniwersalny Familiady — ten sam układ co familiada/editor.html */
+        .universal-bank-panel { margin: 20px 0; border-left: 5px solid #3498db; background: rgba(0,0,0,0.2); border-radius: 10px; padding: 0; }
+        .universal-bank-toggle { cursor: pointer; padding: 12px 16px; background: rgba(52, 152, 219, 0.15); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; user-select: none; }
+        .universal-bank-toggle:hover { background: rgba(52, 152, 219, 0.25); }
+        .universal-bank-toggle .chevron { transition: transform 0.2s; }
+        .universal-bank-panel.collapsed .chevron { transform: rotate(-90deg); }
+        .universal-bank-content { max-height: 400px; overflow-y: auto; padding: 15px 16px; }
+        .universal-bank-panel.collapsed .universal-bank-content { display: none; }
+        .universal-bank-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; margin-bottom: 8px; background: rgba(0,0,0,0.2); border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); }
+        .universal-bank-item:hover { border-color: #3498db; }
+        .universal-bank-text { flex: 1; font-size: 0.9em; line-height: 1.4; color: var(--text-white, #eee); min-width: 0; }
+        .universal-bank-text .q { color: #f1c40f; }
+        .universal-bank-text .a { color: var(--text-muted, #8aa0b4); font-size: 0.92em; }
+        .universal-bank-actions { display: flex; gap: 6px; flex-shrink: 0; }
+        .universal-bank-pagination { display: flex; align-items: center; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); }
+        .universal-bank-pagination button { padding: 6px 12px; font-size: 12px; }
+        .party-list-type-panel {
+            border-left: 5px solid #3498db;
+            background: rgba(52, 152, 219, 0.08);
+        }
+        .party-list-type-toggle {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .party-list-type-toggle input { width: 20px; height: 20px; margin-top: 3px; flex-shrink: 0; cursor: pointer; }
+        .party-list-type-toggle strong { color: var(--text-white); font-size: 1.02em; }
+        .party-list-type-desc { margin: 8px 0 0 32px; color: var(--text-muted); font-size: 0.88em; line-height: 1.5; }
+        .party-list-type-desc code { color: var(--accent-gold); font-size: 0.95em; }
+        .party-side-list-fields { margin-top: 14px; padding-top: 14px; border-top: 1px dashed rgba(52, 152, 219, 0.35); }
+        .party-side-list-fields[hidden] { display: none !important; }
     </style>
 </head>
 <body class="imp-admin-editor">
@@ -113,7 +146,7 @@
     <h1>🥳 Edytor Party Quiz</h1>
     <p style="text-align:center; color: var(--text-muted); margin: -10px 0 25px; font-size: 0.95em;">
         Hybryda Quizu i Familiady — pytania ABCD, otwarte, z literą, szacowanie, Statki Solo oraz typ <strong style="color:#00bcd4;">Familiada</strong>. Wszystko w jednym pliku.
-        Przy każdym pytaniu: <strong title="Analogicznie do edytora Familiady"><span aria-hidden="true">☆</span>/★ obok nagłówka</strong> dodaje lub usuwa kopię na złotej liście Party (<code>party-quiz-golden.json</code>, osobno od Familiady — max 10).
+        Na początku budowy quizu wybierz, czy plik trafi do <strong>klasycznej listy pytań</strong>, czy do <strong>listy bocznej</strong> (zakładka obok Złotej Listy w panelu rozgrywki). Złota lista: gwiazdki ☆ → <code>party-quiz-golden.json</code>.
         <br><a href="/party-quiz/PARTY_QUIZ_LLM_INSTRUKCJA.md" download style="color: var(--accent-gold);">🤖 Instrukcja dla AI (ChatGPT, Claude…) — pobierz .md</a>
     </p>
     <p id="party-golden-filename-hint" class="party-golden-filename-hint" role="status">
@@ -141,6 +174,28 @@
                     <button class="btn btn-info" onclick="document.getElementById('package-input').click()">📦 Importuj pakiet (ZIP)</button>
                     <input type="file" id="file-input" accept=".json" style="display: none;" onchange="loadFromFile(this)">
                     <input type="file" id="package-input" accept=".zip" style="display: none;" onchange="loadFromPackage(this)">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="control-panel party-list-type-panel">
+        <div class="panel-row" style="margin-bottom: 0;">
+            <div class="form-group" style="flex: 1;">
+                <label style="color: #3498db; font-size: 0.95em;">📋 Gdzie trafi ten quiz w panelu rozgrywki?</label>
+                <label class="party-list-type-toggle" for="partySideList">
+                    <input type="checkbox" id="partySideList">
+                    <span>
+                        <strong>Lista boczna</strong> (zakładka obok Złotej Listy)
+                    </span>
+                </label>
+                <p class="party-list-type-desc">
+                    <strong>Wyłączone (domyślnie):</strong> quiz trafia do <strong>klasycznej listy pytań</strong> — wczytujesz go w panelu admina i puszczasz pytania po kolei.<br>
+                    <strong>Włączone:</strong> quiz pojawia się jako dodatkowa zakładka listy bocznej (np. test wiedzy o parze). Przy zapisie plik dostaje prefiks <code>SL - </code> w nazwie i pole <code>partySideList</code> w JSON.
+                </p>
+                <div id="party-side-list-fields" class="party-side-list-fields" hidden>
+                    <label for="sideListLabel">Nazwa zakładki na liście bocznej (opcjonalnie):</label>
+                    <input type="text" id="sideListLabel" placeholder="np. Test wiedzy o młodej parze">
                 </div>
             </div>
         </div>
@@ -225,6 +280,21 @@
     </div>
 
     <div id="questions-container"></div>
+
+    <div id="universal-bank-panel" class="control-panel universal-bank-panel collapsed">
+        <div class="universal-bank-toggle" onclick="toggleUniversalBank()" role="button" tabindex="0">
+            <span>📚 Bank pytań Familiady (wbudowana lista)</span>
+            <span class="chevron" aria-hidden="true">▼</span>
+        </div>
+        <div class="universal-bank-content">
+            <p style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 12px;">
+                Ten sam bank co w edytorze Familiady. <strong>Dodaj</strong> wstawia pytanie typu Familiada do listy poniżej
+                (z automatycznym rozkładem punktów). Ręczne „🎤 Familiada” nadal działa.
+            </p>
+            <div id="universal-bank-list"></div>
+            <div id="universal-bank-pagination" class="universal-bank-pagination" style="display: none;"></div>
+        </div>
+    </div>
 
     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin: 20px 0;">
         <button class="btn btn-primary btn-full" onclick="addQuestion('QUIZ')" style="margin:0;">🅰️ QUIZ (ABCD)</button>
@@ -413,7 +483,55 @@
     }
 
     // === KOMUNIKACJA Z SERWEREM ===
+    const PARTY_SIDE_LIST_PREFIX = 'SL - ';
+    let partyEditorLoadedFilename = null;
+
+    function isSideListFilename(name) {
+        return String(name || '').trim().toLowerCase().startsWith(PARTY_SIDE_LIST_PREFIX.toLowerCase());
+    }
+
+    function updatePartySideListPanel() {
+        const sideListEl = document.getElementById('partySideList');
+        const fieldsEl = document.getElementById('party-side-list-fields');
+        const checked = !!(sideListEl && sideListEl.checked);
+        if (fieldsEl) fieldsEl.hidden = !checked;
+    }
+
+    function syncSideListFilenameField() {
+        const sideListEl = document.getElementById('partySideList');
+        const fnEl = document.getElementById('filename');
+        if (!sideListEl || !fnEl) return;
+        const cur = fnEl.value.trim();
+        if (!cur) {
+            updatePartySideListPanel();
+            return;
+        }
+        if (sideListEl.checked) {
+            if (!isSideListFilename(cur)) fnEl.value = ensureSideListFilename(cur);
+        } else if (isSideListFilename(cur)) {
+            fnEl.value = stripSideListPrefix(cur);
+        }
+        updatePartySideListPanel();
+    }
+
+    function stripSideListPrefix(name) {
+        const s = String(name || '').trim();
+        return isSideListFilename(s) ? s.slice(PARTY_SIDE_LIST_PREFIX.length) : s;
+    }
+
+    function ensureSideListFilename(name) {
+        const base = stripSideListPrefix(name).replace(/\.json$/i, '').trim();
+        if (!base) return '';
+        return PARTY_SIDE_LIST_PREFIX + base;
+    }
+
     socket.on('connect', () => socket.emit('party_editor_get_files'));
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const sideListEl = document.getElementById('partySideList');
+        if (sideListEl) sideListEl.addEventListener('change', syncSideListFilenameField);
+        updatePartySideListPanel();
+    });
     
     socket.on('party_editor_files_list', (files) => {
         const sel = document.getElementById('server-files-list');
@@ -490,24 +608,42 @@
     });
 
     socket.on('party_editor_file_content', (data) => {
+        partyEditorLoadedFilename = data.filename || null;
         document.getElementById('filename').value = data.filename.replace('.json', '');
         // Serwer trzyma dane Party Quiz w `meta` (gameMode, defaultPoints, thanksScreen) + `options` +
         // `questions`. processData oczekuje płaskiej struktury — rozpakowujemy.
+        const fn = String(data.filename || '');
         const flat = {
             questions: data.questions || [],
             disableTimePoints: (data.options && data.options.disableTimePoints) !== false,
             thanksScreen: (data.meta && data.meta.thanksScreen) || null,
             welcome: (data.meta && data.meta.welcome) || null,
             gameMode: data.meta && data.meta.gameMode,
-            defaultPoints: data.meta && typeof data.meta.defaultPoints === 'number' ? data.meta.defaultPoints : 10
+            defaultPoints: data.meta && typeof data.meta.defaultPoints === 'number' ? data.meta.defaultPoints : 10,
+            partySideList: !!(data.meta && data.meta.partySideList) || fn.toLowerCase().startsWith(PARTY_SIDE_LIST_PREFIX.toLowerCase()),
+            sideListLabel: (data.meta && data.meta.sideListLabel) || ''
         };
         const defaultPointsEl = document.getElementById('defaultPoints');
         if (defaultPointsEl) defaultPointsEl.value = flat.defaultPoints;
         processData(flat);
         refreshPartyGoldenFilenameMode();
+        syncSideListFilenameField();
     });
 
-    socket.on('party_editor_save_status', (status) => { if (window.showEditorStatus) window.showEditorStatus(status.message, status.success ? 'success' : 'error'); });
+    socket.on('party_editor_save_status', (status) => {
+        if (window.showEditorStatus) window.showEditorStatus(status.message, status.success ? 'success' : 'error');
+        if (status && status.success) {
+            const fnEl = document.getElementById('filename');
+            const sideListEl = document.getElementById('partySideList');
+            if (fnEl && sideListEl && sideListEl.checked) {
+                const ensured = ensureSideListFilename(fnEl.value.trim());
+                if (ensured) fnEl.value = ensured.replace(/\.json$/i, '');
+            }
+            if (status.filename) {
+                partyEditorLoadedFilename = status.filename;
+            }
+        }
+    });
 
     // === LOGIKA EDYTORA ===
 
@@ -532,6 +668,14 @@
             .replace(/"/g, '&quot;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;');
+    }
+    function escapeHtml(s) {
+        if (s == null || s === undefined) return '';
+        return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
     }
 
     /** Plik nazwy bez .json dla złotej listy Party (jak familiada-golden vs reszta). */
@@ -1593,9 +1737,9 @@
                 }
             }
 
-            // Zbieranie odpowiedzi
+            // Zbieranie odpowiedzi (ABCD / VOTE itd.) — NIE dla FAMILIADA (ma .fam-text) ani FAST_LIST.
             const ansInputs = card.querySelectorAll('.ans-input');
-            if (type !== 'FAST_LIST') {
+            if (type !== 'FAST_LIST' && type !== 'FAMILIADA' && type !== 'SHIPS' && type !== 'LETTER' && type !== 'ESTIMATION' && type !== 'OPEN') {
                 ansInputs.forEach(inp => qData.answers.push(inp.value));
             }
 
@@ -1649,8 +1793,19 @@
     }
 
     function collectData() {
-        const filename = document.getElementById('filename').value.trim();
+        const filenameEl = document.getElementById('filename');
+        let filename = filenameEl ? filenameEl.value.trim() : '';
         if (!filename) { if (window.showEditorStatus) window.showEditorStatus('Podaj nazwę pliku!', 'error'); return null; }
+
+        const partySideListEl = document.getElementById('partySideList');
+        const isSideListFile = !!(partySideListEl && partySideListEl.checked);
+        if (isSideListFile) {
+            filename = ensureSideListFilename(filename);
+            if (filenameEl) filenameEl.value = filename;
+        } else {
+            filename = stripSideListPrefix(filename);
+            if (filenameEl) filenameEl.value = filename;
+        }
 
         const questions = [];
         document.querySelectorAll('.question-card').forEach(card => {
@@ -1675,7 +1830,8 @@
             introMusicUrl: (document.getElementById('welcome-music') || {}).value || '/uploads/sfx/intro_loop.mp3'
         };
 
-        return {
+        const sideListLabelEl = document.getElementById('sideListLabel');
+        const payload = {
             gameMode: 'party',
             defaultPoints: defaultPoints,
             disableTimePoints: true,
@@ -1683,6 +1839,12 @@
             questions: questions,
             thanksScreen: thanksScreen
         };
+        if (isSideListFile) {
+            payload.partySideList = true;
+            const lbl = sideListLabelEl && sideListLabelEl.value ? sideListLabelEl.value.trim() : '';
+            if (lbl) payload.sideListLabel = lbl;
+        }
+        return payload;
     }
 
     // --- Złota lista Party Quiz (party-quiz-golden.json), analogicznie do gwiazdki w edytorze Familiady ---
@@ -1868,9 +2030,18 @@
                     break;
                 case 'FAST_LIST': {
                     const items = Array.isArray(q.fastListItems) ? q.fastListItems : [];
-                    const pairs = items.filter(it => it && String(it.question || '').trim() !== '' && String(it.answer || '').trim() !== '');
-                    if (pairs.length < 1) {
-                        errors.push({ index, title: shortTitle, message: 'Szybka lista: dodaj co najmniej jedną pełną parę (pytanie + odpowiedź).' });
+                    const withQuestion = items.filter(it => it && String(it.question || '').trim() !== '');
+                    if (withQuestion.length < 1) {
+                        errors.push({ index, title: shortTitle, message: 'Szybka lista: dodaj co najmniej jedno pytanie.' });
+                    } else {
+                        const missingAns = withQuestion.filter(it => !String(it.answer || '').trim());
+                        if (missingAns.length > 0) {
+                            warnings.push({
+                                index,
+                                title: shortTitle,
+                                message: 'Brak odpowiedzi w ' + missingAns.length + ' pozycji. To OK na żywo (para odpowiada ustnie) — „Pokaż odp.” pokaże puste pole. Możesz zapisać mimo to.'
+                            });
+                        }
                     }
                     break;
                 }
@@ -1887,9 +2058,13 @@
                     if (sum !== 100 && validFam.length >= 1) {
                         warnings.push({ index, title: shortTitle, message: `Suma punktów = ${sum} (zwykle powinno być 100).` });
                     }
-                    const zero = validFam.filter(a => (parseInt(a.points, 10) || 0) <= 0);
+                    const zero = validFam.filter(a => (parseInt(a.points, 10) || 0) < 0);
                     if (zero.length > 0) {
-                        errors.push({ index, title: shortTitle, message: `${zero.length} odpowiedź(odpowiedzi) ma 0 lub ujemne punkty.` });
+                        errors.push({ index, title: shortTitle, message: `${zero.length} odpowiedź(odpowiedzi) ma ujemne punkty.` });
+                    }
+                    const zeroOk = validFam.filter(a => (parseInt(a.points, 10) || 0) === 0);
+                    if (zeroOk.length > 0) {
+                        warnings.push({ index, title: shortTitle, message: `${zeroOk.length} odpowiedź(odpowiedzi) z 0 pkt (dozwolone — jak w klasycznej Familiadzie).` });
                     }
                     break;
                 }
@@ -1997,6 +2172,7 @@
             if (payload) {
                 socket.emit('party_editor_save_file', {
                     filename: document.getElementById('filename').value,
+                    previousFilename: partyEditorLoadedFilename,
                     content: payload
                 });
             }
@@ -2028,6 +2204,12 @@
             if (!confirm('Czy na pewno chcesz zacząć nowy quiz? Niezapisane zmiany zostaną utracone.')) return;
         }
         document.getElementById('filename').value = '';
+        const sideListEl = document.getElementById('partySideList');
+        const sideLabelEl = document.getElementById('sideListLabel');
+        if (sideListEl) sideListEl.checked = false;
+        if (sideLabelEl) sideLabelEl.value = '';
+        partyEditorLoadedFilename = null;
+        updatePartySideListPanel();
         document.getElementById('thanks-text').value = '';
         document.getElementById('thanks-image').value = '';
         const preview = document.getElementById('thanks-image-preview');
@@ -2171,6 +2353,20 @@
             const dpEl = document.getElementById('defaultPoints');
             if (dpEl) dpEl.value = data.defaultPoints;
         }
+
+        const sideListEl = document.getElementById('partySideList');
+        const sideLabelEl = document.getElementById('sideListLabel');
+        const fnVal = (document.getElementById('filename') || {}).value || '';
+        if (!Array.isArray(data)) {
+            if (sideListEl) {
+                sideListEl.checked = data.partySideList === true || isSideListFilename(fnVal);
+            }
+            if (sideLabelEl) sideLabelEl.value = data.sideListLabel || '';
+        } else {
+            if (sideListEl) sideListEl.checked = false;
+            if (sideLabelEl) sideLabelEl.value = '';
+        }
+        updatePartySideListPanel();
 
         // Party Quiz: ekran powitalny.
         if (!Array.isArray(data) && data.welcome && typeof data.welcome === 'object') {
@@ -2651,7 +2847,151 @@
             if (inp) inp.value = points[i] ?? 0;
         });
         updateFamSum(qId);
-        if (window.showEditorStatus) window.showEditorStatus(`Rozdzielono punkty dla ${rows.length} odpowiedzi (suma 100)`, 'success');
+        if (window.showEditorStatus) window.showEditorStatus('Rozdzielono punkty (suma 100).', 'success');
+    };
+
+    // ═══ Bank uniwersalny Familiady (jak familiada/editor.html) ═══
+    const UNIVERSAL_BANK_KEY = 'party-quiz-universal-bank-removed';
+    const UNIVERSAL_BANK_PER_PAGE = 25;
+    let universalBankData = [];
+    let universalBankPage = 0;
+    let universalBankRemoved = new Set();
+
+    function getUniversalBankRemoved() {
+        try {
+            const s = localStorage.getItem(UNIVERSAL_BANK_KEY);
+            return s ? new Set(JSON.parse(s)) : new Set();
+        } catch (_) { return new Set(); }
+    }
+    function saveUniversalBankRemoved() {
+        try {
+            localStorage.setItem(UNIVERSAL_BANK_KEY, JSON.stringify([...universalBankRemoved]));
+        } catch (_) {}
+    }
+
+    window.toggleUniversalBank = function () {
+        const panel = document.getElementById('universal-bank-panel');
+        if (!panel) return;
+        panel.classList.toggle('collapsed');
+        if (!panel.classList.contains('collapsed') && universalBankData.length === 0) {
+            loadUniversalBank();
+        }
+    };
+
+    async function loadUniversalBank() {
+        if (universalBankData.length > 0) {
+            renderUniversalBank();
+            return;
+        }
+        try {
+            const res = await fetch('/familiada/universal-bank.json');
+            const data = await res.json();
+            const arr = Array.isArray(data) ? data : [];
+            universalBankData = arr.map((q, i) => ({ ...q, _id: i }));
+            universalBankRemoved = getUniversalBankRemoved();
+            renderUniversalBank();
+        } catch (err) {
+            const list = document.getElementById('universal-bank-list');
+            if (list) list.innerHTML = '<p style="color:#e74c3c;">Błąd ładowania banku: ' + (err.message || '') + '</p>';
+        }
+    }
+
+    function getUniversalBankFiltered() {
+        return universalBankData.filter(q => !universalBankRemoved.has(String(q._id)));
+    }
+
+    function renderUniversalBank() {
+        const filtered = getUniversalBankFiltered();
+        const totalPages = Math.max(1, Math.ceil(filtered.length / UNIVERSAL_BANK_PER_PAGE));
+        universalBankPage = Math.min(universalBankPage, totalPages - 1);
+        const start = universalBankPage * UNIVERSAL_BANK_PER_PAGE;
+        const pageItems = filtered.slice(start, start + UNIVERSAL_BANK_PER_PAGE);
+        const listEl = document.getElementById('universal-bank-list');
+        const paginationEl = document.getElementById('universal-bank-pagination');
+        if (!listEl || !paginationEl) return;
+
+        if (filtered.length === 0) {
+            listEl.innerHTML = '<p style="color: var(--text-muted);">Bank pusty lub błąd ładowania.</p>';
+            paginationEl.style.display = 'none';
+            return;
+        }
+
+        listEl.innerHTML = pageItems.map((q) => {
+            const ansArr = Array.isArray(q.answers) ? q.answers : [];
+            const ansStr = ansArr.map(a => (typeof a === 'string' ? a : (a && a.text) || '')).filter(Boolean).join(', ');
+            const shortQ = (q.question || '').substring(0, 80) + ((q.question || '').length > 80 ? '…' : '');
+            const shortA = ansStr.substring(0, 120) + (ansStr.length > 120 ? '…' : '');
+            return (
+                '<div class="universal-bank-item" data-id="' + q._id + '">' +
+                    '<div class="universal-bank-text">' +
+                        '<span class="q">' + escapeHtml(shortQ) + '</span>' +
+                        '<span class="a"> – ' + escapeHtml(shortA) + '</span>' +
+                    '</div>' +
+                    '<div class="universal-bank-actions">' +
+                        '<button type="button" class="btn btn-success" style="padding:6px 10px;font-size:12px;" onclick="addFromUniversalBank(' + q._id + ')" title="Dodaj jako Familiada">Dodaj</button>' +
+                        '<button type="button" class="btn btn-danger" style="padding:6px 10px;font-size:12px;" onclick="removeFromUniversalBank(' + q._id + ')" title="Ukryj z banku">Usuń</button>' +
+                    '</div>' +
+                '</div>'
+            );
+        }).join('');
+
+        paginationEl.style.display = totalPages > 1 ? 'flex' : 'none';
+        paginationEl.innerHTML =
+            '<button type="button" class="btn btn-secondary" style="padding:6px 12px;font-size:12px;" onclick="universalBankPrevPage()"' + (universalBankPage <= 0 ? ' disabled' : '') + '>← Poprzednia</button>' +
+            '<span style="color: var(--text-muted); font-size: 0.9em;">Strona ' + (universalBankPage + 1) + ' / ' + totalPages + ' (' + filtered.length + ')</span>' +
+            '<button type="button" class="btn btn-secondary" style="padding:6px 12px;font-size:12px;" onclick="universalBankNextPage()"' + (universalBankPage >= totalPages - 1 ? ' disabled' : '') + '>Następna →</button>';
+    }
+
+    window.universalBankPrevPage = function () {
+        if (universalBankPage > 0) {
+            universalBankPage--;
+            renderUniversalBank();
+        }
+    };
+    window.universalBankNextPage = function () {
+        const filtered = getUniversalBankFiltered();
+        const totalPages = Math.ceil(filtered.length / UNIVERSAL_BANK_PER_PAGE);
+        if (universalBankPage < totalPages - 1) {
+            universalBankPage++;
+            renderUniversalBank();
+        }
+    };
+
+    window.addFromUniversalBank = function (bankId) {
+        const q = universalBankData.find(item => item._id === bankId);
+        if (!q) return;
+        const ansArr = Array.isArray(q.answers) ? q.answers : [];
+        const pts = getFamAutoPoints(Math.max(1, ansArr.length));
+        const answers = ansArr.map((a, i) => ({
+            text: typeof a === 'string' ? a : String((a && a.text) || ''),
+            points: (typeof a === 'object' && a && typeof a.points === 'number') ? a.points : (pts[i] ?? 0)
+        })).filter(a => a.text.trim());
+        if (!answers.length) {
+            if (window.showEditorStatus) window.showEditorStatus('To pytanie w banku nie ma odpowiedzi.', 'error');
+            return;
+        }
+        // Pełna lista odpowiedzi — bez ucinania do 4.
+        addQuestion('FAMILIADA', {
+            question: q.question || '',
+            answers: answers.slice(0, 10),
+            time: 0,
+            correct: -1
+        });
+        if (window.showEditorStatus) {
+            window.showEditorStatus('Dodano Familiadę z banku (' + Math.min(answers.length, 10) + ' odp.).', 'success');
+        }
+        const container = document.getElementById('questions-container');
+        if (container) {
+            const last = container.querySelector('.question-card:last-of-type');
+            if (last) last.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    };
+
+    window.removeFromUniversalBank = function (id) {
+        universalBankRemoved.add(String(id));
+        saveUniversalBankRemoved();
+        renderUniversalBank();
+        if (window.showEditorStatus) window.showEditorStatus('Ukryto z banku (lokalnie).', 'success');
     };
 
     // Live-update sumy punktów oraz numeracji przy edycji pól Familiady

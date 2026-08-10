@@ -87,6 +87,26 @@
             transition: opacity 0.2s, transform 0.2s;
         }
         .back-btn:hover { opacity: 0.95; transform: translateY(-1px); color: #1a1a2e; }
+        .success-overlay {
+            position: fixed; inset: 0; z-index: 3000;
+            display: none; align-items: center; justify-content: center;
+            padding: 20px; background: rgba(0,0,0,0.75);
+        }
+        .success-overlay.open { display: flex; }
+        .success-popup {
+            background: #1a1a2e; border: 2px solid rgba(46, 204, 113, 0.55);
+            border-radius: 16px; padding: 36px 32px; max-width: 400px; width: 100%;
+            text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        .success-popup .icon { font-size: 3rem; margin-bottom: 12px; }
+        .success-popup h2 { font-size: 1.35rem; color: #2ecc71; margin-bottom: 10px; }
+        .success-popup p { color: rgba(255,255,255,0.85); font-size: 0.95rem; line-height: 1.5; margin-bottom: 22px; }
+        .success-popup button {
+            width: 100%; padding: 14px; font-size: 1rem; font-weight: 700;
+            background: linear-gradient(#2ecc71, #27ae60); color: #fff;
+            border: none; border-radius: 8px; cursor: pointer;
+        }
+        .success-popup button:hover { opacity: 0.92; }
     </style>
 </head>
 <body>
@@ -118,6 +138,15 @@
             </div>
         </div>
         <p style="margin-top: 24px; font-size: 0.75rem; color: rgba(255,255,255,0.4);">© Damian Nowaczyk. Wszelkie prawa zastrzeżone.</p>
+    </div>
+
+    <div id="success-overlay" class="success-overlay" role="dialog" aria-modal="true" aria-labelledby="success-popup-title">
+        <div class="success-popup">
+            <div class="icon" aria-hidden="true">✅</div>
+            <h2 id="success-popup-title">Licencja aktywna!</h2>
+            <p id="success-popup-detail">Twoja licencja została pomyślnie aktywowana.</p>
+            <button type="button" id="success-popup-btn">Przejdź do aplikacji</button>
+        </div>
     </div>
     <script>
         async function loadStatus() {
@@ -153,6 +182,23 @@
                 document.getElementById('reason').textContent = 'Nie można połączyć z serwerem.';
             }
         }
+        function showLicenseSuccessPopup(status) {
+            const overlay = document.getElementById('success-overlay');
+            const detailEl = document.getElementById('success-popup-detail');
+            const typeLabel = (status && status.typeLabel) ? status.typeLabel : 'pełna';
+            let detail = 'Licencja <strong>' + typeLabel + '</strong> jest aktywna na tym komputerze.';
+            if (status && status.expires) {
+                detail += '<br>Ważna do: <strong>' + new Date(status.expires).toLocaleDateString('pl-PL') + '</strong>.';
+            } else if (status && status.type !== 'trial') {
+                detail += '<br>Licencja <strong>bezterminowa</strong>.';
+            }
+            detailEl.innerHTML = detail;
+            overlay.classList.add('open');
+        }
+        document.getElementById('success-popup-btn').addEventListener('click', function() {
+            window.location.href = '/start.html';
+        });
+
         async function activate() {
             const key = document.getElementById('key').value.trim();
             const errorEl = document.getElementById('error');
@@ -172,10 +218,8 @@
                 });
                 const data = await res.json();
                 if (res.ok && data.success) {
-                    successEl.textContent = 'Licencja aktywowana! Przekierowanie...';
-                    successEl.style.display = 'block';
                     document.getElementById('key').value = '';
-                    setTimeout(() => { window.location.href = '/admin.html'; }, 1500);
+                    showLicenseSuccessPopup(data.status || {});
                 } else {
                     errorEl.textContent = data.error || 'Błąd aktywacji';
                     errorEl.style.display = 'block';

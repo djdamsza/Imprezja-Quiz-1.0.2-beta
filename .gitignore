@@ -1,6 +1,7 @@
 # Zależności i build – NIE KOPIOWAĆ (npm install i build odtworzą)
 node_modules/
 dist/
+release-beta/
 
 # Logi i pliki tymczasowe
 *.log

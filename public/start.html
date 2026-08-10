@@ -352,6 +352,17 @@
         .license-contact a { color: #3498db; text-decoration: none; }
         .license-contact a:hover { text-decoration: underline; }
         .license-contact-name { display: block; margin-top: 4px; color: rgba(255,255,255,0.7); }
+        .license-success-modal { z-index: 2100; }
+        .license-success-box { border-color: rgba(46, 204, 113, 0.55); text-align: center; max-width: 400px; }
+        .license-success-icon { font-size: 3rem; line-height: 1; margin-bottom: 12px; }
+        .license-success-title { font-size: 1.35rem; font-weight: 800; color: #2ecc71; margin: 0 0 10px; }
+        .license-success-detail { color: rgba(255,255,255,0.85); font-size: 0.95rem; line-height: 1.5; margin-bottom: 20px; }
+        .license-success-ok-btn {
+            width: 100%; padding: 14px 20px; font-size: 1rem; font-weight: 700;
+            background: linear-gradient(#2ecc71, #27ae60); color: #fff; border: none;
+            border-radius: 8px; cursor: pointer;
+        }
+        .license-success-ok-btn:hover { opacity: 0.92; }
         .admin-status-tile {
             display: inline-flex;
             align-items: center;
@@ -481,6 +492,19 @@
                     <a href="mailto:biuro@imprezja.pl">biuro@imprezja.pl</a><br>
                     <span class="license-contact-name">Damian Nowaczyk</span>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Popup: licencja aktywowana -->
+    <div id="license-success-modal" class="license-modal license-success-modal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="license-success-title">
+        <div class="license-modal-backdrop" id="license-success-backdrop"></div>
+        <div class="license-modal-box license-success-box">
+            <div class="license-modal-body">
+                <div class="license-success-icon" aria-hidden="true">✅</div>
+                <h2 id="license-success-title" class="license-success-title">Licencja aktywna!</h2>
+                <p id="license-success-detail" class="license-success-detail">Twoja licencja została pomyślnie aktywowana.</p>
+                <button type="button" class="license-success-ok-btn" id="license-success-ok-btn">OK, rozumiem</button>
             </div>
         </div>
     </div>
@@ -616,6 +640,31 @@
             }
         });
 
+        function showLicenseActivatedPopup(status) {
+            const modal = document.getElementById('license-success-modal');
+            const detailEl = document.getElementById('license-success-detail');
+            if (!modal || !detailEl) return;
+            const typeLabel = (status && status.typeLabel) ? status.typeLabel : 'pełna';
+            const isTrial = status && status.type === 'trial';
+            let detail = isTrial
+                ? 'Okres testowy jest aktywny. Pozostało dni: ' + (status.daysLeft || 0) + '.'
+                : 'Licencja <strong>' + typeLabel + '</strong> jest aktywna na tym komputerze.';
+            if (!isTrial && status && status.expires) {
+                detail += '<br>Ważna do: <strong>' + new Date(status.expires).toLocaleDateString('pl-PL') + '</strong>.';
+            } else if (!isTrial && status && !status.expires) {
+                detail += '<br>Licencja <strong>bezterminowa</strong>.';
+            }
+            detailEl.innerHTML = detail;
+            document.getElementById('license-modal').style.display = 'none';
+            modal.style.display = 'flex';
+        }
+        function closeLicenseSuccessPopup() {
+            const modal = document.getElementById('license-success-modal');
+            if (modal) modal.style.display = 'none';
+        }
+        document.getElementById('license-success-ok-btn').addEventListener('click', closeLicenseSuccessPopup);
+        document.getElementById('license-success-backdrop').addEventListener('click', closeLicenseSuccessPopup);
+
         function openLicenseModal() {
             document.getElementById('license-modal').style.display = 'flex';
             document.getElementById('license-status-text').textContent = 'Ładowanie…';
@@ -703,7 +752,7 @@
                     keyInput.value = '';
                     licenseStatus = result.status || null;
                     updateLicenseLocks();
-                    openLicenseModal();
+                    showLicenseActivatedPopup(result.status);
                     loadLicenseStatus();
                 } else {
                     errorEl.textContent = result.error || 'Błąd aktywacji.';
