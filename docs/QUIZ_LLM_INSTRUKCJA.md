@@ -7,38 +7,39 @@ Docelowy format: plik JSON do edytora `/editor.html`.
 
 ---
 
-## 0. Zasada nadrzędna: dopytuj, nie rób w ciemno
+## 0. Zasada nadrzędna: dopytuj o treść, resztę ustaw sam
 
-**Nigdy nie uzupełniaj brakujących odpowiedzi, poprawnej opcji, liczb, ścieżek mediów ani typu pytania „na czuja”.**
+**Nigdy nie wymyślaj treści pytań, odpowiedzi ABCD ani poprawnej opcji.**  
+**Nie dopytuj o czas, punkty (poza Familiadą — osobny tryb) ani zakresy szacowania** — program to obsługuje.
 
-Gdy brakuje informacji albo pytanie jest niejednoznaczne:
-
-1. **Zatrzymaj się** — nie generuj pełnego JSON od razu.
-2. **Wypisz**, czego brakuje (lista punktowana).
-3. **Zadaj konkretne pytania** — maks. 3–5 na raz, z propozycjami do wyboru.
-4. **Dopiero po odpowiedzi** ułóż pytanie w JSON.
-
-### Kiedy MUSISZ dopytać
+### 0A. Kiedy MUSISZ dopytać
 
 | Sytuacja | Pytanie do użytkownika |
 |----------|------------------------|
 | ABCD bez wskazanej poprawnej | „Która odpowiedź jest prawidłowa — A/B/C/D (indeks 0–3)?” |
-| Dwie opcje — sonda czy quiz? | „To ma być **Głosowanie** (bez poprawnej) czy **Quiz** (jedna poprawna)?” |
-| Szacowanie bez liczby | „Jaka jest prawidłowa wartość i zakres min–max?” |
-| Muzyka bez pliku audio | „Masz plik audio do wgrania, czy na razie placeholder?” |
-| Hot or Not / Foto bez obrazków | „Podaj ścieżki/URL obrazków A i B (lub wgraj w edytorze).” |
-| Wyborczy / HNC bez zdjęć | „Ile zdjęć i jakie etykiety/opisy?” |
-| Lista „podaj 5 rzeczy…” z punktami | „To brzmi jak **Familiada** (osobny tryb) — Familiada czy coś innego w quizie?” |
-| Speedrun / eliminacja | „Włączyć speedrun lub eliminację przy tym pytaniu?” |
+| Dwie opcje — sonda czy quiz? | „**Głosowanie** (bez poprawnej) czy **Quiz** (jedna poprawna)?” |
+| Szacowanie bez podanej liczby | „Jaka jest prawidłowa wartość?” (min/max **nie pytaj**) |
+| Muzyka bez pliku audio | „Dodasz audio w edytorze, czy podasz ścieżkę?” |
+| Hot or Not / Foto / Wyborczy / HNC bez mediów | „Potrzebuję plików graficznych (lub wgrasz w edytorze).” |
+| Lista „podaj 5 rzeczy…” z punktami | Skieruj na **Familiadę** — to inny tryb |
+| Speedrun / eliminacja | **Nie pytaj domyślnie** — tylko gdy użytkownik sam o to prosi |
 
-### Kiedy możesz użyć bezpiecznych domyślnych (bez pytania)
+### 0B. Czego NIE pytaj — ustaw sam
 
-- `disableTimePoints: false` (punkty za czas włączone), chyba że użytkownik prosi o „tylko poprawność”
-- `time: 30` (OPEN/QUIZ/VOTE), `45` dla LETTER, `15` dla WYBORCZY/HNC, `0` dla SHIPS
+| Temat | Co robisz |
+|-------|-----------|
+| **Czas** (`time`) | **Nie pytaj.** Domyślnie: QUIZ/VOTE/OPEN **30 s**, LETTER **45 s**, WYBORCZY/HNC **15 s**, SHIPS **0**. Edytor i gra respektują te wartości. |
+| **Punkty** | **Nie pytaj** — aplikacja nalicza automatycznie (100 + bonus za czas, speedrun itd.). Globalnie: `disableTimePoints: false`, chyba że user prosi o wyłączenie bonusu za czas. |
+| **ESTIMATION min/max** | **Nie pytaj.** Wylicz z `correctValue` (jak w Party Quiz: ±40–60% dla wagi/powierzchni, ±15–25 lat dla roku). |
+| **Seria „kto…?” z odpowiedziami** | To **Party Quiz FAST_LIST**, nie ten edytor — skieruj na `/party-quiz/editor.html`. |
+
+### 0C. Bezpieczne domyślne
+
+- `disableTimePoints: false` (chyba że user: „tylko poprawność”)
+- `time` — wg typu (sekcja 0B)
 - `speedrun: false`, `elimination: false`
-- `correct: -1` dla VOTE, VOTE_IMG, OPEN, LETTER, WYBORCZY, HNC (gdy brak poprawnej)
-- Auto-generacja `id` (np. `q_173…`)
-- Puste `thanksScreen` — aplikacja pokaże domyślne podziękowanie
+- `correct: -1` dla VOTE, VOTE_IMG, OPEN, LETTER, WYBORCZY, HNC
+- Auto-generacja `id`
 
 ---
 
@@ -180,6 +181,7 @@ Gdy brakuje informacji albo pytanie jest niejednoznaczne:
 ```
 
 - **Auto-punkty** wg odległości od poprawnej wartości (100 przy trafieniu, 0 przy odchyleniu ≥50%).
+- **`min` / `max`:** wylicz sam — nie pytaj użytkownika (sekcja 0B).
 
 ### 4.6 OPEN / LETTER
 
@@ -253,7 +255,8 @@ Gdy brakuje informacji albo pytanie jest niejednoznaczne:
 | Lista rzeczy z punktami 40/30/20 | **Familiada**, nie ten quiz | Osobny plik `/familiada/editor.html` |
 | ON/ONA wiele pytań | **Party Quiz FAST_LIST** | Nie klasyczny quiz |
 | Luźne skojarzenie | OPEN | |
-| Liczba do zgadnięcia | ESTIMATION | min/max + correctValue |
+| Liczba do zgadnięcia | ESTIMATION | min/max sam z `correctValue` |
+| Seria „kto…?” z odpowiedziami | Party **FAST_LIST** | Nie ten edytor |
 | Dwa zdjęcia „które ładniejsze” | HOT_OR_NOT | Potrzebne pliki graficzne |
 
 ### Quiz ABCD → VOTE
@@ -285,11 +288,11 @@ Gdy brakuje informacji albo pytanie jest niejednoznaczne:
 
 ### Antywzorce (nie rób tak)
 
-> ❌ Wymyślanie poprawnej odpowiedzi bez wiedzy.  
-> ❌ FAST_LIST / FAMILIADA w pliku klasycznego quizu.  
-> ❌ HOT_OR_NOT bez `imageA`/`imageB`.  
-> ❌ HNC z 6 zdjęciami (musi być 4, 8 lub 16).  
-> ❌ MUSIC bez `audio`.
+> ❌ „Ile sekund na odpowiedź?” — ustaw domyślny `time` (30 s itd.).  
+> ❌ „Podaj min/max do szacowania” — wylicz sam.  
+> ❌ „Ile punktów?” — program nalicza automatycznie.  
+> ❌ FAST_LIST / test zgodności w pliku klasycznego quizu — to Party Quiz.  
+> ❌ Wymyślanie poprawnej odpowiedzi ABCD.
 
 ---
 

@@ -12,34 +12,52 @@ Ten dokument dotyczy **osobnego trybu Familiada** (buzzery, drużyny niebieska/c
 
 ---
 
-## 0. Zasada nadrzędna: dopytuj, nie rób w ciemno
+## 0. Zasada nadrzędna: dopytuj o treść, punkty rozdziel sam
 
-**Nigdy nie wymyślaj odpowiedzi, punktów ani kolejności ważności „na czuja”.**
+**Nigdy nie wymyślaj odpowiedzi ani pytań „na czuja”.**  
+**Nigdy nie pytaj o punktację** — zawsze rozdziel **100 pkt** presetem edytora (jak przycisk „Rozdziel automatycznie”).
 
-Gdy brakuje informacji:
+Gdy brakuje **treści**:
 
 1. **Zatrzymaj się** — nie generuj pełnego JSON.
-2. **Wypisz braki** (pytanie, odpowiedzi, punkty).
-3. **Zadaj 3–5 konkretnych pytań** z propozycjami.
-4. **Po odpowiedzi** zbuduj JSON.
+2. **Wypisz braki** (pytanie, pusta lista odpowiedzi).
+3. **Zadaj pytania** tylko o merytorykę.
+4. **Punkty** — zawsze uzupełnij sam przed oddaniem JSON.
 
-### Kiedy MUSISZ dopytać
+### 0A. Kiedy MUSISZ dopytać
 
 | Sytuacja | Pytanie do użytkownika |
 |----------|------------------------|
-| Lista odpowiedzi bez punktów | „Rozłożyć 100 pkt automatycznie (40/30/20/10…) czy podasz wagi?” |
-| Niepełna lista (np. „3 alkohole” bez nazw) | „Podaj pełne odpowiedzi — nie uzupełniam sam.” |
-| Nie wiadomo, która odpowiedź „najpopularniejsza” | „Która odpowiedź ma najwięcej punktów (pierwsze miejsce)?” |
-| Pytanie ogólne bez listy | „Jakie konkretne odpowiedzi mają być na tablicy (5–10 pozycji)?” |
-| Tekst jak quiz ABCD | „To ma być Familiada (lista z punktami) czy quiz telefoniczny ABCD?” |
-| Import z XML/tekstu niejednoznaczny | „Potwierdź podział: pytanie X ma odpowiedzi A, B, C…?” |
+| Brak treści pytania | „Jak brzmi pytanie na tablicy?” |
+| Brak odpowiedzi (pusta lista) | „Jakie odpowiedzi mają być odkrywane?” |
+| Niepełna lista (np. „3 alkohole” bez nazw) | „Podaj pełne nazwy — nie uzupełniam sam.” |
+| Tekst jak quiz ABCD | „To Familiada czy quiz telefoniczny ABCD?” |
+| Import niejednoznaczny (podział pytań) | „Potwierdź podział na pytania.” |
 
-### Kiedy możesz użyć domyślnych (bez pytania)
+### 0B. Czego NIE pytaj — ustaw sam
 
-- Auto-rozkład **100 pkt** (malejąco: 40/30/20/10 dla 4 odp., presety edytora dla 2–10 odp.) — gdy użytkownik napisał „standardowa familiada” / „rozdziel automatycznie”
-- Kolejność odpowiedzi = od **najwyżej punktowanej** (najpopularniejsza) do najniższej
-- Odpowiedź z **0 pkt** dozwolona (jak w klasycznej Familiadzie)
-- Suma ≈ **100** na pytanie (ostrzeżenie, nie twardy błąd edytora)
+| Temat | Co robisz |
+|-------|-----------|
+| **Punktacja** | **Zawsze** auto-rozkład **100 pkt** — preset edytora. **Nie pytaj** „czy rozłożyć 100 pkt?”. |
+| **Kolejność wag** | Pierwsza odpowiedź na liście = **najwyżej punktowana** (najpopularniejsza), chyba że user podał wagi ręcznie. |
+| **Czas** | Familiada nie ma timera w JSON — **nie dotyczy**. |
+
+### 0C. Presety punktów (identyczne jak w edytorze)
+
+| Liczba odp. | Rozkład |
+|-------------|---------|
+| 2 | 60, 40 |
+| 3 | 50, 33, 17 |
+| 4 | 40, 30, 20, 10 |
+| 5 | 30, 25, 20, 15, 10 |
+| 6 | 25, 21, 18, 15, 12, 9 |
+| 7 | 22, 18, 15, 13, 12, 11, 9 |
+| 8 | 20, 17, 15, 13, 11, 10, 8, 6 |
+| 9 | 22, 18, 14, 12, 10, 9, 7, 5, 3 |
+| 10 | 20, 16, 13, 11, 10, 9, 8, 7, 5, 1 |
+
+- Odpowiedź z **0 pkt** dozwolona.
+- Suma ≈ **100** na pytanie.
 
 ---
 
@@ -133,20 +151,14 @@ Zapis w edytorze: nazwa pliku np. `familiada_wesela.json` → folder Familiady a
 |--------|---------------|
 | „Podaj 6 alkoholi bez litery W” + lista | Jedno pytanie Familiada, 6 odpowiedzi |
 | „Pytanie 1: … / Odpowiedź – 40” | Tekst importowalny (patrz §6) |
-| Lista słów pod pytaniem z „?” | Odpowiedzi bez punktów → **dopytaj** lub auto 100 pkt |
+| Lista słów pod pytaniem z „?” | Odpowiedzi bez punktów → **auto 100 pkt** (nie pytaj) |
 | ABCD z jedną poprawną | **To nie Familiada** — quiz klasyczny |
 
 ### Presety auto-punktów (suma 100)
 
-| Liczba odp. | Rozkład (przykład) |
-|-------------|-------------------|
-| 2 | 60, 40 |
-| 3 | 50, 33, 17 |
-| 4 | 40, 30, 20, 10 |
-| 5 | 30, 25, 20, 15, 10 |
-| 6 | 25, 21, 18, 15, 12, 9 |
+Patrz sekcja **0C** — te same wartości co przycisk „Rozdziel automatycznie” w edytorze. **Zawsze stosuj**, nie pytaj użytkownika.
 
-Pierwsza odpowiedź = **najwyżej punktowana** (najpopularniejsza / najlepsza).
+Pierwsza odpowiedź na liście = **najwyżej punktowana**, chyba że user podał wagi w tekście (np. „randka - 40”).
 
 ---
 
@@ -235,27 +247,24 @@ Patrz: `docs/PARTY_QUIZ_LLM_INSTRUKCJA.md`.
 1. Odbierz surowe pytania (tekst, lista, XML).
 2. Potwierdź tryb: Familiada (ten dokument) vs Party vs Quiz.
 3. Dla każdego pytania: treść + lista odpowiedzi.
-4. Wypisz braki (punkty, brakujące odpowiedzi).
-5. Zbuduj tablicę JSON lub tekst importowalny.
-6. Self-check (§9).
-7. Podsumuj („12 pytań, średnio 6 odpowiedzi, suma 100/pyt.”).
+4. Dopytaj **tylko** o braki treści (puste odpowiedzi, niejasny podział).
+5. **Punkty:** preset 100 — zawsze sam.
+6. Zbuduj tablicę JSON lub tekst importowalny.
+7. Self-check (§9).
+8. Podsumuj.
 ```
 
-### Przykład dopytywania
+### Przykład dobrego zachowania
 
-> Dostałem: „Alkohol bez W w nazwie” i tylko: bimber, rum, tequila.  
-> **Potrzebuję:**  
-> 1. Czy to komplet odpowiedzi, czy dopisać więcej (np. 6 pozycji)?  
-> 2. Rozłożyć 100 pkt malejąco (40/30/20/10…) czy podasz wagi?  
-> 3. Osobny plik na wesele czy dopisać do istniejącej listy?
+> „Jak udobruchać żonę?” — randka, kwiaty, łóżko, sprzątanie, przeprosiny (5 odp.).  
+> **Od razu JSON** z punktami 30/25/20/15/10 — **bez** pytania o wagi.
 
 ### Antywzorce
 
-> ❌ `"answers": ["Bimber", "Rum"]` — muszą być obiekty z punktami.  
-> ❌ Wymyślanie „śmiesznych” odpowiedzi bez kontekstu pary/imprezy.  
-> ❌ Mieszanie złotej listy z głównym plikiem w jednym JSON bez prośby.  
-> ❌ Ujemne punkty.  
-> ❌ Puste `question`.
+> ❌ „Proszę podać punktację…” — **sam** rozdziel 100 pkt presetem.  
+> ❌ `"answers": ["Bimber", "Rum"]` — obiekty `{ text, points }`.  
+> ❌ Wymyślanie odpowiedzi bez kartki.  
+> ❌ Pytanie „która odpowiedź najpopularniejsza?” — pierwsza na liście = najwięcej pkt.
 
 ---
 

@@ -5,36 +5,49 @@ Docelowy format: plik JSON do edytora `/party-quiz/editor.html`.
 
 ---
 
-## 0. Zasada nadrzędna: dopytuj, nie rób w ciemno
+## 0. Zasada nadrzędna: dopytuj o treść, resztę ustaw sam
 
-**Nigdy nie uzupełniaj brakujących odpowiedzi, punktów ani typu pytania „na czuja”.**
+**Nigdy nie wymyślaj treści pytań, odpowiedzi ABCD ani poprawnej opcji „na czuja”.**  
+**Nie dopytuj o rzeczy, które program ustawia sam** (czas, punkty poza Familiadą, zakresy szacowania, FAST_LIST vs test zgodności).
 
-Gdy brakuje informacji albo pytanie jest niejednoznaczne:
+Gdy brakuje **merytorycznych** informacji:
 
 1. **Zatrzymaj się** — nie generuj pełnego JSON od razu.
-2. **Wypisz**, czego brakuje (lista punktowana).
-3. **Zadaj konkretne pytania** — maks. 3–5 na raz, z propozycjami do wyboru.
-4. **Dopiero po odpowiedzi** ułóż pytanie w JSON.
+2. **Wypisz**, czego brakuje (tylko treść / poprawna ABCD / brakujące odpowiedzi na liście).
+3. **Zadaj konkretne pytania** — maks. 3–5 na raz.
+4. **Dopiero po odpowiedzi** ułóż JSON; resztę parametrów uzupełnij według sekcji 0B.
 
-### Kiedy MUSISZ dopytać
+### 0A. Kiedy MUSISZ dopytać
 
 | Sytuacja | Pytanie do użytkownika |
 |----------|------------------------|
-| Wielokrotny wybór bez wskazanej poprawnej | „Która odpowiedź jest prawidłowa — A/B/C/D?” |
-| Familiada bez punktów | „Rozłożyć 100 pkt automatycznie (40/30/20/10…) czy podasz wagi?” |
-| Szacowanie bez liczby | „Jaka jest prawidłowa wartość i sensowny zakres min–max?” |
-| Szybka lista ON/ONA bez odpowiedzi | „Uzupełnić odpowiedzi teraz, czy zostawić puste (odpowiedź na żywo)?” |
-| Nie wiadomo, quiz czy otwarte | „To ma być ABCD, odpowiedź ustna, czy familiada z listą?” |
-| Pytanie ogólne („coś o muzyce”) | „Quiz z nagraniem, familiada ‚podaj tytuły’, czy szybka lista?” |
+| ABCD bez wskazanej poprawnej | „Która odpowiedź jest prawidłowa — A/B/C/D?” |
+| Familiada bez listy odpowiedzi | „Jakie odpowiedzi mają być na tablicy?” |
+| Brak treści pytania lub pustych odpowiedzi | „Uzupełnij brakujące sformułowanie / listę.” |
+| Nie wiadomo, quiz czy lista rzeczy | „ABCD, czy familiada (podaj X rzeczy)?” |
+| Muzyka — brak pliku i brak możliwości późniejszego wgrania | „Potrzebuję pliku audio (lub dodasz w edytorze po JSON)?” |
+| Pytanie ogólne bez żadnej treści | „Podaj chociaż szkic pytania i oczekiwany format.” |
 
-### Kiedy możesz użyć bezpiecznych domyślnych (bez pytania)
+### 0B. Czego NIE pytaj — ustaw sam (domyślne)
+
+| Temat | Co robisz |
+|-------|-----------|
+| **Czas na odpowiedź** (`time`) | **Nie pytaj.** W Party ustaw `time: 0` — tempo prowadzi admin; edytor ma sensowne domyślne, jeśli kiedyś ustawisz inaczej. |
+| **Punkty** (QUIZ, OPEN, ESTIMATION, FAST_LIST…) | **Nie pytaj.** Party: `defaultPoints: 10`, FAST_LIST: **5 pkt/pozycja** (stałe w programie), resztę przyznaje admin na żywo. |
+| **Punkty Familiady** | **Nie pytaj.** Zawsze **rozdziel 100 pkt automatycznie** presetem jak w edytorze (przycisk „Rozdziel automatycznie”): 5 odp. → 30/25/20/15/10, 4 odp. → 40/30/20/10 itd. (sekcja 4.5). Kolejność odpowiedzi = od najwyżej punktowanej (pierwsza na liście = najwięcej pkt), chyba że użytkownik **jawnie** podał wagi. |
+| **ESTIMATION — min / max** | **Nie pytaj.** Oblicz sensowny zakres z `correctValue` (sekcja 4.2). |
+| **FAST_LIST vs test zgodności vs OPEN** | **Nie pytaj.** Stosuj reguły sekcji 3 i 3B. |
+| **ON/ONA vs imiona (Julia/Marcel)** | **Nie pytaj.** W `answer` wpisuj **to, co podał użytkownik** (imiona, ON, ONA, Tak/Nie). |
+| **Side list (`SL -`)** | Użyj tylko gdy użytkownik **wyraźnie** napisał „test zgodności” / „lista boczna SL” — inaczej FAST_LIST w głównym pliku. |
+
+### 0C. Bezpieczne domyślne (zawsze OK)
 
 - `gameMode: "party"`, `disableTimePoints: true`
 - `time: 0`, `speedrun: false`, `elimination: false`
-- `correct: -1` dla typów bez auto-oceny (OPEN, LETTER, FAMILIADA, FAST_LIST, SHIPS)
-- `defaultPoints: 10` (chyba że użytkownik poda inne)
-- Auto-generacja `id` (np. `q_party_001`)
-- Familiada: auto-rozkład 100 pkt, jeśli użytkownik napisał „standardowa familiada”
+- `correct: -1` dla OPEN, LETTER, FAMILIADA, FAST_LIST, SHIPS, ESTIMATION
+- `defaultPoints: 10`
+- Auto-generacja `id`
+- Familiada: **zawsze** auto-rozkład 100 pkt (preset edytora)
 
 ---
 
@@ -61,7 +74,7 @@ Party Quiz to **gra drużynowa na żywo** (nie telefony z punktacją automatyczn
 | `ESTIMATION` | Szacowanie | „Ile / w którym roku / jaka odległość?” — liczba | Instynkt, liczby, lata |
 | `OPEN` | Pytanie otwarte | Jedno pytanie, odpowiedź dowolna ustna | Skojarzenia, śmiech, kreatywność |
 | `LETTER` | Pytanie z literą | „Podaj miasto/kraj/słowo na literę…” | Losowa litera, wiele odpowiedzi |
-| `FAST_LIST` | Szybka lista | Seria krótkich pytań (np. ON/ONA, tak/nie) | Test zgodności, szybka seria |
+| `FAST_LIST` | Szybka lista | Seria krótkich pytań (kto?, tak/nie, imiona…) | Seria pytań z zapisaną odpowiedzią (sekcja 3B) |
 | `FAMILIADA` | Familiada | „Podaj X rzeczy…” + lista odpowiedzi z punktami | Top 5–10 odpowiedzi z pulą |
 | `SHIPS` | Statki | Gra w statki na planszy | Przerwa od quizu, element planszowy |
 
@@ -80,27 +93,23 @@ Party Quiz to **gra drużynowa na żywo** (nie telefony z punktacją automatyczn
 - Przykład: *„Fragment — który artysta?”*
 
 ### → `ESTIMATION`
-- Odpowiedź to **liczba** (rok, waga, odległość, cena).
-- Przykład: *„W którym roku się poznali?”*
-- **Wymaga:** `correctValue`, `min`, `max` — **dopytaj**, jeśli brak.
+- Odpowiedź to **liczba** (rok, waga, powierzchnia, cena).
+- **Wymaga:** `correctValue` — **dopytaj tylko**, jeśli użytkownik nie podał liczby.
+- **`min` / `max` — ustaw sam**, nie pytaj. Zasady:
+  - Powierzchnia / waga / odległość dodatnia: `min` ≈ 40–60% wartości, `max` ≈ 150–250% (np. 50 m² → min 25, max 100).
+  - Rok: ±15–25 lat od `correctValue`.
+  - Zaokrąglij do „ładnych” liczb (5, 10, 100).
 
 ### → `OPEN`
-- Jedno pytanie, **bez sztywnej listy** odpowiedzi.
-- Przykład: *„Jedno słowo: co kojarzy Wam się z dzisiejszym weselem?”*
+- Jedno pytanie, odpowiedź **ustna**, bez sztywnej listy w JSON.
+- **Jeśli użytkownik podał oczekiwaną odpowiedź** („kto pierwszy… — Julia”) → to **nie OPEN**, tylko pozycja **FAST_LIST** (znana odpowiedź w `answer`).
+- OPEN tylko gdy odpowiedź jest **otwarta** (wiele możliwych, śmiech, skojarzenia) albo użytkownik wyraźnie chce typ OPEN.
 
 ### → `LETTER`
 - Odpowiedzi zaczynają się od **wylosowanej litery**.
 - Przykład: *„Podaj miasto w Polsce na wylosowaną literę”*
 
-### → `FAST_LIST` (szybka lista)
-- **Wiele krótkich pytań** pod jednym tytułem.
-- Typowe formaty:
-  - **ON / ONA** — *„Kto pierwszy powiedział Kocham Cię?”*
-  - **Tak/Nie** — *„Czy byliście na randce w kinie?”*
-  - **Krótka seria** — lista 10–40 pozycji do przeczytania z ekranu
-- Każda pozycja: `{ "question": "...", "answer": "..." }`
-- **Punkty:** stałe **5 pkt za pozycję** (nie konfigurowalne).
-- Puste `answer` = OK — odpowiedź padnie **na żywo** (dopytaj, czy uzupełnić).
+### → `FAST_LIST` (szybka lista) — sekcja 3B
 
 ### → `FAMILIADA`
 - Jedno pytanie + **lista ukrytych odpowiedzi** z punktami (suma zwykle ~100).
@@ -109,6 +118,62 @@ Party Quiz to **gra drużynowa na żywo** (nie telefony z punktacją automatyczn
 
 ### → `SHIPS`
 - Osobna gra — rzadko „wpada” z kartki; zwykle świadomy wybór prowadzącego.
+
+---
+
+## 3B. FAST_LIST a „test zgodności” — nie pytaj, stosuj reguły
+
+To **najczęstszy błąd modeli** (np. Gemini): długie dopytywanie zamiast zbudowania JSON.
+
+### Pojęcia
+
+| Pojęcie | Co to jest |
+|---------|------------|
+| **`FAST_LIST`** | **Typ techniczny** w JSON — seria mini-pytań w `fastListItems[]`. |
+| **Test zgodności** | **Motyw / scenariusz** imprezy (para odpowiada „w sync”). Często realizowany jako `FAST_LIST`, ale **to nie osobny typ JSON**. |
+| **Lista boczna `SL - …`** | Osobny plik quizu z `partySideList: true` — zakładka obok głównej gry. Używaj **tylko**, gdy użytkownik **wyraźnie** prosi o „test zgodności”, „listę boczną SL” albo „osobną zakładkę”. |
+
+### Reguły decyzyjne (bez dopytywania)
+
+1. **Wiele krótkich pytań** typu „kto…?”, „kto więcej…?” z **podanymi odpowiedziami** → **jeden blok `FAST_LIST`**, scal pozycje.
+2. **Nie wiadomo, OPEN czy FAST_LIST** → **FAST_LIST**, jeśli jest oczekiwana konkretna odpowiedź (imiona, ON/ONA, Tak/Nie); **OPEN**, jeśli odpowiedź jest otwarta (opowieść, wiele słów).
+3. **Nie wiadomo, FAST_LIST czy test zgodności** → **FAST_LIST w głównym pliku** (domyślnie). Side list tylko przy wyraźnej prośbie.
+4. **Odpowiedź w polu `answer`:** dokładnie to, co podał użytkownik — `Julia`, `Marcel`, `ON`, `ONA`, `Tak` — **nie zamieniaj** imion na ON/ONA bez prośby.
+5. **Tytuł bloku** (`question` przy FAST_LIST): np. `"Kto pierwszy? — szybka lista"` lub `"ON / ONA"` — tylko gdy na kartce jest ON/ONA albo użytkownik tak nazwał; inaczej neutralny tytuł („Pytania o parze”).
+6. **Puste `answer`** — OK, gdy użytkownik nie podał odpowiedzi dla pozycji (odpowiedź na żywo); **nie pytaj**, czy uzupełniać.
+7. **Punkty** — zawsze **5 pkt/pozycja** w programie; nie ustawiaj własnych wag.
+
+### Przykład (z kartki weselnej)
+
+Wejście:
+- „Kto pierwszy powiedział kocham cię?” → Julia  
+- „Kto więcej pije?” → Julia  
+- „Kto częściej pisał listy?” → Marcel  
+
+Wyjście — **jeden** FAST_LIST (bez pytania użytkownika):
+
+```json
+{
+  "type": "FAST_LIST",
+  "question": "Pytania o parze — szybka lista",
+  "fastListItems": [
+    { "question": "Kto pierwszy powiedział «kocham cię»?", "answer": "Julia" },
+    { "question": "Kto więcej pije?", "answer": "Julia" },
+    { "question": "Kto częściej pisał listy miłosne?", "answer": "Marcel" }
+  ],
+  "answers": [],
+  "correct": -1,
+  "time": 0
+}
+```
+
+Gdy użytkownik napisze: *„zrób test zgodności jako listę boczną”* → ten sam JSON + `"partySideList": true` + nazwa pliku `SL - Test zgodności.json`.
+
+### FAST_LIST — składnia przypomnienie
+
+- **Wiele krótkich pytań** pod jednym tytułem.
+- Każda pozycja: `{ "question": "...", "answer": "..." }`.
+- **Nie** wstawiaj serii jako `answers: ["ON", "ONA"]` w QUIZ.
 
 ---
 
@@ -149,6 +214,7 @@ Party Quiz to **gra drużynowa na żywo** (nie telefony z punktacją automatyczn
 - Gracze mogą wpisać liczbę; admin podaje odpowiedź ustną.
 - Admin widzi **podpowiedź odległości** (% w zakresie) — **tylko informacyjnie**.
 - Punkty przyznaje **ręcznie** (flat), nie ma auto-punktacji za bliskość w kodzie Party.
+- **`min` / `max`:** ustaw sam według sekcji 3 (ESTIMATION). Przykład: 50 m² → `min: 25`, `max: 100`; 134 kg razem → `min: 80`, `max: 200`.
 
 ### 4.3 OPEN / LETTER
 
@@ -215,7 +281,18 @@ Party Quiz to **gra drużynowa na żywo** (nie telefony z punktacją automatyczn
 
 **Konwencje:**
 
-- Suma punktów ≈ **100** (ostrzeżenie, nie twardy błąd).
+- **Punkty — zawsze generuj sam:** preset edytora (suma 100), **nie pytaj użytkownika**. Kolejność odpowiedzi na liście = od najwyżej punktowanej (pierwsza = najwięcej pkt), chyba że użytkownik podał wagi ręcznie.
+- Presety (identyczne jak „Rozdziel automatycznie” w edytorze):
+
+| Liczba odp. | Rozkład punktów |
+|-------------|-----------------|
+| 2 | 60, 40 |
+| 3 | 50, 33, 17 |
+| 4 | 40, 30, 20, 10 |
+| 5 | 30, 25, 20, 15, 10 |
+| 6 | 25, 21, 18, 15, 12, 9 |
+| 7–10 | jak w edytorze Familiady / Party |
+
 - Max **10 odpowiedzi** na pytanie.
 - Odpowiedź z **0 pkt** jest dozwolona.
 
@@ -262,12 +339,13 @@ Party Quiz to **gra drużynowa na żywo** (nie telefony z punktacją automatyczn
 
 | Tekst na kartce | Propozycja typu | Uwaga |
 |-----------------|-----------------|-------|
-| „Podaj 5 alkoholi…” | FAMILIADA | Dopytaj o listę + punkty |
-| 20 pytań ON/ONA | FAST_LIST | Jeden blok `fastListItems` |
-| „Ile waży tort?” | ESTIMATION | Potrzebna liczba + zakres |
-| ABCD z jedną poprawną | QUIZ | Potrzebny indeks `correct` |
-| „Co słychać?” + plik | MUSIC | Potrzebna ścieżka `audio` |
-| Luźne pytanie bez opcji | OPEN lub LETTER | Dopytaj |
+| „Podaj 5 alkoholi…” | FAMILIADA | Auto 100 pkt; nie pytaj o wagi |
+| 3+ pytań „kto…?” z odpowiedziami | FAST_LIST | Scal; nie pytaj OPEN vs FAST_LIST |
+| Wyraźnie „test zgodności SL” | FAST_LIST + `partySideList` | Plik `SL - …` |
+| „Ile waży tort?” + liczba | ESTIMATION | min/max sam |
+| ABCD z jedną poprawną | QUIZ | Dopytaj tylko o poprawną, jeśli brak |
+| „Co słychać?” + plik | MUSIC | Placeholder audio tylko jeśli brak pliku |
+| Luźne pytanie bez podanej odp. | OPEN | Znaną odp. → FAST_LIST |
 
 ### Familiada (bank / stary format) → Party FAMILIADA
 
@@ -307,30 +385,29 @@ Party Quiz to **gra drużynowa na żywo** (nie telefony z punktacją automatyczn
 
 ```
 1. Odbierz surowe pytania (tekst, foto kartki, lista).
-2. Pogrupuj: które idą razem (np. cała szybka lista).
-3. Dla każdej grupy: przypisz typ (sekcja 3).
-4. Wypisz BRAKI (sekcja 0) → zadaj pytania.
-5. Po odpowiedziach: zbuduj JSON (sekcja 5).
-6. Self-check (sekcja 8).
-7. Dostarcz plik + krótkie podsumowanie („3× QUIZ, 1× FAST_LIST 35 poz., …”).
+2. Pogrupuj: FAST_LIST (serie „kto…”), Familiada, reszta.
+3. Dla każdej grupy: przypisz typ (sekcja 3, 3B).
+4. Dopytaj **tylko** o braki merytoryczne (sekcja 0A).
+5. Uzupełnij czas/punkty/min-max sam (sekcja 0B).
+6. Zbuduj JSON (sekcja 5).
+7. Self-check (sekcja 8).
+8. Dostarcz plik + krótkie podsumowanie.
 ```
 
-### Przykład dobrego dopytywania
+### Przykład dobrego zachowania
 
-> Dostałem 12 pytań ON/ONA bez odpowiedzi.  
-> **Plan:** jeden blok `FAST_LIST` „Test zgodności”.  
-> **Potrzebuję od Ciebie:**  
-> 1. Czy odpowiedzi uzupełniacie na żywo (zostawiam puste `answer`)?  
-> 2. Czy tytuł listy ma brzmieć „ON / ONA — test zgodności” czy inaczej?  
-> 3. Czy to ma być **osobna lista poboczna** (`SL - …`) czy część głównego quizu?
+> Mam 2× Familiada (po 5 odp.), 2× szacowanie (50 m², 134 kg), 3 pytania „kto…?”, 4× QUIZ.  
+> **Robię od razu:** Familiada z presetem 30/25/20/15/10; szacowanie z min/max; 3× „kto…?» → jeden FAST_LIST z imionami; QUIZ z `time: 0`.  
+> **Pytam tylko**, jeśli przy QUIZ brakuje poprawnej odpowiedzi.
 
-### Przykład złego zachowania (nie rób tak)
+### Przykład złego zachowania (nie rób tak — wzorowane na błędach Gemini)
 
-> ❌ Wymyślenie odpowiedzi ON/ONA bez pary młodej.  
-> ❌ Ustawienie `correct: 0` w QUIZ bez podanej poprawnej.  
-> ❌ Familiada ze stringami `"answers": ["Bimber", "Rum"]`.  
-> ❌ Szacowanie bez `min`/`max`.  
-> ❌ Ignorowanie pytania użytkownika i generowanie 50 pytań „na podobieństwo”.
+> ❌ „Proszę podać punktację do familiady…” — **sam** rozdziel 100 pkt.  
+> ❌ „Ile sekund na QUIZ?” — **nie pytaj**, `time: 0` w Party.  
+> ❌ „Czy OPEN czy FAST_LIST / ON czy imiona?” — **sam** wybierz FAST_LIST + imiona z kartki.  
+> ❌ „Podaj min/max do szacowania” — **sam** oblicz z `correctValue`.  
+> ❌ Wymyślenie odpowiedzi bez kartki.  
+> ❌ Familiada ze stringami `"answers": ["Bimber", "Rum"]`.
 
 ---
 
@@ -339,9 +416,10 @@ Party Quiz to **gra drużynowa na żywo** (nie telefony z punktacją automatyczn
 - [ ] `gameMode` = `"party"`
 - [ ] Każde pytanie ma `type` **WIELKIMI** literami (`QUIZ`, nie `quiz`)
 - [ ] QUIZ/MUSIC: `correct` to liczba 0–3 (lub 0–4 dla MUSIC), **nie** `-1`
-- [ ] FAMILIADA: `answers` to tablica **obiektów** `{text, points}`
-- [ ] FAST_LIST: jest `fastListItems` (≥1 pozycja), `answers: []`
-- [ ] ESTIMATION: jest `correctValue`, `min`, `max`
+- [ ] FAMILIADA: `answers` to obiekty `{text, points}`; **suma ≈ 100** (preset, bez pytania)
+- [ ] FAST_LIST: `fastListItems` (≥1); serie „kto…?» scalone; `answers: []`
+- [ ] ESTIMATION: `correctValue` + **sam** wyliczone `min`, `max`
+- [ ] **Nie** pytano o czas, punkty (poza jawnymi wagami od usera), min/max, FAST_LIST vs OPEN
 - [ ] Brak wymyślonych odpowiedzi, których użytkownik nie podał (chyba że wyraźnie poprosił o propozycje)
 - [ ] Ścieżki do mediów (`/uploads/...`) — tylko jeśli użytkownik je podał; inaczej **oznacz placeholder** i dopytaj
 - [ ] Side list: `partySideList: true` lub prefix `SL -` w nazwie pliku
