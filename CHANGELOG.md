@@ -2,6 +2,115 @@
 
 ---
 
+## v1.3.7 (sierpień 2026) — instrukcje AI do tworzenia quizów
+
+### Dokumentacja dla modeli językowych
+
+- **Party Quiz** — `PARTY_QUIZ_LLM_INSTRUKCJA.md` (typy pytań, szybka lista, familiada, dopytywanie o braki).
+- **Quiz klasyczny** — `QUIZ_LLM_INSTRUKCJA.md` (11 typów, telefony, speedrun, JSON do `/editor.html`).
+- **Familiada** — `FAMILIADA_LLM_INSTRUKCJA.md` (lista z punktami, import tekst/XML, złota lista).
+- Pliki do pobrania z aplikacji: edytory + menu ⚙️ Poradniki; dołączone do buildu Electron.
+- Reguły Cursor: `.cursor/rules/party-quiz-llm.mdc`, `quiz-llm.mdc`, `familiada-llm.mdc`.
+
+---
+
+## v1.3.6 (sierpień 2026) — listy boczne SL: punkty, edytor, Ania i Maks
+
+### Party Quiz
+
+- **Prefiks `SL - `** w nazwach plików list bocznych — łatwe wyszukiwanie w edytorze; migracja starych plików przy starcie.
+- **Zakładki list bocznych pionowo** w panelu PWA (jedna pod drugą).
+- **Fix punktów na listach SL:** LETTER respektuje `defaultPoints` pliku; poprawione cofanie/przełączanie punktów między pytaniami SL.
+- **Fix edytora:** checkbox „Lista boczna” wczytuje się z pliku; zapis nie gubi flagi `partySideList`.
+- **Nowy quiz weselny:** `Ania i Maks - wesele.json` — szybka lista (15 pytań), główna lista rozgrywki.
+
+---
+
+## v1.3.5 (lipiec 2026) — listy boczne = normalny plik JSON
+
+### Party Quiz
+
+- **Koniec z `party-quiz-side-lists.json`** — lista boczna to zwykły plik quizu z `"partySideList": true` w JSON (edytowalny w Edytorze Party Quiz, checkbox „Lista boczna w rozgrywce”).
+- Zakładka w panelu rozgrywki pojawia się automatycznie dla każdego pliku z tą flagą — jak złota lista, przy każdym wczytanym quizie weselnym.
+- **Punkty** z listy bocznej biorą `defaultPoints` z tego pliku (nie z głównego quizu).
+- Stary config migruje się automatycznie przy pierwszym starcie.
+
+---
+
+## v1.3.4 (lipiec 2026) — listy boczne widoczne w edytorze
+
+### Party Quiz
+
+- **Pliki list bocznych w edytorze** — np. `Test wiedzy o młodej parze.json` pojawia się na liście plików w Edytorze Party Quiz (normalna edycja JSON). W panelu rozgrywki nadal dostępne jako zakładka listy bocznej, bez mieszania z główną listą pytań.
+- Szablon `Test wiedzy o młodej parze.json` dołączony do aplikacji — tworzy się automatycznie przy pierwszym starcie, jeśli go nie ma.
+
+---
+
+## v1.3.3 (lipiec 2026) — fix startu aplikacji (listy boczne)
+
+### Naprawa
+
+- **Biały ekran / „Serwer nie wystartował w czasie”** — błąd inicjalizacji list bocznych przy starcie (`partySideListsConfig` przed deklaracją). Naprawione.
+
+---
+
+## v1.3.2 (lipiec 2026) — Party Quiz: listy boczne (zakładki)
+
+### Party Quiz
+
+- **Listy boczne z zakładkami** — obok złotej listy Familiady można mieć dodatkowe zestawy pytań (np. „Test wiedzy o młodej parze”) dostępne w panelu Party Quiz bez mieszania z główną listą.
+- Konfiguracja w `party-quiz-side-lists.json` — nowe zakładki dodajesz edycją tego pliku (bez kolejnego builda).
+- Pliki przypisane do list bocznych mogą być ukryte w głównym wyborze pliku quizu.
+
+---
+
+## v1.3.1 (lipiec 2026) — Party Quiz: złota lista po szybkiej liście
+
+### Party Quiz
+
+- **Szybka lista → złota lista** — zakończenie ostatniej pozycji (przycisk **ZAKOŃCZ**) zamyka listę i nie blokuje złotej listy ani kolejnych pytań (aż do tablicy wyników).
+- Wyjście z nierozstrzygniętej szybkiej listy (start innego pytania / złotej) zamyka ją automatycznie, bez blokującego modala.
+
+---
+
+## v1.3.0 (lipiec 2026) — Party Quiz: szybka lista na żywo
+
+### Party Quiz – edytor i rozgrywka
+
+- **Szybka lista bez odpowiedzi** — brak prawidłowej odpowiedzi nie jest błędem zapisu (ważne przy pytaniach na żywo). Przy zapisie pojawia się ostrzeżenie, ale można zapisać z pustymi polami.
+- **POKAŻ ODP.** — bezpieczne przy pustej odpowiedzi (admin + TV); nie wywala rozgrywki.
+- **Lista pytań** — kliknięcie / rozwinięcie pytania tylko otwiera panel; bez auto-przewijania do niewłaściwego miejsca.
+
+---
+
+## v1.2.9-beta.1 (lipiec 2026) — build Beta (Party Quiz UX)
+
+Build kanału **Imprezja Quiz Beta** (`pl.imprezja.votebattle.beta`) z poprawkami Party Quiz z 1.2.8–1.2.9 (modal wyniku, szybka lista, powitanie).
+
+---
+
+## v1.2.9 (lipiec 2026) — Party Quiz: modal wyniku + szybka lista
+
+### Party Quiz – admin PWA
+
+- **Modal wyniku** — przed przejściem do innego pytania (Quiz / Familiada / itd.): Niebiescy / Czerwoni / Bez punktów. Szybka lista: **NASTĘPNE** = 0 pkt za pozycję (bez modala).
+- **Detal pytania** — zawsze w rozwiniętym panelu (nie znika po zwinięciu).
+- **Szybka lista** — góra = nr `1/15` + treść (−10% czcionki); linia **Odpowiedź?** → odpowiedź po **POKAŻ ODP.**; przyciski w jednej linii; kompresja w fullscreenie na telefonie.
+
+---
+
+## v1.2.8 (lipiec 2026) — Party Quiz PWA UX
+
+### Party Quiz – admin PWA
+
+- **Powitanie** — „Pokaż powitanie” pokazuje tytuł quizu + logo, nie długie notatki z edytora (`subtitle`).
+- **Scroll** — po „Następne pytanie” widok skacze do góry pytania, nie do końca listy odpowiedzi.
+- **Statusy** — usunięte „na antenie / na żywo”; zamiast tego ostrzeżenie: przyznaj punkty jednej drużynie albo „Bez punktów”.
+- **Odpowiedzi** — pełna lista bez wewnętrznego przewijania (np. Alkohol 8 pozycji).
+- **Szybka lista** — kolejność i skróty: **POKAŻ ODP.** / **NASTĘPNE**.
+
+---
+
 ## v1.2.7 (maj 2026) — wydanie stabilne
 
 ### Audio — uproszczenie i wyrównanie głośności
