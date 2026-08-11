@@ -1629,15 +1629,10 @@
             overflow: visible;
         }
         #party-detail-host-holder {
-            position: sticky;
-            bottom: 0;
-            z-index: 40;
             margin-top: 12px;
-            padding-top: 8px;
-            padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
-            background: linear-gradient(to bottom, transparent 0, rgba(17, 17, 17, 0.92) 14px);
-            backdrop-filter: blur(6px);
-            -webkit-backdrop-filter: blur(6px);
+        }
+        #party-detail-host-holder.is-in-panel {
+            display: none;
         }
         /* FAST_LIST na żywo: pełna lista pozycji tylko w podglądzie panelu, nie duplikuj w sterowaniu */
         .party-q-live-detail .cq-answers.cq-answers-fastlist-scroll {
@@ -1914,7 +1909,7 @@
                     <div style="padding: 14px; text-align: center; color: var(--muted);">Wczytaj plik.</div>
                 </div>
                 <div id="party-detail-host-holder"><div id="party-current-detail-host" class="current-question-wrap"></div></div>
-                <p class="hint">Kliknij pytanie — panel; <strong>Uruchom na tablicy</strong>. Sterowanie pytania pojawia się na dole listy (przyklejone do dolnej krawędzi ekranu).</p>
+                <p class="hint">Kliknij pytanie — panel; <strong>Uruchom na tablicy</strong>. Sterowanie pytania pojawia się pod przyciskiem aktywnego pytania (jak w Familiadzie).</p>
             </div>
         </div>
 
@@ -2007,12 +2002,67 @@
         }
 
         function mountPartyQuestionDetailHost() {
-            const savedScroll = capturePartyAdminScrollTop();
             const host = ensurePartyDetailHost();
             const holder = document.getElementById('party-detail-host-holder');
             if (!holder) return;
-            holder.appendChild(host);
-            restorePartyAdminScrollTop(savedScroll);
+            let slot = null;
+            if (isSideListLive()) {
+                const listId = state.server.currentSideListId;
+                const idx = state.server.currentSideListIndex;
+                if (listId && typeof idx === 'number') {
+                    const panel = document.getElementById('party-side-panel-' + listId + '-' + idx);
+                    if (panel && panel.classList.contains('visible')) {
+                        slot = panel.querySelector('.party-detail-slot');
+                    }
+                }
+            } else if (state.server.currentIndex >= 0) {
+                const panel = document.getElementById('party-q-panel-' + state.server.currentIndex);
+                if (panel && panel.classList.contains('visible')) {
+                    slot = panel.querySelector('.party-detail-slot');
+                }
+            }
+            if (slot) {
+                slot.appendChild(host);
+                holder.classList.add('is-in-panel');
+            } else {
+                holder.classList.remove('is-in-panel');
+                holder.appendChild(host);
+            }
+        }
+
+        /** Po rozwinięciu wiersza — delikatne przewinięcie bez skoku całej strony. */
+        function scrollPartyQuestionsListItemIntoView(idx) {
+            if (typeof idx !== 'number' || idx < 0) return;
+            const list = document.getElementById('questions-list');
+            if (!list) return;
+            requestAnimationFrame(() => {
+                const row = list.querySelector('.party-q-item[data-idx="' + idx + '"]');
+                if (!row) return;
+                const panel = list.querySelector('#party-q-panel-' + idx);
+                const target = (panel && panel.classList.contains('visible')) ? panel : row;
+                try {
+                    target.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'auto' });
+                } catch (_) {
+                    target.scrollIntoView(false);
+                }
+            });
+        }
+
+        function scrollPartySideListItemIntoView(panelId) {
+            if (!panelId) return;
+            const list = document.getElementById('party-golden-questions-list');
+            if (!list) return;
+            requestAnimationFrame(() => {
+                const panel = document.getElementById(panelId);
+                const row = panel && panel.parentElement;
+                if (!row || !panel) return;
+                const target = panel.classList.contains('visible') ? panel : row;
+                try {
+                    target.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'auto' });
+                } catch (_) {
+                    target.scrollIntoView(false);
+                }
+            });
         }
 
         /** Meta aktywnego pytania na TV — do bramki przyznania punktów. */
@@ -2412,11 +2462,7 @@
             // Swap stron
             document.body.classList.toggle('teams-swapped', state.server.swapped);
 
-            if (prevIndex !== state.server.currentIndex && state.server.currentIndex >= 0) {
-                openPartyListIdx = state.server.currentIndex;
-            }
-            /* Trzymaj rozwinięte aktywne pytanie — inaczej detal wpada w ukryty panel. */
-            if (state.server.currentIndex >= 0 && !isSideListLive()) {
+            if (prevIndex !== state.server.currentIndex && state.server.currentIndex >= 0 && !isSideListLive()) {
                 openPartyListIdx = state.server.currentIndex;
             }
             if (isSideListLive()) {
@@ -2437,10 +2483,9 @@
                 setTimeout(fn, 0);
             }
 
-            // Przy każdym update party_state odświeżamy listę + detal (tanie, bo czyste HTML stringi)
-            const partyStateScrollLock = capturePartyAdminScrollTop();
-            renderQuestionsList(partyStateScrollLock);
-            renderPartySideLists(partyStateScrollLock);
+            // Przy każdym update party_state odświeżamy listę + detal (bez blokowania scrolla użytkownika)
+            renderQuestionsList();
+            renderPartySideLists();
         });
 
         function renderBuzzerStatus() {
@@ -2539,14 +2584,13 @@
 
         // ═══ Render: questions list (accordion jak Familiada) ═══
         function renderQuestionsList(forcedScrollTop) {
-            const savedScroll = (forcedScrollTop != null) ? forcedScrollTop : capturePartyAdminScrollTop();
             const qs = (state.quiz && state.quiz.questions) || [];
             el.qCount.textContent = qs.length;
             if (qs.length === 0) {
                 el.questionsList.innerHTML = '<div style="padding: 14px; text-align: center; color: var(--muted);">Plik nie zawiera pytań.</div>';
                 mountPartyQuestionDetailHost();
                 renderCurrentQuestion();
-                restorePartyAdminScrollTop(savedScroll);
+                if (forcedScrollTop != null) restorePartyAdminScrollTop(forcedScrollTop);
                 return;
             }
             const sideListOn = isSideListLive();
@@ -2559,7 +2603,9 @@
                 const title = (q.question || '').trim() || '(bez treści)';
                 const isActive = !sideListOn && i === state.server.currentIndex;
                 const isDone = asked.indexOf(i) !== -1 && !isActive;
-                const expanded = openPartyListIdx === i;
+                const liveUnresolved = isActive && !state.server.questionAwarded;
+                /* Aktywne nierozstrzygnięte — panel zawsze otwarty (sterowanie nie chowa się przy podglądzie innego wiersza). */
+                const expanded = openPartyListIdx === i || liveUnresolved;
                 const itemClasses = [
                     'party-q-item',
                     'type-' + type,
@@ -2571,15 +2617,16 @@
                 } else if (isDone) {
                     status = '<span class="q-status" style="background:rgba(149,165,166,0.22);color:#bdc3c7;">✓ ROZEGRANE</span>';
                 }
-                const btnClasses = 'party-q-btn' + (expanded ? ' active' : '') + (isActive ? ' active-on-tv' : '');
+                const btnClasses = 'party-q-btn' + (openPartyListIdx === i ? ' active' : '') + (isActive ? ' active-on-tv' : '');
                 const cannotRunOther = locked && !isActive;
-                const onAirBlock = isActive && !state.server.questionAwarded;
+                const onAirBlock = liveUnresolved;
                 const panelPreview = partyQuestionPanelPreview(q, type);
                 /* Zablokuj tylko ponowne „Uruchom” na aktywnym nierozstrzygniętym — inne pytania otwierają modal. */
                 const runDisabled = onAirBlock ? ' disabled' : '';
                 const runLabel = isActive
                     ? (state.server.questionAwarded ? '🔁 Ponownie na tablicy' : '⬇️ Przyznaj punkty poniżej')
                     : (cannotRunOther ? '🎬 Uruchom (najpierw zakończ bieżące)' : '🎬 Uruchom na tablicy');
+                const detailSlot = (isActive && !isSideListLive()) ? '<div class="party-detail-slot"></div>' : '';
                 return (
                     '<div class="' + itemClasses + '" data-idx="' + i + '">' +
                         '<button type="button" class="' + btnClasses + '" data-act="toggle" data-idx="' + i + '">' +
@@ -2595,6 +2642,7 @@
                         '<div class="party-q-panel' + (expanded ? ' visible' : '') + '" id="party-q-panel-' + i + '">' +
                             panelPreview +
                             '<button type="button" class="pq-run-tv" data-act="run" data-idx="' + i + '"' + runDisabled + '>' + runLabel + '</button>' +
+                            detailSlot +
                         '</div>' +
                     '</div>'
                 );
@@ -2604,7 +2652,6 @@
             el.questionsList.querySelectorAll('button[data-act="toggle"]').forEach(btn => {
                 btn.addEventListener('click', (ev) => {
                     ev.preventDefault();
-                    const scrollLock = capturePartyAdminScrollTop();
                     const i = parseInt(btn.getAttribute('data-idx'), 10);
                     if (isNaN(i)) return;
                     const collapsing = openPartyListIdx === i;
@@ -2615,36 +2662,35 @@
                         return;
                     }
                     openPartyListIdx = collapsing ? null : i;
-                    renderQuestionsList(scrollLock);
-                    /* Bez auto-scroll — tylko rozwinięcie kontenera. */
+                    renderQuestionsList();
+                    if (openPartyListIdx !== null) scrollPartyQuestionsListItemIntoView(openPartyListIdx);
                 });
             });
             el.questionsList.querySelectorAll('button[data-act="run"]').forEach(btn => {
                 btn.addEventListener('click', (ev) => {
                     ev.preventDefault();
                     if (btn.disabled) return;
-                    const scrollLock = capturePartyAdminScrollTop();
                     const i = parseInt(btn.getAttribute('data-idx'), 10);
                     if (isNaN(i)) return;
                     requestPartyNavigate(() => {
                         emit('party_run_question', i);
                         openPartyListIdx = i;
-                        renderQuestionsList(scrollLock);
+                        renderQuestionsList();
+                        scrollPartyQuestionsListItemIntoView(i);
                     });
                 });
             });
             mountPartyQuestionDetailHost();
             renderCurrentQuestion();
-            restorePartyAdminScrollTop(savedScroll);
+            if (forcedScrollTop != null) restorePartyAdminScrollTop(forcedScrollTop);
         }
 
         /** Listy boczne Party Quiz — zakładki (złota lista, test wiedzy itd.). */
         function renderPartySideLists(forcedScrollTop) {
-            const savedScroll = (forcedScrollTop != null) ? forcedScrollTop : capturePartyAdminScrollTop();
             const tabsEl = document.getElementById('party-side-list-tabs');
             const container = document.getElementById('party-golden-questions-list');
             if (!container) {
-                restorePartyAdminScrollTop(savedScroll);
+                if (forcedScrollTop != null) restorePartyAdminScrollTop(forcedScrollTop);
                 return;
             }
 
@@ -2675,7 +2721,7 @@
                 container.innerHTML = '<div style="padding:12px;color:#888;font-size:14px;">Brak list bocznych.</div>';
                 mountPartyQuestionDetailHost();
                 renderCurrentQuestion();
-                restorePartyAdminScrollTop(savedScroll);
+                if (forcedScrollTop != null) restorePartyAdminScrollTop(forcedScrollTop);
                 return;
             }
 
@@ -2685,7 +2731,7 @@
                 container.innerHTML = '<div style="padding:12px;color:#888;font-size:14px;">Brak pytań w tej zakładce.' + fileHint + '</div>';
                 mountPartyQuestionDetailHost();
                 renderCurrentQuestion();
-                restorePartyAdminScrollTop(savedScroll);
+                if (forcedScrollTop != null) restorePartyAdminScrollTop(forcedScrollTop);
                 return;
             }
 
@@ -2701,14 +2747,17 @@
                 const typeBadge = q.type && q.type !== 'QUIZ' ? (' [' + q.type + ']') : '';
                 btn.textContent = (idx + 1) + '. ' + ((q.question || '').trim() || '(bez treści)') + typeBadge;
                 btn.addEventListener('click', () => {
-                    const scrollLock = capturePartyAdminScrollTop();
                     if (onTvSide) {
                         activePartySideListIdx = idx;
-                        renderPartySideLists(scrollLock);
+                        renderPartySideLists();
+                        scrollPartySideListItemIntoView('party-side-panel-' + tabEntry.id + '-' + idx);
                         return;
                     }
                     activePartySideListIdx = (activePartySideListIdx === idx) ? null : idx;
-                    renderPartySideLists(scrollLock);
+                    renderPartySideLists();
+                    if (activePartySideListIdx !== null) {
+                        scrollPartySideListItemIntoView('party-side-panel-' + tabEntry.id + '-' + activePartySideListIdx);
+                    }
                 });
                 const panel = document.createElement('div');
                 panel.className = 'party-q-panel' + (expandedSide ? ' visible' : '');
@@ -2718,7 +2767,8 @@
                     : ('📋 ' + escapeHtml(tabEntry.label || tabEntry.id) + (tabEntry.file ? ' · ' + escapeHtml(tabEntry.file) : ''));
                 panel.innerHTML =
                     '<p class="party-q-panel-meta" style="margin-top:0;">' + metaLine + '</p>' +
-                    '<button type="button" class="pq-run-tv" id="party-side-run-' + tabEntry.id + '-' + idx + '">🎬 Uruchom na tablicy</button>';
+                    '<button type="button" class="pq-run-tv" id="party-side-run-' + tabEntry.id + '-' + idx + '">🎬 Uruchom na tablicy</button>' +
+                    (onTvSide ? '<div class="party-detail-slot"></div>' : '');
                 item.appendChild(btn);
                 item.appendChild(panel);
                 container.appendChild(item);
@@ -2731,7 +2781,7 @@
             });
             mountPartyQuestionDetailHost();
             renderCurrentQuestion();
-            restorePartyAdminScrollTop(savedScroll);
+            if (forcedScrollTop != null) restorePartyAdminScrollTop(forcedScrollTop);
         }
 
         // ═══ Render: widok aktualnego pytania – wzorowany na Imprezja admin #question-control ═══
@@ -2769,15 +2819,7 @@
                 isLive = true;
             }
 
-            /* Detal montowany w #party-detail-host-holder (sticky u dołu) — nie w środku listy. */
-            if (isLive && q && !isSideListLive() && openPartyListIdx !== null && openPartyListIdx !== idx) {
-                dh.innerHTML =
-                    '<div class="current-question-empty">Na tablicy: pytanie <strong>' + (idx + 1) +
-                    '</strong>. Rozwiń je na liście albo użyj «Uruchom na tablicy» pod tym wierszem.</div>';
-                dh.classList.remove('party-golden-live-host');
-                return;
-            }
-
+            /* Detal w rozwiniętym panelu (party-detail-slot) lub w #party-detail-host-holder. */
             if (!isLive || !q) {
                 const msg = qs.length === 0
                     ? 'Wczytaj plik z listy, aby rozpocząć.'
@@ -3141,7 +3183,7 @@
                 /* Złota lista: `idx` to indeks złota, a `openPartyListIdx` dotyczy tylko listy głównej (przy golden jest null) — bez tego panel +5 pkt był ukryty i punkty nie „szły” do wyniku. */
                 const flAwardPanelVisible =
                     (isSideListLive() && state.server.currentSideListIndex === idx) ||
-                    (!isSideListLive() && openPartyListIdx === idx);
+                    (!isSideListLive() && idx === state.server.currentIndex);
                 typeSpecificBlock =
                     '<div class="cq-letter-block cq-fast-head" style="border-color: rgba(255,152,0,0.35); max-width:100%;">' +
                         '<div class="cq-fast-progress-label">' + idxPos + (tot ? ' / ' + tot : '') + '</div>' +

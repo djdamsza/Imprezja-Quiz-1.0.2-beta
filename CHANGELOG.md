@@ -2,6 +2,16 @@
 
 ---
 
+## v1.4.1 (sierpień 2026) — Party Quiz PWA: lista pytań
+
+### Party Quiz — panel admina (PWA)
+
+- **Lista pytań** — naprawione znikanie pozycji po rozwinięciu jednego wiersza; wszystkie pytania pozostają widoczne i przewijalne.
+- **Sterowanie na żywo** — pod aktywnym pytaniem (jak w Familiadzie), bez sticky paska zasłaniającego listę.
+- **Szybka lista** — przyciski +5 pkt widoczne, gdy pytanie jest na tablicy (niezależnie od rozwiniętego wiersza).
+
+---
+
 ## v1.4.0 (sierpień 2026) — Party Quiz TV, szybka lista, Milkdrop, build Beta
 
 ### Party Quiz — ekran TV
@@ -14,7 +24,7 @@
 
 ### Party Quiz — panel admina (PWA)
 
-- **Brak przewijania** po rozwinięciu pytania — sterowanie w sticky panelu u dołu listy, wzmocniony lock scrolla.
+- **Brak przewijania** po rozwinięciu pytania — delikatne `scrollIntoView` bez skoku całej strony.
 - **Dżingiel Familiady** — przycisk 🔔 pod dużym X (ŚRODEK) w pytaniach FAMILIADA.
 - **Lista boczna vs klasyczna** — przełącznik w edytorze; migracja starych plików bez flagi `partySideList`.
 
