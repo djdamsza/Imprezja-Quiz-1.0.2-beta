@@ -2,7 +2,13 @@
 
 ---
 
-## v1.4.1 (sierpień 2026) — Party Quiz PWA: lista pytań
+## v1.4.1 (sierpień 2026) — Party Quiz PWA: lista pytań + auto-odnawianie licencji
+
+### Licencje / subskrypcja
+
+- **Auto-odnawianie licencji** — przy aktywnej subskrypcji Stripe program z internetem sam odświeża klucz (bez wklejania z maila po każdym odnowieniu).
+- **Okres łaski 7 dni** — margines na imprezę offline po wygaśnięciu klucza czasowego.
+- Przycisk **„Sprawdź odnowienie online”** na ekranie licencji.
 
 ### Party Quiz — panel admina (PWA)
 

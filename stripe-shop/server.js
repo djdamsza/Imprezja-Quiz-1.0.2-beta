@@ -13,7 +13,7 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const path = require('path');
 const nodemailer = require('nodemailer');
 const { Resend } = require('resend');
-const { generateLicenseKey, LOOKUP_TO_TYPE } = require('./license-keygen');
+const { generateLicenseKey, LOOKUP_TO_TYPE, SUBSCRIPTION_LICENSE_TYPES } = require('./license-keygen');
 
 const app = express();
 const PORT = process.env.PORT || process.env.STRIPE_PORT || 4242;
@@ -123,6 +123,10 @@ async function customerHasOtherLiveSubscription(customerRaw, excludeSubscription
 const IMPREZJA_MACHINE_META = 'imprezja_machine_id';
 /** Idempotencja webhooka Stripe (retry) — jedna wysyłka klucza na fakturę */
 const IMPREZJA_LAST_LICENSE_INVOICE_META = 'imprezja_last_license_invoice_id';
+/** Ostatnie odświeżenie klucza przez POST /api/license/refresh (rate limit 6h) */
+const IMPREZJA_LAST_REFRESH_AT_META = 'imprezja_last_refresh_at';
+const LICENSE_REFRESH_MIN_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const LICENSE_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
 
 const SUBSCRIPTION_INVOICE_LICENSE_REASONS = new Set([
     'subscription_cycle',
@@ -153,6 +157,58 @@ async function persistImprezjaMachineIdFromSession(session, machineId) {
     } catch (e) {
         console.error('⚠️ Nie udało się zapisać Machine ID w Stripe:', e.message);
     }
+}
+
+/** Aktywna subskrypcja powiązana z Machine ID (metadata subskrypcji lub klienta). */
+async function findSubscriptionByMachineId(machineId) {
+    const statuses = ['active', 'trialing', 'past_due'];
+    for (const status of statuses) {
+        try {
+            const result = await stripe.subscriptions.search({
+                query: `metadata['${IMPREZJA_MACHINE_META}']:'${machineId}' AND status:'${status}'`,
+                limit: 1,
+                expand: ['data.items.data.price'],
+            });
+            if (result.data.length > 0) return result.data[0];
+        } catch (err) {
+            console.warn('⚠️ findSubscriptionByMachineId (sub):', status, err.message);
+        }
+    }
+    try {
+        const customers = await stripe.customers.search({
+            query: `metadata['${IMPREZJA_MACHINE_META}']:'${machineId}'`,
+            limit: 5,
+        });
+        for (const customer of customers.data) {
+            if (customer.deleted) continue;
+            for (const status of statuses) {
+                const { data } = await stripe.subscriptions.list({
+                    customer: customer.id,
+                    status,
+                    limit: 10,
+                    expand: ['data.items.data.price'],
+                });
+                for (const sub of data) {
+                    const subMid = String(sub.metadata?.[IMPREZJA_MACHINE_META] || '').trim();
+                    const custMid = String(customer.metadata?.[IMPREZJA_MACHINE_META] || '').trim();
+                    if (subMid === machineId || custMid === machineId) return sub;
+                }
+            }
+        }
+    } catch (err) {
+        console.warn('⚠️ findSubscriptionByMachineId (customer):', err.message);
+    }
+    return null;
+}
+
+async function resolveSubscriptionLookupKey(sub) {
+    let lookupKey = (sub.metadata && sub.metadata.lookup_key) || '';
+    const p0 = sub.items?.data?.[0]?.price;
+    if (!lookupKey && p0) {
+        const price = typeof p0 === 'string' ? await stripe.prices.retrieve(p0) : p0;
+        lookupKey = (price && price.lookup_key) || '';
+    }
+    return lookupKey;
 }
 
 async function getInvoiceCustomerEmail(invoice) {
@@ -270,7 +326,7 @@ async function handleSubscriptionInvoicePaid(invoice) {
         return { keyEmailSent: false, shouldSendInfoFallback: true };
     }
 
-    const licenseKey = generateLicenseKey(machineId, licenseType);
+    const licenseKey = generateLicenseKey(machineId, licenseType, { subscription: true });
     const amount = ((invoice.amount_paid || 0) / 100).toFixed(2);
     const currency = (invoice.currency || 'pln').toUpperCase();
     const nextDate = invoice.period_end
@@ -748,7 +804,8 @@ app.post('/api/license/deliver', async (req, res) => {
         }
 
         const licenseType = LOOKUP_TO_TYPE[lookupKey] || 'LT';
-        const licenseKey = generateLicenseKey(machineId, licenseType);
+        const isSubscription = session.mode === 'subscription' && !String(lookupKey).includes('onetime');
+        const licenseKey = generateLicenseKey(machineId, licenseType, { subscription: isSubscription });
 
         const customerEmail = session.customer_email || session.customer_details?.email;
         if (!customerEmail) {
@@ -852,6 +909,78 @@ Ten e-mail został wysłany w odpowiedzi na Twoje zamówienie.`;
             return res.status(500).json({ error: 'Błąd konfiguracji e-mail (SMTP). Skontaktuj się z obsługą.' });
         }
         res.status(500).json({ error: err.message || 'Błąd wysyłki klucza' });
+    }
+});
+
+/** Odświeżenie klucza licencyjnego na podstawie aktywnej subskrypcji Stripe (auto-renewal w aplikacji). */
+app.post('/api/license/refresh', async (req, res) => {
+    const { machine_id, force } = req.body || {};
+    const machineId = String(machine_id || '').trim();
+
+    if (!/^[a-fA-F0-9]{16}$/.test(machineId)) {
+        return res.status(400).json({ ok: false, reason: 'invalid_machine_id' });
+    }
+    if (!process.env.STRIPE_SECRET_KEY) {
+        return res.status(500).json({ ok: false, reason: 'stripe_unconfigured' });
+    }
+    if (!process.env.IMPREZJA_LICENSE_PRIVATE_KEY) {
+        return res.status(500).json({ ok: false, reason: 'license_not_configured' });
+    }
+
+    try {
+        const sub = await findSubscriptionByMachineId(machineId);
+        if (!sub) {
+            console.log('🔄 License refresh — brak subskrypcji:', machineId);
+            return res.json({ ok: false, reason: 'no_subscription' });
+        }
+
+        const lastRefreshRaw = sub.metadata?.[IMPREZJA_LAST_REFRESH_AT_META];
+        const lastRefreshSec = lastRefreshRaw ? parseInt(String(lastRefreshRaw), 10) : 0;
+        const now = Date.now();
+        const clientForce = force === true;
+        if (!clientForce && lastRefreshSec > 0 && now - lastRefreshSec * 1000 < LICENSE_REFRESH_MIN_INTERVAL_MS) {
+            console.log('🔄 License refresh — rate limit:', machineId, 'sub:', sub.id);
+            return res.json({ ok: false, reason: 'rate_limited', refreshed: false });
+        }
+
+        const lookupKey = await resolveSubscriptionLookupKey(sub);
+        const licenseType = LOOKUP_TO_TYPE[lookupKey];
+        if (!licenseType || String(lookupKey).includes('onetime')) {
+            console.log('🔄 License refresh — brak typu dla lookup_key:', lookupKey || '(pusty)');
+            return res.json({ ok: false, reason: 'no_subscription' });
+        }
+
+        const periodEndMs = (sub.current_period_end || 0) * 1000;
+        const durationMs = SUBSCRIPTION_LICENSE_TYPES[licenseType] || 0;
+        const expiresAt = durationMs
+            ? Math.max(periodEndMs + LICENSE_GRACE_MS, now + durationMs)
+            : null;
+
+        const licenseKey = generateLicenseKey(machineId, licenseType, {
+            subscription: true,
+            expiresAt: expiresAt || undefined,
+        });
+
+        await stripe.subscriptions.update(sub.id, {
+            metadata: {
+                ...(sub.metadata || {}),
+                [IMPREZJA_LAST_REFRESH_AT_META]: String(Math.floor(now / 1000)),
+            },
+        });
+
+        console.log('🔄 License refresh OK:', machineId, 'typ:', licenseType, 'sub:', sub.id, 'status:', sub.status);
+        res.json({
+            ok: true,
+            license_key: licenseKey,
+            type: licenseType,
+            expires: expiresAt,
+            subscription_status: sub.status,
+            current_period_end: sub.current_period_end,
+            refreshed: true,
+        });
+    } catch (err) {
+        console.error('License refresh error:', err);
+        res.status(500).json({ ok: false, reason: 'error', message: err.message });
     }
 });
 

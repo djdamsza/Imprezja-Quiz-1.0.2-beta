@@ -200,6 +200,9 @@ const LICENSE_TYPES = {
     '1Y': 365 * 24 * 60 * 60 * 1000
 };
 
+/** Po wygaśnięciu klucza czasowego — margines na imprezę bez internetu (wklejenie odnowienia). */
+const LICENSE_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
+
 const LICENSE_TYPE_LABELS = {
     LT: 'dożywotnia',
     '1M': '1 miesiąc',
@@ -388,9 +391,12 @@ function saveLicenseKey(licenseKey) {
         invalidateLicenseCache();
         const activated = Date.now();
         let expires = null;
-        if (verification.type && LICENSE_TYPES[verification.type]) {
-            const durationMs = LICENSE_TYPES[verification.type];
-            if (durationMs) expires = activated + durationMs;
+        const durationMs = verification.type && LICENSE_TYPES[verification.type];
+        if (durationMs) {
+            expires = activated + durationMs;
+        }
+        if (verification.expires && verification.expires > activated) {
+            expires = Math.max(expires || 0, verification.expires);
         }
 
         const licenseData = {
@@ -459,6 +465,21 @@ function writeLicenseCacheToDisk(status, licenseKey) {
     } catch (_) {}
 }
 
+function buildGraceStatus(base, expires, now) {
+    if (!expires || now <= expires) return null;
+    const graceUntil = expires + LICENSE_GRACE_MS;
+    if (now > graceUntil) return null;
+    return {
+        valid: true,
+        type: base.type,
+        typeLabel: base.typeLabel,
+        expires,
+        activated: base.activated,
+        gracePeriod: true,
+        graceUntil,
+    };
+}
+
 function checkLicense() {
     const now = Date.now();
 
@@ -467,6 +488,9 @@ function checkLicense() {
         const expires = licenseCache.expires;
         if (!expires) return licenseCache;
         if (now < expires) return licenseCache;
+        if (licenseCache.gracePeriod && licenseCache.graceUntil && now < licenseCache.graceUntil) {
+            return licenseCache;
+        }
         licenseCache = null;
     }
 
@@ -482,6 +506,20 @@ function checkLicense() {
             if (verification.valid) {
                 const expires = data.expires || verification.expires;
                 if (expires && expires < now) {
+                    const grace = buildGraceStatus(
+                        {
+                            type: verification.type || data.type || 'full',
+                            typeLabel: verification.typeLabel || data.typeLabel || 'pełna',
+                            activated: data.activated,
+                        },
+                        expires,
+                        now
+                    );
+                    if (grace) {
+                        licenseCache = grace;
+                        writeLicenseCacheToDisk(grace, licenseKeyFromFile);
+                        return grace;
+                    }
                     invalidateLicenseCache();
                     return {
                         valid: false,
@@ -512,6 +550,9 @@ function checkLicense() {
         if (licenseCache && licenseCache.valid) {
             const expires = licenseCache.expires;
             if (!expires || now < expires) return licenseCache;
+            if (licenseCache.gracePeriod && licenseCache.graceUntil && now < licenseCache.graceUntil) {
+                return licenseCache;
+            }
         }
         const diskCache = readLicenseCacheFromDisk(licenseKeyFromFile);
         if (diskCache && diskCache.valid) {
@@ -519,6 +560,11 @@ function checkLicense() {
             if (!expires || now < expires) {
                 licenseCache = diskCache;
                 return diskCache;
+            }
+            const grace = buildGraceStatus(diskCache, expires, now);
+            if (grace) {
+                licenseCache = grace;
+                return grace;
             }
         }
         if (licenseFileExists) invalidateLicenseCache();
@@ -543,5 +589,6 @@ module.exports = {
     getMachineIdAlternatives,
     TRIAL_DAYS,
     LICENSE_TYPES,
-    LICENSE_TYPE_LABELS
+    LICENSE_TYPE_LABELS,
+    LICENSE_GRACE_MS
 };

@@ -478,6 +478,7 @@
                     <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; align-items: center;">
                     <button type="button" id="license-paste-btn" style="padding: 10px 16px; background: rgba(255,255,255,0.12); color: #fff; font-weight: 600; border: 2px solid rgba(255,255,255,0.35); border-radius: 8px; cursor: pointer;">📋 Wklej ze schowka</button>
                     <button type="button" id="license-activate-btn" style="padding: 12px 20px; background: linear-gradient(#2ecc71, #27ae60); color: #fff; font-weight: 700; border: none; border-radius: 8px; cursor: pointer;">Aktywuj licencję</button>
+                    <button type="button" id="license-refresh-btn" style="padding: 10px 16px; background: rgba(14,165,233,0.2); color: #7dd3fc; font-weight: 600; border: 2px solid rgba(14,165,233,0.45); border-radius: 8px; cursor: pointer;">🔄 Sprawdź odnowienie online</button>
                     </div>
                     <p style="margin-top: 8px; font-size: 0.78rem; color: rgba(255,255,255,0.5);">Skrót: <strong>Cmd+V</strong> (Mac) / <strong>Ctrl+V</strong> (Windows) — w aplikacji Electron jest też menu <strong>Edycja → Wklej</strong>.</p>
                     <div id="license-activate-error" style="margin-top: 10px; color: #e74c3c; font-size: 0.9rem; display: none;"></div>
@@ -485,7 +486,7 @@
                 <div class="license-actions">
                     <p><strong>Przedłużenie:</strong> Licencję można przedłużyć w sklepie wydawcy. Wybierz okres (1 miesiąc, 3, 6, 12 miesięcy lub dożywotnią).</p>
                     <a href="https://nowajakoscrozrywki.pl/produkt/imprezja-quiz/" target="_blank" rel="noopener noreferrer" class="license-btn-buy">🛒 Kup / przedłuż licencję</a>
-                    <p class="license-cancel"><strong>Przedłużenie i anulowanie:</strong> Licencje na okres (miesiąc, 3, 6, 12 miesięcy) przedłużają się automatycznie. Jeśli nie chcesz kontynuować, anuluj subskrypcję w sklepie lub w portalu Stripe (link w mailu). Szczegóły zwrotów i reklamacji w regulaminie sklepu.</p>
+                    <p class="license-cancel"><strong>Subskrypcja:</strong> Przy aktywnej subskrypcji program z internetem <strong>odświeża licencję automatycznie</strong> — nie musisz wklejać klucza z maila po każdym odnowieniu. Okres łaski (7 dni offline) nadal działa bez sieci. Anulowanie: sklep lub portal Stripe (link w mailu).</p>
                 </div>
                 <div class="license-contact">
                     <strong>Kontakt</strong><br>
@@ -651,6 +652,9 @@
                 : 'Licencja <strong>' + typeLabel + '</strong> jest aktywna na tym komputerze.';
             if (!isTrial && status && status.expires) {
                 detail += '<br>Ważna do: <strong>' + new Date(status.expires).toLocaleDateString('pl-PL') + '</strong>.';
+                if (status.gracePeriod && status.graceUntil) {
+                    detail += '<br><span style="color:#f59e0b;">Okres łaski do ' + new Date(status.graceUntil).toLocaleDateString('pl-PL') + ' — program spróbuje odnowić licencję online; możesz też wkleić klucz z maila.</span>';
+                }
             } else if (!isTrial && status && !status.expires) {
                 detail += '<br>Licencja <strong>bezterminowa</strong>.';
             }
@@ -695,12 +699,15 @@
                 const expiryWrap = document.getElementById('license-expiry-wrap');
                 const expiryEl = document.getElementById('license-expiry');
                 if (s.valid) {
-                    statusEl.textContent = s.type === 'trial' ? 'Okres testowy (' + (s.daysLeft || 0) + ' dni pozostało)' : 'Licencja aktywna.';
+                    statusEl.textContent = s.type === 'trial'
+                        ? 'Okres testowy (' + (s.daysLeft || 0) + ' dni pozostało)'
+                        : (s.gracePeriod ? 'Licencja — okres łaski (auto-odnowienie online lub klucz z maila).' : 'Licencja aktywna.');
                     detailsEl.style.display = 'block';
                     typeEl.textContent = s.typeLabel || (s.type === 'trial' ? 'Testowa' : s.type || '—');
                     if (s.expires) {
                         expiryWrap.style.display = 'block';
-                        expiryEl.textContent = new Date(s.expires).toLocaleDateString('pl-PL');
+                        expiryEl.textContent = new Date(s.expires).toLocaleDateString('pl-PL')
+                            + (s.gracePeriod && s.graceUntil ? ' (łaska do ' + new Date(s.graceUntil).toLocaleDateString('pl-PL') + ')' : '');
                     } else {
                         expiryWrap.style.display = s.type === 'trial' ? 'none' : 'block';
                         expiryEl.textContent = s.type === 'trial' ? '' : 'Bezterminowa';
@@ -731,6 +738,50 @@
                     errorEl.textContent = 'Brak dostępu do schowka — wklej skrótem klawiszowym lub z menu Edycja.';
                     errorEl.style.display = 'block';
                 }
+            });
+        })();
+        (function() {
+            var refreshBtn = document.getElementById('license-refresh-btn');
+            if (!refreshBtn) return;
+            refreshBtn.addEventListener('click', function() {
+                var errorEl = document.getElementById('license-activate-error');
+                var statusEl = document.getElementById('license-status-text');
+                errorEl.style.display = 'none';
+                refreshBtn.disabled = true;
+                refreshBtn.textContent = 'Sprawdzam…';
+                fetch('/api/license/refresh', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ force: true })
+                }).then(function(r) { return r.json().then(function(result) { return { ok: r.ok, result: result }; }); })
+                .then(function(_ref) {
+                    var result = _ref.result;
+                    refreshBtn.disabled = false;
+                    refreshBtn.textContent = '🔄 Sprawdź odnowienie online';
+                    if (result.ok) {
+                        licenseStatus = result.status || null;
+                        updateLicenseLocks();
+                        showLicenseActivatedPopup(result.status);
+                        if (statusEl) statusEl.textContent = 'Licencja odświeżona online.';
+                    } else if (result.reason === 'no_subscription') {
+                        errorEl.textContent = 'Brak aktywnej subskrypcji dla tego komputera w systemie płatności.';
+                        errorEl.style.display = 'block';
+                    } else if (result.reason === 'network_error' || result.reason === 'timeout') {
+                        errorEl.textContent = 'Brak połączenia z serwerem licencji. Sprawdź internet lub wklej klucz z maila.';
+                        errorEl.style.display = 'block';
+                    } else if (result.reason === 'rate_limited') {
+                        errorEl.textContent = 'Odświeżenie było niedawno wykonane — spróbuj ponownie za kilka godzin.';
+                        errorEl.style.display = 'block';
+                    } else {
+                        errorEl.textContent = result.message || 'Nie udało się odświeżyć licencji online.';
+                        errorEl.style.display = 'block';
+                    }
+                }).catch(function() {
+                    refreshBtn.disabled = false;
+                    refreshBtn.textContent = '🔄 Sprawdź odnowienie online';
+                    errorEl.textContent = 'Błąd połączenia z serwerem.';
+                    errorEl.style.display = 'block';
+                });
             });
         })();
         document.getElementById('license-activate-btn').addEventListener('click', function() {

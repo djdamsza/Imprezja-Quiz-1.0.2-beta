@@ -21,6 +21,7 @@ const os = require('os');
 const https = require('https'); // Potrzebne do importu z URL
 const crypto = require('crypto');
 const license = require('./license.js');
+const licenseRefresh = require('./license-refresh.js');
 const { spawn } = require('child_process');
 const trash = require('trash');
 
@@ -213,6 +214,23 @@ if (licenseStatus.valid) {
     }
 }
 console.log('   ═══════════════════════════════════════════════════\n');
+
+if (!process.env.IMPREZJA_SIMULATE_LICENSE_EXPIRED && process.env.IMPREZJA_SIMULATE_TRIAL !== '1') {
+    setImmediate(() => {
+        const status = getLicenseStatus();
+        if (!licenseRefresh.shouldAttemptRefresh(status)) return;
+        licenseRefresh.tryRefreshLicense(process.env.IMPREZJA_LICENSE_API_URL, { status })
+            .then((result) => {
+                if (result.ok) {
+                    licenseStatus = getLicenseStatus();
+                    console.log('✅ Licencja subskrypcji odświeżona automatycznie (online)');
+                } else if (result.reason && !result.skipped) {
+                    console.log('ℹ️  Auto-odświeżenie licencji:', result.reason);
+                }
+            })
+            .catch((err) => console.warn('⚠️ Auto-odświeżenie licencji:', err.message));
+    });
+}
 // W aplikacji spakowanej (asar) __dirname jest tylko do odczytu – quizy i uploady w katalogu danych
 // Gdy IMPREZJA_DATA_DIR nie jest ustawiony (npm start), używamy tego samego katalogu co Electron,
 // żeby NJR Sampler i Śpiewaj Dalej nie traciły list przy przełączaniu trybów.
@@ -2288,6 +2306,22 @@ app.get('/api/license/machine-id', (req, res) => {
         machineId: machineIds[0],
         machineIds,
     });
+});
+
+app.post('/api/license/refresh', async (req, res) => {
+    try {
+        const result = await licenseRefresh.tryRefreshLicense(
+            process.env.IMPREZJA_LICENSE_API_URL,
+            { force: !!(req.body && req.body.force) }
+        );
+        if (result.ok) {
+            licenseStatus = getLicenseStatus();
+        }
+        res.json({ ...result, status: getLicenseStatus() });
+    } catch (err) {
+        console.warn('⚠️ /api/license/refresh:', err.message);
+        res.status(500).json({ ok: false, reason: 'error', message: err.message, status: getLicenseStatus() });
+    }
 });
 
 app.get('/api/admin-pwa-qr', async (req, res) => {

@@ -238,6 +238,35 @@ function main() {
         const sFixed = license7.checkLicense();
         assert(sFixed.valid === true && sFixed.type === '1M', 'Po naprawie pliku licencji – pełny dostęp');
 
+        // 11b. Okres łaski po wygaśnięciu (7 dni) — impreza bez internetu
+        const expiredAt = Date.now() - 2 * 86400000;
+        writeJson(paths.license, {
+            key: key1m,
+            machineId: alts[0],
+            activated: expiredAt - 30 * 86400000,
+            type: '1M',
+            typeLabel: '1 miesiąc',
+            expires: expiredAt,
+        });
+        delete require.cache[require.resolve(path.join(ROOT, 'license.js'))];
+        const licenseGrace = require(path.join(ROOT, 'license.js'));
+        const sGrace = licenseGrace.checkLicense();
+        assert(sGrace.valid === true && sGrace.gracePeriod === true, 'Wygasła licencja w okresie łaski — dostęp');
+        assert(typeof sGrace.graceUntil === 'number', 'graceUntil ustawione');
+
+        writeJson(paths.license, {
+            key: key1m,
+            machineId: alts[0],
+            activated: Date.now() - 40 * 86400000,
+            type: '1M',
+            typeLabel: '1 miesiąc',
+            expires: Date.now() - 10 * 86400000,
+        });
+        delete require.cache[require.resolve(path.join(ROOT, 'license.js'))];
+        const licenseNoGrace = require(path.join(ROOT, 'license.js'));
+        const sNoGrace = licenseNoGrace.checkLicense();
+        assert(sNoGrace.valid === false && sNoGrace.type === 'expired', 'Po okresie łaski — blokada');
+
         // 12. Symulacja upgrade: klient kupił klucz dla „starego” ID z UI (hostname)
         if (alts.length > 1) {
             const hostnameId = alts[1];
@@ -281,6 +310,50 @@ function main() {
         );
     });
     delete process.env.IMPREZJA_LICENSE_PRIVATE_KEY;
+
+    // 15. license-refresh — shouldAttemptRefresh
+    const licenseRefresh = require(path.join(ROOT, 'license-refresh.js'));
+
+    assert(licenseRefresh.shouldAttemptRefresh(null) === true, 'shouldAttemptRefresh: brak statusu');
+    assert(licenseRefresh.shouldAttemptRefresh({ valid: false }) === true, 'shouldAttemptRefresh: nieważna');
+    assert(licenseRefresh.shouldAttemptRefresh({ valid: true, gracePeriod: true, type: '1M' }) === true, 'shouldAttemptRefresh: łaska');
+    assert(licenseRefresh.shouldAttemptRefresh({ valid: true, type: 'trial', daysLeft: 5 }) === false, 'shouldAttemptRefresh: trial pomijany');
+    assert(
+        licenseRefresh.shouldAttemptRefresh({ valid: true, type: '1M', expires: Date.now() + 5 * 86400000 }) === true,
+        'shouldAttemptRefresh: wygasa za <14 dni'
+    );
+    assert(
+        licenseRefresh.shouldAttemptRefresh({ valid: true, type: 'LT', expires: null }) === false,
+        'shouldAttemptRefresh: LT bez expiry — nie wymaga'
+    );
+    const halfPast1m = {
+        valid: true,
+        type: '1M',
+        activated: Date.now() - 20 * 86400000,
+        expires: Date.now() + 10 * 86400000,
+    };
+    assert(licenseRefresh.shouldAttemptRefresh(halfPast1m) === true, 'shouldAttemptRefresh: połowę okresu 1M');
+
+    // 16. license-refresh — stan pliku (read/write w izolowanym HOME)
+    withIsolatedHome((_license, home) => {
+        const modPath = path.join(ROOT, 'license-refresh.js');
+        delete require.cache[require.resolve(modPath)];
+        const prevHome = process.env.HOME;
+        process.env.HOME = home;
+        if (process.platform === 'win32') process.env.USERPROFILE = home;
+        const lr = require(modPath);
+        const statePath = path.join(home, '.imprezja-license-refresh.json');
+
+        const s1 = lr.writeRefreshState({ lastRefreshAt: 1000, lastMachineId: 'abcd' });
+        assert(!!s1 && s1.lastRefreshAt === 1000, 'writeRefreshState zapisuje lastRefreshAt');
+        const s2 = lr.readRefreshState();
+        assert(s2.lastMachineId === 'abcd', 'readRefreshState odczytuje dane');
+        assert(fs.existsSync(statePath), 'plik stanu odświeżania istnieje');
+
+        process.env.HOME = prevHome;
+        if (process.platform === 'win32') process.env.USERPROFILE = prevHome;
+        delete require.cache[require.resolve(modPath)];
+    });
 
     // 14. Generator CLI (jeśli działa)
     try {

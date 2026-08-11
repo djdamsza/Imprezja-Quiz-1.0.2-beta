@@ -16,6 +16,15 @@ const LICENSE_TYPES = {
     '1Y': 365 * 24 * 60 * 60 * 1000
 };
 
+/** Dłuższa ważność kluczy z subskrypcji — nakładka na cykl rozliczeniowy + czas na wklejenie. */
+const SUBSCRIPTION_LICENSE_TYPES = {
+    LT: null,
+    '1M': 45 * 24 * 60 * 60 * 1000,
+    '3M': 90 * 24 * 60 * 60 * 1000,
+    '6M': 180 * 24 * 60 * 60 * 1000,
+    '1Y': 365 * 24 * 60 * 60 * 1000
+};
+
 function getPrivateKey() {
     const fromEnv = process.env.IMPREZJA_LICENSE_PRIVATE_KEY;
     if (fromEnv) return fromEnv.replace(/\\n/g, '\n');
@@ -29,9 +38,10 @@ function base64urlEncode(buf) {
 /**
  * @param {string} machineId - Machine ID z programu (16 znaków hex)
  * @param {string} type - LT, 1M, 3M, 6M, 1Y
+ * @param {{ subscription?: boolean }} [opts] - subscription: true → dłuższa ważność (np. 45 dni dla 1M)
  * @returns {string} Klucz licencyjny IMPREZJA-RSA-...
  */
-function generateLicenseKey(machineId, type = 'LT') {
+function generateLicenseKey(machineId, type = 'LT', opts = {}) {
     const id = String(machineId || '').trim();
     if (!id || id.length < 8) {
         throw new Error('Nieprawidłowy Machine ID');
@@ -41,8 +51,11 @@ function generateLicenseKey(machineId, type = 'LT') {
         throw new Error(`Nieznany typ: ${type}. Dozwolone: LT, 1M, 3M, 6M, 1Y`);
     }
     let expires = null;
-    const durationMs = LICENSE_TYPES[typeUpper];
-    if (durationMs) {
+    const durations = opts.subscription ? SUBSCRIPTION_LICENSE_TYPES : LICENSE_TYPES;
+    const durationMs = durations[typeUpper];
+    if (opts.expiresAt != null && Number.isFinite(opts.expiresAt)) {
+        expires = opts.expiresAt;
+    } else if (durationMs) {
         expires = Date.now() + durationMs;
     }
     const payload = { m: id, t: typeUpper, e: expires };
@@ -66,4 +79,4 @@ const LOOKUP_TO_TYPE = {
     'imprezja-12m-onetime': '1Y'
 };
 
-module.exports = { generateLicenseKey, LOOKUP_TO_TYPE, LICENSE_TYPES };
+module.exports = { generateLicenseKey, LOOKUP_TO_TYPE, LICENSE_TYPES, SUBSCRIPTION_LICENSE_TYPES };
