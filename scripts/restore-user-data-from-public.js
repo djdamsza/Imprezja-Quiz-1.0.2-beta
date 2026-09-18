@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
  * Kopiuje zestawy z public/ (to, co jest w repozytorium / w buildzie) do katalogu danych użytkownika.
+ * Obejmuje m.in. party-quizzes/, familiada/, quizzes/.
  * Domyślnie: tylko brakujące pliki (nie nadpisuje istniejących).
  *   npm run restore:user-data
  * Nadpisanie plików wersją z repozytorium:
@@ -80,7 +81,7 @@ console.log('📂 Źródło (repo):', publicRoot);
 console.log('📂 Cel (dane użytkownika):', dataDir);
 console.log(overwrite ? '⚠️  Tryb: nadpisywanie istniejących plików (--overwrite)' : '📋 Tryb: tylko brakujące pliki');
 
-for (const rel of ['quizzes', 'familiada', 'njr-sampler-configs', 'spiewaj-dalej-configs', 'bitwa-wokalna-configs', 'prezentacje', 'imprezator-configs']) {
+for (const rel of ['quizzes', 'party-quizzes', 'familiada', 'njr-sampler-configs', 'spiewaj-dalej-configs', 'bitwa-wokalna-configs', 'prezentacje', 'imprezator-configs']) {
     copyJsonDir(rel);
 }
 

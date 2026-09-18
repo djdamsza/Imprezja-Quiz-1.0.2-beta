@@ -1,7 +1,7 @@
 {
   "name": "votebattle",
   "description": "Imprezja Quiz – quiz i głosowanie w sieci lokalnej (działa offline)",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "author": "Damian Nowaczyk",
   "main": "electron-main.js",
   "scripts": {
@@ -111,6 +111,7 @@
       "public/party-quiz/PARTY_QUIZ_LLM_INSTRUKCJA.md",
       "public/QUIZ_LLM_INSTRUKCJA.md",
       "public/familiada/FAMILIADA_LLM_INSTRUKCJA.md",
+      "public/MILIONERZY_GRA_O_MILION_LLM_INSTRUKCJA.md",
       "!css",
       "!js",
       "!*.bat",

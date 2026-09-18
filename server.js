@@ -235,6 +235,16 @@ if (!process.env.IMPREZJA_SIMULATE_LICENSE_EXPIRED && process.env.IMPREZJA_SIMUL
 // Gdy IMPREZJA_DATA_DIR nie jest ustawiony (npm start), używamy tego samego katalogu co Electron,
 // żeby NJR Sampler i Śpiewaj Dalej nie traciły list przy przełączaniu trybów.
 const dataDir = process.env.IMPREZJA_DATA_DIR || getDefaultDataDir();
+const { createDmxTvEngine, buildTvState } = require('./lib/dmx-tv/engine');
+const { loadDmxTvConfig, saveDmxTvConfig, setVizStartAddress, VIZ_CHANNEL_COUNT } = require('./lib/dmx-tv/config');
+const { slidersToDmxBuffer } = require('./lib/dmx-tv/simulator-channels');
+const dmxShowBankLib = require('./lib/dmx-show-bank');
+const showLogoLib = require('./lib/dmx-tv/show-logo');
+const overlayStyleLib = require('./lib/dmx-tv/overlay-style');
+let dmxTvEngine = null;
+let dmxShowBank = dmxShowBankLib.loadBank(dataDir);
+let dmxShowStyle = overlayStyleLib.sanitizeStyle(dmxShowBank.liveStyle);
+let dmxBankLastRotateAt = 0;
 const VOLUMES_FILE = path.join(dataDir, 'imprezja-volumes.json');
 const quizzesDir = path.join(dataDir, 'quizzes');
 const partyQuizzesDir = path.join(dataDir, 'party-quizzes');
@@ -392,14 +402,113 @@ const ADMIN_ROOM = 'admin_room';
 // Screen controller – stan ekranu głównego (sterowany z Admin PWA)
 let screenControllerMode = 'welcome';
 let welcomeScreenData = { imageUrl: '', text: '', logoVisible: true, textPosition: 'center', fontSize: 'medium', textColor: '#ffffff' };
+let dmxShowText = { text: '', visible: false, position: 'center', fontIndex: 0 };
+
+function emitDmxShowBank() {
+    io.emit('dmx_show_bank', dmxShowBank);
+}
+
+function persistDmxShowBank() {
+    dmxShowBank.liveStyle = overlayStyleLib.sanitizeStyle(dmxShowStyle);
+    dmxShowBankLib.saveBank(dataDir, dmxShowBank);
+    emitDmxShowBank();
+}
+
+function emitDmxShowStyle() {
+    io.emit('dmx_show_style', dmxShowStyle);
+}
+
+function mergeDmxOverlay(state) {
+    return overlayStyleLib.mergeOverlayIntoState(state, dmxShowStyle, dmxShowText, buildDmxLogoPayload());
+}
+
+function emitBankSceneTvState(scene) {
+    if (!scene) return;
+    dmxShowStyle = overlayStyleLib.styleFromScene(scene);
+    persistDmxShowBank();
+    emitDmxShowStyle();
+    const overlay = buildDmxLogoPayload();
+    const state = dmxShowBankLib.sceneToTvState(scene, overlay.url);
+    if (dmxTvEngine && typeof dmxTvEngine.rebroadcast === 'function') {
+        dmxTvEngine.patchLastState(Object.assign({}, state, { simulated: true, fromBank: true }));
+        dmxTvEngine.rebroadcast();
+        return;
+    }
+    io.emit('dmx_tv_state', mergeDmxOverlay(state));
+}
+
+function tickDmxBankPlayback() {
+    if (!dmxTvEngine) return;
+    const status = dmxTvEngine.getStatus();
+    const dmxLive = status.lastPacketAt && (Date.now() - status.lastPacketAt < 2000);
+    if (dmxLive) return;
+    if (!dmxShowBank.playback.enabled || !dmxShowBank.scenes.length) return;
+    const intervalMs = Math.max(5000, (parseInt(dmxShowBank.playback.intervalSec, 10) || 60) * 1000);
+    const now = Date.now();
+    const idx = ((dmxShowBank.playback.index | 0) % dmxShowBank.scenes.length + dmxShowBank.scenes.length) % dmxShowBank.scenes.length;
+    if (!dmxBankLastRotateAt) {
+        dmxBankLastRotateAt = now;
+        emitBankSceneTvState(dmxShowBank.scenes[idx]);
+        return;
+    }
+    if (now - dmxBankLastRotateAt >= intervalMs) {
+        dmxBankLastRotateAt = now;
+        dmxShowBank.playback.index = (idx + 1) % dmxShowBank.scenes.length;
+        persistDmxShowBank();
+        emitBankSceneTvState(dmxShowBank.scenes[dmxShowBank.playback.index]);
+    }
+}
 let musicModeGraphicUrl = '';
 
 // Prezentacja – stan odtwarzania
-let prezentacjaConfig = null;      // { name, slides, transition, loop }
+let prezentacjaConfig = null;      // { name, slides, transition, loop, logo? } — logo per prezentacja w config.logo
 let prezentacjaIndex = 0;
 let prezentacjaPlaying = false;
 let prezentacjaLoop = true;
 const PREZENTACJE_LAST_FILE = path.join(path.dirname(quizzesDir), 'prezentacje-last.json');
+// Nakładki live na wizualizacji (wspólne dla wszystkich klientów, nie per-socket)
+let liveOverlayType = 'none';
+let liveOverlayCountdownMinutes = 3;
+let liveOverlayText = '';
+let liveOverlayTextPosition = 'center';
+let liveOverlayBackdropDim = 40; // 0–100, przyciemnienie tła pod logo
+
+function getDmxShowLogoUrl() {
+    return showLogoLib.getDmxShowLogoUrl({
+        bankGraphic: dmxShowBank.logoGraphic,
+        customLogoUrl: dmxShowBank.customLogoUrl,
+        activePresentationLogo: prezentacjaConfig && prezentacjaConfig.logo,
+        publicRoot: path.join(__dirname, 'public'),
+        uploadsDir
+    });
+}
+
+function buildDmxLogoPayload() {
+    const id = dmxShowBank.logoGraphic || 'default';
+    return {
+        id,
+        url: id === 'number' ? '' : getDmxShowLogoUrl(),
+        number: dmxShowBank.logoNumber || '',
+        numberFontIndex: dmxShowBank.logoNumberFontIndex | 0,
+        sizePct: Math.max(5, Math.min(200, (dmxShowStyle.logo && dmxShowStyle.logo.sizePct) || 50))
+    };
+}
+
+function broadcastDmxLogoUrl() {
+    const payload = buildDmxLogoPayload();
+    io.emit('dmx_show_logo_url', payload);
+    if (dmxTvEngine) dmxTvEngine.rebroadcast();
+}
+
+function getLiveOverlayState() {
+    return {
+        type: liveOverlayType,
+        countdownMinutes: liveOverlayCountdownMinutes,
+        text: liveOverlayText,
+        textPosition: liveOverlayTextPosition,
+        backdropDim: liveOverlayBackdropDim
+    };
+}
 
 // Sufit liniowy sygnału (−3 dB headroom — suwak 100% nie przekracza ~0,708 liniowo).
 const DIGITAL_OUTPUT_LINEAR_CAP = Math.pow(10, -3 / 20);
@@ -487,7 +596,7 @@ function broadcastEffectiveVolumes() {
     io.emit('volumes_all', { games: gamesVolume, imprezator: imprezatorVolume });
 }
 
-// Tryb gry: null | 'quiz' | 'familiada' | 'party'
+// Tryb gry: null | 'quiz' | 'familiada' | 'milionerzy' | 'party'
 // Party: brak telefonów; Screen.html dostaje update_state jak admin, Familiada ma osobny pipeline.
 let gameMode = null;
 
@@ -796,10 +905,223 @@ let familiadaButtonUsedThisRound = false;
 let familiadaQuestionActive = false;
 let familiadaCurrentQuestionIndex = null;
 let familiadaCurrentGoldenIndex = null;
+
+// === MILIONERZY (offline solo MVP) ===
+const MILIONERZY_LADDER_PL12 = [1000, 2000, 5000, 10000, 15000, 25000, 50000, 75000, 125000, 250000, 500000, 1000000];
+const MILIONERZY_CHECKPOINTS = [2, 7];
+const MILIONERZY_LIFELINE_TYPES = ['fiftyFifty', 'audience', 'phone', 'swap'];
+
+function createMilionerzyDefaultState() {
+    return {
+        phase: 'idle',
+        title: '',
+        currencyLabel: 'zł',
+        ladder: 'pl-12',
+        questions: [],
+        currentLevel: 1,
+        prize: 0,
+        securedPrize: 0,
+        selectedAnswer: null,
+        correctIndex: null,
+        lastResult: null,
+        playerName: '',
+        lifelinesUsed: [],
+        hiddenAnswers: [],
+        audienceVotes: null,
+        phoneHint: null,
+        bgVizEnabled: false,
+        bgVizPresetIndex: 0,
+        bgVizOpacity: 25
+    };
+}
+
+function milionerzyShuffleIndices(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+}
+
+function milionerzyGenerateAudienceVotes(correctIndex) {
+    const labels = ['A', 'B', 'C', 'D'];
+    const percents = [0, 0, 0, 0];
+    const correctPct = 40 + Math.floor(Math.random() * 26);
+    const wrongIndices = [0, 1, 2, 3].filter(i => i !== correctIndex);
+    let remaining = 100 - correctPct;
+    wrongIndices.forEach((wi, idx) => {
+        if (idx === wrongIndices.length - 1) {
+            percents[wi] = remaining;
+        } else {
+            const p = Math.max(1, Math.floor(remaining / (wrongIndices.length - idx)));
+            percents[wi] = p;
+            remaining -= p;
+        }
+    });
+    percents[correctIndex] = correctPct;
+    return labels.map((label, i) => ({ label, index: i, percent: percents[i] }));
+}
+
+function milionerzyGeneratePhoneHint(q) {
+    const labels = ['A', 'B', 'C', 'D'];
+    const confident = Math.random() < 0.72;
+    const wrong = [0, 1, 2, 3].filter(i => i !== q.correct);
+    const suggested = confident ? q.correct : wrong[Math.floor(Math.random() * wrong.length)];
+    const phrases = confident
+        ? ['Jestem prawie pewien, że to ', 'Myślę, że odpowiedź to ', 'Na 90% to ']
+        : ['Nie jestem pewien, ale spróbuj ', 'Może to ', 'Słyszałem, że to '];
+    const phrase = phrases[Math.floor(Math.random() * phrases.length)];
+    return { text: phrase + labels[suggested] + '.', suggestedIndex: suggested };
+}
+
+function milionerzyClearRoundLifelineFx() {
+    milionerzyState.audienceVotes = null;
+    milionerzyState.phoneHint = null;
+}
+let milionerzyState = createMilionerzyDefaultState();
+
+function milionerzyPrizeForLevel(level) {
+    const idx = Math.max(0, Math.min(12, level)) - 1;
+    return MILIONERZY_LADDER_PL12[idx] || 0;
+}
+
+function milionerzyFallPrize(wrongLevel) {
+    if (wrongLevel <= 1) return 0;
+    if (wrongLevel <= 6) return milionerzyPrizeForLevel(2);
+    return milionerzyPrizeForLevel(7);
+}
+
+function milionerzyWalkAwayPrize() {
+    const lvl = milionerzyState.currentLevel;
+    if (lvl <= 1) return 0;
+    return milionerzyPrizeForLevel(lvl - 1);
+}
+
+function normalizeMilionerzyQuestion(q, index) {
+    if (!q || typeof q !== 'object') return null;
+    const answers = (Array.isArray(q.answers) ? q.answers : [])
+        .map(a => String(a || '').trim())
+        .filter(Boolean);
+    if (answers.length !== 4) return null;
+    const correct = Number(q.correct);
+    if (!Number.isInteger(correct) || correct < 0 || correct > 3) return null;
+    const question = String(q.question || '').trim();
+    if (!question) return null;
+    return {
+        id: String(q.id || `m_${String(index + 1).padStart(3, '0')}`),
+        type: 'MILIONERZY',
+        level: index + 1,
+        question,
+        answers,
+        correct,
+        time: Number.isFinite(Number(q.time)) ? Number(q.time) : 0,
+        explanation: String(q.explanation || '').trim(),
+        media: q.media || q.image || ''
+    };
+}
+
+function normalizeMilionerzySet(raw) {
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (!parsed || typeof parsed !== 'object') throw new Error('Nieprawidłowy format zestawu');
+    const questionsRaw = Array.isArray(parsed.questions) ? parsed.questions : [];
+    const questions = questionsRaw
+        .map((q, i) => normalizeMilionerzyQuestion(q, i))
+        .filter(Boolean);
+    if (questions.length !== 12) {
+        throw new Error(`Zestaw musi mieć dokładnie 12 pytań (jest ${questions.length})`);
+    }
+    for (let i = 0; i < 12; i++) {
+        if (questions[i].level !== i + 1) {
+            throw new Error(`Pytanie ${i + 1}: pole level musi wynosić ${i + 1}`);
+        }
+    }
+    return {
+        title: String(parsed.title || 'Milionerzy').trim() || 'Milionerzy',
+        ladder: parsed.ladder === 'pl-12' ? 'pl-12' : 'pl-12',
+        currencyLabel: String(parsed.currencyLabel || 'zł').trim() || 'zł',
+        questions
+    };
+}
+
+function getMilionerzyPublicState() {
+    const s = milionerzyState;
+    const levelIdx = Math.max(0, s.currentLevel - 1);
+    const currentQuestion = (s.questions && s.questions[levelIdx]) ? {
+        level: s.questions[levelIdx].level,
+        question: s.questions[levelIdx].question,
+        answers: s.questions[levelIdx].answers.map((text, i) => {
+            if (s.phase === 'reveal' || s.phase === 'victory' || s.phase === 'gameover') {
+                return { text, index: i };
+            }
+            if (s.hiddenAnswers && s.hiddenAnswers.includes(i)) {
+                return { text: '', index: i, hidden: true };
+            }
+            return { text, index: i };
+        }),
+        media: s.questions[levelIdx].media || '',
+        explanation: (s.phase === 'reveal' || s.phase === 'victory' || s.phase === 'gameover')
+            ? (s.questions[levelIdx].explanation || '') : ''
+    } : null;
+    const revealCorrect = (s.phase === 'reveal' || s.phase === 'victory' || s.phase === 'gameover');
+    return {
+        phase: s.phase,
+        title: s.title,
+        currencyLabel: s.currencyLabel,
+        ladder: MILIONERZY_LADDER_PL12,
+        checkpoints: MILIONERZY_CHECKPOINTS,
+        currentLevel: s.currentLevel,
+        prize: s.prize,
+        securedPrize: s.securedPrize,
+        selectedAnswer: s.selectedAnswer,
+        correctIndex: revealCorrect ? s.correctIndex : null,
+        lastResult: s.lastResult,
+        playerName: s.playerName,
+        lifelinesUsed: s.lifelinesUsed || [],
+        lifelinesAvailable: MILIONERZY_LIFELINE_TYPES.filter(t => !(s.lifelinesUsed || []).includes(t)),
+        audienceVotes: s.audienceVotes || null,
+        phoneHint: s.phoneHint || null,
+        bgVizEnabled: !!s.bgVizEnabled,
+        bgVizPresetIndex: (typeof s.bgVizPresetIndex === 'number') ? s.bgVizPresetIndex : 0,
+        bgVizOpacity: (typeof s.bgVizOpacity === 'number') ? s.bgVizOpacity : 25,
+        question: currentQuestion,
+        questionCount: (s.questions || []).length
+    };
+}
+
+function milionerzyDoConfirmReveal() {
+    if (milionerzyState.phase !== 'confirm') return false;
+    if (milionerzyState.selectedAnswer === null) return false;
+    milionerzyState.phase = 'reveal';
+    const q = milionerzyState.questions[milionerzyState.currentLevel - 1];
+    milionerzyState.correctIndex = q ? q.correct : null;
+    const correct = milionerzyState.selectedAnswer === milionerzyState.correctIndex;
+    if (correct) {
+        milionerzyState.lastResult = 'correct';
+        milionerzyState.prize = milionerzyPrizeForLevel(milionerzyState.currentLevel);
+        milionerzyState.securedPrize = milionerzyState.prize;
+        if (milionerzyState.currentLevel >= 12) {
+            milionerzyState.phase = 'victory';
+        }
+    } else {
+        milionerzyState.lastResult = 'wrong';
+        milionerzyState.prize = milionerzyFallPrize(milionerzyState.currentLevel);
+        milionerzyState.securedPrize = milionerzyState.prize;
+        milionerzyState.phase = 'gameover';
+    }
+    broadcastMilionerzyState();
+    return true;
+}
+
+function broadcastMilionerzyState() {
+    io.to('milionerzy').emit('milionerzy_state', getMilionerzyPublicState());
+}
+
 const FAMILIADA_DATA_FILE = 'familiada-data.json';
 const familiadaDataPath = path.join(path.dirname(quizzesDir), FAMILIADA_DATA_FILE);
 const familiadaScreenPrefsPath = path.join(path.dirname(familiadaDataPath), 'familiada-screen-prefs.json');
 const familiadaDir = path.join(path.dirname(quizzesDir), 'familiada');
+const milionerzyDir = path.join(path.dirname(quizzesDir), 'milionerzy');
 const FAMILIADA_GOLDEN_FILE = 'familiada-golden.json';
 const familiadaGoldenPath = path.join(familiadaDir, FAMILIADA_GOLDEN_FILE);
 let familiadaGoldenQuestions = [];
@@ -808,17 +1130,20 @@ const GOLDEN_LIST_DEFAULT = [
     { question: "Co zabieramy ze sobą do szkoły?", answers: [{ text: "Plecak", points: 40 }, { text: "Książki", points: 20 }, { text: "Kanapki", points: 20 }, { text: "Zeszyty", points: 10 }, { text: "Piórnik", points: 6 }, { text: "Ściągi", points: 4 }] },
     { question: "Podaj tytuły kultowych polskich komedii", answers: [{ text: "Sami Swoi", points: 30 }, { text: "Seksmisja", points: 24 }, { text: "Miś", points: 20 }, { text: "Chłopaki nie płaczą", points: 10 }, { text: "Killer", points: 8 }, { text: "Kogel Mogel", points: 6 }] },
     { question: "Europejskie państwo większe od Polski", answers: [{ text: "Niemcy", points: 31 }, { text: "Francja", points: 29 }, { text: "Wielka Brytania", points: 18 }, { text: "Szwecja", points: 12 }, { text: "Hiszpania", points: 10 }] },
-    { question: "Jakie zwierzęta mają więcej niż jedną nogę?", answers: [{ text: "Świnia", points: 25 }, { text: "Krowa", points: 25 }, { text: "Koń", points: 25 }, { text: "Kura", points: 25 }] },
     { question: "Co Polak robi, gdy się zgubi?", answers: [{ text: "Pyta o drogę", points: 40 }, { text: "Dzwoni do mamy", points: 30 }, { text: "Włącza GPS", points: 20 }, { text: "Idzie w przeciwną stronę", points: 10 }] },
-    { question: "Gdzie nie warto szukać skarbu?", answers: [{ text: "W piwnicy teściowej", points: 35 }, { text: "W starym aucie", points: 25 }, { text: "W portfelu", points: 20 }, { text: "W lodówce", points: 20 }] },
-    { question: "Alkohol bez litery \"W\" w nazwie", answers: [{ text: "Bimber", points: 25 }, { text: "Rum", points: 20 }, { text: "Gin", points: 15 }, { text: "Tequila", points: 10 }, { text: "Szampan", points: 10 }, { text: "Koniak", points: 10 }, { text: "Likier", points: 5 }, { text: "Burbon", points: 5 }] }
+    { question: "Alkohol bez litery \"W\" w nazwie", answers: [{ text: "Bimber", points: 25 }, { text: "Rum", points: 20 }, { text: "Gin", points: 15 }, { text: "Tequila", points: 10 }, { text: "Szampan", points: 10 }, { text: "Koniak", points: 10 }, { text: "Likier", points: 5 }, { text: "Burbon", points: 5 }] },
+    { question: "Co może zgubić gość weselny podczas tańca?", answers: [{ text: "Telefon", points: 30 }, { text: "But", points: 25 }, { text: "Marynarkę", points: 20 }, { text: "Partnera lub partnerkę", points: 15 }, { text: "Godność", points: 10 }] },
+    { question: "Co robimy ze zdziwienia?", answers: [{ text: "Otwieramy usta", points: 30 }, { text: "Robimy wielkie oczy", points: 25 }, { text: "Milczymy", points: 20 }, { text: "Krzyczymy", points: 15 }, { text: "Łapiemy się za głowę", points: 10 }] },
+    { question: "Jaki może być ratownik?", answers: [{ text: "Wodny", points: 25 }, { text: "Górski", points: 21 }, { text: "Medyczny", points: 18 }, { text: "Drogowy", points: 15 }, { text: "Chemiczny", points: 12 }, { text: "Górniczy", points: 9 }] },
+    { question: "Co jedzą dzieci w lunaparku?", answers: [{ text: "Lody", points: 25 }, { text: "Wata cukrowa", points: 21 }, { text: "Popcorn", points: 18 }, { text: "Hot-dog", points: 15 }, { text: "Frytki", points: 12 }, { text: "Gofr", points: 9 }] },
+    { question: "Zawód na literę „B”", answers: [{ text: "Barman", points: 25 }, { text: "Budowlaniec", points: 21 }, { text: "Bibliotekarz", points: 18 }, { text: "Bramkarz", points: 15 }, { text: "Bankier", points: 12 }, { text: "Biolog", points: 9 }] }
 ];
 
 function familiadaGoldenQuestionKey(q) {
     return String((q && q.question) || '').trim().toLowerCase();
 }
 
-/** Scalanie złotej listy Familiady: public/ z bogatszymi odpowiedziami nadpisuje ucięty plik w userData. */
+/** Scalanie złotej listy: public/ definiuje zestaw pytań (kolejność + skład). userData tylko bogatsze odpowiedzi. */
 function mergeFamiliadaGoldenPreferRicher(userList, publicList) {
     const user = normalizeFamiliadaQuestionsList(userList);
     const pub = normalizeFamiliadaQuestionsList(publicList);
@@ -827,30 +1152,24 @@ function mergeFamiliadaGoldenPreferRicher(userList, publicList) {
     const userByKey = new Map(user.map(q => [familiadaGoldenQuestionKey(q), q]));
     let changed = false;
     const merged = [];
-    const used = new Set();
     for (const pq of pub) {
         const key = familiadaGoldenQuestionKey(pq);
         const uq = userByKey.get(key);
         if (!uq) {
             merged.push(pq);
             changed = true;
-        } else if ((uq.answers || []).length < (pq.answers || []).length) {
+        } else if ((uq.answers || []).length > (pq.answers || []).length) {
+            merged.push(uq);
+            if (JSON.stringify(uq) !== JSON.stringify(pq)) changed = true;
+        } else if (JSON.stringify(uq) !== JSON.stringify(pq)) {
             merged.push(pq);
             changed = true;
         } else {
-            merged.push(uq);
+            merged.push(pq);
         }
-        used.add(key);
     }
-    for (const uq of user) {
-        const key = familiadaGoldenQuestionKey(uq);
-        if (used.has(key)) continue;
-        merged.push(uq);
-        used.add(key);
-    }
-    const capped = merged.slice(0, 10);
-    if (capped.length !== user.length) changed = true;
-    return { list: capped, changed };
+    if (merged.length !== user.length) changed = true;
+    return { list: merged.slice(0, 10), changed };
 }
 
 function loadFamiliadaGoldenData() {
@@ -950,8 +1269,8 @@ function normalizePartyQuizGoldenList(list) {
 }
 
 /**
- * Scalanie userData + public/: jeśli public ma to samo pytanie z większą liczbą odpowiedzi
- * albo więcej pytań — bierzemy bogatszą wersję (naprawa uciętych list bez ręcznego kasowania pliku).
+ * Scalanie userData + public/: public/ definiuje zestaw pytań (kolejność + skład).
+ * userData tylko gdy ma więcej odpowiedzi do tego samego pytania.
  */
 function mergePartyQuizGoldenPreferRicher(userList, publicList) {
     const user = normalizePartyQuizGoldenList(userList);
@@ -962,32 +1281,25 @@ function mergePartyQuizGoldenPreferRicher(userList, publicList) {
     const userByKey = new Map(user.map(q => [partyQuizGoldenQuestionKey(q), q]));
     let changed = false;
 
-    // Kolejność jak w public (wzorcowa lista testowa), potem ekstra z user.
     const merged = [];
-    const used = new Set();
     for (const pq of pub) {
         const key = partyQuizGoldenQuestionKey(pq);
         const uq = userByKey.get(key);
         if (!uq) {
             merged.push(pq);
             changed = true;
-        } else if ((uq.answers || []).length < (pq.answers || []).length) {
+        } else if ((uq.answers || []).length > (pq.answers || []).length) {
+            merged.push(uq);
+            if (JSON.stringify(uq) !== JSON.stringify(pq)) changed = true;
+        } else if (JSON.stringify(uq) !== JSON.stringify(pq)) {
             merged.push(pq);
             changed = true;
         } else {
-            merged.push(uq);
+            merged.push(pq);
         }
-        used.add(key);
     }
-    for (const uq of user) {
-        const key = partyQuizGoldenQuestionKey(uq);
-        if (used.has(key)) continue;
-        merged.push(uq);
-        used.add(key);
-    }
-    const capped = merged.slice(0, 10);
-    if (capped.length !== user.length) changed = true;
-    return { list: capped, changed };
+    if (merged.length !== user.length) changed = true;
+    return { list: merged.slice(0, 10), changed };
 }
 
 function readPartyQuizGoldenJsonFile(filePath) {
@@ -1011,13 +1323,34 @@ function loadPartyQuizGoldenData() {
 
         if (fs.existsSync(partyQuizGoldenPath)) {
             const userList = readPartyQuizGoldenJsonFile(partyQuizGoldenPath);
-            const { list, changed } = mergePartyQuizGoldenPreferRicher(userList, publicList);
-            partyQuizGoldenQuestions = list;
-            if (changed || JSON.stringify(userList) !== JSON.stringify(list)) {
-                fs.writeFileSync(partyQuizGoldenPath, JSON.stringify(partyQuizGoldenQuestions, null, 2), 'utf8');
-                console.log(`✅ Party Quiz Złota Lista: zsynchronizowano z public/ (${partyQuizGoldenQuestions.length} pytań, pełne odpowiedzi)`);
+            // Dane użytkownika są źródłem prawdy — merge z public/ tylko uzupełnia brakujące pytania (np. po aktualizacji aplikacji).
+            if (userList.length > 0) {
+                const userByKey = new Map(userList.map(q => [partyQuizGoldenQuestionKey(q), q]));
+                let merged = userList.slice();
+                let changed = false;
+                for (const pq of publicList) {
+                    const key = partyQuizGoldenQuestionKey(pq);
+                    if (!userByKey.has(key) && merged.length < 10) {
+                        merged.push(pq);
+                        changed = true;
+                    }
+                }
+                partyQuizGoldenQuestions = normalizePartyQuizGoldenList(merged).slice(0, 10);
+                if (changed || JSON.stringify(userList) !== JSON.stringify(partyQuizGoldenQuestions)) {
+                    fs.writeFileSync(partyQuizGoldenPath, JSON.stringify(partyQuizGoldenQuestions, null, 2), 'utf8');
+                    console.log(`✅ Party Quiz Złota Lista: załadowano ${partyQuizGoldenQuestions.length} pytań (dane użytkownika + uzupełnienia z public/)`);
+                } else {
+                    console.log(`✅ Party Quiz Złota Lista: załadowano ${partyQuizGoldenQuestions.length} pytań`);
+                }
             } else {
-                console.log(`✅ Party Quiz Złota Lista: załadowano ${partyQuizGoldenQuestions.length} pytań`);
+                const { list, changed } = mergePartyQuizGoldenPreferRicher(userList, publicList);
+                partyQuizGoldenQuestions = list;
+                if (changed || JSON.stringify(userList) !== JSON.stringify(list)) {
+                    fs.writeFileSync(partyQuizGoldenPath, JSON.stringify(partyQuizGoldenQuestions, null, 2), 'utf8');
+                    console.log(`✅ Party Quiz Złota Lista: zsynchronizowano z public/ (${partyQuizGoldenQuestions.length} pytań, pełne odpowiedzi)`);
+                } else {
+                    console.log(`✅ Party Quiz Złota Lista: załadowano ${partyQuizGoldenQuestions.length} pytań`);
+                }
             }
         } else if (publicList.length) {
             partyQuizGoldenQuestions = publicList;
@@ -1847,6 +2180,7 @@ if (!fs.existsSync(quizzesDir)) fs.mkdirSync(quizzesDir, { recursive: true });
 if (!fs.existsSync(partyQuizzesDir)) fs.mkdirSync(partyQuizzesDir, { recursive: true });
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 if (!fs.existsSync(familiadaDir)) fs.mkdirSync(familiadaDir, { recursive: true });
+if (!fs.existsSync(milionerzyDir)) fs.mkdirSync(milionerzyDir, { recursive: true });
 if (!fs.existsSync(PREZENTACJE_CONFIGS_DIR)) fs.mkdirSync(PREZENTACJE_CONFIGS_DIR, { recursive: true });
 // Wersja aplikacji (z package.json) – przy nowej wersji nadpisujemy configi Śpiewaj Dalej/NJR/Bitwa z builda, żeby build miał te same banki co dev. Aby wymusić odświeżenie bez zmiany wersji, usuń plik .configs-synced-version w katalogu danych.
 let appVersionForSync = '';
@@ -1893,6 +2227,18 @@ if (dataDir) {
                 if (!fs.existsSync(dest)) {
                     fs.copyFileSync(src, dest);
                     console.log('   📋 Skopiowano listę Familiady:', name);
+                }
+            }
+        }
+        const appMilionerzy = path.join(appPathForCopy, 'public', 'milionerzy');
+        if (fs.existsSync(appMilionerzy) && fs.existsSync(milionerzyDir)) {
+            const milFiles = fs.readdirSync(appMilionerzy).filter(f => f.toLowerCase().endsWith('.json'));
+            for (const name of milFiles) {
+                const src = path.join(appMilionerzy, name);
+                const dest = path.join(milionerzyDir, name);
+                if (!fs.existsSync(dest)) {
+                    fs.copyFileSync(src, dest);
+                    console.log('   📋 Skopiowano zestaw Milionerzy:', name);
                 }
             }
         }
@@ -2159,6 +2505,7 @@ function getAllFilesReferencedByQuizzes(excludeFilename) {
         IMPREZATOR_CONFIGS_DIR,
         PREZENTACJE_CONFIGS_DIR,
         familiadaDir,
+        milionerzyDir,
     ];
     for (const dir of extraDirs) {
         if (!dir || !fs.existsSync(dir)) continue;
@@ -3528,6 +3875,40 @@ app.get('/api/imprezator/audio-files', (req, res) => {
     }
 });
 
+// === DMX TV (Wolfmix → Art-Net → Milkdrop Show) ===
+app.get('/api/dmx-tv/config', (req, res) => {
+    try {
+        const cfg = dmxTvEngine ? dmxTvEngine.getConfig() : loadDmxTvConfig(dataDir);
+        res.json(cfg);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/api/dmx-tv/status', (req, res) => {
+    try {
+        res.json(dmxTvEngine ? dmxTvEngine.getStatus() : { enabled: false, receiver: { listening: false } });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/api/dmx-tv/start-address', (req, res) => {
+    try {
+        const start = req.body && (req.body.start != null ? req.body.start : req.body.startAddress);
+        const cfg = setVizStartAddress(dataDir, start);
+        if (dmxTvEngine) dmxTvEngine.reloadConfig();
+        const addr = cfg.startAddress || 1;
+        res.json({
+            ok: true,
+            startAddress: addr,
+            lastChannel: addr + VIZ_CHANNEL_COUNT - 1,
+            channelCount: VIZ_CHANNEL_COUNT,
+            config: cfg
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // === PREZENTACJE ===
 function getPrezentacjaPath(name) {
     const safe = safeConfigName(name).replace(/\.json$/i, '');
@@ -3605,10 +3986,42 @@ app.post('/api/prezentacje/save', async (req, res) => {
         }
         const fp = getPrezentacjaPath(name);
         fs.writeFileSync(fp, JSON.stringify(config, null, 2), 'utf8');
+        const savedName = String(name).trim();
+        const activeName = prezentacjaConfig && String(prezentacjaConfig.name || '').trim();
+        if (activeName && activeName === savedName) {
+            prezentacjaConfig = JSON.parse(fs.readFileSync(fp, 'utf8'));
+            prezentacjaLoop = prezentacjaConfig.loop !== false;
+            io.emit('prezentacja_config_updated', {
+                config: prezentacjaConfig,
+                preserveIndex: true,
+                loop: prezentacjaLoop,
+                liveOverlay: getLiveOverlayState()
+            });
+            io.emit('prezentacja_loop', { loop: prezentacjaLoop });
+            if (config.logo) broadcastDmxLogoUrl();
+        }
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
+});
+app.post('/api/prezentacje/patch-active', (req, res) => {
+    const { name, patch } = req.body || {};
+    if (!name || !patch || typeof patch !== 'object') return res.status(400).json({ error: 'Brak name lub patch' });
+    const reqName = String(name).trim();
+    const activeName = prezentacjaConfig && String(prezentacjaConfig.name || '').trim();
+    if (!activeName || activeName !== reqName) {
+        return res.json({ success: true, applied: false });
+    }
+    if (patch.logo !== undefined) prezentacjaConfig.logo = patch.logo;
+    io.emit('prezentacja_config_updated', {
+        config: prezentacjaConfig,
+        preserveIndex: true,
+        loop: prezentacjaLoop,
+        liveOverlay: getLiveOverlayState()
+    });
+    if (patch.logo !== undefined) broadcastDmxLogoUrl();
+    res.json({ success: true, applied: true });
 });
 app.delete('/api/prezentacje/config', async (req, res) => {
     const name = req.query.name;
@@ -3693,6 +4106,24 @@ app.post('/api/imprezator/native-open-directory', async (req, res) => {
         res.json({ dirPath: d.dirPath || null });
     } catch (e) {
         res.json({ dirPath: null, error: 'Electron IPC nie dostępne' });
+    }
+});
+
+app.post('/api/electron/move-screen-to-projector', async (req, res) => {
+    try {
+        const d = await callElectronIpc('/move-screen-to-projector');
+        res.json(d);
+    } catch (e) {
+        res.json({ ok: false, error: 'Dostępne tylko w aplikacji Imprezja Quiz (Electron).' });
+    }
+});
+
+app.post('/api/electron/move-screen-to-projector', async (req, res) => {
+    try {
+        const d = await callElectronIpc('/move-screen-to-projector');
+        res.json(d);
+    } catch (e) {
+        res.json({ ok: false, error: 'Dostępne tylko w aplikacji Imprezja Quiz (Electron).' });
     }
 });
 
@@ -4043,10 +4474,128 @@ app.post('/api/familiada/golden', (req, res) => {
     }
 });
 
+// === API MILIONERZY ===
+const milionerzyPublicDir = path.join(__dirname, 'public', 'milionerzy');
+const milionerzyFromAppPath = path.join(appPath, 'public', 'milionerzy');
+function getMilionerzyDirs() {
+    const dirs = [
+        milionerzyFromAppPath,
+        milionerzyPublicDir,
+        milionerzyDir,
+        path.join(process.cwd(), 'public', 'milionerzy')
+    ];
+    const seen = new Set();
+    const result = [];
+    for (const d of dirs) {
+        if (!d || seen.has(d)) continue;
+        seen.add(d);
+        try {
+            if (fs.existsSync(d)) result.push(d);
+        } catch (_) {}
+    }
+    return result;
+}
+
+function getMilionerzyFiles() {
+    try {
+        const dirs = getMilionerzyDirs();
+        const seen = new Set();
+        const result = [];
+        for (const dir of dirs) {
+            const files = fs.readdirSync(dir).filter(f => f.toLowerCase().endsWith('.json'));
+            for (const f of files) {
+                if (!seen.has(f)) { seen.add(f); result.push(f); }
+            }
+        }
+        result.sort();
+        return result;
+    } catch (err) {
+        return [];
+    }
+}
+
+function resolveMilionerzyFilePath(filename) {
+    const name = (filename && typeof filename === 'string') ? filename.trim() : '';
+    if (!name || name.includes('..') || name.includes('/') || !name.toLowerCase().endsWith('.json')) return null;
+    const nameLower = name.toLowerCase();
+    const available = getMilionerzyFiles();
+    const match = available.find(f => f.toLowerCase() === nameLower);
+    if (match) {
+        for (const dir of getMilionerzyDirs()) {
+            const p = path.join(dir, match);
+            if (fs.existsSync(p)) return p;
+        }
+    }
+    for (const dir of getMilionerzyDirs()) {
+        const p = path.join(dir, name);
+        if (fs.existsSync(p)) return p;
+    }
+    return null;
+}
+
+app.get('/api/milionerzy/files', (req, res) => {
+    try {
+        res.json(getMilionerzyFiles());
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/milionerzy/data', (req, res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    try {
+        let file = req.query.file;
+        if (file && typeof file === 'string') file = file.trim();
+        const filePath = file ? resolveMilionerzyFilePath(file) : null;
+        if (!filePath) return res.status(404).json({ error: 'Plik nie istnieje' });
+        const raw = fs.readFileSync(filePath, 'utf8');
+        const data = normalizeMilionerzySet(raw);
+        res.json(data);
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
+app.post('/api/milionerzy/save', (req, res) => {
+    try {
+        const body = req.body;
+        if (!body || typeof body !== 'object') return res.status(400).json({ error: 'Brak danych' });
+        const filename = String(body.filename || '').trim().replace(/\.json$/i, '') + '.json';
+        if (!filename || filename === '.json' || filename.includes('..') || filename.includes('/')) {
+            return res.status(400).json({ error: 'Nieprawidłowa nazwa pliku' });
+        }
+        const normalized = normalizeMilionerzySet(body.data || body);
+        if (!fs.existsSync(milionerzyDir)) fs.mkdirSync(milionerzyDir, { recursive: true });
+        const filePath = path.join(milionerzyDir, filename);
+        const jsonData = JSON.stringify(normalized, null, 2);
+        fs.writeFileSync(filePath, jsonData, 'utf8');
+        devSyncWriteData(`public/milionerzy/${filename}`, jsonData);
+        res.json({ success: true, filename, count: normalized.questions.length });
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
+app.delete('/api/milionerzy/file/:filename', async (req, res) => {
+    try {
+        const name = decodeURIComponent(req.params.filename || '');
+        if (!name || name.includes('..') || name.includes('/') || !name.toLowerCase().endsWith('.json')) {
+            return res.status(400).json({ error: 'Nieprawidłowa nazwa pliku' });
+        }
+        const filePath = path.join(milionerzyDir, name);
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ error: 'Plik nie istnieje' });
+        }
+        await moveUserPathsToTrash(filePath);
+        await devSyncDelete(`public/milionerzy/${name}`);
+        res.json({ success: true, trashed: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.get('/api/party-quiz/golden', (req, res) => {
     try {
-        loadPartyQuizGoldenData();
-        reloadPartySideListById('golden');
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.json(partyQuizGoldenQuestions);
     } catch (err) {
@@ -4401,9 +4950,14 @@ app.get('/api/audio/stream', (req, res) => {
     stream.pipe(res);
 });
 
-// /uploads: najpierw katalog danych (zapis użytkownika), potem fallback na pliki z aplikacji (asar) – żeby w DMG/setup były dźwięki i grafika z pytań
-app.use('/uploads', express.static(uploadsDir));
-app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
+// /uploads: najpierw katalog danych (zapis użytkownika), potem fallback na pliki z aplikacji (asar)
+function staticNoCacheHeaders(res) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+}
+app.use('/uploads', express.static(uploadsDir, { setHeaders: staticNoCacheHeaders }));
+app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads'), { setHeaders: staticNoCacheHeaders }));
 app.use('/fonts/pixelify-sans', express.static(path.join(__dirname, 'node_modules', '@fontsource', 'pixelify-sans')));
 app.use('/fonts/vt323', express.static(path.join(__dirname, 'node_modules', '@fontsource', 'vt323')));
 app.use('/fonts/press-start-2p', express.static(path.join(__dirname, 'node_modules', '@fontsource', 'press-start-2p')));
@@ -4414,7 +4968,18 @@ app.use('/reveal', express.static(path.join(__dirname, 'node_modules', 'reveal.j
 app.use('/lib/butterchurn', express.static(path.join(__dirname, 'node_modules', 'butterchurn', 'lib')));
 app.use('/lib/butterchurn-presets', express.static(path.join(__dirname, 'node_modules', 'butterchurn-presets', 'lib')));
 app.use('/lib/audiomotion', express.static(path.join(__dirname, 'node_modules', 'audiomotion-analyzer', 'dist')));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use((req, res, next) => {
+    if (req.method === 'GET' && /\.html$/i.test(req.path)) {
+        staticNoCacheHeaders(res);
+    }
+    next();
+});
+app.use('/img/prezentacje', express.static(path.join(__dirname, 'public', 'img', 'prezentacje'), { setHeaders: staticNoCacheHeaders }));
+app.use(express.static(path.join(__dirname, 'public'), {
+    setHeaders(res, filePath) {
+        if (/\.(png|jpg|jpeg|webp|gif|svg)$/i.test(filePath)) staticNoCacheHeaders(res);
+    }
+}));
 
 // Obsługa favicon.ico (aby uniknąć błędów 404)
 app.get('/favicon.ico', (req, res) => {
@@ -6184,7 +6749,7 @@ function getPhoneState(fullState) {
 
 function broadcastState() {
     // W trybie 'familiada' w ogóle nie używamy pipeline'u Screen.html (osobny screen)
-    if (gameMode === 'familiada') return;
+    if (gameMode === 'familiada' || gameMode === 'milionerzy') return;
     // Admin ma priorytet – dostaje pełny update od razu (bez throttle), żeby panel się nie zawieszał
     io.to(ADMIN_ROOM).emit('update_state', getStateForBroadcast());
     if (broadcastTimer) clearTimeout(broadcastTimer);
@@ -6201,7 +6766,7 @@ function broadcastState() {
 }
 
 function broadcastStateImmediate() {
-    if (gameMode === 'familiada') return;
+    if (gameMode === 'familiada' || gameMode === 'milionerzy') return;
     if (broadcastTimer) {
         clearTimeout(broadcastTimer);
         broadcastTimer = null;
@@ -6478,6 +7043,113 @@ function performShipsQuizNextTurn(questionId, reason) {
 }
 
 io.on('connection', (socket) => {
+    if (dmxTvEngine) dmxTvEngine.attachSocketHandlers(socket);
+
+    socket.on('dmx_show_preset_next', () => io.emit('dmx_show_preset_next'));
+    socket.on('dmx_show_preset_prev', () => io.emit('dmx_show_preset_prev'));
+    socket.on('dmx_show_info_report', (info) => {
+        if (info && typeof info === 'object') io.emit('dmx_show_info', info);
+    });
+    socket.on('dmx_show_text_get', () => {
+        socket.emit('dmx_show_text', dmxShowText);
+    });
+    socket.on('dmx_show_text_update', (data) => {
+        if (!data || typeof data !== 'object') return;
+        if (typeof data.text === 'string') dmxShowText.text = data.text.slice(0, 500);
+        if (typeof data.visible === 'boolean') dmxShowText.visible = data.visible;
+        if (data.position === 'top' || data.position === 'center' || data.position === 'bottom') {
+            dmxShowText.position = data.position;
+        }
+        if (typeof data.fontIndex === 'number') {
+            dmxShowText.fontIndex = Math.max(0, Math.min(12, data.fontIndex | 0));
+        }
+        io.emit('dmx_show_text', dmxShowText);
+        if (dmxTvEngine) dmxTvEngine.rebroadcast();
+    });
+    socket.emit('dmx_show_bank', dmxShowBank);
+    socket.emit('dmx_show_style', dmxShowStyle);
+    socket.emit('dmx_show_logo_url', buildDmxLogoPayload());
+    socket.on('dmx_show_style_get', () => {
+        socket.emit('dmx_show_style', dmxShowStyle);
+    });
+    socket.on('dmx_show_style_update', (data) => {
+        if (!data || typeof data !== 'object') return;
+        dmxShowStyle = overlayStyleLib.patchStyle(dmxShowStyle, data);
+        persistDmxShowBank();
+        emitDmxShowStyle();
+        if (dmxTvEngine) dmxTvEngine.rebroadcast();
+    });
+    socket.on('dmx_show_bank_get', () => {
+        socket.emit('dmx_show_bank', dmxShowBank);
+        socket.emit('dmx_show_logo_url', buildDmxLogoPayload());
+    });
+    socket.on('dmx_show_bank_save', (data) => {
+        const name = (data && data.name) || ('Scena ' + (dmxShowBank.scenes.length + 1));
+        const last = dmxTvEngine ? dmxTvEngine.getStatus().lastState : null;
+        const tvState = last || mergeDmxOverlay({ viz: { dimmer: 255, shutter: 0, preset: 0, preset2: 0, color1: [0, 0, 0], effect: 0 } });
+        const scene = dmxShowBankLib.sceneFromTvState(tvState, name);
+        if (dmxShowBank.scenes.length >= dmxShowBankLib.MAX_SCENES) {
+            dmxShowBank.scenes.shift();
+        }
+        dmxShowBank.scenes.push(scene);
+        persistDmxShowBank();
+        socket.emit('dmx_show_bank_saved', { ok: true, scene });
+    });
+    socket.on('dmx_show_bank_delete', (data) => {
+        if (!data || !data.id) return;
+        dmxShowBank.scenes = dmxShowBank.scenes.filter((s) => s.id !== data.id);
+        if (dmxShowBank.playback.index >= dmxShowBank.scenes.length) {
+            dmxShowBank.playback.index = 0;
+        }
+        persistDmxShowBank();
+    });
+    socket.on('dmx_show_bank_load', (data) => {
+        const scene = dmxShowBank.scenes.find((s) => s.id === (data && data.id));
+        if (!scene) return;
+        const i = dmxShowBank.scenes.indexOf(scene);
+        if (i >= 0) dmxShowBank.playback.index = i;
+        dmxBankLastRotateAt = Date.now();
+        emitBankSceneTvState(scene);
+        persistDmxShowBank();
+    });
+    socket.on('dmx_show_bank_playback', (data) => {
+        if (!data || typeof data !== 'object') return;
+        if (typeof data.enabled === 'boolean') dmxShowBank.playback.enabled = data.enabled;
+        if (typeof data.intervalSec === 'number') {
+            dmxShowBank.playback.intervalSec = Math.max(5, Math.min(86400, data.intervalSec | 0));
+        }
+        dmxBankLastRotateAt = 0;
+        persistDmxShowBank();
+    });
+    socket.on('dmx_show_logo_graphic', (data) => {
+        const id = data && data.id;
+        if (!id || !dmxShowBankLib.isValidLogoGraphic(id)) return;
+        dmxShowBank.logoGraphic = id;
+        persistDmxShowBank();
+        broadcastDmxLogoUrl();
+    });
+    socket.on('dmx_show_logo_set', (data) => {
+        if (!data || typeof data !== 'object') return;
+        if (typeof data.customLogoUrl === 'string') {
+            const custom = dmxShowBankLib.sanitizeCustomLogoUrl(data.customLogoUrl);
+            if (custom) dmxShowBank.customLogoUrl = custom;
+        }
+        if (typeof data.number === 'string') {
+            dmxShowBank.logoNumber = data.number.replace(/[^\d]/g, '').slice(0, 6);
+        }
+        if (typeof data.numberFontIndex === 'number') {
+            dmxShowBank.logoNumberFontIndex = Math.max(0, Math.min(12, data.numberFontIndex | 0));
+        }
+        if (typeof data.sizePct === 'number') {
+            dmxShowStyle = overlayStyleLib.patchStyle(dmxShowStyle, { logo: { sizePct: data.sizePct } });
+        }
+        if (data.id && dmxShowBankLib.isValidLogoGraphic(data.id)) {
+            dmxShowBank.logoGraphic = data.id;
+        }
+        persistDmxShowBank();
+        broadcastDmxLogoUrl();
+        emitDmxShowStyle();
+    });
     resetOrphanedGameState();
     socket.emit('games_volume', { volume: gamesVolume });
     socket.emit('quiz_volume', { volume: gamesVolume });
@@ -6504,7 +7176,7 @@ io.on('connection', (socket) => {
     const MUSIC_MODES_WITH_GRAPHIC = ['sampler', 'spiewaj', 'bitwa', 'whitney', 'imprezator'];
     socket.on('screen_switch', (data) => {
         const mode = (data && data.mode) || 'welcome';
-        const allowed = ['welcome', 'quiz', 'familiada', 'party', 'statki', 'prezentacja', 'camera', 'stream', 'sampler', 'spiewaj', 'bitwa', 'whitney', 'imprezator'];
+        const allowed = ['welcome', 'quiz', 'familiada', 'milionerzy', 'party', 'statki', 'prezentacja', 'dmx-show', 'camera', 'stream', 'sampler', 'spiewaj', 'bitwa', 'whitney', 'imprezator'];
         if (allowed.includes(mode)) {
             screenControllerMode = mode;
             if (!MUSIC_MODES_WITH_GRAPHIC.includes(mode)) {
@@ -6518,6 +7190,10 @@ io.on('connection', (socket) => {
             if (mode === 'familiada') {
                 familiadaShowStartScreenOnConnect = true;
                 io.to('familiada').emit('familiada_show_start_screen');
+            }
+            if (mode === 'milionerzy') {
+                gameMode = 'milionerzy';
+                io.to('milionerzy').emit('milionerzy_request_state');
             }
             io.emit('screen_switch', { mode });
             if (mode === 'quiz') broadcastStateImmediate();
@@ -6555,7 +7231,7 @@ io.on('connection', (socket) => {
             index: prezentacjaIndex,
             playing: prezentacjaPlaying,
             loop: prezentacjaLoop,
-            liveOverlay: { type: liveOverlayType, countdownMinutes: liveOverlayCountdownMinutes, text: liveOverlayText, textPosition: liveOverlayTextPosition }
+            liveOverlay: getLiveOverlayState()
         });
     });
     socket.on('prezentacja_load', (data) => {
@@ -6569,8 +7245,14 @@ io.on('connection', (socket) => {
             prezentacjaIndex = 0;
             prezentacjaPlaying = false;
             if (PREZENTACJE_LAST_FILE) fs.writeFileSync(PREZENTACJE_LAST_FILE, JSON.stringify({ name }), 'utf8');
-            io.emit('prezentacja_loaded', { config: prezentacjaConfig, index: 0, loop: prezentacjaLoop });
+            io.emit('prezentacja_loaded', {
+                config: prezentacjaConfig,
+                index: 0,
+                loop: prezentacjaLoop,
+                liveOverlay: getLiveOverlayState()
+            });
             io.emit('prezentacja_loop', { loop: prezentacjaLoop });
+            broadcastDmxLogoUrl();
         } catch (_) {}
     });
     const VIZ_INTERNAL_CYCLE_PRESETS = new Set([
@@ -6625,30 +7307,25 @@ io.on('connection', (socket) => {
         io.emit('prezentacja_loop', { loop: prezentacjaLoop });
     });
 
-    let liveOverlayType = 'none';
-    let liveOverlayCountdownMinutes = 3;
-    let liveOverlayText = '';
-    let liveOverlayTextPosition = 'center';
     socket.on('prezentacja_overlay', (data) => {
-        const t = (data && data.type) || 'none';
-        if (t === 'none') {
+        if (!data) return;
+        const t = data.type || liveOverlayType;
+        if (t === 'none' || data.type === 'none') {
             liveOverlayType = 'none';
-        } else {
-            liveOverlayType = t;
-            if (t === 'countdown') {
+        } else if (data.type) {
+            liveOverlayType = data.type;
+            if (data.type === 'countdown') {
                 const m = parseFloat(String(data.countdownMinutes || 3).replace(',', '.'));
                 liveOverlayCountdownMinutes = !isNaN(m) && m >= 1 ? Math.min(120, m) : 3;
-            } else if (t === 'text') {
+            } else if (data.type === 'text') {
                 liveOverlayText = String(data.text || '').slice(0, 200);
                 liveOverlayTextPosition = ['top', 'center', 'bottom'].includes(data.textPosition) ? data.textPosition : 'center';
             }
         }
-        io.emit('prezentacja_overlay', {
-            type: liveOverlayType,
-            countdownMinutes: liveOverlayCountdownMinutes,
-            text: liveOverlayText,
-            textPosition: liveOverlayTextPosition
-        });
+        if (typeof data.backdropDim === 'number' && isFinite(data.backdropDim)) {
+            liveOverlayBackdropDim = Math.max(0, Math.min(100, Math.round(data.backdropDim)));
+        }
+        io.emit('prezentacja_overlay', getLiveOverlayState());
     });
 
     // === GŁOŚNOŚĆ – dwa suwaki: gry (wspólny) + Imprezator ===
@@ -7440,6 +8117,198 @@ io.on('connection', (socket) => {
             socket.emit('familiada_load_error', err.message || 'Błąd ładowania');
         }
     });
+
+    // === MILIONERZY ===
+    socket.on('register_milionerzy', (data) => {
+        socket.milionerzyRole = (data && data.role) || null;
+        socket.join('milionerzy');
+        if (socket.milionerzyRole === 'admin' || socket.milionerzyRole === 'screen' || socket.milionerzyRole === 'player') {
+            socket.emit('milionerzy_state', getMilionerzyPublicState());
+        }
+        if (socket.milionerzyRole === 'admin') {
+            socket.emit('milionerzy_files_list', getMilionerzyFiles());
+        }
+    });
+    socket.on('milionerzy_set_mode', () => {
+        gameMode = 'milionerzy';
+        socket.join('milionerzy');
+    });
+    socket.on('milionerzy_get_files', () => {
+        if (socket.milionerzyRole !== 'admin') return;
+        socket.emit('milionerzy_files_list', getMilionerzyFiles());
+    });
+    socket.on('milionerzy_load', (payload) => {
+        if (socket.milionerzyRole !== 'admin') return;
+        try {
+            let set;
+            if (payload && payload.filename) {
+                const filePath = resolveMilionerzyFilePath(payload.filename);
+                if (!filePath) throw new Error('Plik nie istnieje');
+                set = normalizeMilionerzySet(fs.readFileSync(filePath, 'utf8'));
+            } else if (payload && payload.data) {
+                set = normalizeMilionerzySet(payload.data);
+            } else {
+                throw new Error('Brak pliku lub danych');
+            }
+            milionerzyState = {
+                ...createMilionerzyDefaultState(),
+                phase: 'idle',
+                title: set.title,
+                currencyLabel: set.currencyLabel,
+                ladder: set.ladder,
+                questions: set.questions,
+                playerName: String((payload && payload.playerName) || '').trim()
+            };
+            broadcastMilionerzyState();
+            socket.emit('milionerzy_load_ok', { title: set.title, count: set.questions.length });
+        } catch (err) {
+            socket.emit('milionerzy_load_error', err.message || 'Błąd ładowania');
+        }
+    });
+    socket.on('milionerzy_start', (data) => {
+        if (socket.milionerzyRole !== 'admin') return;
+        if (!milionerzyState.questions || milionerzyState.questions.length !== 12) {
+            return socket.emit('milionerzy_load_error', 'Najpierw załaduj zestaw 12 pytań');
+        }
+        gameMode = 'milionerzy';
+        if (data && data.playerName) milionerzyState.playerName = String(data.playerName).trim();
+        milionerzyState.phase = 'intro';
+        milionerzyState.currentLevel = 1;
+        milionerzyState.prize = 0;
+        milionerzyState.securedPrize = 0;
+        milionerzyState.selectedAnswer = null;
+        milionerzyState.correctIndex = null;
+        milionerzyState.lastResult = null;
+        milionerzyState.lifelinesUsed = [];
+        milionerzyState.hiddenAnswers = [];
+        broadcastMilionerzyState();
+    });
+    socket.on('milionerzy_show_question', () => {
+        if (socket.milionerzyRole !== 'admin') return;
+        if (!milionerzyState.questions.length) return;
+        if (['gameover', 'victory', 'idle'].includes(milionerzyState.phase)) return;
+        milionerzyState.phase = 'question';
+        milionerzyState.selectedAnswer = null;
+        milionerzyState.correctIndex = null;
+        milionerzyState.lastResult = null;
+        milionerzyState.hiddenAnswers = [];
+        milionerzyClearRoundLifelineFx();
+        broadcastMilionerzyState();
+    });
+    socket.on('milionerzy_show_answers', () => {
+        if (socket.milionerzyRole !== 'admin') return;
+        if (!milionerzyState.questions.length) return;
+        if (['gameover', 'victory', 'idle'].includes(milionerzyState.phase)) return;
+        milionerzyState.phase = 'answering';
+        broadcastMilionerzyState();
+    });
+    socket.on('milionerzy_answer', (data) => {
+        const idx = data && Number.isInteger(data.index) ? data.index : Number(data && data.index);
+        if (!Number.isInteger(idx) || idx < 0 || idx > 3) return;
+        if (!['answering', 'question', 'confirm'].includes(milionerzyState.phase)) return;
+        const isAdmin = socket.milionerzyRole === 'admin';
+        const isPlayer = socket.milionerzyRole === 'player';
+        if (!isAdmin && !isPlayer) return;
+        milionerzyState.selectedAnswer = idx;
+        milionerzyState.phase = 'confirm';
+        broadcastMilionerzyState();
+    });
+    socket.on('milionerzy_confirm', () => {
+        if (socket.milionerzyRole !== 'admin') return;
+        milionerzyDoConfirmReveal();
+    });
+    socket.on('milionerzy_reveal', () => {
+        if (socket.milionerzyRole !== 'admin') return;
+        milionerzyDoConfirmReveal();
+    });
+    socket.on('milionerzy_next', () => {
+        if (socket.milionerzyRole !== 'admin') return;
+        if (milionerzyState.phase !== 'reveal' || milionerzyState.lastResult !== 'correct') return;
+        if (milionerzyState.currentLevel >= 12) {
+            milionerzyState.phase = 'victory';
+            broadcastMilionerzyState();
+            return;
+        }
+        milionerzyState.currentLevel += 1;
+        milionerzyState.phase = 'question';
+        milionerzyState.selectedAnswer = null;
+        milionerzyState.correctIndex = null;
+        milionerzyState.lastResult = null;
+        milionerzyState.hiddenAnswers = [];
+        milionerzyClearRoundLifelineFx();
+        broadcastMilionerzyState();
+    });
+    socket.on('milionerzy_walk_away', () => {
+        const isAdmin = socket.milionerzyRole === 'admin';
+        const isPlayer = socket.milionerzyRole === 'player';
+        if (!isAdmin && !isPlayer) return;
+        if (['idle', 'gameover', 'victory', 'walkaway'].includes(milionerzyState.phase)) return;
+        milionerzyState.prize = milionerzyWalkAwayPrize();
+        milionerzyState.securedPrize = milionerzyState.prize;
+        milionerzyState.lastResult = 'walkaway';
+        milionerzyState.phase = 'walkaway';
+        broadcastMilionerzyState();
+    });
+    socket.on('milionerzy_reset', () => {
+        if (socket.milionerzyRole !== 'admin') return;
+        const keep = {
+            title: milionerzyState.title,
+            currencyLabel: milionerzyState.currencyLabel,
+            ladder: milionerzyState.ladder,
+            questions: milionerzyState.questions,
+            playerName: milionerzyState.playerName,
+            bgVizEnabled: milionerzyState.bgVizEnabled,
+            bgVizPresetIndex: milionerzyState.bgVizPresetIndex,
+            bgVizOpacity: milionerzyState.bgVizOpacity
+        };
+        milionerzyState = { ...createMilionerzyDefaultState(), ...keep, phase: 'idle' };
+        broadcastMilionerzyState();
+    });
+    socket.on('milionerzy_lifeline', (data) => {
+        if (socket.milionerzyRole !== 'admin') return;
+        const type = data && data.type;
+        if (!MILIONERZY_LIFELINE_TYPES.includes(type)) return;
+        if ((milionerzyState.lifelinesUsed || []).includes(type)) return;
+        if (!['question', 'answering', 'confirm'].includes(milionerzyState.phase)) return;
+        const q = milionerzyState.questions[milionerzyState.currentLevel - 1];
+        if (!q) return;
+
+        if (type === 'fiftyFifty') {
+            const wrong = [0, 1, 2, 3].filter(i => i !== q.correct);
+            milionerzyState.hiddenAnswers = milionerzyShuffleIndices(wrong).slice(0, 2);
+        } else if (type === 'audience') {
+            milionerzyState.audienceVotes = milionerzyGenerateAudienceVotes(q.correct);
+        } else if (type === 'phone') {
+            milionerzyState.phoneHint = milionerzyGeneratePhoneHint(q);
+        } else if (type === 'swap') {
+            milionerzyState.selectedAnswer = null;
+            milionerzyState.hiddenAnswers = [];
+            milionerzyClearRoundLifelineFx();
+            milionerzyState.phase = 'question';
+        }
+        if (!milionerzyState.lifelinesUsed) milionerzyState.lifelinesUsed = [];
+        milionerzyState.lifelinesUsed.push(type);
+        broadcastMilionerzyState();
+    });
+    socket.on('milionerzy_set_bg_viz', (data) => {
+        if (socket.milionerzyRole !== 'admin') return;
+        if (!data || typeof data !== 'object') return;
+        if (typeof data.enabled === 'boolean') milionerzyState.bgVizEnabled = data.enabled;
+        if (typeof data.presetIndex === 'number' && Number.isFinite(data.presetIndex)) {
+            milionerzyState.bgVizPresetIndex = Math.max(0, Math.floor(data.presetIndex));
+        }
+        if (typeof data.opacity === 'number' && Number.isFinite(data.opacity)) {
+            milionerzyState.bgVizOpacity = Math.max(0, Math.min(100, Math.round(data.opacity)));
+        }
+        if (typeof data.presetDelta === 'number' && Number.isFinite(data.presetDelta)) {
+            milionerzyState.bgVizPresetIndex = Math.max(0, (milionerzyState.bgVizPresetIndex || 0) + Math.trunc(data.presetDelta));
+        }
+        broadcastMilionerzyState();
+    });
+    socket.on('milionerzy_request_state', () => {
+        socket.emit('milionerzy_state', getMilionerzyPublicState());
+    });
+
     // QR tunel (tylko gdy otwarty) – osobny box na ekranie
     if (currentPinggyUrl) {
         generateGameQR().then((data) => {
@@ -10681,6 +11550,16 @@ function doListen(readyCallback) {
         }
         if (!process.env.IMPREZJA_ELECTRON) onServerReady(`http://${IP}:${PORT}`);
         scheduleRefreshFileHashCache();
+        if (!dmxTvEngine) {
+            dmxTvEngine = createDmxTvEngine({
+                dataDir,
+                io,
+                getLogoUrl: getDmxShowLogoUrl,
+                mergeState: mergeDmxOverlay
+            });
+            dmxTvEngine.start().catch((err) => console.warn('[dmx-tv] Start:', err.message));
+        }
+        setInterval(tickDmxBankPlayback, 1000);
         if (typeof readyCallback === 'function') readyCallback();
     });
     serverInstance.on('error', (err) => {

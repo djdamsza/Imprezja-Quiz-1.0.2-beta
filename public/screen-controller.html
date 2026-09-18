@@ -19,9 +19,9 @@
     <script src="/socket.io/socket.io.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body { height: 100%; overflow: hidden; }
+        html, body { height: 100%; overflow: hidden; border: none; outline: none; }
         body {
-            background: radial-gradient(ellipse at center, #1a1a2e 0%, #0d0d14 100%);
+            background: #000;
             color: #fff;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             display: flex;
@@ -157,11 +157,17 @@
     <div id="view-familiada" class="screen-view">
         <iframe id="iframe-familiada" data-src="/familiada/screen.html"></iframe>
     </div>
+    <div id="view-milionerzy" class="screen-view">
+        <iframe id="iframe-milionerzy" data-src="/milionerzy/screen.html"></iframe>
+    </div>
     <div id="view-statki" class="screen-view">
         <iframe id="iframe-statki" data-src="/statki-solo/screen.html"></iframe>
     </div>
     <div id="view-prezentacja" class="screen-view">
         <iframe id="iframe-prezentacja" data-src="/prezentacja-screen.html"></iframe>
+    </div>
+    <div id="view-dmx-show" class="screen-view">
+        <iframe id="iframe-dmx-show" data-src="/dmx-show-screen.html"></iframe>
     </div>
     <div id="view-camera" class="screen-view">
         <img id="camera-view" alt="" style="width:100%;height:100%;object-fit:contain;background:#000;">
@@ -212,6 +218,23 @@
                 if (w && typeof w.unlockQuizAudioElements === 'function') w.unlockQuizAudioElements();
             } catch (_) {}
         }
+
+        /** Prezentacja / DMX trzymają mikrofon — przy wyjściu z trybu zwalniamy iframe (about:blank). */
+        const AUDIO_HEAVY_MODES = ['prezentacja', 'dmx-show'];
+
+        function unloadAudioHeavyIframes(keepMode) {
+            AUDIO_HEAVY_MODES.forEach(m => {
+                if (m === keepMode) return;
+                const view = document.getElementById('view-' + m);
+                const iframe = view && view.querySelector('iframe[data-src]');
+                if (!iframe || !iframe.src || iframe.src === 'about:blank') return;
+                IMPREZJA_LOG('unloadAudioHeavyIframe', m);
+                iframe.onload = null;
+                iframe.onerror = null;
+                iframe.src = 'about:blank';
+            });
+        }
+
         function showView(mode) {
             IMPREZJA_LOG('showView', mode, 'MUSIC_MODES.includes=', MUSIC_MODES.includes(mode));
             if (MUSIC_MODES.includes(mode)) return;
@@ -220,6 +243,7 @@
             if (mode === 'party') mode = 'quiz';
             // Zatrzymaj muzykę intro gdy opuszczamy welcome (żeby nie grała podczas pytań).
             if (mode !== 'welcome') stopWelcomeIntroMusic();
+            unloadAudioHeavyIframes(mode === 'prezentacja' || mode === 'dmx-show' ? mode : null);
             try {
                 document.querySelectorAll('.screen-view').forEach(v => { v.classList.remove('active'); });
                 const view = document.getElementById('view-' + mode);
@@ -227,14 +251,24 @@
                 if (view) {
                     view.classList.add('active');
                     const iframe = view.querySelector('iframe[data-src]');
-                    if (iframe && iframe.dataset.src && !iframe.src) {
-                        IMPREZJA_LOG('showView loading iframe', iframe.dataset.src);
-                        iframe.onload = () => {
-                            IMPREZJA_LOG('iframe loaded', iframe.dataset.src);
-                            tryUnlockIframeQuizAudio(iframe);
-                        };
-                        iframe.onerror = (e) => IMPREZJA_ERR('iframe error', iframe.dataset.src, e);
-                        iframe.src = iframe.dataset.src;
+                    if (iframe && iframe.dataset.src) {
+                        const base = iframe.dataset.src.split('?')[0];
+                        const bustUrl = base + '?v=' + Date.now();
+                        if (mode === 'prezentacja' || mode === 'dmx-show') {
+                            // Prezentacja / DMX Show: zawsze świeży HTML/JS — bez cache iframe.
+                            IMPREZJA_LOG('showView force-reload', mode, bustUrl);
+                            iframe.onload = () => IMPREZJA_LOG('iframe loaded', bustUrl);
+                            iframe.onerror = (e) => IMPREZJA_ERR('iframe error', bustUrl, e);
+                            iframe.src = bustUrl;
+                        } else if (!iframe.src) {
+                            IMPREZJA_LOG('showView loading iframe', iframe.dataset.src);
+                            iframe.onload = () => {
+                                IMPREZJA_LOG('iframe loaded', iframe.dataset.src);
+                                tryUnlockIframeQuizAudio(iframe);
+                            };
+                            iframe.onerror = (e) => IMPREZJA_ERR('iframe error', iframe.dataset.src, e);
+                            iframe.src = iframe.dataset.src;
+                        }
                     }
                 }
                 currentMode = mode;
@@ -305,6 +339,7 @@
             const mode = (data && data.mode) || 'welcome';
             IMPREZJA_LOG('screen_switch', mode, 'data=', JSON.stringify(data));
             if (MUSIC_MODES.includes(mode)) {
+                unloadAudioHeavyIframes(null);
                 const view = document.getElementById('view-' + mode);
                 const iframe = view && view.querySelector('iframe[data-src]');
                 if (iframe && iframe.dataset.src && !iframe.src) {
@@ -337,6 +372,7 @@
             if (data && data.mode) {
                 const mode = data.mode;
                 if (MUSIC_MODES.includes(mode)) {
+                    unloadAudioHeavyIframes(null);
                     const view = document.getElementById('view-' + mode);
                     const iframe = view && view.querySelector('iframe[data-src]');
                     if (iframe && iframe.dataset.src && !iframe.src) {
@@ -376,8 +412,20 @@
             }
         });
 
+        /** W aplikacji Electron pełny ekran steruje główny proces (setSimpleFullScreen na właściwym monitorze). */
+        function isElectronPresentationShell() {
+            try {
+                if (new URLSearchParams(window.location.search).get('electronShell') === '1') return true;
+            } catch (_) {}
+            return !!(window.navigator && /Electron/i.test(window.navigator.userAgent || ''));
+        }
+
         /** Pełny ekran okna przeglądarki/Electron — wywoływane z iframe (np. Screen.html), bo requestFullscreen w iframe często jest blokowany. */
         function shellRequestFullscreen() {
+            if (isElectronPresentationShell()) {
+                shellNotifyIframesFullscreen(true);
+                return;
+            }
             const doc = document.documentElement;
             const req = doc.requestFullscreen || doc.webkitRequestFullscreen || doc.mozRequestFullScreen || doc.msRequestFullscreen;
             if (req) {

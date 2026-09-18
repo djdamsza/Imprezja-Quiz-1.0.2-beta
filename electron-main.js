@@ -207,6 +207,24 @@ try {
                 const result = await (win ? dialog.showOpenDialog(win, opts) : dialog.showOpenDialog(opts));
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ dirPath: result.canceled ? null : (result.filePaths[0] || null) }));
+            } else if (req.url === '/move-screen-to-projector') {
+                const result = moveScreenToProjector();
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(result));
+            } else if (req.url === '/display-info') {
+                const displays = screen.getAllDisplays();
+                const cfg = loadWindowsConfig();
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    displays: displays.map((d, i) => ({
+                        index: i,
+                        width: d.bounds.width,
+                        height: d.bounds.height,
+                        primary: d.id === screen.getPrimaryDisplay().id
+                    })),
+                    screenDisplayIndex: cfg.screenDisplayIndex,
+                    autoMoveScreenOnDisplayAdded: cfg.autoMoveScreenOnDisplayAdded !== false
+                }));
             } else {
                 res.writeHead(404); res.end();
             }
@@ -270,11 +288,12 @@ try {
                 return {
                     screenDisplayIndex: typeof cfg.screenDisplayIndex === 'number' ? cfg.screenDisplayIndex : 0,
                     adminDisplayIndex: typeof cfg.adminDisplayIndex === 'number' ? cfg.adminDisplayIndex : 0,
-                    adminBounds: cfg.adminBounds && typeof cfg.adminBounds === 'object' ? cfg.adminBounds : null
+                    adminBounds: cfg.adminBounds && typeof cfg.adminBounds === 'object' ? cfg.adminBounds : null,
+                    autoMoveScreenOnDisplayAdded: cfg.autoMoveScreenOnDisplayAdded !== false
                 };
             }
         } catch (e) { logToFile('⚠️ loadWindowsConfig: ' + e.message); }
-        return { screenDisplayIndex: 0, adminDisplayIndex: 0, adminBounds: null };
+        return { screenDisplayIndex: 0, adminDisplayIndex: 0, adminBounds: null, autoMoveScreenOnDisplayAdded: true };
     }
     function saveWindowsConfig(cfg) {
         try {
@@ -591,6 +610,134 @@ function resolvePreloadByName(name) {
     return undefined;
 }
 
+/** Najlepszy monitor na projektor / drugi ekran (nie główny, największy zewnętrzny). */
+function findBestProjectorDisplayIndex(preferDisplay) {
+    const displays = screen.getAllDisplays();
+    if (!displays || displays.length <= 1) return null;
+    const primaryId = screen.getPrimaryDisplay().id;
+    if (preferDisplay) {
+        const idx = displays.findIndex(d => d.id === preferDisplay.id);
+        if (idx >= 0) return idx;
+    }
+    const externals = displays
+        .map((d, i) => ({ d, i }))
+        .filter(({ d }) => d.id !== primaryId);
+    if (!externals.length) return displays.length > 1 ? 1 : 0;
+    externals.sort((a, b) => (b.d.bounds.width * b.d.bounds.height) - (a.d.bounds.width * a.d.bounds.height));
+    return externals[0].i;
+}
+
+function exitWindowPresentationMode(win) {
+    if (!win || win.isDestroyed()) return;
+    try {
+        if (win.isFullScreen()) win.setFullScreen(false);
+        if (process.platform === 'darwin' && typeof win.isSimpleFullScreen === 'function' && win.isSimpleFullScreen()) {
+            win.setSimpleFullScreen(false);
+        }
+    } catch (e) { logToFile('exitWindowPresentationMode: ' + e.message); }
+}
+
+/** Pełny ekran na WSKAZANYM monitorze (macOS: setSimpleFullScreen — bez przeskoku na główny). */
+function enterWindowPresentationMode(win, display) {
+    if (!win || win.isDestroyed() || !display) return;
+    const target = display.bounds;
+    try { win.setHasShadow(false); } catch (_) {}
+    if (process.platform === 'darwin') {
+        win.setContentBounds(target);
+        win.setSimpleFullScreen(true);
+    } else {
+        win.setBounds(target);
+        win.setFullScreen(true);
+    }
+    win.focus();
+    if (typeof win.moveTop === 'function') win.moveTop();
+    try {
+        const nearest = screen.getDisplayMatching(win.getBounds());
+        logToFile('📺 TV na display id=' + nearest.id + ' (cel: ' + display.id + ') bounds=' + JSON.stringify(win.getBounds()));
+    } catch (_) {}
+}
+
+/**
+ * Przenosi okno na monitor i włącza tryb prezentacji.
+ * Na macOS setFullScreen(true) zaraz po setBounds zostaje na głównym ekranie — potrzebny tick + setSimpleFullScreen.
+ */
+function placeWindowOnDisplay(win, displayIndex, { presentation = false } = {}) {
+    if (!win || win.isDestroyed()) return false;
+    const displays = screen.getAllDisplays();
+    if (!displays.length) return false;
+    const idx = Math.max(0, Math.min(displayIndex, displays.length - 1));
+    const display = displays[idx];
+    if (presentation) {
+        exitWindowPresentationMode(win);
+        if (process.platform === 'darwin') win.setContentBounds(display.bounds);
+        else win.setBounds(display.bounds);
+        const delay = process.platform === 'darwin' ? 350 : 120;
+        setTimeout(() => {
+            if (!win.isDestroyed()) enterWindowPresentationMode(win, display);
+        }, delay);
+    } else {
+        const b = win.getBounds();
+        win.setBounds({ x: display.bounds.x, y: display.bounds.y, width: b.width, height: b.height });
+    }
+    return true;
+}
+
+/** Przenosi okno TV na wskazany monitor i zapisuje wybór. */
+function moveScreenToDisplay(displayIndex, { save = true } = {}) {
+    const displays = screen.getAllDisplays();
+    const idx = Math.max(0, Math.min(displayIndex, displays.length - 1));
+    if (save) {
+        const c = loadWindowsConfig();
+        saveWindowsConfig({ ...c, screenDisplayIndex: idx });
+    }
+    if (screenWindow && !screenWindow.isDestroyed()) {
+        placeWindowOnDisplay(screenWindow, idx, { presentation: true });
+    } else {
+        createScreenWindow(idx);
+    }
+    buildElectronMenu();
+    logToFile('📺 Ekran TV przeniesiony na monitor ' + idx);
+    return { displayIndex: idx, displayCount: displays.length };
+}
+
+/** Przenosi TV na projektor / zewnętrzny monitor (ręcznie lub po hot-plug). */
+function moveScreenToProjector(options = {}) {
+    const idx = findBestProjectorDisplayIndex(options.display || null);
+    if (idx === null) {
+        return { ok: false, error: 'Podłącz drugi monitor lub projektor.' };
+    }
+    const moved = moveScreenToDisplay(idx);
+    return { ok: true, ...moved };
+}
+
+function setupDisplayHotplugHandlers() {
+    screen.on('display-added', (event, newDisplay) => {
+        logToFile('🖥 display-added: ' + JSON.stringify(newDisplay && newDisplay.bounds));
+        const cfg = loadWindowsConfig();
+        if (cfg.autoMoveScreenOnDisplayAdded === false) return;
+        setTimeout(() => {
+            const result = moveScreenToProjector({ display: newDisplay });
+            if (result.ok) logToFile('📺 Auto-przeniesienie TV na nowy monitor: ' + result.displayIndex);
+        }, 600);
+    });
+    screen.on('display-removed', () => {
+        logToFile('🖥 display-removed');
+        if (!screenWindow || screenWindow.isDestroyed()) return;
+        const displays = screen.getAllDisplays();
+        if (!displays.length) return;
+        const b = screenWindow.getBounds();
+        const onKnownDisplay = displays.some(d => {
+            const db = d.bounds;
+            return b.x >= db.x && b.x < db.x + db.width && b.y >= db.y && b.y < db.y + db.height;
+        });
+        if (!onKnownDisplay) {
+            moveScreenToDisplay(0);
+            logToFile('📺 TV wrócił na główny monitor po odłączeniu projektora');
+        }
+        buildElectronMenu();
+    });
+}
+
 /** Tworzy okno ekranu prezentacji (screen-controller) na wybranym monitorze */
 function createScreenWindow(displayIndex) {
     if (screenWindow && !screenWindow.isDestroyed()) return;
@@ -605,16 +752,25 @@ function createScreenWindow(displayIndex) {
         x: bounds.x,
         y: bounds.y,
         title: 'Imprezja – Ekran prezentacji',
-        fullscreen: true,
+        fullscreen: false,
+        frame: false,
+        hasShadow: false,
+        thickFrame: false,
+        backgroundColor: '#000000',
+        roundedCorners: false,
         webPreferences: { nodeIntegration: false, contextIsolation: true }
     });
     screenWindow.setMenuBarVisibility(false);
+    try { screenWindow.setHasShadow(false); } catch (_) {}
     attachWebContentsContextMenu(screenWindow.webContents);
     screenWindow.webContents.on('render-process-gone', (e, details) => { logToFile('[SCREEN-CRASH] render-process-gone: ' + JSON.stringify(details)); });
     screenWindow.webContents.on('crashed', () => { logToFile('[SCREEN-CRASH] webContents crashed'); });
-    screenWindow.loadURL(`http://127.0.0.1:${PORT}/screen-controller.html?mode=prezentacja&fullscreen=1`);
+    screenWindow.loadURL(`http://127.0.0.1:${PORT}/screen-controller.html?mode=prezentacja&fullscreen=1&electronShell=1`);
+    screenWindow.once('ready-to-show', () => {
+        enterWindowPresentationMode(screenWindow, display);
+    });
     screenWindow.on('closed', () => { screenWindow = null; });
-    logToFile('✅ Ekran prezentacji na monitorze ' + idx);
+    logToFile('✅ Ekran prezentacji na monitorze ' + idx + ' bounds=' + JSON.stringify(bounds));
 }
 
 /** Tworzy okno edytora prezentacji (editor-prezentacja) na wybranym monitorze */
@@ -708,15 +864,7 @@ function buildElectronMenu() {
         type: 'radio',
         checked: cfg.screenDisplayIndex === i,
         click: () => {
-            const c = loadWindowsConfig();
-            saveWindowsConfig({ ...c, screenDisplayIndex: i });
-            if (screenWindow && !screenWindow.isDestroyed()) {
-                const b = displays[i].bounds;
-                screenWindow.setFullScreen(false);
-                screenWindow.setBounds(b);
-                screenWindow.setFullScreen(true);
-            }
-            buildElectronMenu();
+            moveScreenToDisplay(i);
         }
     }));
     const editorSubmenu = displays.map((d, i) => ({
@@ -739,6 +887,30 @@ function buildElectronMenu() {
             submenu: [
                 { label: 'Monitor ekranu prezentacji', submenu: screenSubmenu },
                 { label: 'Monitor wyboru trybu', submenu: editorSubmenu },
+                { type: 'separator' },
+                {
+                    label: 'Przenieś ekran TV na projektor',
+                    accelerator: 'CmdOrCtrl+Shift+P',
+                    click: () => {
+                        const r = moveScreenToProjector();
+                        if (!r.ok) {
+                            dialog.showMessageBoxSync(editorWindow || screenWindow || undefined, {
+                                type: 'info',
+                                title: 'Imprezja Quiz',
+                                message: r.error || 'Brak drugiego monitora.'
+                            });
+                        }
+                    }
+                },
+                {
+                    label: 'Automatycznie przenieś TV przy podłączeniu projektora',
+                    type: 'checkbox',
+                    checked: cfg.autoMoveScreenOnDisplayAdded !== false,
+                    click: (item) => {
+                        const c = loadWindowsConfig();
+                        saveWindowsConfig({ ...c, autoMoveScreenOnDisplayAdded: item.checked });
+                    }
+                },
                 { type: 'separator' },
                 { label: 'Otwórz panel admin', click: () => openAdminWindow() },
                 { label: 'Otwórz DevTools (ekran)', accelerator: 'F12', click: () => {
@@ -799,7 +971,7 @@ function createWindowWithRetry() {
     createScreenWindow(cfg.screenDisplayIndex);
     createEditorWindow(cfg.adminDisplayIndex);
 
-    const urlScreen = `http://127.0.0.1:${PORT}/screen-controller.html?mode=prezentacja&fullscreen=1`;
+    const urlScreen = `http://127.0.0.1:${PORT}/screen-controller.html?mode=prezentacja&fullscreen=1&electronShell=1`;
     const urlEditor = `http://127.0.0.1:${PORT}/start.html`;
     let retryCount = 0;
     const maxRetries = 30;
@@ -848,6 +1020,7 @@ function createWindowWithRetry() {
     app.whenReady().then(async () => {
         logToFile('✅ Electron app ready');
         console.log('✅ Electron app ready');
+        setupDisplayHotplugHandlers();
         
         // NAJPIERW: Pokaż okno loading - żeby użytkownik widział że coś się dzieje
         try {

@@ -496,7 +496,49 @@ Złota lista: `public/party-quizzes/party-quiz-golden.json`
 
 ---
 
-## 11. Jak używać tego pliku w czacie z LLM
+## 11. Gdzie zapisać plik (repozytorium → uruchomiona aplikacja)
+
+**Ważne:** plik w repozytorium (`public/party-quizzes/`) **nie pojawi się automatycznie** na liście w zainstalowanej Imprezji Quiz. Aplikacja czyta quizy z katalogu danych użytkownika.
+
+| Krok | Ścieżka |
+|------|---------|
+| 1. Zapis w repo (źródło, git) | `public/party-quizzes/Nazwa pary.json` |
+| 2. Kopia dla działającej aplikacji (macOS) | `~/Library/Application Support/Imprezja Quiz/party-quizzes/Nazwa pary.json` |
+| 2b. Wersja Beta | `~/Library/Application Support/Imprezja Quiz Beta/party-quizzes/` |
+
+### Po utworzeniu lub edycji JSON — skopiuj do aplikacji
+
+Z katalogu VoteBattle:
+
+```bash
+npm run restore:user-data
+```
+
+Kopiuje **tylko brakujące** pliki z `public/` (w tym `party-quizzes/`). Aby **nadpisać** istniejący quiz wersją z repo:
+
+```bash
+node scripts/restore-user-data-from-public.js --overwrite
+```
+
+Jeden plik ręcznie (macOS):
+
+```bash
+cp "public/party-quizzes/Nazwa pary.json" "$HOME/Library/Application Support/Imprezja Quiz/party-quizzes/"
+```
+
+### W aplikacji
+
+Po skopiowaniu: Party Quiz Admin → **odśwież listę** (ikona obok wyboru pliku) lub uruchom Imprezję ponownie.
+
+### Dla modeli językowych / Cursor
+
+Po zapisaniu JSON w `public/party-quizzes/` **zawsze** wykonaj kopię do Application Support (polecenia powyżej). Bez tego użytkownik **nie zobaczy** pliku na liście Party Quiz.
+
+Alternatywa bez terminala: otwórz edytor w aplikacji (`/party-quiz/editor.html`) i zapisz quiz — wtedy trafia od razu do właściwego folderu.
+
+---
+
+## 12. Jak używać tego pliku w czacie z LLM
 
 **Pobranie z aplikacji Imprezja Quiz:**
 

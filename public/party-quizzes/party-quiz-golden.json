@@ -99,78 +99,34 @@
   },
   {
     "type": "FAMILIADA",
-    "question": "Jakie zwierzęta mają więcej niż jedną nogę?",
+    "question": "Japońskie marki samochodów",
     "time": 0,
     "speedrun": false,
     "elimination": false,
     "answers": [
       {
-        "text": "Świnia",
+        "text": "Toyota",
         "points": 25
       },
       {
-        "text": "Krowa",
-        "points": 25
+        "text": "Honda",
+        "points": 21
       },
       {
-        "text": "Koń",
-        "points": 25
+        "text": "Mazda",
+        "points": 18
       },
       {
-        "text": "Kura",
-        "points": 25
-      }
-    ],
-    "correct": -1
-  },
-  {
-    "type": "FAMILIADA",
-    "question": "Co Polak robi, gdy się zgubi?",
-    "time": 0,
-    "speedrun": false,
-    "elimination": false,
-    "answers": [
-      {
-        "text": "Pyta o drogę",
-        "points": 40
+        "text": "Nissan",
+        "points": 15
       },
       {
-        "text": "Dzwoni do mamy",
-        "points": 30
+        "text": "Suzuki",
+        "points": 12
       },
       {
-        "text": "Włącza GPS",
-        "points": 20
-      },
-      {
-        "text": "Idzie w przeciwną stronę",
-        "points": 10
-      }
-    ],
-    "correct": -1
-  },
-  {
-    "type": "FAMILIADA",
-    "question": "Gdzie nie warto szukać skarbu?",
-    "time": 0,
-    "speedrun": false,
-    "elimination": false,
-    "answers": [
-      {
-        "text": "W piwnicy teściowej",
-        "points": 35
-      },
-      {
-        "text": "W starym aucie",
-        "points": 25
-      },
-      {
-        "text": "W portfelu",
-        "points": 20
-      },
-      {
-        "text": "W lodówce",
-        "points": 20
+        "text": "Subaru",
+        "points": 9
       }
     ],
     "correct": -1
@@ -213,6 +169,168 @@
       {
         "text": "Burbon",
         "points": 5
+      }
+    ],
+    "correct": -1
+  },
+  {
+    "type": "FAMILIADA",
+    "question": "Co może zgubić gość weselny podczas tańca?",
+    "time": 0,
+    "speedrun": false,
+    "elimination": false,
+    "answers": [
+      {
+        "text": "Telefon",
+        "points": 30
+      },
+      {
+        "text": "But",
+        "points": 25
+      },
+      {
+        "text": "Marynarkę",
+        "points": 20
+      },
+      {
+        "text": "Partnera lub partnerkę",
+        "points": 15
+      },
+      {
+        "text": "Godność",
+        "points": 10
+      }
+    ],
+    "correct": -1
+  },
+  {
+    "type": "FAMILIADA",
+    "question": "Co robimy ze zdziwienia?",
+    "time": 0,
+    "speedrun": false,
+    "elimination": false,
+    "answers": [
+      {
+        "text": "Otwieramy usta",
+        "points": 30
+      },
+      {
+        "text": "Robimy wielkie oczy",
+        "points": 25
+      },
+      {
+        "text": "Milczymy",
+        "points": 20
+      },
+      {
+        "text": "Krzyczymy",
+        "points": 15
+      },
+      {
+        "text": "Łapiemy się za głowę",
+        "points": 10
+      }
+    ],
+    "correct": -1
+  },
+  {
+    "type": "FAMILIADA",
+    "question": "Jaki może być ratownik?",
+    "time": 0,
+    "speedrun": false,
+    "elimination": false,
+    "answers": [
+      {
+        "text": "Wodny",
+        "points": 25
+      },
+      {
+        "text": "Górski",
+        "points": 21
+      },
+      {
+        "text": "Medyczny",
+        "points": 18
+      },
+      {
+        "text": "Drogowy",
+        "points": 15
+      },
+      {
+        "text": "Chemiczny",
+        "points": 12
+      },
+      {
+        "text": "Górniczy",
+        "points": 9
+      }
+    ],
+    "correct": -1
+  },
+  {
+    "type": "FAMILIADA",
+    "question": "Co jedzą dzieci w lunaparku?",
+    "time": 0,
+    "speedrun": false,
+    "elimination": false,
+    "answers": [
+      {
+        "text": "Lody",
+        "points": 25
+      },
+      {
+        "text": "Wata cukrowa",
+        "points": 21
+      },
+      {
+        "text": "Popcorn",
+        "points": 18
+      },
+      {
+        "text": "Hot-dog",
+        "points": 15
+      },
+      {
+        "text": "Frytki",
+        "points": 12
+      },
+      {
+        "text": "Gofr",
+        "points": 9
+      }
+    ],
+    "correct": -1
+  },
+  {
+    "type": "FAMILIADA",
+    "question": "Zawód na literę „B”",
+    "time": 0,
+    "speedrun": false,
+    "elimination": false,
+    "answers": [
+      {
+        "text": "Barman",
+        "points": 25
+      },
+      {
+        "text": "Budowlaniec",
+        "points": 21
+      },
+      {
+        "text": "Bibliotekarz",
+        "points": 18
+      },
+      {
+        "text": "Bramkarz",
+        "points": 15
+      },
+      {
+        "text": "Bankier",
+        "points": 12
+      },
+      {
+        "text": "Biolog",
+        "points": 9
       }
     ],
     "correct": -1

@@ -223,6 +223,8 @@
         .mode-btn.quiz:hover { border-color: #3498db; background: rgba(52, 152, 219, 0.15); }
         .mode-btn.familiada { border-color: rgba(231, 76, 60, 0.4); }
         .mode-btn.familiada:hover { border-color: #e74c3c; background: rgba(231, 76, 60, 0.15); }
+        .mode-btn.milionerzy { border-color: rgba(0, 212, 255, 0.4); }
+        .mode-btn.milionerzy:hover { border-color: #00d4ff; background: rgba(0, 212, 255, 0.12); }
         .mode-btn.party-quiz {
             border-color: rgba(241, 196, 15, 0.45);
             background: linear-gradient(135deg, rgba(52, 152, 219, 0.12) 0%, rgba(231, 76, 60, 0.12) 100%);
@@ -430,9 +432,13 @@
                 <a href="/QUIZ_LLM_INSTRUKCJA.md" download>🤖 Quiz — instrukcja dla AI (.md)</a>
                 <a href="/party-quiz/PARTY_QUIZ_LLM_INSTRUKCJA.md" download>🤖 Party Quiz — instrukcja dla AI (.md)</a>
                 <a href="/familiada/FAMILIADA_LLM_INSTRUKCJA.md" download>🤖 Familiada — instrukcja dla AI (.md)</a>
+                <a href="/MILIONERZY_GRA_O_MILION_LLM_INSTRUKCJA.md" download>🤖 Milionerzy + Gra o milion — instrukcja dla AI (.md)</a>
                 <a href="/poradniki/sampler-zabawy-muzyczne.html">🎛️ Sampler i zabawy muzyczne</a>
                 <a href="/poradniki/wizualizacja-dj.html">🎧 Wizualizacja DJ (BlackHole)</a>
                 <a href="/poradniki/changelog.html">✨ Co nowego</a>
+                <div class="menu-divider"></div>
+                <span class="menu-section-label">Monitory</span>
+                <a href="#" id="move-tv-projector-btn">📺 Przenieś ekran TV na projektor</a>
                 <div class="menu-divider"></div>
                 <span class="menu-section-label">Aplikacja</span>
                 <a href="#" id="license-menu-btn">📜 Licencja</a>
@@ -542,6 +548,11 @@
                 <span class="mode-icon">🎤</span>
                 <span class="mode-title">Familiada</span>
                 <span class="mode-desc">Edytor pytań Familiady. Sterowanie z Admin PWA.</span>
+            </a>
+            <a href="/milionerzy/editor.html" class="mode-btn milionerzy">
+                <span class="mode-icon">💰</span>
+                <span class="mode-title">Milionerzy</span>
+                <span class="mode-desc">Edytor 12 pytań ABCD z drabinką nagród. Sterowanie z Admin PWA.</span>
             </a>
             <a href="/party-quiz/editor.html" class="mode-btn party-quiz">
                 <span class="mode-icon">🥳</span>
@@ -814,6 +825,21 @@
                 errorEl.style.display = 'block';
             });
         });
+        async function moveTvToProjector() {
+            closeGearMenu();
+            try {
+                const r = await fetch('/api/electron/move-screen-to-projector', { method: 'POST' });
+                const d = await r.json();
+                if (d.ok) {
+                    alert('Ekran TV przeniesiony na monitor ' + (d.displayIndex + 1) + ' z ' + d.displayCount + '.');
+                } else {
+                    alert(d.error || 'Nie udało się przenieść ekranu TV. Użyj menu Imprezja → Monitory (tylko w aplikacji).');
+                }
+            } catch (_) {
+                alert('Funkcja dostępna w aplikacji Imprezja Quiz (nie w przeglądarce). Menu: Imprezja → Przenieś ekran TV na projektor (Ctrl+Shift+P).');
+            }
+        }
+        document.getElementById('move-tv-projector-btn').addEventListener('click', function(e) { e.preventDefault(); moveTvToProjector(); });
         document.getElementById('license-menu-btn').addEventListener('click', function(e) { e.preventDefault(); document.getElementById('gear-menu').classList.remove('open'); openLicenseModal(); });
         document.getElementById('contact-menu-btn').addEventListener('click', function(e) { e.preventDefault(); document.getElementById('gear-menu').classList.remove('open'); openContactModal(); });
         document.getElementById('license-modal-close').addEventListener('click', function() { document.getElementById('license-modal').style.display = 'none'; });

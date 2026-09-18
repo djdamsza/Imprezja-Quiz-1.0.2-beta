@@ -100,6 +100,14 @@
             border-top: 1px solid rgba(255,255,255,0.08);
         }
         .setup-card.collapsed .setup-card-body { display: none; }
+        #setup-dmx-sim { grid-column: 1 / -1; }
+        .dmx-tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 12px; }
+        .dmx-tab { width: auto; min-width: 0; margin-top: 0; padding: 8px 4px; font-size: 0.8rem; }
+        .dmx-tab.active { outline: 2px solid #f1c40f; background: rgba(241,196,15,0.2); }
+        .dmx-tab-panel { display: none; }
+        .dmx-tab-panel.active { display: block; }
+        .dmx-ctrl-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+        .dmx-effect-name { flex: 1; text-align: center; font-size: 0.9rem; color: #f1c40f; min-width: 90px; }
         .setup-card-links .setup-card-header { cursor: default; }
         .setup-card-links a.btn-apply { color: #000; }
         .btn-grid {
@@ -365,6 +373,9 @@
     <div class="section section-screen">
         <div class="section-title">📺 Ekran</div>
         <p class="section-desc">Kliknij – wyświetl na TV</p>
+        <button type="button" class="btn-mode" id="btn-move-tv-projector" style="width:100%;margin-bottom:10px;min-height:44px;">
+            📺 Przenieś okno TV na projektor
+        </button>
         <div class="btn-grid screen-grid" id="screen-tiles">
             <button type="button" class="btn-mode screen-tile" data-mode="welcome">
                 <span class="icon">👋</span>
@@ -378,6 +389,10 @@
                 <span class="icon">🎤</span>
                 <span class="label">Familiada</span>
             </button>
+            <button type="button" class="btn-mode screen-tile" data-mode="milionerzy">
+                <span class="icon">💰</span>
+                <span class="label">Milionerzy</span>
+            </button>
             <button type="button" class="btn-mode screen-tile party-tile" data-mode="party">
                 <span class="icon">🥳</span>
                 <span class="label">Party Quiz</span>
@@ -389,6 +404,10 @@
             <button type="button" class="btn-mode screen-tile" data-mode="prezentacja">
                 <span class="icon">📽️</span>
                 <span class="label">Prezentacja</span>
+            </button>
+            <button type="button" class="btn-mode screen-tile" data-mode="dmx-show">
+                <span class="icon">🎛️</span>
+                <span class="label">DMX Show</span>
             </button>
             <button type="button" class="btn-mode screen-tile" data-mode="camera" id="btn-mode-camera">
                 <span class="icon">📷</span>
@@ -498,6 +517,13 @@
                                 <button type="button" class="btn-apply prez-overlay-btn" id="prez-overlay-logo" data-type="logo" style="flex:1;min-width:70px;">🖼 LOGO</button>
                                 <button type="button" class="btn-apply prez-overlay-btn" id="prez-overlay-logo-bouncer" data-type="logo-bouncer" style="flex:1;min-width:90px;">🎵 LOGO BOUNCER</button>
                             </div>
+                            <div id="prez-overlay-backdrop-panel" style="display:none;margin-top:10px;padding:8px;background:rgba(0,0,0,0.3);border-radius:8px;">
+                                <label style="font-size:0.85rem;display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                                    <span>Ściemnienie tła</span>
+                                    <span id="prez-overlay-backdrop-val" style="color:#f1c40f;font-variant-numeric:tabular-nums;">40%</span>
+                                </label>
+                                <input type="range" id="prez-overlay-backdrop-dim" min="0" max="100" value="40" style="width:100%;margin-top:6px;">
+                            </div>
                             <div id="prez-overlay-text-panel" style="display:block;margin-top:12px;padding:8px;background:rgba(0,0,0,0.3);border-radius:8px;">
                                 <label style="font-size:0.85rem;">Tekst na wizualizacji (jak na ekranie powitalnym)</label>
                                 <div style="display:flex;gap:6px;margin-top:8px;margin-bottom:8px;flex-wrap:wrap;">
@@ -519,6 +545,115 @@
                         </div>
                         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:8px;"><input type="checkbox" id="prez-loop" checked style="width:auto;"> Odtwarzaj w pętli</label>
                         <p style="font-size:0.8rem;color:rgba(255,255,255,0.6);margin-top:12px;">Załaduj – wybierz w pamięci. Przycisk „Prezentacja” w sekcji Ekran pokaże ją na TV.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="setup-card collapsed" id="setup-dmx-sim">
+                <div class="setup-card-header" data-toggle="setup-dmx-sim">
+                    <span class="icon">🎛️</span>
+                    <span class="label">DMX Show</span>
+                    <span class="chevron">▼</span>
+                </div>
+                <div class="setup-card-body" id="setup-dmx-sim-body">
+                    <p style="font-size:0.8rem;color:rgba(255,255,255,0.65);margin-bottom:10px;">
+                        Wolfmix: dimmer, shutter, RGB, opacity, 2× preset. Reszta — tutaj, z telefonu.
+                    </p>
+                    <div class="dmx-ctrl-row">
+                        <button type="button" class="btn-apply" id="dmx-sim-screen" style="flex:1;min-width:120px;">📺 Na TV</button>
+                        <button type="button" class="btn-apply" id="dmx-sim-prev" style="min-width:48px;">◀</button>
+                        <button type="button" class="btn-apply" id="dmx-sim-next" style="min-width:48px;">▶</button>
+                    </div>
+                    <p id="dmx-sim-preset-info" style="font-size:0.85rem;color:#f1c40f;margin-bottom:10px;">Wizualizacji: —</p>
+                    <div class="dmx-tabs">
+                        <button type="button" class="btn-apply dmx-tab active" data-dmx-tab="text">Napisy</button>
+                        <button type="button" class="btn-apply dmx-tab" data-dmx-tab="logo">Logo</button>
+                        <button type="button" class="btn-apply dmx-tab" data-dmx-tab="viz">Sceny</button>
+                        <button type="button" class="btn-apply dmx-tab" data-dmx-tab="dmx">DMX</button>
+                    </div>
+                    <div class="dmx-tab-panel active" data-dmx-panel="text">
+                        <textarea id="dmx-text-input" rows="3" placeholder="Justyna&#10;&amp;&#10;Patryk" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.4);color:#fff;resize:vertical;font-family:inherit;font-size:0.95rem;margin-bottom:8px;"></textarea>
+                        <div class="dmx-ctrl-row">
+                            <button type="button" class="btn-apply" id="dmx-text-toggle" style="flex:1;">📝 Napis</button>
+                            <button type="button" class="btn-apply" id="dmx-text-apply" style="min-width:48px;">✓</button>
+                        </div>
+                        <select id="dmx-text-font" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.4);color:#fff;font-size:0.85rem;margin-bottom:8px;"></select>
+                        <div class="dmx-ctrl-row">
+                            <button type="button" class="btn-apply dmx-text-pos active" data-pos="center" style="flex:1;">⬌</button>
+                            <button type="button" class="btn-apply dmx-text-pos" data-pos="top" style="flex:1;">⬆</button>
+                            <button type="button" class="btn-apply dmx-text-pos" data-pos="bottom" style="flex:1;">⬇</button>
+                        </div>
+                        <div class="dmx-ctrl-row">
+                            <button type="button" class="btn-apply" id="dmx-text-fx-prev">◀</button>
+                            <span class="dmx-effect-name" id="dmx-text-fx-name">Statyczny</span>
+                            <button type="button" class="btn-apply" id="dmx-text-fx-next">▶</button>
+                        </div>
+                        <label style="display:flex;justify-content:space-between;font-size:0.85rem;"><span>Rozmiar</span><span id="dmx-text-size-val" style="color:#f1c40f;">35%</span></label>
+                        <input type="range" id="dmx-text-size" min="5" max="100" value="35" style="width:100%;margin-bottom:8px;">
+                        <label style="display:flex;justify-content:space-between;font-size:0.85rem;"><span>Kolor</span><span id="dmx-text-color-val" style="color:#f1c40f;">biały</span></label>
+                        <input type="range" id="dmx-text-color" min="0" max="255" value="0" style="width:100%;margin-bottom:8px;">
+                        <label style="display:flex;justify-content:space-between;font-size:0.85rem;"><span>Cień</span><span id="dmx-text-shadow-val" style="color:#f1c40f;">180</span></label>
+                        <input type="range" id="dmx-text-shadow" min="0" max="255" value="180" style="width:100%;margin-bottom:8px;">
+                        <button type="button" class="btn-apply" id="dmx-text-bounce" style="width:100%;">Bounce do beatu</button>
+                    </div>
+                    <div class="dmx-tab-panel" data-dmx-panel="logo">
+                        <div class="dmx-ctrl-row">
+                            <button type="button" class="btn-apply dmx-logo-graphic active" id="dmx-logo-show" data-logo="default" style="flex:1;">🖼 Logo</button>
+                            <button type="button" class="btn-apply" id="dmx-logo-upload" style="flex:1;">📁 Wgraj PNG</button>
+                            <input type="file" id="dmx-logo-file" accept="image/png,image/*" style="display:none">
+                        </div>
+                        <div class="dmx-ctrl-row">
+                            <input type="text" id="dmx-logo-number" inputmode="numeric" maxlength="6" placeholder="np. 18" style="flex:1;min-width:80px;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.4);color:#fff;font-size:1.1rem;">
+                            <select id="dmx-logo-number-font" style="flex:1;min-width:120px;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.4);color:#fff;font-size:0.85rem;"></select>
+                            <button type="button" class="btn-apply" id="dmx-logo-number-show">Pokaż</button>
+                        </div>
+                        <div class="dmx-ctrl-row">
+                            <button type="button" class="btn-apply" id="dmx-logo-fx-prev">◀</button>
+                            <span class="dmx-effect-name" id="dmx-logo-fx-name">Statyczny</span>
+                            <button type="button" class="btn-apply" id="dmx-logo-fx-next">▶</button>
+                        </div>
+                        <label style="display:flex;justify-content:space-between;font-size:0.85rem;"><span>Dimmer logo</span><span id="dmx-logo-dim-val" style="color:#f1c40f;">0</span></label>
+                        <input type="range" id="dmx-logo-dim" min="0" max="255" value="0" style="width:100%;margin-bottom:8px;">
+                        <label style="display:flex;justify-content:space-between;font-size:0.85rem;"><span>Rozmiar</span><span id="dmx-logo-size-val" style="color:#f1c40f;">50%</span></label>
+                        <input type="range" id="dmx-logo-size" min="5" max="200" value="50" style="width:100%;margin-bottom:8px;">
+                        <label style="display:flex;justify-content:space-between;font-size:0.85rem;"><span>Kolor</span><span id="dmx-logo-color-val" style="color:#f1c40f;">biały</span></label>
+                        <input type="range" id="dmx-logo-color" min="0" max="255" value="0" style="width:100%;margin-bottom:8px;">
+                        <button type="button" class="btn-apply" id="dmx-logo-bounce" style="width:100%;">Bounce do beatu</button>
+                    </div>
+                    <div class="dmx-tab-panel" data-dmx-panel="viz">
+                        <p style="font-size:0.78rem;color:rgba(255,255,255,0.55);margin-bottom:10px;">RGB i krycie tła tylko z Wolfmix — tu ich nie pokazujemy. Dimmer/shutter do próby bez konsolety.</p>
+                        <label style="display:flex;justify-content:space-between;font-size:0.85rem;"><span>Dimmer (zasłona wiz)</span><span id="dmx-viz-dim-val" style="color:#f1c40f;">255</span></label>
+                        <input type="range" id="dmx-viz-dim" min="0" max="255" value="255" style="width:100%;margin-bottom:8px;">
+                        <label style="display:flex;justify-content:space-between;font-size:0.85rem;"><span>Shutter (błysk na beat)</span><span id="dmx-viz-shutter-val" style="color:#f1c40f;">0</span></label>
+                        <input type="range" id="dmx-viz-shutter" min="0" max="255" value="0" style="width:100%;margin-bottom:12px;">
+                        <div style="padding:12px;background:rgba(0,0,0,0.28);border-radius:8px;">
+                            <div style="font-size:0.9rem;font-weight:600;margin-bottom:8px;">Bank scen</div>
+                            <p style="font-size:0.72rem;color:rgba(255,255,255,0.5);margin-bottom:8px;">Zapisuje wizualizację oraz ustawienia logo/napisu (kolor, rozmiar, efekt). Treść napisu i plik logo zostają z imprezy.</p>
+                            <div class="dmx-ctrl-row">
+                                <input type="text" id="dmx-bank-name" placeholder="Nazwa sceny" style="flex:1;min-width:120px;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.4);color:#fff;">
+                                <button type="button" class="btn-apply" id="dmx-bank-save">💾 Zapisz</button>
+                            </div>
+                            <div class="dmx-ctrl-row" style="font-size:0.85rem;">
+                                <label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="dmx-bank-autoplay"> Auto</label>
+                                <input type="number" id="dmx-bank-interval" min="5" max="3600" value="60" style="width:64px;padding:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.4);color:#fff;">
+                                <select id="dmx-bank-interval-unit" style="padding:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.4);color:#fff;">
+                                    <option value="sec">sek</option>
+                                    <option value="min">min</option>
+                                </select>
+                                <button type="button" class="btn-apply" id="dmx-bank-playback-apply">Timer</button>
+                            </div>
+                            <div id="dmx-bank-list" style="max-height:220px;overflow:auto;font-size:0.85rem;"></div>
+                        </div>
+                    </div>
+                    <div class="dmx-tab-panel" data-dmx-panel="dmx">
+                        <div style="padding:12px;background:rgba(0,0,0,0.28);border-radius:8px;">
+                            <div style="font-size:0.9rem;font-weight:600;margin-bottom:6px;">Pierwszy kanał telewizora</div>
+                            <p style="font-size:0.75rem;color:rgba(255,255,255,0.55);margin-bottom:8px;">Jednorazowo: numer pierwszego kanału fixture TV. Pozostałe urządzenia mogą zajmować 1–260. TV zajmuje 8 kolejnych kanałów (np. 261 → 261–268).</p>
+                            <div class="dmx-ctrl-row">
+                                <input type="number" id="dmx-start-address" min="1" max="505" value="1" style="width:96px;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.4);color:#fff;font-size:1.1rem;">
+                                <button type="button" class="btn-apply" id="dmx-start-address-save">Zapisz</button>
+                            </div>
+                            <p id="dmx-start-address-hint" style="font-size:0.8rem;color:#f1c40f;margin-top:6px;">Kanały 1–8</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -550,6 +685,13 @@
                     <span class="label">Admin Familiada</span>
                 </div>
                 <a href="/familiada/admin.html" target="_blank" class="btn-apply" style="display:block;text-align:center;text-decoration:none;margin:12px;">Otwórz</a>
+            </div>
+            <div class="setup-card setup-card-links">
+                <div class="setup-card-header">
+                    <span class="icon">💰</span>
+                    <span class="label">Admin Milionerzy</span>
+                </div>
+                <a href="/milionerzy/admin-pwa.html" target="_blank" class="btn-apply" style="display:block;text-align:center;text-decoration:none;margin:12px;">Otwórz</a>
             </div>
             <div class="setup-card setup-card-links">
                 <div class="setup-card-header">
@@ -606,14 +748,14 @@
             } catch (_) {}
         })();
 
-        const socket = io({
+        const socket = (typeof io === 'function' ? io({
             transports: ['websocket', 'polling'],
             reconnection: true,
             reconnectionAttempts: Infinity,
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
             timeout: 20000
-        });
+        }) : { on() {}, emit() {}, connected: false });
         const statusEl = document.getElementById('status');
         let welcomeTextPosition = 'center';
 
@@ -848,6 +990,24 @@
             btn.addEventListener('click', () => setCameraFacing(btn.dataset.facing));
         });
 
+        document.getElementById('btn-move-tv-projector').addEventListener('click', async () => {
+            const btn = document.getElementById('btn-move-tv-projector');
+            btn.disabled = true;
+            try {
+                const r = await fetch('/api/electron/move-screen-to-projector', { method: 'POST' });
+                const d = await r.json();
+                if (d.ok) {
+                    alert('Ekran TV przeniesiony na monitor ' + (d.displayIndex + 1) + ' z ' + d.displayCount + '.');
+                } else {
+                    alert(d.error || 'Podłącz projektor lub użyj menu Imprezja → Monitory.');
+                }
+            } catch (_) {
+                alert('Funkcja działa w aplikacji Imprezja Quiz na komputerze (nie w przeglądarce telefonu).');
+            } finally {
+                btn.disabled = false;
+            }
+        });
+
         // Sekcja 1: Przełącz ekran (screen_switch)
         document.querySelectorAll('.screen-tile[data-mode]').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -973,7 +1133,7 @@
         document.getElementById('prez-next').onclick = ()=> socket.emit('prezentacja_next');
         document.getElementById('prez-loop').onchange = (e)=> socket.emit('prezentacja_loop', { loop: e.target.checked });
 
-        let liveOverlay = { type: 'none', countdownMinutes: 3, text: '', textPosition: 'center' };
+        let liveOverlay = { type: 'none', countdownMinutes: 3, text: '', textPosition: 'center', backdropDim: 40 };
         let showCountdownPanel = false;
         let showTextPanel = false;
         function updateOverlayButtons() {
@@ -986,17 +1146,59 @@
             cdPanel.style.display = (liveOverlay.type === 'countdown' || showCountdownPanel) ? 'block' : 'none';
             const textPanel = document.getElementById('prez-overlay-text-panel');
             textPanel.style.display = 'block';
+            const backdropPanel = document.getElementById('prez-overlay-backdrop-panel');
+            if (backdropPanel) {
+                backdropPanel.style.display = (liveOverlay.type === 'logo' || liveOverlay.type === 'logo-bouncer') ? 'block' : 'none';
+            }
         }
         function syncTextPanelFromOverlay() {
             document.getElementById('prez-overlay-text-input').value = liveOverlay.text || '';
             document.querySelectorAll('.prez-text-pos').forEach(b => b.classList.remove('active'));
             document.querySelector('.prez-text-pos[data-pos="' + (liveOverlay.textPosition || 'center') + '"]')?.classList.add('active');
         }
+        function syncBackdropSliderFromOverlay() {
+            const dim = typeof liveOverlay.backdropDim === 'number' ? liveOverlay.backdropDim : 40;
+            const slider = document.getElementById('prez-overlay-backdrop-dim');
+            const valEl = document.getElementById('prez-overlay-backdrop-val');
+            if (slider) slider.value = String(dim);
+            if (valEl) valEl.textContent = dim + '%';
+        }
+        function emitOverlayPatch(patch) {
+            socket.emit('prezentacja_overlay', Object.assign({
+                type: liveOverlay.type,
+                countdownMinutes: liveOverlay.countdownMinutes,
+                text: liveOverlay.text,
+                textPosition: liveOverlay.textPosition,
+                backdropDim: liveOverlay.backdropDim
+            }, patch || {}));
+        }
         socket.on('prezentacja_overlay', (d) => {
-            if (d) { liveOverlay = { type: d.type || 'none', countdownMinutes: d.countdownMinutes || 3, text: d.text || '', textPosition: d.textPosition || 'center' }; syncTextPanelFromOverlay(); updateOverlayButtons(); }
+            if (d) {
+                liveOverlay = {
+                    type: d.type || 'none',
+                    countdownMinutes: d.countdownMinutes || 3,
+                    text: d.text || '',
+                    textPosition: d.textPosition || 'center',
+                    backdropDim: typeof d.backdropDim === 'number' ? d.backdropDim : 40
+                };
+                syncTextPanelFromOverlay();
+                syncBackdropSliderFromOverlay();
+                updateOverlayButtons();
+            }
         });
         socket.on('prezentacja_state', (d) => {
-            if (d && d.liveOverlay) { liveOverlay = { type: d.liveOverlay.type || 'none', countdownMinutes: d.liveOverlay.countdownMinutes || 3, text: d.liveOverlay.text || '', textPosition: d.liveOverlay.textPosition || 'center' }; syncTextPanelFromOverlay(); updateOverlayButtons(); }
+            if (d && d.liveOverlay) {
+                liveOverlay = {
+                    type: d.liveOverlay.type || 'none',
+                    countdownMinutes: d.liveOverlay.countdownMinutes || 3,
+                    text: d.liveOverlay.text || '',
+                    textPosition: d.liveOverlay.textPosition || 'center',
+                    backdropDim: typeof d.liveOverlay.backdropDim === 'number' ? d.liveOverlay.backdropDim : 40
+                };
+                syncTextPanelFromOverlay();
+                syncBackdropSliderFromOverlay();
+                updateOverlayButtons();
+            }
         });
         document.getElementById('prez-overlay-clock').onclick = () => {
             socket.emit('prezentacja_overlay', { type: liveOverlay.type === 'clock' ? 'none' : 'clock' });
@@ -1029,11 +1231,24 @@
             socket.emit('prezentacja_overlay', { type: liveOverlay.type === 'db' ? 'none' : 'db' });
         };
         document.getElementById('prez-overlay-logo').onclick = () => {
-            socket.emit('prezentacja_overlay', { type: liveOverlay.type === 'logo' ? 'none' : 'logo' });
+            emitOverlayPatch({ type: liveOverlay.type === 'logo' ? 'none' : 'logo' });
         };
         document.getElementById('prez-overlay-logo-bouncer').onclick = () => {
-            socket.emit('prezentacja_overlay', { type: liveOverlay.type === 'logo-bouncer' ? 'none' : 'logo-bouncer' });
+            emitOverlayPatch({ type: liveOverlay.type === 'logo-bouncer' ? 'none' : 'logo-bouncer' });
         };
+        const backdropDimSlider = document.getElementById('prez-overlay-backdrop-dim');
+        if (backdropDimSlider) {
+            backdropDimSlider.addEventListener('input', () => {
+                const dim = parseInt(backdropDimSlider.value, 10) || 0;
+                const valEl = document.getElementById('prez-overlay-backdrop-val');
+                if (valEl) valEl.textContent = dim + '%';
+            });
+            backdropDimSlider.addEventListener('change', () => {
+                const dim = parseInt(backdropDimSlider.value, 10) || 0;
+                liveOverlay.backdropDim = dim;
+                emitOverlayPatch({ backdropDim: dim });
+            });
+        }
         document.getElementById('prez-overlay-countdown').onclick = () => {
             if (liveOverlay.type === 'countdown') {
                 socket.emit('prezentacja_overlay', { type: 'none' });
@@ -1051,6 +1266,362 @@
             showCountdownPanel = false;
             updateOverlayButtons();
         };
+
+        (function initDmxShowPanel() {
+            const TEXT_EFFECTS = ['Statyczny','Wpisywanie','Pulse','Błysk','Glitch','Fala','Falowanie','Brokat','Przewijanie','Napisy pion','Neon','Płomień','Unos','Shake','Beat zoom'];
+            const DMX_FONTS = [
+                'Great Vibes', 'Dancing Script', 'Parisienne', 'Sacramento', 'Allura',
+                'Tangerine', 'Pinyon Script', 'Alex Brush',
+                'Pacifico', 'Playfair Display', 'Montserrat', 'Oswald', 'Bebas Neue'
+            ];
+            function fillFont(sel, selected) {
+                if (!sel) return;
+                sel.innerHTML = DMX_FONTS.map((name, i) =>
+                    '<option value="' + i + '"' + (i === selected ? ' selected' : '') + '>' + name + '</option>'
+                ).join('');
+            }
+            fillFont(document.getElementById('dmx-text-font'), 0);
+            fillFont(document.getElementById('dmx-logo-number-font'), 12);
+
+            document.querySelectorAll('.dmx-tab').forEach((tab) => {
+                tab.addEventListener('click', () => {
+                    const name = tab.getAttribute('data-dmx-tab');
+                    document.querySelectorAll('.dmx-tab').forEach((t) => t.classList.toggle('active', t === tab));
+                    document.querySelectorAll('.dmx-tab-panel').forEach((p) => {
+                        p.classList.toggle('active', p.getAttribute('data-dmx-panel') === name);
+                    });
+                });
+            });
+
+            const channels = [255, 0, 0, 0, 0, 0, 0, 0];
+            let emitTimer = null;
+            function emitSim() {
+                clearTimeout(emitTimer);
+                emitTimer = setTimeout(() => socket.emit('dmx_tv_simulate', { channels: channels.slice() }), 40);
+            }
+            function bindVizSlider(id, idx, labelId) {
+                const el = document.getElementById(id);
+                const lab = document.getElementById(labelId);
+                if (!el) return;
+                el.addEventListener('input', () => {
+                    channels[idx] = parseInt(el.value, 10) || 0;
+                    if (lab) lab.textContent = String(channels[idx]);
+                    emitSim();
+                });
+            }
+            bindVizSlider('dmx-viz-dim', 0, 'dmx-viz-dim-val');
+            bindVizSlider('dmx-viz-shutter', 1, 'dmx-viz-shutter-val');
+
+            function updateStartHint(start) {
+                const s = Math.max(1, Math.min(505, parseInt(start, 10) || 1));
+                const hint = document.getElementById('dmx-start-address-hint');
+                if (hint) hint.textContent = 'Kanały ' + s + '–' + (s + 7) + ' (dimmer … opacity)';
+            }
+            function loadStartAddress() {
+                fetch('/api/dmx-tv/config', { cache: 'no-store' })
+                    .then((r) => r.json())
+                    .then((cfg) => {
+                        const start = (cfg && cfg.startAddress) || (cfg && cfg.blocks && cfg.blocks.viz && cfg.blocks.viz.baseAddress) || 1;
+                        const inp = document.getElementById('dmx-start-address');
+                        if (inp) inp.value = String(start);
+                        updateStartHint(start);
+                    })
+                    .catch(() => {});
+            }
+            loadStartAddress();
+            document.getElementById('dmx-start-address')?.addEventListener('input', () => {
+                updateStartHint(document.getElementById('dmx-start-address').value);
+            });
+            document.getElementById('dmx-start-address-save')?.addEventListener('click', async () => {
+                const inp = document.getElementById('dmx-start-address');
+                const start = parseInt(inp && inp.value, 10) || 1;
+                const btn = document.getElementById('dmx-start-address-save');
+                if (btn) { btn.disabled = true; btn.textContent = '…'; }
+                try {
+                    const r = await fetch('/api/dmx-tv/start-address', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ start })
+                    });
+                    const j = await r.json();
+                    if (!j.ok) throw new Error(j.error || 'Nie zapisano');
+                    if (inp) inp.value = String(j.startAddress);
+                    updateStartHint(j.startAddress);
+                    btn.textContent = 'Zapisano';
+                    setTimeout(() => { if (btn) btn.textContent = 'Zapisz'; }, 1600);
+                } catch (err) {
+                    alert('Błąd: ' + (err.message || err));
+                    if (btn) btn.textContent = 'Zapisz';
+                } finally {
+                    if (btn) btn.disabled = false;
+                }
+            });
+
+            let lastDmxBank = null;
+            let dmxTextLive = { text: '', visible: false, position: 'center', fontIndex: 0 };
+            let liveStyle = {
+                logo: { dimmer: 0, sizePct: 50, colorHue: 0, bounce: false, effectIndex: 0 },
+                text: { effectIndex: 0, sizePct: 35, color: 0, shadow: 180, bounce: false }
+            };
+
+            function emitDmxText(patch) {
+                Object.assign(dmxTextLive, patch || {});
+                socket.emit('dmx_show_text_update', dmxTextLive);
+            }
+            function emitStyle(patch) {
+                socket.emit('dmx_show_style_update', patch);
+            }
+            function setBounceBtn(id, on) {
+                const btn = document.getElementById(id);
+                if (!btn) return;
+                btn.classList.toggle('active', !!on);
+                btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+                btn.textContent = on ? 'Bounce do beatu · WŁ' : 'Bounce do beatu';
+            }
+            function toggleBounce(group) {
+                const on = !liveStyle[group].bounce;
+                liveStyle[group].bounce = on;
+                setBounceBtn(group === 'logo' ? 'dmx-logo-bounce' : 'dmx-text-bounce', on);
+                emitStyle({ [group]: { bounce: on } });
+            }
+            function colorLabel(v) {
+                return (v | 0) === 0 ? 'biały' : String(v | 0);
+            }
+            function syncStyleUi(style) {
+                if (!style) return;
+                liveStyle = style;
+                const t = style.text || {};
+                const l = style.logo || {};
+                const dragging = document.activeElement;
+                const fx = document.getElementById('dmx-text-fx-name');
+                if (fx) fx.textContent = TEXT_EFFECTS[t.effectIndex | 0] || TEXT_EFFECTS[0];
+                const lfx = document.getElementById('dmx-logo-fx-name');
+                if (lfx) lfx.textContent = TEXT_EFFECTS[l.effectIndex | 0] || TEXT_EFFECTS[0];
+                function syncSlider(id, valId, value, fmt) {
+                    const el = document.getElementById(id);
+                    const lab = document.getElementById(valId);
+                    if (el && value != null && dragging !== el) el.value = String(value);
+                    if (lab && value != null) lab.textContent = fmt ? fmt(value) : String(value);
+                }
+                syncSlider('dmx-text-size', 'dmx-text-size-val', t.sizePct, (v) => v + '%');
+                syncSlider('dmx-text-color', 'dmx-text-color-val', t.color, colorLabel);
+                syncSlider('dmx-text-shadow', 'dmx-text-shadow-val', t.shadow);
+                setBounceBtn('dmx-text-bounce', !!t.bounce);
+                syncSlider('dmx-logo-dim', 'dmx-logo-dim-val', l.dimmer);
+                syncSlider('dmx-logo-size', 'dmx-logo-size-val', l.sizePct, (v) => v + '%');
+                syncSlider('dmx-logo-color', 'dmx-logo-color-val', l.colorHue, colorLabel);
+                setBounceBtn('dmx-logo-bounce', !!l.bounce);
+            }
+            function renderBankList(bank) {
+                const list = document.getElementById('dmx-bank-list');
+                if (!list) return;
+                const scenes = (bank && bank.scenes) || [];
+                if (!scenes.length) {
+                    list.innerHTML = '<div style="color:rgba(255,255,255,0.45);">Brak zapisanych scen.</div>';
+                    return;
+                }
+                list.innerHTML = scenes.map((s, i) => {
+                    const active = bank.playback && bank.playback.index === i ? ' style="border-color:#f1c40f;"' : '';
+                    return '<div' + active + ' style="display:flex;gap:6px;align-items:center;margin-bottom:6px;padding:6px;border:1px solid rgba(255,255,255,0.15);border-radius:6px;">'
+                        + '<span style="flex:1;">' + (i + 1) + '. ' + String(s.name || 'Scena').replace(/</g, '&lt;') + '</span>'
+                        + '<button type="button" class="btn-apply dmx-bank-load" data-id="' + s.id + '" style="padding:4px 8px;">▶</button>'
+                        + '<button type="button" class="btn-apply dmx-bank-del" data-id="' + s.id + '" style="padding:4px 8px;">✕</button>'
+                        + '</div>';
+                }).join('');
+                list.querySelectorAll('.dmx-bank-load').forEach((btn) => {
+                    btn.addEventListener('click', () => socket.emit('dmx_show_bank_load', { id: btn.getAttribute('data-id') }));
+                });
+                list.querySelectorAll('.dmx-bank-del').forEach((btn) => {
+                    btn.addEventListener('click', () => socket.emit('dmx_show_bank_delete', { id: btn.getAttribute('data-id') }));
+                });
+            }
+            function syncBankUi(bank) {
+                if (!bank) return;
+                lastDmxBank = bank;
+                const ap = document.getElementById('dmx-bank-autoplay');
+                const iv = document.getElementById('dmx-bank-interval');
+                const unit = document.getElementById('dmx-bank-interval-unit');
+                if (ap) ap.checked = !!(bank.playback && bank.playback.enabled);
+                const sec = (bank.playback && bank.playback.intervalSec) || 60;
+                if (iv && unit) {
+                    if (sec % 60 === 0 && sec >= 60) {
+                        unit.value = 'min';
+                        iv.value = String(sec / 60);
+                    } else {
+                        unit.value = 'sec';
+                        iv.value = String(sec);
+                    }
+                }
+                const id = bank.logoGraphic || 'default';
+                document.getElementById('dmx-logo-show')?.classList.toggle('active', id === 'default' || id === 'custom');
+                const numInp = document.getElementById('dmx-logo-number');
+                const numFont = document.getElementById('dmx-logo-number-font');
+                if (numInp && typeof bank.logoNumber === 'string') numInp.value = bank.logoNumber;
+                if (numFont && typeof bank.logoNumberFontIndex === 'number') numFont.value = String(bank.logoNumberFontIndex);
+                if (bank.liveStyle) syncStyleUi(bank.liveStyle);
+                renderBankList(bank);
+            }
+
+            socket.on('dmx_show_info', (info) => {
+                const el = document.getElementById('dmx-sim-preset-info');
+                if (!el || !info) return;
+                const bank = info.activeBank || 'A';
+                const gIdx = info.globalIndex ?? (info.index + 1);
+                el.textContent = 'Bank ' + bank + ': nr ' + gIdx + ' / ' + (info.total ?? '—')
+                    + (info.name ? (' · ' + String(info.name).slice(0, 36)) : '');
+            });
+            socket.on('dmx_show_text', (data) => {
+                if (!data) return;
+                dmxTextLive = Object.assign({}, dmxTextLive, data);
+                const inp = document.getElementById('dmx-text-input');
+                if (inp && typeof data.text === 'string') inp.value = data.text;
+                const fontSel = document.getElementById('dmx-text-font');
+                if (fontSel && typeof data.fontIndex === 'number') fontSel.value = String(data.fontIndex);
+                document.querySelectorAll('.dmx-text-pos').forEach((btn) => {
+                    btn.classList.toggle('active', btn.getAttribute('data-pos') === (data.position || 'center'));
+                });
+                document.getElementById('dmx-text-toggle')?.classList.toggle('active', !!data.visible);
+            });
+            socket.on('dmx_show_style', syncStyleUi);
+            socket.on('dmx_show_bank', syncBankUi);
+            socket.emit('dmx_show_bank_get');
+            socket.emit('dmx_show_text_get');
+            socket.emit('dmx_show_style_get');
+
+            document.getElementById('dmx-sim-screen')?.addEventListener('click', () => {
+                socket.emit('screen_switch', { mode: 'dmx-show' });
+            });
+            document.getElementById('dmx-sim-next')?.addEventListener('click', () => socket.emit('dmx_show_preset_next'));
+            document.getElementById('dmx-sim-prev')?.addEventListener('click', () => socket.emit('dmx_show_preset_prev'));
+
+            document.getElementById('dmx-text-apply')?.addEventListener('click', () => {
+                const text = (document.getElementById('dmx-text-input')?.value || '').trim();
+                const fontIndex = parseInt(document.getElementById('dmx-text-font')?.value || '0', 10) || 0;
+                emitDmxText({ text, fontIndex, visible: true });
+            });
+            document.getElementById('dmx-text-toggle')?.addEventListener('click', () => {
+                const text = (document.getElementById('dmx-text-input')?.value || '').trim();
+                emitDmxText({ text, visible: !dmxTextLive.visible });
+            });
+            document.getElementById('dmx-text-font')?.addEventListener('change', () => {
+                emitDmxText({ fontIndex: parseInt(document.getElementById('dmx-text-font').value, 10) || 0 });
+            });
+            document.querySelectorAll('.dmx-text-pos').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.dmx-text-pos').forEach((b) => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    emitDmxText({ position: btn.getAttribute('data-pos') || 'center' });
+                });
+            });
+            function cycleFx(dir) {
+                const n = TEXT_EFFECTS.length;
+                const next = ((liveStyle.text.effectIndex | 0) + dir + n) % n;
+                liveStyle.text.effectIndex = next;
+                document.getElementById('dmx-text-fx-name').textContent = TEXT_EFFECTS[next];
+                emitStyle({ text: { effectIndex: next } });
+            }
+            document.getElementById('dmx-text-fx-prev')?.addEventListener('click', () => cycleFx(-1));
+            document.getElementById('dmx-text-fx-next')?.addEventListener('click', () => cycleFx(1));
+            function bindStyleSlider(id, valId, group, key, fmt) {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.addEventListener('input', () => {
+                    const raw = parseInt(el.value, 10);
+                    const v = Number.isFinite(raw) ? raw : 0;
+                    if (!liveStyle[group]) liveStyle[group] = {};
+                    liveStyle[group][key] = v;
+                    const lab = document.getElementById(valId);
+                    if (lab) lab.textContent = fmt ? fmt(v) : String(v);
+                    clearTimeout(el._t);
+                    el._t = setTimeout(() => {
+                        emitStyle({ [group]: { [key]: v } });
+                        if (group === 'logo' && key === 'sizePct') socket.emit('dmx_show_logo_set', { sizePct: v });
+                    }, 40);
+                });
+                el.addEventListener('change', () => {
+                    const raw = parseInt(el.value, 10);
+                    const v = Number.isFinite(raw) ? raw : 0;
+                    emitStyle({ [group]: { [key]: v } });
+                });
+            }
+            bindStyleSlider('dmx-text-size', 'dmx-text-size-val', 'text', 'sizePct', (v) => v + '%');
+            bindStyleSlider('dmx-text-color', 'dmx-text-color-val', 'text', 'color', colorLabel);
+            bindStyleSlider('dmx-text-shadow', 'dmx-text-shadow-val', 'text', 'shadow');
+            document.getElementById('dmx-text-bounce')?.addEventListener('click', () => toggleBounce('text'));
+
+            function logoSize() {
+                return parseInt(document.getElementById('dmx-logo-size')?.value || '50', 10) || 50;
+            }
+            document.getElementById('dmx-logo-show')?.addEventListener('click', () => {
+                socket.emit('screen_switch', { mode: 'dmx-show' });
+                const id = (lastDmxBank && lastDmxBank.customLogoUrl) ? 'custom' : 'default';
+                socket.emit('dmx_show_logo_set', { id, sizePct: logoSize() });
+                emitStyle({ logo: { dimmer: 255, sizePct: logoSize() } });
+            });
+            document.getElementById('dmx-logo-upload')?.addEventListener('click', () => {
+                document.getElementById('dmx-logo-file')?.click();
+            });
+            document.getElementById('dmx-logo-file')?.addEventListener('change', async (e) => {
+                const file = e.target.files && e.target.files[0];
+                if (!file) return;
+                const btn = document.getElementById('dmx-logo-upload');
+                if (btn) { btn.disabled = true; btn.textContent = '⏳ …'; }
+                try {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    const r = await fetch('/upload', { method: 'POST', body: formData });
+                    const j = await r.json();
+                    if (!j.filepath) throw new Error(j.error || 'Nie udało się wgrać');
+                    socket.emit('screen_switch', { mode: 'dmx-show' });
+                    socket.emit('dmx_show_logo_set', { id: 'custom', customLogoUrl: j.filepath, sizePct: logoSize() });
+                    emitStyle({ logo: { dimmer: 255, sizePct: logoSize() } });
+                } catch (err) {
+                    alert('Błąd: ' + (err.message || err));
+                } finally {
+                    if (btn) { btn.disabled = false; btn.textContent = '📁 Wgraj PNG'; }
+                    e.target.value = '';
+                }
+            });
+            document.getElementById('dmx-logo-number-show')?.addEventListener('click', () => {
+                const raw = (document.getElementById('dmx-logo-number')?.value || '').replace(/[^\d]/g, '').slice(0, 6);
+                const numInp = document.getElementById('dmx-logo-number');
+                if (numInp) numInp.value = raw;
+                if (!raw) return;
+                const fontIndex = parseInt(document.getElementById('dmx-logo-number-font')?.value || '12', 10) || 0;
+                socket.emit('screen_switch', { mode: 'dmx-show' });
+                socket.emit('dmx_show_logo_set', { id: 'number', number: raw, numberFontIndex: fontIndex, sizePct: logoSize() });
+                emitStyle({ logo: { dimmer: 255, sizePct: logoSize() } });
+            });
+            function cycleLogoFx(dir) {
+                const n = TEXT_EFFECTS.length;
+                const next = ((liveStyle.logo.effectIndex | 0) + dir + n) % n;
+                liveStyle.logo.effectIndex = next;
+                const el = document.getElementById('dmx-logo-fx-name');
+                if (el) el.textContent = TEXT_EFFECTS[next];
+                emitStyle({ logo: { effectIndex: next } });
+            }
+            document.getElementById('dmx-logo-fx-prev')?.addEventListener('click', () => cycleLogoFx(-1));
+            document.getElementById('dmx-logo-fx-next')?.addEventListener('click', () => cycleLogoFx(1));
+            bindStyleSlider('dmx-logo-dim', 'dmx-logo-dim-val', 'logo', 'dimmer');
+            bindStyleSlider('dmx-logo-size', 'dmx-logo-size-val', 'logo', 'sizePct', (v) => v + '%');
+            bindStyleSlider('dmx-logo-color', 'dmx-logo-color-val', 'logo', 'colorHue', colorLabel);
+            document.getElementById('dmx-logo-bounce')?.addEventListener('click', () => toggleBounce('logo'));
+
+            document.getElementById('dmx-bank-save')?.addEventListener('click', () => {
+                const name = (document.getElementById('dmx-bank-name')?.value || '').trim();
+                socket.emit('dmx_show_bank_save', { name: name || undefined });
+            });
+            document.getElementById('dmx-bank-playback-apply')?.addEventListener('click', () => {
+                const iv = parseInt(document.getElementById('dmx-bank-interval')?.value || '60', 10) || 60;
+                const unit = document.getElementById('dmx-bank-interval-unit')?.value || 'sec';
+                socket.emit('dmx_show_bank_playback', {
+                    enabled: !!document.getElementById('dmx-bank-autoplay')?.checked,
+                    intervalSec: unit === 'min' ? iv * 60 : iv
+                });
+            });
+
+            emitSim();
+        })();
 
         // Głośność – dwa suwaki (gry wspólne + Imprezator)
         const gamesVolSlider = document.getElementById('games-volume');
@@ -1527,6 +2098,7 @@
         document.getElementById('setup-powitanie')?.classList.add('collapsed');
         document.getElementById('setup-prezentacja')?.classList.add('collapsed');
         document.getElementById('setup-kamera')?.classList.add('collapsed');
+        document.getElementById('setup-dmx-sim')?.classList.add('collapsed');
 
         // Pełny ekran całego panelu admina
         (function() {

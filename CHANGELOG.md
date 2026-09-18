@@ -2,6 +2,24 @@
 
 ---
 
+## v1.4.2 (wrzesień 2026) — Ekran TV na projektor / iPad + Party Quiz
+
+### Ekran TV — drugi monitor (projektor, iPad Sidecar)
+
+- **Automatyczne przenoszenie** okna TV na zewnętrzny monitor po podłączeniu (projektor, iPad jako rozszerzony ekran) — bez klikania.
+- **Przycisk ręczny** „Przenieś okno TV na projektor” w panelu admin, menu ⚙️ startu i menu **Imprezja** (`Cmd+Shift+P` / `Ctrl+Shift+P`).
+- **Naprawa macOS** — TV nie zostaje na głównym ekranie (`setSimpleFullScreen` zamiast `setFullScreen` po `setBounds`).
+- **Bez szarej ramki** — okno prezentacji bez obramowania (borderless, bez cienia).
+- Po odłączeniu projektora TV wraca na główny monitor.
+
+### Party Quiz
+
+- Złota lista: pytanie **„Japońskie marki samochodów”** zamiast „Co Polak robi, gdy się zgubi?”.
+- Instrukcje AI: sekcja **„Gdzie zapisać plik”** (`public/` → Application Support / `npm run restore:user-data`).
+- Skrypt `restore:user-data` kopiuje też folder `party-quizzes/`.
+
+---
+
 ## v1.4.1 (sierpień 2026) — Party Quiz PWA: lista pytań + auto-odnawianie licencji
 
 ### Licencje / subskrypcja

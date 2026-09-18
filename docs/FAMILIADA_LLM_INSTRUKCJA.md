@@ -308,7 +308,49 @@ Patrz: `docs/PARTY_QUIZ_LLM_INSTRUKCJA.md`.
 
 ---
 
-## 12. Jak używać tego pliku
+## 12. Gdzie zapisać plik (repozytorium → uruchomiona aplikacja)
+
+**Ważne:** plik w repozytorium (`public/familiada/`) **nie pojawi się automatycznie** na liście w zainstalowanej Imprezji Quiz. Aplikacja czyta zestawy z katalogu danych użytkownika.
+
+| Krok | Ścieżka |
+|------|---------|
+| 1. Zapis w repo (źródło, git) | `public/familiada/Nazwa.json` |
+| 2. Kopia dla działającej aplikacji (macOS) | `~/Library/Application Support/Imprezja Quiz/familiada/Nazwa.json` |
+| 2b. Wersja Beta | `~/Library/Application Support/Imprezja Quiz Beta/familiada/` |
+
+### Po utworzeniu lub edycji JSON — skopiuj do aplikacji
+
+Z katalogu VoteBattle:
+
+```bash
+npm run restore:user-data
+```
+
+Kopiuje **tylko brakujące** pliki z `public/` (w tym `familiada/`). Aby **nadpisać** istniejący plik wersją z repo:
+
+```bash
+node scripts/restore-user-data-from-public.js --overwrite
+```
+
+Jeden plik ręcznie (macOS):
+
+```bash
+cp "public/familiada/Nazwa.json" "$HOME/Library/Application Support/Imprezja Quiz/familiada/"
+```
+
+### W aplikacji
+
+Po skopiowaniu: panel Familiady → **odśwież listę** plików lub uruchom Imprezję ponownie.
+
+### Dla modeli językowych / Cursor
+
+Po zapisaniu JSON w `public/familiada/` **zawsze** wykonaj kopię do Application Support (polecenia powyżej). Bez tego użytkownik **nie zobaczy** pliku na liście Familiady.
+
+Alternatywa bez terminala: zapis przez edytor w aplikacji (`/familiada/editor.html`) — plik trafia od razu do właściwego folderu.
+
+---
+
+## 13. Jak używać tego pliku
 
 **Pobranie z aplikacji:**
 
