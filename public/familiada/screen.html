@@ -94,7 +94,8 @@
         #main-board .carbon-bg { flex: 1; background: #000; }
 
         .x-zone { width: 15%; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 40px; gap: 20px; }
-        .x-mark { width: 14vw; height: 14vw; background: #0a0505; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #330808; opacity: 0.4; transition: all 0.2s; font-family: var(--font-led); font-size: 8vw; }
+        .x-mark { width: 14vw; height: 14vw; background: #0a0505; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #330808; opacity: 0.4; transition: all 0.2s; }
+        .x-mark svg { width: 82%; height: 82%; display: block; overflow: visible; }
         .x-mark.active { background: #1a0808; color: var(--led-yellow); opacity: 1; animation: blinkX 0.4s ease-out; }
         .x-mark.active .x-pixel { filter: drop-shadow(0 0 8px var(--led-yellow)); }
 
@@ -238,7 +239,8 @@
         .pixel-empty { width: 1.2vw; height: 1.2vw; flex-shrink: 0; }
 
         #center-x-overlay { position: absolute; top:0; left:0; width:100%; height:100%; display: none; align-items: center; justify-content: center; z-index: 100; background: rgba(0,0,0,0.6); }
-        .giant-x { font-size: 50vh; color: var(--led-yellow); text-shadow: 0 0 8vh var(--led-yellow); font-family: var(--font-led); animation: wobble 3s ease-in-out; }
+        .giant-x { width: min(42vh, 34vw); height: auto; color: var(--led-yellow); animation: wobble 3s ease-in-out; }
+        .giant-x svg { width: 100%; height: auto; display: block; overflow: visible; filter: drop-shadow(0 0 4vh var(--led-yellow)); }
 
         @keyframes wobble {
             0%, 100% { transform: rotate(-4deg); }
@@ -387,9 +389,9 @@
         <div class="team-score-panel" id="panel-red"><div class="team-name" id="team-name-2">CZERWONI</div><div class="score-display" id="score-2">0</div></div>
     </div>
     <div id="main-board" class="carbon-bg">
-        <div class="x-zone" id="zone-1"><div class="x-mark" id="x1-1"><span class="x-pixel">X</span></div><div class="x-mark" id="x1-2"><span class="x-pixel">X</span></div><div class="x-mark" id="x1-3"><span class="x-pixel">X</span></div></div>
-        <div id="board-display"><div id="rows-container"></div><div id="total-pot">SUMA: 0</div><div id="center-x-overlay"><div class="giant-x">X</div></div></div>
-        <div class="x-zone" id="zone-2"><div class="x-mark" id="x2-1"><span class="x-pixel">X</span></div><div class="x-mark" id="x2-2"><span class="x-pixel">X</span></div><div class="x-mark" id="x2-3"><span class="x-pixel">X</span></div></div>
+        <div class="x-zone" id="zone-1"><div class="x-mark" id="x1-1"></div><div class="x-mark" id="x1-2"></div><div class="x-mark" id="x1-3"></div></div>
+        <div id="board-display"><div id="rows-container"></div><div id="total-pot">SUMA: 0</div><div id="center-x-overlay"><div class="giant-x"></div></div></div>
+        <div class="x-zone" id="zone-2"><div class="x-mark" id="x2-1"></div><div class="x-mark" id="x2-2"></div><div class="x-mark" id="x2-3"></div></div>
     </div>
     <div id="final-screen">
         <div class="pixel-title-wrap" id="final-pixel-title"></div>
@@ -402,6 +404,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="/lib/audio-normalize.js"></script>
     <script src="/lib/digital-output-cap.js"></script>
+    <script src="/lib/familiada-led-x.js"></script>
     <script>
         const FAM_LOG = (...a) => { try { console.log('[IMPREZJA-FAMILIADA]', new Date().toISOString(), ...a); } catch (_) {} };
         const FAM_ERR = (...a) => { try { console.error('[IMPREZJA-FAMILIADA-ERR]', new Date().toISOString(), ...a); } catch (_) {} };
@@ -409,6 +412,12 @@
         window.addEventListener('unhandledrejection', e => { FAM_ERR('unhandledrejection', e.reason); });
 
         const socket = io();
+        (function injectFamiliadaLedX() {
+            if (typeof familiadaLedXSvg !== 'function') return;
+            const mark = familiadaLedXSvg('x-pixel');
+            document.querySelectorAll('.x-mark').forEach((el) => { el.innerHTML = mark; });
+            document.querySelectorAll('.giant-x').forEach((el) => { el.innerHTML = familiadaLedXSvg(); });
+        })();
         socket.on('familiada_color_sides_swap', (data) => {
             const swapped = !!(data && data.swapped);
             document.body.classList.toggle('familiada-swap-side-colors', swapped);

@@ -1,0 +1,137 @@
+{
+  "gameMode": "party",
+  "partySideList": true,
+  "sideListLabel": "Ciekawostki i żarty",
+  "defaultPoints": 5,
+  "disableTimePoints": true,
+  "welcome": {
+    "title": "Ciekawostki i żarty",
+    "subtitle": "Szybka lista · +5 pkt za pozycję",
+    "logoUrl": "/img/logo_imprezja.png",
+    "introMusicUrl": "/uploads/sfx/intro_loop.mp3"
+  },
+  "questions": [
+    {
+      "id": "q_ciekawostki_zarty_fastlist",
+      "type": "FAST_LIST",
+      "question": "Szybka lista — ciekawostki i żarty",
+      "time": 0,
+      "speedrun": false,
+      "elimination": false,
+      "answers": [],
+      "fastListItems": [
+        {
+          "question": "Jaki organ może zwiększyć rozmiar nawet 6-krotnie?",
+          "answer": "Źrenica"
+        },
+        {
+          "question": "Na którym miejscu jesteś, jeśli wyprzedzisz drugiego zawodnika?",
+          "answer": "Na drugim"
+        },
+        {
+          "question": "Kto napisał dramat „Wesele”?",
+          "answer": "Stanisław Wyspiański"
+        },
+        {
+          "question": "Kto jest autorem „Mazurka Dąbrowskiego”?",
+          "answer": "Józef Wybicki"
+        },
+        {
+          "question": "Ile rowków ma płyta winylowa?",
+          "answer": "1"
+        },
+        {
+          "question": "Co je Coco Jambo?",
+          "answer": "Jaja je"
+        },
+        {
+          "question": "Mama Kasi ma pięć córek. Imiona czterech z nich to: Lala, Lele, Lili, Lolo. Jak ma na imię piąta córka?",
+          "answer": "Kasia"
+        },
+        {
+          "question": "Co można złapać, ale nie można rzucić?",
+          "answer": "Przeziębienie"
+        },
+        {
+          "question": "Gdzie czwartek jest przed środą?",
+          "answer": "W słowniku"
+        },
+        {
+          "question": "Ile razy można odjąć 5 od 25?",
+          "answer": "1"
+        },
+        {
+          "question": "Ile zwierząt zabrał Mojżesz na arkę?",
+          "answer": "Żadnego"
+        },
+        {
+          "question": "Ile miesięcy ma 28 dni?",
+          "answer": "Wszystkie"
+        },
+        {
+          "question": "Co ma 13 serc, ale żadnego mózgu?",
+          "answer": "Talia kart"
+        },
+        {
+          "question": "Co należy do Ciebie, ale inni używają tego częściej?",
+          "answer": "Twoje imię"
+        },
+        {
+          "question": "Jaki organ człowieka jest największy?",
+          "answer": "Skóra"
+        },
+        {
+          "question": "Jakiego koloru jest „czarna skrzynka” w samolocie?",
+          "answer": "Pomarańczowa"
+        },
+        {
+          "question": "Kto napisał „Pana Tadeusza”?",
+          "answer": "Adam Mickiewicz"
+        },
+        {
+          "question": "Ile serc ma ośmiornica?",
+          "answer": "3"
+        },
+        {
+          "question": "Co można złamać, nie dotykając?",
+          "answer": "Obietnicę"
+        },
+        {
+          "question": "Co jest w środku obrączki?",
+          "answer": "Dziura"
+        },
+        {
+          "question": "Co waży więcej: kilogram pierza czy kilogram ołowiu?",
+          "answer": "Tyle samo"
+        },
+        {
+          "question": "Jaki owoc ma nasiona na zewnątrz?",
+          "answer": "Truskawka"
+        },
+        {
+          "question": "Na którym palcu nosi się obrączkę?",
+          "answer": "Na serdecznym"
+        },
+        {
+          "question": "Ile kości ma dorosły człowiek?",
+          "answer": "206"
+        },
+        {
+          "question": "Co jest na końcu tęczy?",
+          "answer": "Litera Y"
+        },
+        {
+          "question": "Które zwierzę nie potrafi skakać?",
+          "answer": "Słoń"
+        },
+        {
+          "question": "Co ma zęby, ale nie gryzie?",
+          "answer": "Grzebień"
+        }
+      ],
+      "correct": -1,
+      "bgMusic": "/uploads/sfx/tlowyborcze.mp3"
+    }
+  ],
+  "thanksScreen": null
+}

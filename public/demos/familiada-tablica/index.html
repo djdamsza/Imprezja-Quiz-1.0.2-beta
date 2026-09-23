@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo — tablica Familiady (czcionka + X)</title>
+    <style>
+        @font-face {
+            font-family: 'Familiada';
+            font-style: normal;
+            font-weight: 400;
+            font-display: block;
+            src: url('../../fonts/familiada-custom/familiada-fixed.woff2') format('woff2'),
+                 url('../../fonts/familiada-custom/familiada-fixed.ttf') format('truetype');
+        }
+
+        :root {
+            --led: #f3dc3a;
+            --led-hot: #fff6a8;
+            --led-dim: #3a3208;
+            --panel: #050505;
+        }
+
+        * { box-sizing: border-box; }
+        html, body {
+            margin: 0;
+            height: 100%;
+            background: #000;
+            color: var(--led);
+            font-family: 'Familiada', monospace;
+        }
+        body {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .ui-bar {
+            flex: 0 0 auto;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            padding: 10px 14px;
+            background: #111;
+            border-bottom: 1px solid #2a2a2a;
+            font-family: system-ui, sans-serif;
+            color: #ddd;
+            font-size: 13px;
+            z-index: 5;
+        }
+        .ui-bar strong { color: #f3dc3a; font-weight: 700; }
+        .ui-bar span.note { color: #888; font-size: 12px; }
+        .ui-bar button, .ui-bar select {
+            font: 13px system-ui, sans-serif;
+            background: #222;
+            color: #eee;
+            border: 1px solid #444;
+            border-radius: 6px;
+            padding: 6px 10px;
+            cursor: pointer;
+        }
+        .ui-bar button:hover, .ui-bar select:hover { border-color: #f3dc3a; color: #fff; }
+        .ui-bar button.primary { background: #3a2e00; border-color: #c4a41a; color: #f3dc3a; }
+
+        .stage {
+            flex: 1;
+            min-height: 0;
+            display: grid;
+            grid-template-columns: 1fr minmax(0, 1280px) 1fr;
+            align-items: stretch;
+            background: #000;
+        }
+        .stage-side { min-width: 0; }
+
+        .board-wrap {
+            display: grid;
+            grid-template-columns: 120px minmax(0, 1fr) 120px;
+            align-items: stretch;
+            min-height: 0;
+            padding: 2vh 1vw 3vh;
+            gap: 1.2vw;
+        }
+
+        .x-col {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            gap: 1.6vh;
+            padding-top: 11vh;
+        }
+        .x-slot {
+            width: 86px;
+            max-width: 86px;
+            min-width: 64px;
+            aspect-ratio: 2 / 3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transform: scale(0.92);
+            transition: opacity 0.15s, transform 0.15s;
+            pointer-events: none;
+        }
+        .x-slot.on {
+            opacity: 1;
+            transform: scale(1);
+            animation: xBlink 0.35s ease-out;
+        }
+        @keyframes xBlink {
+            0% { filter: brightness(3); }
+            100% { filter: brightness(1); }
+        }
+        .x-slot svg { width: 100%; height: 100%; display: block; overflow: hidden; }
+
+        .board {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            padding: 3.2vh 2.2vw 2vh;
+        }
+
+        .qnum {
+            align-self: center;
+            border: 2px solid var(--led);
+            padding: 0.4vh 1.4vw 0.15vh;
+            margin-bottom: 2.4vh;
+            font-size: clamp(22px, 3.6vw, 54px);
+            line-height: 1.15;
+            letter-spacing: 0.12em;
+            color: var(--led);
+            text-shadow: 0 0 2px var(--led-hot), 0 0 8px rgba(243, 220, 58, 0.35);
+        }
+
+        .rows {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-evenly;
+            min-height: 0;
+            gap: 0.4vh;
+        }
+        .row {
+            display: grid;
+            grid-template-columns: 2.2em minmax(0, 1fr) 5.2em;
+            align-items: center;
+            gap: 1.6vw;
+            font-size: clamp(18px, 3.15vw, 48px);
+            line-height: 1.05;
+            cursor: pointer;
+        }
+        .row-n {
+            text-align: right;
+            color: var(--led);
+            text-shadow: 0 0 2px var(--led-hot), 0 0 8px rgba(243, 220, 58, 0.28);
+        }
+        .row-a {
+            min-width: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            letter-spacing: 0.06em;
+        }
+        .dots {
+            display: block;
+            height: 0.24em;
+            width: 100%;
+            max-width: 100%;
+            background-image: radial-gradient(circle, var(--led) 42%, transparent 43%);
+            background-size: 0.72em 0.24em;
+            background-repeat: repeat-x;
+            background-position: left center;
+            filter: drop-shadow(0 0 3px rgba(243, 220, 58, 0.45));
+        }
+        .ans {
+            color: var(--led);
+            text-shadow: 0 0 2px var(--led-hot), 0 0 8px rgba(243, 220, 58, 0.35);
+            text-transform: uppercase;
+        }
+        .row-p {
+            text-align: right;
+            letter-spacing: 0.08em;
+            color: var(--led);
+            text-shadow: 0 0 2px var(--led-hot), 0 0 8px rgba(243, 220, 58, 0.28);
+        }
+        .row-p .hidden-pts {
+            display: inline-flex;
+            gap: 0.22em;
+            justify-content: flex-end;
+            width: 100%;
+            vertical-align: middle;
+        }
+        .row-p .hidden-pts i {
+            width: 0.72em;
+            height: 0.22em;
+            border-radius: 0.11em;
+            background: var(--led);
+            box-shadow: 0 0 4px rgba(243, 220, 58, 0.45);
+            display: block;
+        }
+
+        .suma {
+            align-self: stretch;
+            text-align: right;
+            margin-top: 1.4vh;
+            font-size: clamp(18px, 3vw, 44px);
+            letter-spacing: 0.12em;
+            padding-right: 0.1em;
+            text-shadow: 0 0 2px var(--led-hot), 0 0 8px rgba(243, 220, 58, 0.3);
+        }
+
+        .center-x {
+            position: absolute;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.45);
+            z-index: 4;
+        }
+        .center-x.show { display: flex; }
+        .center-x .x-slot {
+            width: min(28vw, 280px);
+            max-width: none;
+            opacity: 1;
+            pointer-events: none;
+        }
+
+        .alpha {
+            flex: 0 0 auto;
+            padding: 8px 16px 12px;
+            background: #0a0a0a;
+            border-top: 1px solid #222;
+            font-size: clamp(12px, 1.7vw, 22px);
+            letter-spacing: 0.08em;
+            color: var(--led);
+            text-shadow: 0 0 4px rgba(243, 220, 58, 0.3);
+            white-space: nowrap;
+            overflow-x: auto;
+        }
+        .alpha small {
+            font-family: system-ui, sans-serif;
+            color: #777;
+            letter-spacing: 0;
+            font-size: 11px;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <svg width="0" height="0" style="position:absolute">
+        <defs>
+            <filter id="ledGlow" x="-40%" y="-40%" width="180%" height="180%">
+                <feGaussianBlur stdDeviation="1.4" result="b"/>
+                <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+        </defs>
+    </svg>
+    <div class="ui-bar">
+        <strong>DEMO</strong> — niepodpięte do gry
+        <span class="note">czcionka FontStruct „Familiada” (darunio, CC BY-SA) + oryginalny X z żarówek</span>
+        <select id="scene"></select>
+        <button type="button" class="primary" id="btn-reveal">Pokaż / ukryj odpowiedzi</button>
+        <button type="button" id="btn-xl">X lewa</button>
+        <button type="button" id="btn-xr">X prawa</button>
+        <button type="button" id="btn-xbig">Duży X</button>
+        <button type="button" id="btn-reset">Reset X</button>
+    </div>
+
+    <div class="stage">
+        <div class="stage-side"></div>
+        <div class="board-wrap">
+            <div class="x-col" id="x-left"></div>
+            <div class="board">
+                <div class="qnum" id="qnum">15</div>
+                <div class="rows" id="rows"></div>
+                <div class="suma" id="suma">SUMA  0</div>
+                <div class="center-x" id="center-x">
+                    <div class="x-slot on" id="x-big"></div>
+                </div>
+            </div>
+            <div class="x-col" id="x-right"></div>
+        </div>
+        <div class="stage-side"></div>
+    </div>
+
+    <div class="alpha">
+        <small>ALFABET</small>
+        ABCDEFGHIJKLMNOPQRSTUVWXYZ&nbsp;&nbsp;0123456789&nbsp;&nbsp;ĆĘŁŃÓŚŹŻ&nbsp;&nbsp;ĄĆĘŁŃÓŚŹŻ
+    </div>
+
+    <script>
+        /* Oryginalny znacznik błędu z tablicy żarówkowej (lata 90./2000.),
+           nie litera X z czcionki. Trzy człony: skrzydła góra / klepsydra / skrzydła dół. */
+        const X_MAP = [
+            '#####       #####',
+            '######     ######',
+            ' #####     ##### ',
+            '  ####     ####  ',
+            '   ##  # #  ##   ',
+            '                 ',
+            '                 ',
+            '      #####      ',
+            '       ###       ',
+            '        #        ',
+            '       ###       ',
+            '      #####      ',
+            '                 ',
+            '                 ',
+            '   ##  # #  ##   ',
+            '  ####     ####  ',
+            ' #####     ##### ',
+            '######     ######',
+            '#####       #####'
+        ];
+
+        function ledXSvg() {
+            const rows = X_MAP.length;
+            const cols = X_MAP[0].length;
+            const cell = 10;
+            const pad = 8;
+            const w = cols * cell + pad * 2;
+            const h = rows * cell + pad * 2;
+            const r = 3.15;
+            let dots = '';
+            X_MAP.forEach((line, y) => {
+                [...line].forEach((ch, x) => {
+                    if (ch !== '#') return;
+                    const cx = pad + x * cell + cell / 2;
+                    const cy = pad + y * cell + cell / 2;
+                    dots += `<circle cx="${cx}" cy="${cy}" r="${r}"/>`;
+                });
+            });
+            return `<svg viewBox="0 0 ${w} ${h}" aria-hidden="true">
+                <rect x="1" y="1" width="${w - 2}" height="${h - 2}" rx="10" ry="10" fill="#0b0d12" stroke="#1a1e28" stroke-width="2"/>
+                <g fill="#f3dc3a" filter="url(#ledGlow)">${dots}</g>
+            </svg>`;
+        }
+
+        const SCENES = {
+            owoc: {
+                qnum: '15',
+                rows: [
+                    { hidden: true },
+                    { hidden: true },
+                    { hidden: true },
+                    { text: 'JABŁKO', pts: 15 },
+                    { hidden: true },
+                    { hidden: true }
+                ]
+            },
+            miasta: {
+                qnum: '08',
+                rows: [
+                    { text: 'WARSZAWA', pts: 28 },
+                    { text: 'WROCŁAW', pts: 21 },
+                    { text: 'WAŁBRZYCH', pts: 13 },
+                    { text: 'WEJHEROWO', pts: 12 },
+                    { text: 'WŁADYSŁAWOWO', pts: 10 },
+                    { text: 'WIELICZKA', pts: 7 }
+                ]
+            },
+            polskie: {
+                qnum: '03',
+                rows: [
+                    { text: 'ŻÓŁĆ', pts: 32 },
+                    { text: 'GĘŚ', pts: 24 },
+                    { text: 'ŁÓDŹ', pts: 18 },
+                    { text: 'ŚLĄSK', pts: 14 },
+                    { text: 'ĆMA', pts: 9 },
+                    { text: 'PIĘŚĆ', pts: 3 }
+                ]
+            }
+        };
+
+        const state = {
+            scene: 'owoc',
+            revealed: false,
+            left: 0,
+            right: 0,
+            big: false
+        };
+
+        const svg = ledXSvg();
+
+        function mountXCol(el) {
+            el.innerHTML = '';
+            for (let i = 0; i < 3; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'x-slot';
+                slot.innerHTML = svg;
+                el.appendChild(slot);
+            }
+        }
+
+        function setCol(el, n) {
+            [...el.children].forEach((slot, i) => slot.classList.toggle('on', i < n));
+        }
+
+        function dotsHtml() {
+            return '<span class="dots"></span>';
+        }
+
+        function renderRowsFromOpen() {
+            const scene = SCENES[state.scene];
+            const box = document.getElementById('rows');
+            box.innerHTML = '';
+            let sum = 0;
+            scene.rows.forEach((row, i) => {
+                const show = !!row._open && row.text;
+                if (show) sum += row.pts || 0;
+                const el = document.createElement('div');
+                el.className = 'row';
+                el.innerHTML =
+                    `<div class="row-n">${i + 1}</div>` +
+                    `<div class="row-a">${show ? `<span class="ans">${row.text}</span>` : dotsHtml()}</div>` +
+                    `<div class="row-p">${show ? String(row.pts) : '<span class="hidden-pts"><i></i><i></i><i></i></span>'}</div>`;
+                el.addEventListener('click', () => {
+                    if (!row.text) return;
+                    row._open = !row._open;
+                    renderRowsFromOpen();
+                });
+                box.appendChild(el);
+            });
+            document.getElementById('suma').textContent = 'SUMA  ' + sum;
+        }
+
+        function applyScene() {
+            const scene = SCENES[state.scene];
+            document.getElementById('qnum').textContent = scene.qnum;
+            scene.rows.forEach((r) => { r._open = false; });
+            renderRowsFromOpen();
+        }
+
+        function syncX() {
+            setCol(document.getElementById('x-left'), state.left);
+            setCol(document.getElementById('x-right'), state.right);
+            document.getElementById('center-x').classList.toggle('show', state.big);
+        }
+
+        mountXCol(document.getElementById('x-left'));
+        mountXCol(document.getElementById('x-right'));
+        document.getElementById('x-big').innerHTML = svg;
+
+        const sel = document.getElementById('scene');
+        sel.innerHTML =
+            '<option value="owoc">Scena: owoc (jak zrzut JABŁKO)</option>' +
+            '<option value="miasta">Scena: miasta na W (TVP)</option>' +
+            '<option value="polskie">Scena: polskie znaki</option>';
+
+        sel.addEventListener('change', () => {
+            state.scene = sel.value;
+            applyScene();
+        });
+        document.getElementById('btn-reveal').addEventListener('click', () => {
+            const scene = SCENES[state.scene];
+            const allOpen = scene.rows.every((r) => !r.text || r._open);
+            scene.rows.forEach((r) => { if (r.text) r._open = !allOpen; });
+            renderRowsFromOpen();
+        });
+        document.getElementById('btn-xl').addEventListener('click', () => {
+            state.left = Math.min(3, state.left + 1);
+            syncX();
+        });
+        document.getElementById('btn-xr').addEventListener('click', () => {
+            state.right = Math.min(3, state.right + 1);
+            syncX();
+        });
+        document.getElementById('btn-xbig').addEventListener('click', () => {
+            state.big = !state.big;
+            syncX();
+        });
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            state.left = 0;
+            state.right = 0;
+            state.big = false;
+            syncX();
+        });
+
+        applyScene();
+        /* Start like the original screenshot: one answer open, one X on the left. */
+        SCENES.owoc.rows[3]._open = true;
+        state.left = 1;
+        renderRowsFromOpen();
+        syncX();
+    </script>
+</body>
+</html>

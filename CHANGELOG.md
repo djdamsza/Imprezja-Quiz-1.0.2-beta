@@ -18,6 +18,10 @@
 - Instrukcje AI: sekcja **„Gdzie zapisać plik”** (`public/` → Application Support / `npm run restore:user-data`).
 - Skrypt `restore:user-data` kopiuje też folder `party-quizzes/`.
 
+### Familiada
+
+- **X błędów** na tablicy jak na oryginalnej tablicy żarówkowej (skrzydła + klepsydra), nie litera X z czcionki — ten sam układ miejsc i rozmiarów. Familiada i Familiada w Party Quiz.
+
 ---
 
 ## v1.4.1 (sierpień 2026) — Party Quiz PWA: lista pytań + auto-odnawianie licencji

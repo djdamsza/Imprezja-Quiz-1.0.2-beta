@@ -9,6 +9,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="/lib/audio-normalize.js"></script>
     <script src="/lib/digital-output-cap.js"></script>
+    <script src="/lib/familiada-led-x.js"></script>
     <!-- Fonty lokalne – aplikacja działa bez internetu -->
     <!-- Czcionka Familiady (LED dot-matrix) — używana w renderPartyFamiliadaBoard dla trybu Party Quiz. -->
     <link href="/fonts/familiada-custom/familiada.css" rel="stylesheet">
@@ -7186,10 +7187,9 @@
             color: #330808;
             opacity: 0.4;
             transition: all 0.2s;
-            font-size: clamp(30px, 6vw, 64px);
             line-height: 1;
-            font-family: inherit;
         }
+        .pf-x-cell svg { width: 82%; height: 82%; display: block; overflow: visible; }
         .pf-x-cell.active {
             background: #1a0808;
             color: var(--pf-led-yellow);
@@ -7269,12 +7269,18 @@
             filter: drop-shadow(0 0 8px var(--pf-led-yellow, #ffd833));
         }
         .party-fam-giant-x {
-            font-size: min(50vh, 40vw);
-            color: var(--led-yellow);
-            text-shadow: 0 0 8vh var(--led-yellow);
-            font-family: 'Familiada', 'Silkscreen', 'VT323', monospace;
+            width: min(42vh, 34vw);
+            height: auto;
+            color: var(--led-yellow, #ffd833);
             line-height: 1;
             animation: partyFamCenterXWobble 3s ease-in-out;
+        }
+        .party-fam-giant-x svg {
+            width: 100%;
+            height: auto;
+            display: block;
+            overflow: visible;
+            filter: drop-shadow(0 0 4vh var(--led-yellow, #ffd833));
         }
         @keyframes partyFamCenterXWobble {
             0%, 100% { transform: rotate(-4deg); }
@@ -7295,12 +7301,17 @@
             background: rgba(0, 0, 0, 0.88);
         }
         .party-fam-center-x-flash .party-fam-center-x-glyph {
-            font-family: 'Familiada', 'Courier New', monospace;
-            font-size: min(50vh, 40vw);
+            width: min(42vh, 34vw);
+            height: auto;
             line-height: 1;
-            font-weight: 900;
             color: var(--led-yellow, #ffd833);
-            text-shadow: 0 0 5vh #ffd833;
+        }
+        .party-fam-center-x-flash .party-fam-center-x-glyph svg {
+            width: 100%;
+            height: auto;
+            display: block;
+            overflow: visible;
+            filter: drop-shadow(0 0 4vh #ffd833);
         }
         .party-fam-board {
             display: flex;
@@ -7709,7 +7720,7 @@
             const overlay = document.createElement('div');
             overlay.className = 'party-fam-center-x-flash';
             overlay.setAttribute('aria-hidden', 'true');
-            overlay.innerHTML = '<div class="party-fam-center-x-glyph" aria-hidden="true">X</div>';
+            overlay.innerHTML = '<div class="party-fam-center-x-glyph" aria-hidden="true">' + (typeof familiadaLedXSvg === 'function' ? familiadaLedXSvg() : 'X') + '</div>';
             document.body.appendChild(overlay);
             setTimeout(() => { try { overlay.remove(); } catch (_) {} }, 3000);
         }
@@ -8053,9 +8064,10 @@
 
         /** Kolumna 3× X — jak .x-zone w /familiada/screen.html (Party Quiz TV). */
         function renderXZone(label, active) {
+            const glyph = typeof familiadaLedXSvg === 'function' ? familiadaLedXSvg('pf-x-pixel') : '<span class="pf-x-pixel">X</span>';
             const boxes = [];
             for (let i = 0; i < 3; i++) {
-                boxes.push('<div class="pf-x-cell' + (i < active ? ' active' : '') + '"><span class="pf-x-pixel">X</span></div>');
+                boxes.push('<div class="pf-x-cell' + (i < active ? ' active' : '') + '">' + glyph + '</div>');
             }
             return (
                 '<div class="pf-xzone-col">' +
@@ -8360,7 +8372,7 @@
                             '</div>' +
                             '<div class="pf-total-pot">SUMA: ' + pot + '</div>' +
                             '<div id="party-fam-center-x-overlay" class="party-fam-center-x-overlay" aria-hidden="true" style="display:none">' +
-                                '<div class="party-fam-giant-x">X</div>' +
+                                '<div class="party-fam-giant-x">' + (typeof familiadaLedXSvg === 'function' ? familiadaLedXSvg() : 'X') + '</div>' +
                             '</div>' +
                         '</div>' +
                         renderXZone(redNameStr, errors.red || 0) +
