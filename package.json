@@ -1,0 +1,9 @@
+{
+  "name": "imprezja-booth",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Imprezja Booth (fotobudka). Z quizem współdzieli tylko prezentację zdjęć.",
+  "scripts": {
+    "test": "node contracts/photo-presentation.test.js"
+  }
+}
