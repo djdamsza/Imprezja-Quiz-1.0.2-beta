@@ -21,6 +21,7 @@ const os = require('os');
 const https = require('https'); // Potrzebne do importu z URL
 const crypto = require('crypto');
 const license = require('./license.js');
+const photoPresentation = require('./contracts/photo-presentation.js');
 const { spawn } = require('child_process');
 const trash = require('trash');
 
@@ -6063,6 +6064,43 @@ io.on('connection', (socket) => {
             countdownMinutes: liveOverlayCountdownMinutes,
             text: liveOverlayText,
             textPosition: liveOverlayTextPosition
+        });
+    });
+
+    // Fotobudka → slajdy obrazkowe. Reszta aplikacji budki jest poza tym repo.
+    socket.on(photoPresentation.EVENTS.PRESENT, (data) => {
+        const result = photoPresentation.applyBoothPhotos(
+            { config: prezentacjaConfig, index: prezentacjaIndex },
+            data
+        );
+        if (!result.ok) {
+            socket.emit(photoPresentation.EVENTS.SHOWN, {
+                ok: false,
+                contractVersion: photoPresentation.CONTRACT_VERSION,
+                error: result.error,
+                rejected: result.rejected
+            });
+            return;
+        }
+        prezentacjaConfig = result.config;
+        prezentacjaIndex = result.index;
+        prezentacjaPlaying = result.playing;
+        prezentacjaLoop = result.config.loop !== false;
+        io.emit('prezentacja_loaded', {
+            config: prezentacjaConfig,
+            index: prezentacjaIndex,
+            loop: prezentacjaLoop
+        });
+        io.emit('prezentacja_slide', { index: prezentacjaIndex, playing: prezentacjaPlaying });
+        if (prezentacjaPlaying) io.emit('prezentacja_playing', { playing: true });
+        io.emit(photoPresentation.EVENTS.SHOWN, {
+            ok: true,
+            contractVersion: photoPresentation.CONTRACT_VERSION,
+            presentation: result.config.name,
+            index: prezentacjaIndex,
+            mode: result.mode,
+            photos: result.accepted,
+            rejected: result.rejected
         });
     });
 
