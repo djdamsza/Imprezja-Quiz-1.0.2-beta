@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edytor nagród — Koło Fortuny</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/img/icon-32.png">
+    <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+    <link rel="stylesheet" href="/css/admin-editor-shared.css">
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; background: #12141c; color: #f4f1ea; font-family: "Avenir Next", "Segoe UI", system-ui, sans-serif; }
+        main { max-width: 860px; margin: 0 auto; padding: 28px 16px 48px; }
+        h1 { margin: 0 0 8px; color: var(--imp-accent, #f1c40f); }
+        .lead { color: rgba(244,241,234,0.7); }
+        select, input, button { font: inherit; }
+        select, input[type="text"] { background: #1c2433; color: #fff; border: 1px solid rgba(255,255,255,0.25); border-radius: 8px; padding: 8px 10px; }
+        button { background: #f1c40f; color: #1a1404; border: 0; border-radius: 8px; padding: 8px 12px; font-weight: 700; cursor: pointer; }
+        button.ghost { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.3); }
+        .row { display: grid; grid-template-columns: 72px 1fr auto; gap: 8px; margin-bottom: 8px; }
+        .bar { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0; align-items: center; }
+        .status { color: #c6d7b0; min-height: 1.3em; }
+        a.back-link { display: inline-block; margin-bottom: 20px; color: var(--imp-accent, #f1c40f); text-decoration: none; font-weight: 600; transition: all 0.2s; }
+        a.back-link:hover { text-decoration: underline; }
+        .actions-after-save { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+        .actions-after-save[hidden] { display: none; }
+    </style>
+</head>
+<body class="imp-admin-editor">
+    <main>
+        <a href="/start.html" class="back-link" id="back-link">← Cofnij</a>
+        <h1>Koło Fortuny — banki nagród</h1>
+        <p class="lead">Numer jest na kole. Tekst pojawia się po zatrzymaniu, tak jak pytanie w szybkiej liście.</p>
+        <div class="bar">
+            <label>Bank <select id="bank"></select></label>
+            <button type="button" id="save">Zapisz banki</button>
+            <button type="button" class="ghost" id="add">Dodaj pole</button>
+            <button type="button" class="ghost" id="add-bust">Dodaj Bankrut</button>
+            <a href="/start.html" class="back-link" id="bar-back" style="margin:0;">← Cofnij</a>
+        </div>
+        <div id="rows"></div>
+        <p class="status" id="status"></p>
+        <div class="actions-after-save" id="after-save" hidden>
+            <a href="/start.html" class="back-link" id="after-save-back" style="margin:0;">← Cofnij do wyboru trybu</a>
+        </div>
+    </main>
+    <script>
+        let banks = [];
+        const bankSel = document.getElementById("bank");
+        const rows = document.getElementById("rows");
+        const status = document.getElementById("status");
+        const afterSave = document.getElementById("after-save");
+
+        function goBack() {
+            window.location.href = "/start.html";
+        }
+        function current() { return banks.find((b) => b.id === bankSel.value) || banks[0]; }
+        function renderBanks() {
+            bankSel.replaceChildren();
+            banks.forEach((b) => {
+                const opt = document.createElement("option");
+                opt.value = b.id;
+                opt.textContent = b.title;
+                bankSel.append(opt);
+            });
+        }
+        function renderRows() {
+            const bank = current();
+            rows.replaceChildren();
+            if (!bank) return;
+            bank.fields.forEach((field, index) => {
+                const line = document.createElement("div");
+                line.className = "row";
+                const n = document.createElement("input");
+                n.type = "text";
+                n.value = field.n || "";
+                n.maxLength = 3;
+                const text = document.createElement("input");
+                text.type = "text";
+                text.value = field.text || "";
+                const del = document.createElement("button");
+                del.type = "button";
+                del.className = "ghost";
+                del.textContent = "Usuń";
+                n.addEventListener("input", () => { field.n = n.value; });
+                text.addEventListener("input", () => { field.text = text.value; });
+                del.addEventListener("click", () => { bank.fields.splice(index, 1); renderRows(); });
+                line.append(n, text, del);
+                rows.append(line);
+            });
+        }
+        async function load() {
+            const res = await fetch("/api/kolo/banks");
+            const data = await res.json();
+            banks = data.banks || [];
+            renderBanks();
+            if (data.bankId) bankSel.value = data.bankId;
+            renderRows();
+        }
+        bankSel.addEventListener("change", renderRows);
+        document.getElementById("add").addEventListener("click", () => {
+            const bank = current();
+            const n = String(bank.fields.filter((f) => !f.bust).length + 1);
+            bank.fields.push({ n, text: "Nagroda " + n, color: "#f1c40f", ink: "#1a1404" });
+            renderRows();
+        });
+        document.getElementById("add-bust").addEventListener("click", () => {
+            const bank = current();
+            if (bank.fields.some((f) => f.bust)) return;
+            bank.fields.push({ n: "B", text: "Bankrut — brak nagrody", color: "#141414", ink: "#f1c40f", bust: true });
+            renderRows();
+        });
+        document.getElementById("save").addEventListener("click", async () => {
+            const res = await fetch("/api/kolo/banks", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ banks, bankId: bankSel.value })
+            });
+            if (res.ok) {
+                status.textContent = "Zapisane. Możesz wrócić ← Cofnij.";
+                afterSave.hidden = false;
+            } else {
+                status.textContent = "Nie udało się zapisać.";
+            }
+        });
+        document.querySelectorAll("#back-link, #bar-back, #after-save-back").forEach((el) => {
+            el.addEventListener("click", (e) => {
+                e.preventDefault();
+                goBack();
+            });
+        });
+        load().catch(() => { status.textContent = "Brak połączenia z serwerem."; });
+    </script>
+</body>
+</html>

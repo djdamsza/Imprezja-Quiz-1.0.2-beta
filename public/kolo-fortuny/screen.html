@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>Koło Fortuny</title>
+    <link rel="stylesheet" href="/lib/splitting.css">
+    <link rel="stylesheet" href="/lib/fast-list-caption.css">
+    <style>
+        html, body { margin: 0; height: 100%; background: #12141c; color: #f4f1ea; font-family: "Avenir Next", "Segoe UI", system-ui, sans-serif; overflow: hidden; }
+        body { display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 50% 40%, #2a2418 0%, #12141c 62%); }
+        .logo { position: absolute; top: 22px; right: 22px; height: 54px; z-index: 2; }
+        canvas { width: min(78vh, 78vw); height: min(78vh, 78vw); }
+        .prize {
+            position: absolute; left: 50%; bottom: 6vh; transform: translateX(-50%);
+            width: min(920px, 88vw); text-align: center; z-index: 3;
+        }
+        .prize[hidden] { display: none; }
+        .kicker { margin: 0 0 8px; color: #f1c40f; letter-spacing: 0.16em; font-weight: 800; font-size: clamp(1rem, 2vw, 1.4rem); }
+        .prompt { margin: 0; font-size: clamp(2rem, 5vw, 4.2rem); font-weight: 800; line-height: 1.12; }
+    </style>
+</head>
+<body>
+    <img class="logo" src="/img/logo_imprezja.png" alt="Imprezja Quiz">
+    <canvas id="wheel" width="900" height="900"></canvas>
+    <div class="prize" id="prize" hidden>
+        <p class="kicker" id="kicker"></p>
+        <p class="prompt" id="prompt"></p>
+    </div>
+    <script src="/lib/splitting.min.js"></script>
+    <script src="/lib/fast-list-caption.js"></script>
+    <script src="/kolo-fortuny/wheel.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const canvas = document.getElementById("wheel");
+        const ctx = canvas.getContext("2d");
+        const prize = document.getElementById("prize");
+        const kicker = document.getElementById("kicker");
+        const prompt = document.getElementById("prompt");
+        let fields = [];
+        let rotation = 0;
+        let spinToken = 0;
+
+        function paint() { KoloWheel.draw(ctx, fields, rotation, canvas.width); }
+
+        function showPrize(field, effectIndex) {
+            if (!field) { prize.hidden = true; return; }
+            kicker.textContent = field.bust ? "BANKRUT" : "NUMER " + field.n;
+            prize.hidden = false;
+            if (window.FastListCaption && typeof FastListCaption.showQuestion === "function") {
+                const fx = FastListCaption.effectAt(effectIndex || 0);
+                FastListCaption.showQuestion(prompt, field.text, fx);
+            } else {
+                prompt.textContent = field.text || "";
+            }
+        }
+
+        function animateTo(from, target, duration, done) {
+            const token = ++spinToken;
+            const start = performance.now();
+            function frame(now) {
+                if (token !== spinToken) return;
+                const t = Math.min(1, (now - start) / duration);
+                const ease = 1 - Math.pow(1 - t, 3);
+                rotation = from + (target - from) * ease;
+                paint();
+                if (t < 1) requestAnimationFrame(frame);
+                else { rotation = target; paint(); if (done) done(); }
+            }
+            requestAnimationFrame(frame);
+        }
+
+        const socket = io();
+        socket.emit("screen_join");
+        socket.on("kolo_state", (data) => {
+            if (!data) return;
+            fields = data.fields || [];
+            if (typeof data.rotation === "number" && data.phase !== "spin") rotation = data.rotation;
+            paint();
+            if (data.phase === "result" && data.field) showPrize(data.field, data.effect);
+            else if (data.phase !== "spin") prize.hidden = true;
+        });
+        socket.on("kolo_spin", (data) => {
+            if (!data) return;
+            fields = data.fields || fields;
+            prize.hidden = true;
+            animateTo(data.from, data.target, data.duration, () => showPrize(data.field, data.effect));
+        });
+        paint();
+    </script>
+</body>
+</html>

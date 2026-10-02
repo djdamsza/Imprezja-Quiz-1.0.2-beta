@@ -1,0 +1,94 @@
+/* Wejścia napisów szybkiej listy. Wymaga Splitting.js (znaki / słowa). */
+.flc-line {
+    --flc-step: 28ms;
+}
+.flc-line .word,
+.flc-line .char {
+    display: inline-block;
+    white-space: pre;
+}
+.flc-line .word {
+    white-space: nowrap;
+}
+
+.flc-arm .char,
+.flc-arm .word {
+    opacity: 0;
+}
+/* Efekty na literach: słowo nie może zostać przezroczyste, bo chowa dzieci. */
+.flc-type .word,
+.flc-zoom-in .word,
+.flc-zoom-out .word {
+    opacity: 1;
+}
+.flc-go.flc-type .char {
+    animation: flc-type-in 0.05s linear forwards;
+    animation-delay: calc(var(--i) * var(--flc-step));
+}
+@keyframes flc-type-in { to { opacity: 1; } }
+
+.flc-go.flc-slide-up .word {
+    animation: flc-slide-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation-delay: calc(var(--w) * 90ms);
+}
+@keyframes flc-slide-up {
+    from { opacity: 0; transform: translateY(1.15em); }
+    to { opacity: 1; transform: none; }
+}
+
+.flc-go.flc-zoom-in {
+    animation: flc-zoom-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes flc-zoom-in {
+    from { opacity: 0; transform: scale(0.15); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.flc-go.flc-zoom-out {
+    animation: flc-zoom-out 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes flc-zoom-out {
+    from { opacity: 0; transform: scale(2.4); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.flc-go.flc-slide-side .word {
+    animation: flc-from-left 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation-delay: calc(var(--w) * 80ms);
+}
+.flc-go.flc-slide-side .word:nth-child(even) {
+    animation-name: flc-from-right;
+}
+@keyframes flc-from-left {
+    from { opacity: 0; transform: translateX(-0.8em); }
+    to { opacity: 1; transform: none; }
+}
+@keyframes flc-from-right {
+    from { opacity: 0; transform: translateX(0.8em); }
+    to { opacity: 1; transform: none; }
+}
+
+.flc-go.flc-fade .word {
+    filter: blur(8px);
+    animation: flc-fade-in 0.85s ease forwards;
+    animation-delay: calc(var(--w) * 100ms);
+}
+@keyframes flc-fade-in {
+    to { opacity: 1; filter: none; }
+}
+
+.flc-arm.flc-zoom-in,
+.flc-arm.flc-zoom-out {
+    opacity: 0;
+    transform-origin: center center;
+}
+
+.flc-go.flc-pop .word {
+    animation: flc-pop-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation-delay: calc(var(--w) * 50ms);
+}
+@keyframes flc-pop-in {
+    from { opacity: 0; transform: scale(0.72); }
+    to { opacity: 1; transform: none; }
+}
+
