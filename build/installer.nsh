@@ -42,9 +42,13 @@
 !macroend
 
 !macro customInstall
+  ; Katalogi danych użytkownika – TYLKO tworzenie, nigdy kasowanie przy aktualizacji.
+  ; deleteAppDataOnUninstall=false: deinstalator też nie rusza playlisty Imprezatora ani sampli.
   CreateDirectory "$APPDATA\Imprezja Quiz\quizzes"
   CreateDirectory "$APPDATA\Imprezja Quiz\uploads"
   CreateDirectory "$APPDATA\Imprezja Quiz\uploads\sfx"
+  CreateDirectory "$APPDATA\Imprezja Quiz\njr-sampler-configs"
+  CreateDirectory "$APPDATA\Imprezja Quiz\imprezator-configs"
   ; Na Windows tunel LTE używa Tunnelmole (bez OpenSSH) – brak dodatkowych kroków instalacji.
 !macroend
 

@@ -1,5 +1,5 @@
 // Service Worker – VoteBattle: cache stron, aby działały offline (sieć lokalna)
-const CACHE_NAME = 'votebattle-v5';
+const CACHE_NAME = 'votebattle-v6';
 
 const PRECACHE = [
   '/Screen.html',

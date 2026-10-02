@@ -2,6 +2,23 @@
 
 ---
 
+## v1.2.8 (październik 2026) — przywrócenie samplera i ochrona mediów
+
+### Sampler
+- **Przywrócone oryginalne sample** z wydania 1.5.0 / historii gita do `public/uploads` (banki PRANK_NERD, Odpowiedzi, prezentacja, Wejścia, Whitney). Konfiguracje JSON już były w repozytorium; brakowało plików audio po `gitignore` na `public/uploads`.
+
+### Imprezator
+- Playlista DJ-a zostaje **prywatna** (poza gitem i poza instalatorem).
+- Przy starcie aplikacja **przywraca brakujące** `imprezator-configs` z poprzedniego katalogu danych (`votebattle` → `Imprezja Quiz`, w tym `~/Documents/VoteBattle/public/imprezator-configs` na Macu) – bez nadpisywania.
+- Electron (dev i paczka) używa **tego samego** katalogu `Application Support/Imprezja Quiz`, żeby przejście z `electron .` na instalator nie „gubiło” listy utworów.
+
+### Aktualizacje nie kasują mediów
+- Seed audio z builda kopiowany jest w całości, tylko gdy pliku nie ma w danych użytkownika.
+- „Osierocone uploady” i reset nie usuwają plików z seedu samplera.
+- Instalator NSIS tworzy katalogi danych, nigdy ich nie czyści; `deleteAppDataOnUninstall` nadal false.
+
+---
+
 ## v1.2.7 (maj 2026) — wydanie stabilne
 
 ### Audio — uproszczenie i wyrównanie głośności
