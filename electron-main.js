@@ -123,6 +123,21 @@ try {
     // Spróbuj użyć destrukturyzacji
     const { app, BrowserWindow, dialog, Menu, ipcMain, screen, session } = electron;
 
+    // Jeden stały katalog danych dla Electron (dev = votebattle, paczka = Imprezja Quiz).
+    // Bez tego playlisty Imprezatora i sample lądowały w innym folderze po przejściu na instalator.
+    function getStableUserDataDir() {
+        const home = os.homedir();
+        if (process.platform === 'darwin') return path.join(home, 'Library', 'Application Support', 'Imprezja Quiz');
+        if (process.platform === 'win32') return path.join(process.env.APPDATA || home, 'Imprezja Quiz');
+        return path.join(home, '.config', 'Imprezja Quiz');
+    }
+    try {
+        app.setPath('userData', getStableUserDataDir());
+        logToFile('📂 userData (stały katalog): ' + app.getPath('userData'));
+    } catch (e) {
+        logToFile('⚠️ setPath userData: ' + e.message);
+    }
+
     /**
      * Prawy przycisk w polu tekstowym → Wklej / Kopiuj (bez tego w Electron nie ma domyślnego menu kontekstowego).
      */

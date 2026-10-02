@@ -64,6 +64,96 @@ function getDefaultDataDir() {
     if (process.platform === 'win32') return path.join(process.env.APPDATA || home, 'Imprezja Quiz');
     return path.join(home, '.config', 'Imprezja Quiz');
 }
+
+/** Katalogi, w których wcześniej mogły leżeć playlisty / sample (inna nazwa Electron userData). */
+function getLegacyUserDataRoots() {
+    const home = os.homedir();
+    const names = ['votebattle', 'VoteBattle', 'Imprezja Quiz', 'Imprezja Quiz Beta'];
+    const roots = [];
+    if (process.platform === 'darwin') {
+        for (const n of names) roots.push(path.join(home, 'Library', 'Application Support', n));
+        roots.push(path.join(home, 'Documents', 'VoteBattle', 'public'));
+        roots.push(path.join(home, 'Documents', 'VoteBattle'));
+    } else if (process.platform === 'win32') {
+        const appdata = process.env.APPDATA || path.join(home, 'AppData', 'Roaming');
+        const local = process.env.LOCALAPPDATA || path.join(home, 'AppData', 'Local');
+        for (const n of names) {
+            roots.push(path.join(appdata, n));
+            roots.push(path.join(local, n));
+        }
+    } else {
+        for (const n of names) {
+            roots.push(path.join(home, '.config', n));
+            roots.push(path.join(home, '.local', 'share', n));
+        }
+    }
+    return roots;
+}
+
+function copyMissingFileOrTree(src, dest) {
+    if (!src || !dest || !fs.existsSync(src)) return 0;
+    let copied = 0;
+    const st = fs.statSync(src);
+    if (st.isDirectory()) {
+        if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
+        let ents;
+        try { ents = fs.readdirSync(src, { withFileTypes: true }); } catch (_) { return 0; }
+        for (const e of ents) {
+            if (e.name === '.' || e.name === '..') continue;
+            copied += copyMissingFileOrTree(path.join(src, e.name), path.join(dest, e.name));
+        }
+        return copied;
+    }
+    if (st.isFile()) {
+        if (fs.existsSync(dest)) return 0;
+        const dir = path.dirname(dest);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        fs.copyFileSync(src, dest);
+        return 1;
+    }
+    return 0;
+}
+
+/**
+ * Przywraca Imprezator / sampler z poprzedniego katalogu danych (np. votebattle → Imprezja Quiz).
+ * Tylko brakujące pliki – nigdy nie nadpisuje i nigdy nie kasuje.
+ */
+function migrateLegacyMediaUserData() {
+    if (!dataDir) return;
+    const destRoot = path.resolve(dataDir);
+    const rels = [
+        'imprezator-configs',
+        'imprezator-last.json',
+        'imprezator-settings.json',
+        'njr-sampler-configs',
+        'njr-sampler-last.json',
+        'njr-sampler-bank-assignment.json',
+        'njr-sampler-config.json',
+        'uploads',
+    ];
+    const seen = new Set([destRoot]);
+    let total = 0;
+    for (const root of getLegacyUserDataRoots()) {
+        let resolved;
+        try { resolved = path.resolve(root); } catch (_) { continue; }
+        if (seen.has(resolved) || !fs.existsSync(resolved)) continue;
+        seen.add(resolved);
+        for (const rel of rels) {
+            const src = path.join(resolved, rel);
+            const dest = path.join(dataDir, rel);
+            try {
+                const n = copyMissingFileOrTree(src, dest);
+                if (n) {
+                    total += n;
+                    console.log('   📋 Przywrócono z poprzedniego katalogu danych:', path.join(path.basename(resolved), rel), '(' + n + ')');
+                }
+            } catch (e) {
+                console.warn('   ⚠️ Migracja', rel, e.message);
+            }
+        }
+    }
+    if (total) console.log('   📋 Migracja mediów: skopiowano', total, 'brakujących plików (niczego nie nadpisano)');
+}
 let certsDir = path.join(__dirname, 'certs');
 let keyPath = path.join(certsDir, 'key.pem');
 let certPath = path.join(certsDir, 'cert.pem');
@@ -1290,7 +1380,9 @@ if (!fs.existsSync(partyQuizzesDir)) fs.mkdirSync(partyQuizzesDir, { recursive: 
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 if (!fs.existsSync(familiadaDir)) fs.mkdirSync(familiadaDir, { recursive: true });
 if (!fs.existsSync(PREZENTACJE_CONFIGS_DIR)) fs.mkdirSync(PREZENTACJE_CONFIGS_DIR, { recursive: true });
-// Wersja aplikacji (z package.json) – przy nowej wersji nadpisujemy configi Śpiewaj Dalej/NJR/Bitwa z builda, żeby build miał te same banki co dev. Aby wymusić odświeżenie bez zmiany wersji, usuń plik .configs-synced-version w katalogu danych.
+try { migrateLegacyMediaUserData(); } catch (e) { console.warn('   ⚠️ Migracja mediów:', e.message); }
+// Wersja aplikacji (z package.json) – przy nowej wersji DOKLEJAMY brakujące pliki z builda.
+// Nigdy nie nadpisujemy i nigdy nie kasujemy danych użytkownika (Imprezator, sampler, uploady).
 let appVersionForSync = '';
 try {
     const pkgPath = path.join(process.env.IMPREZJA_APP_PATH || __dirname, 'package.json');
@@ -1454,52 +1546,14 @@ if (dataDir) {
                 console.log('   📋 Nowa wersja aplikacji:', appVersionForSync, '– dane użytkownika zachowane, dodano tylko nowe pliki');
             } catch (_) {}
         }
-        // Gry muzyczne – skopiuj pliki audio z configów z aplikacji do userData/uploads
+        // Seed mediów z builda: cały public/uploads (sampler, sfx, vdjsample).
+        // Tylko brakujące pliki – aktualizacja NIE kasuje i NIE nadpisuje userData.
         const appUploads = path.join(appPathForCopy, 'public', 'uploads');
         if (fs.existsSync(appUploads) && fs.existsSync(uploadsDir)) {
-            const configDirs = [
-                path.join(appPathForCopy, 'public', 'njr-sampler-configs'),
-                path.join(appPathForCopy, 'public', 'spiewaj-dalej-configs'),
-                path.join(appPathForCopy, 'public', 'bitwa-wokalna-configs'),
-                path.join(appPathForCopy, 'public', 'imprezator-configs')
-            ];
-            const collected = new Set();
-            function addUploadRef(str) {
-                if (typeof str !== 'string' || (!str.startsWith('/uploads/') && !str.startsWith('uploads/'))) return;
-                const name = path.basename(str.replace(/^\/+/, ''));
-                if (name) collected.add(name);
-            }
-            function extractUploadPaths(obj) {
-                if (!obj) return;
-                if (Array.isArray(obj)) { obj.forEach(extractUploadPaths); return; }
-                if (typeof obj === 'object') {
-                    if (typeof obj.audio === 'string') addUploadRef(obj.audio);
-                    if (typeof obj.screenGraphic === 'string') addUploadRef(obj.screenGraphic);
-                    if (typeof obj.image === 'string') addUploadRef(obj.image);
-                    Object.values(obj).forEach(extractUploadPaths);
-                }
-            }
-            for (const dir of configDirs) {
-                if (!fs.existsSync(dir)) continue;
-                const files = fs.readdirSync(dir).filter(f => f.toLowerCase().endsWith('.json'));
-                for (const name of files) {
-                    try {
-                        const raw = fs.readFileSync(path.join(dir, name), 'utf8');
-                        const data = JSON.parse(raw);
-                        extractUploadPaths(data);
-                    } catch (_) {}
-                }
-            }
-            for (const fileName of collected) {
-                const src = path.join(appUploads, fileName);
-                const dest = path.join(uploadsDir, fileName);
-                if (fs.existsSync(src) && !fs.existsSync(dest)) {
-                    try {
-                        fs.copyFileSync(src, dest);
-                        console.log('   📋 Skopiowano plik do banków (nowy):', fileName);
-                    } catch (e) { console.warn('   ⚠️ Nie skopiowano', fileName, e.message); }
-                }
-            }
+            try {
+                const n = copyMissingFileOrTree(appUploads, uploadsDir);
+                if (n) console.log('   📋 Skopiowano pliki mediów z aplikacji (nowe):', n);
+            } catch (e) { console.warn('   ⚠️ Nie skopiowano uploads z aplikacji:', e.message); }
         }
     } catch (err) {
         console.warn('   ⚠️ Nie udało się skopiować plików z aplikacji:', err.message);
@@ -1573,6 +1627,11 @@ function _listRelativeFilesInUploadsTree(uploadRoot) {
     return out;
 }
 
+function getBundledUploadSeedRels() {
+    const appUploads = path.join(process.env.IMPREZJA_APP_PATH || __dirname, 'public', 'uploads');
+    return _listRelativeFilesInUploadsTree(appUploads);
+}
+
 function getAllFilesReferencedByQuizzes(excludeFilename) {
     const used = new Set();
     const cfgRoot = path.dirname(quizzesDir);
@@ -1623,6 +1682,9 @@ function getAllFilesReferencedByQuizzes(excludeFilename) {
         path.join(__dirname, 'statki-solo-config.json'),
         path.join(cfgRoot, 'imprezja-volumes.json'),
     ].forEach((p) => _readTextIfExists(p, used));
+
+    // Seed z instalatora (sampler / sfx) – nigdy nie traktuj jako osieroconych.
+    for (const rel of getBundledUploadSeedRels()) used.add(rel);
 
     used.delete(null); used.delete(undefined); used.delete('');
     return used;
