@@ -376,6 +376,52 @@ let screenControllerMode = 'welcome';
 let welcomeScreenData = { imageUrl: '', text: '', logoVisible: true, textPosition: 'center', fontSize: 'medium', textColor: '#ffffff' };
 let musicModeGraphicUrl = '';
 
+const koloBanksFile = path.join(dataDir, 'kolo-banks.json');
+let koloBanks = [];
+let koloBankId = 'oczepiny';
+let koloPhase = 'idle';
+let koloRotation = 0;
+let koloResult = null;
+let koloEffect = 0;
+let koloSpinTimer = null;
+
+function loadKoloBanks() {
+    try {
+        if (fs.existsSync(koloBanksFile)) {
+            const saved = JSON.parse(fs.readFileSync(koloBanksFile, 'utf8'));
+            if (saved && Array.isArray(saved.banks) && saved.banks.length) {
+                koloBanks = saved.banks;
+                if (saved.bankId) koloBankId = saved.bankId;
+                return;
+            }
+        }
+    } catch (e) { /* start z propozycji */ }
+    try {
+        const fresh = JSON.parse(fs.readFileSync(path.join(__dirname, 'public', 'kolo-fortuny', 'banks-default.json'), 'utf8'));
+        koloBanks = fresh.banks || [];
+    } catch (e) {
+        koloBanks = [];
+    }
+}
+function koloBank() {
+    return koloBanks.find((b) => b.id === koloBankId) || koloBanks[0] || { id: '', title: '', fields: [] };
+}
+function koloPayload() {
+    const bank = koloBank();
+    return {
+        bankId: bank.id,
+        title: bank.title,
+        banks: koloBanks.map((b) => ({ id: b.id, title: b.title })),
+        fields: bank.fields || [],
+        phase: koloPhase,
+        rotation: koloRotation,
+        field: koloResult,
+        effect: koloEffect
+    };
+}
+function emitKolo() { io.emit('kolo_state', koloPayload()); }
+loadKoloBanks();
+
 // Prezentacja – stan odtwarzania
 let prezentacjaConfig = null;      // { name, slides, transition, loop }
 let prezentacjaIndex = 0;
@@ -1662,6 +1708,21 @@ app.delete('/api/upload/:filename', async (req, res) => {
         console.error('❌ Błąd usuwania pliku:', err);
         res.status(500).json({ error: err.message });
     }
+});
+
+app.get('/api/kolo/banks', (req, res) => {
+    res.json({ banks: koloBanks, bankId: koloBankId });
+});
+app.put('/api/kolo/banks', (req, res) => {
+    const body = req.body || {};
+    if (!Array.isArray(body.banks)) return res.status(400).json({ error: 'banks' });
+    koloBanks = body.banks.filter((b) => b && b.id && Array.isArray(b.fields));
+    if (body.bankId && koloBanks.some((b) => b.id === body.bankId)) koloBankId = body.bankId;
+    try { fs.writeFileSync(koloBanksFile, JSON.stringify({ banks: koloBanks, bankId: koloBankId }, null, 2)); } catch (e) {}
+    koloPhase = 'idle';
+    koloResult = null;
+    emitKolo();
+    res.json({ ok: true });
 });
 
 // GET /api/uploads/orphans — zwraca listę plików niereferensjowanych przez żaden quiz
@@ -5905,6 +5966,7 @@ io.on('connection', (socket) => {
             mode: screenControllerMode,
             welcome: welcomeScreenData
         });
+        socket.emit('kolo_state', koloPayload());
         if (musicModeGraphicUrl) socket.emit('music_mode_screen', { graphicUrl: musicModeGraphicUrl });
     });
     socket.on('admin_join', () => {
@@ -5914,12 +5976,13 @@ io.on('connection', (socket) => {
             mode: screenControllerMode,
             welcome: welcomeScreenData
         });
+        socket.emit('kolo_state', koloPayload());
         if (musicModeGraphicUrl) socket.emit('music_mode_screen', { graphicUrl: musicModeGraphicUrl });
     });
     const MUSIC_MODES_WITH_GRAPHIC = ['sampler', 'spiewaj', 'bitwa', 'whitney', 'imprezator'];
     socket.on('screen_switch', (data) => {
         const mode = (data && data.mode) || 'welcome';
-        const allowed = ['welcome', 'quiz', 'familiada', 'party', 'statki', 'prezentacja', 'camera', 'stream', 'sampler', 'spiewaj', 'bitwa', 'whitney', 'imprezator'];
+        const allowed = ['welcome', 'quiz', 'familiada', 'party', 'statki', 'prezentacja', 'camera', 'stream', 'sampler', 'spiewaj', 'bitwa', 'whitney', 'imprezator', 'kolo'];
         if (allowed.includes(mode)) {
             screenControllerMode = mode;
             if (!MUSIC_MODES_WITH_GRAPHIC.includes(mode)) {
@@ -5937,6 +6000,59 @@ io.on('connection', (socket) => {
             io.emit('screen_switch', { mode });
             if (mode === 'quiz') broadcastStateImmediate();
         }
+    });
+    socket.on('kolo_select_bank', (data) => {
+        const id = data && data.bankId;
+        if (!koloBanks.some((b) => b.id === id)) return;
+        koloBankId = id;
+        koloPhase = 'idle';
+        koloResult = null;
+        koloRotation = 0;
+        try { fs.writeFileSync(koloBanksFile, JSON.stringify({ banks: koloBanks, bankId: koloBankId }, null, 2)); } catch (e) {}
+        emitKolo();
+    });
+    socket.on('kolo_save_fields', (data) => {
+        const bank = koloBank();
+        if (!bank || !data || !Array.isArray(data.fields)) return;
+        bank.fields = data.fields.filter((f) => f && String(f.n || '').trim() && String(f.text || '').trim()).slice(0, 24);
+        koloPhase = 'idle';
+        koloResult = null;
+        try { fs.writeFileSync(koloBanksFile, JSON.stringify({ banks: koloBanks, bankId: koloBankId }, null, 2)); } catch (e) {}
+        emitKolo();
+    });
+    socket.on('kolo_spin', (data) => {
+        const bank = koloBank();
+        const fields = bank.fields || [];
+        if (!fields.length || koloPhase === 'spin' || koloPhase === 'result') return;
+        const speed = Math.abs(Number(data && data.velocity) || 1);
+        const dir = Number(data && data.velocity) < 0 ? -1 : 1;
+        const TAU = Math.PI * 2;
+        const slice = TAU / fields.length;
+        const turns = (3 + Math.min(7, speed * 1.6)) * 1.2;
+        const landing = koloRotation + dir * turns * TAU;
+        const shifted = ((-landing % TAU) + TAU) % TAU;
+        const index = Math.floor(shifted / slice) % fields.length;
+        const along = 0.22 + Math.random() * 0.56;
+        let target = -(index * slice + along * slice);
+        target += Math.round((landing - target) / TAU) * TAU;
+        const duration = (2800 + Math.min(4200, speed * 900)) * 1.2;
+        koloPhase = 'spin';
+        koloEffect = (koloEffect + 1) % 6;
+        koloResult = fields[index];
+        const from = koloRotation;
+        io.emit('kolo_spin', { from, target, duration, fields, field: koloResult, effect: koloEffect });
+        if (koloSpinTimer) clearTimeout(koloSpinTimer);
+        koloSpinTimer = setTimeout(() => {
+            koloRotation = target;
+            koloPhase = 'result';
+            emitKolo();
+        }, duration + 40);
+    });
+    socket.on('kolo_next', () => {
+        if (koloPhase !== 'result') return;
+        koloPhase = 'idle';
+        koloResult = null;
+        emitKolo();
     });
     socket.on('welcome_update', (data) => {
         if (data && typeof data === 'object') {

@@ -1,0 +1,60 @@
+{
+  "banks": [
+    {
+      "id": "oczepiny",
+      "title": "Oczepiny — flaszki",
+      "fields": [
+        { "n": "1", "text": "1 flaszka", "color": "#f1c40f", "ink": "#1a1404" },
+        { "n": "2", "text": "2 flaszki", "color": "#c0392b", "ink": "#fff8f0" },
+        { "n": "3", "text": "3 flaszki", "color": "#1a5276", "ink": "#f4f1ea" },
+        { "n": "4", "text": "4 flaszki", "color": "#1e8449", "ink": "#f4f1ea" },
+        { "n": "B", "text": "Bankrut — brak nagrody", "color": "#141414", "ink": "#f1c40f", "bust": true }
+      ]
+    },
+    {
+      "id": "zadania",
+      "title": "Zadania weselne",
+      "fields": [
+        { "n": "1", "text": "Zrób selfie z parą młodą", "color": "#f1c40f", "ink": "#1a1404" },
+        { "n": "2", "text": "Zatańcz z nieznajomą osobą", "color": "#c0392b", "ink": "#fff8f0" },
+        { "n": "3", "text": "Zatańcz z nieznajomym", "color": "#1a5276", "ink": "#f4f1ea" },
+        { "n": "4", "text": "Zadedykuj piosenkę", "color": "#d35400", "ink": "#fff8f0" },
+        { "n": "5", "text": "Opowiedz kawał", "color": "#1e8449", "ink": "#f4f1ea" },
+        { "n": "6", "text": "Wygłoś toast za parę młodą", "color": "#6c3483", "ink": "#f4f1ea" },
+        { "n": "7", "text": "Poproś DJ-a o wolny utwór", "color": "#b7950b", "ink": "#1a1404" },
+        { "n": "8", "text": "Zrób zdjęcie ze świadkiem", "color": "#922b21", "ink": "#fff8f0" },
+        { "n": "9", "text": "Naucz parę młodą jednego kroku", "color": "#117a65", "ink": "#f4f1ea" },
+        { "n": "10", "text": "Powiedz komplement młodym", "color": "#1b4f72", "ink": "#f4f1ea" },
+        { "n": "11", "text": "Złap kogoś do wspólnego zdjęcia", "color": "#a04000", "ink": "#fff8f0" },
+        { "n": "12", "text": "Zaśpiewaj refren ulubionej piosenki", "color": "#7d3c98", "ink": "#f4f1ea" },
+        { "n": "13", "text": "Zaśpiewaj „Sto lat” z osobą obok", "color": "#f1c40f", "ink": "#1a1404" },
+        { "n": "14", "text": "Zrób zdjęcie z rodzicami pary młodej", "color": "#c0392b", "ink": "#fff8f0" },
+        { "n": "15", "text": "Wymień się butem z gościem po prawej", "color": "#1a5276", "ink": "#f4f1ea" },
+        { "n": "16", "text": "Pokaż 10 sekund tańca solo", "color": "#d35400", "ink": "#fff8f0" },
+        { "n": "17", "text": "Opowiedz, jak poznali się młodzi — na poważnie albo zmyśl", "color": "#1e8449", "ink": "#f4f1ea" },
+        { "n": "18", "text": "Zbierz trzy autografy na serwetce", "color": "#6c3483", "ink": "#f4f1ea" },
+        { "n": "19", "text": "Przytul kogoś w tym samym kolorze stroju", "color": "#b7950b", "ink": "#1a1404" },
+        { "n": "20", "text": "Poproś o piosenkę ze swojego roku urodzenia", "color": "#117a65", "ink": "#f4f1ea" },
+        { "n": "B", "text": "Bankrut — brak nagrody", "color": "#141414", "ink": "#f1c40f", "bust": true }
+      ]
+    },
+    {
+      "id": "nagrody",
+      "title": "Nagrody",
+      "fields": [
+        { "n": "1", "text": "Nagroda 1", "color": "#f1c40f", "ink": "#1a1404" },
+        { "n": "2", "text": "Nagroda 2", "color": "#c0392b", "ink": "#fff8f0" },
+        { "n": "3", "text": "Nagroda 3", "color": "#1a5276", "ink": "#f4f1ea" },
+        { "n": "4", "text": "Nagroda 4", "color": "#d35400", "ink": "#fff8f0" },
+        { "n": "5", "text": "Nagroda 5", "color": "#1e8449", "ink": "#f4f1ea" },
+        { "n": "6", "text": "Nagroda 6", "color": "#6c3483", "ink": "#f4f1ea" },
+        { "n": "7", "text": "Nagroda 7", "color": "#b7950b", "ink": "#1a1404" },
+        { "n": "8", "text": "Nagroda 8", "color": "#922b21", "ink": "#fff8f0" },
+        { "n": "9", "text": "Nagroda 9", "color": "#117a65", "ink": "#f4f1ea" },
+        { "n": "10", "text": "Nagroda 10", "color": "#1b4f72", "ink": "#f4f1ea" },
+        { "n": "11", "text": "Nagroda 11", "color": "#a04000", "ink": "#fff8f0" },
+        { "n": "12", "text": "Nagroda 12", "color": "#7d3c98", "ink": "#f4f1ea" }
+      ]
+    }
+  ]
+}

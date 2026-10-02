@@ -102,6 +102,15 @@
         .setup-card.collapsed .setup-card-body { display: none; }
         .setup-card-links .setup-card-header { cursor: default; }
         .setup-card-links a.btn-apply { color: #000; }
+        #setup-kolo select, #setup-kolo input {
+            font: inherit;
+            background: #1c2433;
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 8px;
+            padding: 8px 10px;
+            max-width: 100%;
+        }
         .btn-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -386,6 +395,10 @@
                 <span class="icon">⚓</span>
                 <span class="label">Statki</span>
             </button>
+            <button type="button" class="btn-mode screen-tile" data-mode="kolo">
+                <span class="icon">🎡</span>
+                <span class="label">Koło Fortuny</span>
+            </button>
             <button type="button" class="btn-mode screen-tile" data-mode="prezentacja">
                 <span class="icon">📽️</span>
                 <span class="label">Prezentacja</span>
@@ -535,6 +548,24 @@
                         <button type="button" class="btn-apply camera-facing-btn" data-facing="user" style="flex:1;min-width:100px;">🤳 Przednia</button>
                     </div>
                     <p style="font-size:0.8rem;color:rgba(255,255,255,0.6);margin-top:12px;">Tylna – do filmowania sali. Przednia – selfie. Wake Lock trzyma ekran włączony podczas streamu. Stream: 640×480, 12 kl/s, JPEG – zoptymalizowane pod sieć lokalną.</p>
+                </div>
+            </div>
+            <div class="setup-card collapsed" id="setup-kolo">
+                <div class="setup-card-header" data-toggle="setup-kolo">
+                    <span class="icon">🎡</span>
+                    <span class="label">Koło Fortuny</span>
+                    <span class="chevron">▼</span>
+                </div>
+                <div class="setup-card-body" id="setup-kolo-body">
+                    <p style="font-size:0.82rem;color:rgba(255,255,255,0.65);margin:0 0 10px;">Edycja nagród. Po zapisie wróć ← Cofnij.</p>
+                    <label>Bank <select id="kolo-bank"></select></label>
+                    <div id="kolo-edit" style="margin:10px 0;"></div>
+                    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+                        <button type="button" id="kolo-save" class="btn-apply">Zapisz nagrody</button>
+                        <button type="button" id="kolo-back" class="btn-close" style="position:static;width:auto;height:auto;padding:8px 12px;border-radius:8px;">← Cofnij</button>
+                    </div>
+                    <p id="kolo-status" style="font-size:0.82rem;color:#c6d7b0;min-height:1.2em;margin:8px 0 0;"></p>
+                    <a href="/kolo-fortuny/editor.html" class="btn-apply" style="display:block;text-align:center;text-decoration:none;margin:12px 0 0;">Otwórz pełny edytor</a>
                 </div>
             </div>
             <div class="setup-card setup-card-links">
@@ -868,6 +899,8 @@
                 socket.emit('screen_switch', { mode });
                 document.querySelectorAll('.screen-tile[data-mode]').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
+                const koloCard = document.getElementById('setup-kolo');
+                if (koloCard) koloCard.classList.toggle('collapsed', mode !== 'kolo');
             });
         });
 
@@ -1527,6 +1560,57 @@
         document.getElementById('setup-powitanie')?.classList.add('collapsed');
         document.getElementById('setup-prezentacja')?.classList.add('collapsed');
         document.getElementById('setup-kamera')?.classList.add('collapsed');
+        document.getElementById('setup-kolo')?.classList.add('collapsed');
+
+        (function setupKolo() {
+            const bankSel = document.getElementById('kolo-bank');
+            const edit = document.getElementById('kolo-edit');
+            const saveBtn = document.getElementById('kolo-save');
+            const backBtn = document.getElementById('kolo-back');
+            const status = document.getElementById('kolo-status');
+            const card = document.getElementById('setup-kolo');
+            if (!bankSel || !edit || !saveBtn || !backBtn) return;
+            let fields = [];
+            function renderEdit() {
+                edit.replaceChildren();
+                fields.forEach((field) => {
+                    const line = document.createElement('div');
+                    line.style.cssText = 'display:grid;grid-template-columns:52px 1fr;gap:6px;margin-bottom:6px;';
+                    const n = document.createElement('input');
+                    n.value = field.n || '';
+                    n.style.cssText = 'padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);background:#1c2433;color:#fff;';
+                    const text = document.createElement('input');
+                    text.value = field.text || '';
+                    text.style.cssText = 'padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);background:#1c2433;color:#fff;';
+                    n.addEventListener('input', () => { field.n = n.value; });
+                    text.addEventListener('input', () => { field.text = text.value; });
+                    line.append(n, text);
+                    edit.append(line);
+                });
+            }
+            socket.on('kolo_state', (data) => {
+                if (!data) return;
+                fields = (data.fields || []).map((f) => Object.assign({}, f));
+                bankSel.replaceChildren();
+                (data.banks || []).forEach((b) => {
+                    const opt = document.createElement('option');
+                    opt.value = b.id;
+                    opt.textContent = b.title;
+                    bankSel.append(opt);
+                });
+                if (data.bankId) bankSel.value = data.bankId;
+                renderEdit();
+            });
+            bankSel.addEventListener('change', () => socket.emit('kolo_select_bank', { bankId: bankSel.value }));
+            saveBtn.addEventListener('click', () => {
+                socket.emit('kolo_save_fields', { fields });
+                if (status) status.textContent = 'Zapisane. Możesz wrócić ← Cofnij.';
+            });
+            backBtn.addEventListener('click', () => {
+                if (card) card.classList.add('collapsed');
+                if (status) status.textContent = '';
+            });
+        })();
 
         // Pełny ekran całego panelu admina
         (function() {
